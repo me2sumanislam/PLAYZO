@@ -2,9 +2,10 @@
 
 const Hero = () => {
   return (
-    <section className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] pt-10 pb-20 px-6 overflow-hidden relative">
+    // এখানে id="home" যোগ করা হয়েছে নেভিগেশনের জন্য
+    <section id="home" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] pt-10 pb-20 px-6 overflow-hidden relative">
       
-      {/* CSS For Custom Animations (কনফিগ ফাইল ছাড়া এনিমেশন চালানোর জন্য) */}
+      {/* CSS For Custom Animations */}
       <style>
         {`
           @keyframes float {
@@ -52,7 +53,7 @@ const Hero = () => {
               </div>
             ))}
 
-            {/* + আরও অনেক গেম (প্লাস আইকন সহ) */}
+            {/* + আরও অনেক গেম */}
             <div className="animate-custom-float" style={{ animationDelay: '1.2s' }}>
               <span className="cursor-pointer bg-white/5 border border-white/10 text-gray-200 text-xs md:text-sm px-4 py-2 rounded-full flex items-center gap-1.5 hover:bg-white/10 hover:text-white transition-all shadow-lg active:scale-95">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#ff8a00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -85,7 +86,7 @@ const Hero = () => {
             </div>
             <div className="text-center md:text-left">
               <span className="block text-2xl md:text-3xl font-black text-white">000</span>
-              <span className="text-[10px] md:text-xs text-indigo-200 uppercase tracking-widest font-bold">সক্রিয় খেলোয়াড়</span>
+              <span className="text-[10px] md:text-xs text-indigo-200 uppercase tracking-widest font-bold">সক্রিয় খেলোয়াড়</span>
             </div>
             <div className="text-center md:text-left">
               <span className="block text-2xl md:text-3xl font-black text-white">000</span>
@@ -97,18 +98,17 @@ const Hero = () => {
         {/* Right Phone Mockup Section */}
         <div className="w-full md:w-1/2 flex justify-center order-1 md:order-2">
           <div className="relative group">
-            {/* Background Glow for Phone */}
             <div className="absolute -inset-10 bg-orange-500/20 blur-[100px] rounded-full group-hover:bg-orange-500/30 transition-all duration-1000"></div>
             
-            {/* Phone Structure */}
             <div className="relative w-[280px] md:w-[330px] aspect-[9/18.5] bg-[#020617] rounded-[3rem] border-[10px] border-[#1e293b] shadow-2xl overflow-hidden ring-4 ring-white/5">
-              {/* Notch */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#1e293b] rounded-b-2xl z-20"></div>
               
-              {/* Screen Content Mockup */}
               <div className="h-full w-full bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-24 h-24 bg-gradient-to-tr from-[#ff3d00] to-[#ff8a00] rounded-[2rem] flex items-center justify-center shadow-2xl mb-6">
-                  <span className="text-white font-black text-sm leading-tight">uthiYo<br/>DNJ</span>
+                  {/* লোগো টেক্সট আপডেট করা হয়েছে */}
+                  <span className="text-white font-black text-base leading-tight uppercase tracking-tighter">
+                    uthi<br/>YO
+                  </span>
                 </div>
                 <div className="w-full h-4 bg-gray-200 rounded-full mb-3"></div>
                 <div className="w-4/5 h-4 bg-gray-100 rounded-full"></div>

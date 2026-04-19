@@ -16,8 +16,8 @@ const HomeCard = () => {
         `}
       </style>
 
-      {/* --- Section 1: Off-White Background (Features) --- */}
-      <section className="bg-[#f8fafc] py-16 px-6">
+      {/* --- Section 1: Features (ID: features added) --- */}
+      <section id="features" className="bg-[#f8fafc] py-16 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-black text-slate-800">আমাদের বিশেষত্ব</h2>
@@ -29,7 +29,7 @@ const HomeCard = () => {
               <div key={item} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
                 <h3 className="text-xl font-bold text-slate-800 mb-3">সেরা সার্ভিস {item}</h3>
                 <p className="text-slate-600 leading-relaxed">
-                  আমরা দিচ্ছি বাংলাদেশের সবচেয়ে দ্রুত পেমেন্ট সিস্টেম এবং ২৪/৭ কাস্টমার সাপোর্ট।
+                  আমরা দিচ্ছি বাংলাদেশের সবচেয়ে দ্রুত পেমেন্ট সিস্টেম এবং ২৪/৭ কাস্টমার সাপোর্ট।
                 </p>
               </div>
             ))}
@@ -37,12 +37,12 @@ const HomeCard = () => {
         </div>
       </section>
 
-      {/* --- Section 2: Hero Gradient Background (Live Tournaments) --- */}
-      <section className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] py-16 px-6">
+      {/* --- Section 2: Live Tournaments (ID: tournaments added) --- */}
+      <section id="tournaments" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] py-16 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-black text-white">চলমান টুর্নামেন্ট</h2>
-            <p className="text-indigo-100 mt-2">আপনার প্রিয় গেমটি বেছে নিন এবং অংশ নিন</p>
+            <p className="text-indigo-100 mt-2">আপনার প্রিয় গেমটি বেছে নিন এবং অংশ নিন</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -59,7 +59,7 @@ const HomeCard = () => {
 
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-center gap-3 text-sm text-indigo-50">
-                    <span className="bg-white/10 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
+                    <span className="bg-white/10 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
                   </li>
                   <li className="flex items-center gap-3 text-sm text-indigo-50">
                     <span className="bg-white/10 p-1.5 rounded-lg">⏰</span> রাত ৯:৩০ মিনিট
@@ -78,8 +78,8 @@ const HomeCard = () => {
         </div>
       </section>
 
-      {/* --- Section 3: Floating Cards (Specials) --- */}
-      <section className="bg-white py-20 px-6 overflow-hidden">
+      {/* --- Section 3: Membership (ID: membership added) --- */}
+      <section id="membership" className="bg-white py-20 px-6 overflow-hidden scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
@@ -95,7 +95,7 @@ const HomeCard = () => {
                 <div className="text-5xl mb-6">{card.icon}</div>
                 <h3 className="text-2xl font-black text-slate-800 mb-4">{card.title}</h3>
                 <p className="text-slate-500">
-                  আমরা নিশ্চিত করি আপনার গেমিং অভিজ্ঞাতা যেন হয় একদম নিরবচ্ছিন্ন।
+                  আমরা নিশ্চিত করি আপনার গেমিং অভিজ্ঞাতা যেন হয় একদম নিরবচ্ছিন্ন।
                 </p>
               </div>
             ))}
