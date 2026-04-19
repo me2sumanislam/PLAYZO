@@ -15,12 +15,24 @@ const Navbar = () => {
     <nav className="bg-[#0f172a] border-b border-white/10 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
-          
-          {/* Logo */}
+          <div className="relative flex items-center gap-2 group">
+  <div className="relative">
+    {/* পেছনের গ্লো */}
+    <div className="absolute inset-0 bg-[#ff8a00] blur-md opacity-20 group-hover:opacity-50 transition-opacity"></div>
+    
+    {/* মেইন শিল্ড বডি */}
+    <div className="relative bg-[#0f172a] border-2 border-[#ff8a00] px-3 py-1 rounded-tr-2xl rounded-bl-2xl rotate-[-2deg] shadow-lg">
+      <span className="text-white font-black text-2xl tracking-tight">
+        uthi<span className="text-[#ff8a00]">YO</span>
+      </span>
+    </div>
+  </div>
+</div>
+      
           <div className="flex-shrink-0 flex items-center gap-2">
-            <div className="w-10 h-10 bg-[#ff8a00] rounded-lg flex items-center justify-center font-bold text-white shadow-lg">U</div>
+            <div className="w-10 h-10 bg-[#ff8a00] rounded-lg flex items-center justify-center font-bold text-white shadow-lg">MS</div>
             <span className="text-white font-bold text-xl tracking-tight hidden sm:block">
-              uthiYo
+              MemberShip
             </span>
           </div>
 
