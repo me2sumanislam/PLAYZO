@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from 'react';
 
-// --- ১. কাউন্টডাউন টাইমার মেকানিজম (এটি আলাদা করে তৈরি করা হয়েছে যাতে মূল কোডে প্রভাব না পড়ে) ---
+// --- ১. কাউন্টডাউন টাইমার মেকানিজম ---
 const CountdownTimer = ({ startMinutes }) => {
   const [seconds, setSeconds] = useState(parseInt(startMinutes) * 60 || 0);
 
@@ -20,10 +20,83 @@ const CountdownTimer = ({ startMinutes }) => {
   return <span>{h > 0 ? `${h}h:` : ""}{m < 10 ? "0" + m : m}m:{s < 10 ? "0" + s : s}s</span>;
 };
 
-// --- ২. ম্যাচ লিস্ট কম্পোনেন্ট (হুবহু আপনার দেওয়া ডিজাইন) ---
+// --- ২. প্রাইজ ডিটেইলস মোডাল (অ্যাডমিন ডাটা অনুযায়ী) ---
+const PrizeModal = ({ isOpen, onClose, match }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="bg-white w-full max-w-[320px] rounded-3xl overflow-hidden shadow-2xl relative animate-in fade-in zoom-in duration-300">
+        
+        <button 
+          onClick={onClose}
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full font-bold hover:bg-gray-200 transition-colors z-10"
+        >
+          ✕
+        </button>
+
+        <div className="bg-yellow-400 py-4 px-6 text-center">
+          <h2 className="text-lg font-black text-slate-800 leading-none">TOTAL WINPRIZE</h2>
+          <p className="text-[10px] font-bold text-slate-700 mt-1 uppercase opacity-80">
+            {match.title} | {match.version}
+          </p>
+        </div>
+
+        <div className="p-6 space-y-3">
+          <div className="flex justify-between items-center border-b border-dashed pb-2">
+            <span className="text-sm font-bold text-slate-600">👑 Winner</span>
+            <span className="text-sm font-black text-indigo-600">{match.prize1 || 0} Taka</span>
+          </div>
+          <div className="flex justify-between items-center border-b border-dashed pb-2">
+            <span className="text-sm font-bold text-slate-600">🥈 2nd Position</span>
+            <span className="text-sm font-black text-slate-800">{match.prize2 || 0} Taka</span>
+          </div>
+          <div className="flex justify-between items-center border-b border-dashed pb-2">
+            <span className="text-sm font-bold text-slate-600">🥉 3rd Position</span>
+            <span className="text-sm font-black text-slate-800">{match.prize3 || 0} Taka</span>
+          </div>
+          <div className="flex justify-between items-center border-b border-dashed pb-2">
+            <span className="text-sm font-bold text-slate-600">🏅 4th Position</span>
+            <span className="text-sm font-black text-slate-800">{match.prize4 || 0} Taka</span>
+          </div>
+          <div className="flex justify-between items-center border-b border-dashed pb-2">
+            <span className="text-sm font-bold text-slate-600">🏅 5th Position</span>
+            <span className="text-sm font-black text-slate-800">{match.prize5 || 0} Taka</span>
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-sm font-bold text-orange-600">🔥 Per Kill</span>
+            <span className="text-sm font-black text-orange-600">{match.perKill} Taka</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-4 text-center border-t border-gray-100">
+          <p className="text-[10px] text-gray-400 font-bold uppercase">Total Prize Pool</p>
+          <p className="text-xl font-black text-indigo-700">{match.winPrize} Taka</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- ৩. ম্যাচ লিস্ট কম্পোনেন্ট ---
 const MatchList = ({ matches, onBack }) => {
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openPrizeDetails = (match) => {
+    setSelectedMatch(match);
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-20">
+      <PrizeModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        match={selectedMatch || {}} 
+      />
+
       <div className="flex items-center px-4 py-4 bg-white sticky top-0 z-10 shadow-sm border-b">
         <button onClick={onBack} className="text-xl mr-4 text-slate-800">❮</button>
         <h2 className="text-lg font-black uppercase tracking-tighter text-slate-800">BR MATCHES</h2>
@@ -72,7 +145,12 @@ const MatchList = ({ matches, onBack }) => {
 
               <div className="grid grid-cols-2 gap-2 px-3 py-2 bg-gray-50 text-[9px] font-black uppercase tracking-tighter text-indigo-700">
                  <button className="bg-white border border-indigo-100 py-1.5 rounded-md shadow-sm active:bg-indigo-50">🔑 Room Details</button>
-                 <button className="bg-white border border-indigo-100 py-1.5 rounded-md shadow-sm active:bg-indigo-50">🏆 Prize Details</button>
+                 <button 
+                  onClick={() => openPrizeDetails(match)}
+                  className="bg-white border border-indigo-100 py-1.5 rounded-md shadow-sm active:bg-indigo-50"
+                 >
+                   🏆 Prize Details
+                 </button>
               </div>
 
               <div className="bg-green-600 text-white text-center py-2 text-[10px] font-bold uppercase tracking-widest">
@@ -86,11 +164,12 @@ const MatchList = ({ matches, onBack }) => {
   );
 };
 
-// --- ৩. অ্যাডমিন প্যানেল (হুবহু এক রাখা হয়েছে) ---
+// --- ৪. অ্যাডমিন প্যানেল (কন্ট্রোল ইনপুট যোগ করা হয়েছে) ---
 const AdminPanel = ({ onAddMatch, onBack }) => {
   const [form, setForm] = useState({
     title: '', winPrize: '', entryFee: '', perKill: '', 
-    time: '2026-04-19 at 10:00 PM', total: 48, map: 'Bermuda', startsIn: '30' // এখানে শুধু মিনিট দিলেই হবে
+    prize1: '', prize2: '', prize3: '', prize4: '', prize5: '', // মোডালের জন্য
+    time: '2026-04-19 at 10:00 PM', total: 48, map: 'Bermuda', startsIn: '30' 
   });
 
   const handleSubmit = (e) => {
@@ -101,32 +180,41 @@ const AdminPanel = ({ onAddMatch, onBack }) => {
   };
 
   return (
-    <div className="p-6 bg-white min-h-screen max-w-[450px] mx-auto border-x border-gray-200">
+    <div className="p-6 bg-white min-h-screen max-w-[450px] mx-auto border-x border-gray-200 overflow-y-auto">
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <h2 className="text-2xl font-black text-indigo-600 tracking-tighter">ADMIN PANEL</h2>
         <button onClick={onBack} className="bg-red-50 text-red-500 px-4 py-1 rounded-full font-bold text-xs uppercase">Exit</button>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 pb-20">
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Match Name</label>
-          <input type="text" placeholder="Solo Pro League" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-indigo-500" onChange={e => setForm({...form, title: e.target.value})} required />
+          <input type="text" placeholder="Solo Pro League" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl" onChange={e => setForm({...form, title: e.target.value})} required />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <input type="number" placeholder="Win Prize" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-indigo-500" onChange={e => setForm({...form, winPrize: e.target.value})} required />
-          <input type="number" placeholder="Entry Fee" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-indigo-500" onChange={e => setForm({...form, entryFee: e.target.value})} required />
+          <input type="number" placeholder="Total Win Prize" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl" onChange={e => setForm({...form, winPrize: e.target.value})} required />
+          <input type="number" placeholder="Entry Fee" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl" onChange={e => setForm({...form, entryFee: e.target.value})} required />
         </div>
+
+        {/* --- প্রাইজ ডিস্ট্রিবিউশন সেকশন --- */}
+        <div className="bg-indigo-50 p-4 rounded-2xl space-y-3">
+          <p className="text-[10px] font-black text-indigo-600 uppercase italic">Prize Distribution (For Modal)</p>
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" placeholder="Winner" className="p-2 bg-white border rounded-lg text-sm" onChange={e => setForm({...form, prize1: e.target.value})} />
+            <input type="number" placeholder="2nd" className="p-2 bg-white border rounded-lg text-sm" onChange={e => setForm({...form, prize2: e.target.value})} />
+            <input type="number" placeholder="3rd" className="p-2 bg-white border rounded-lg text-sm" onChange={e => setForm({...form, prize3: e.target.value})} />
+            <input type="number" placeholder="4th" className="p-2 bg-white border rounded-lg text-sm" onChange={e => setForm({...form, prize4: e.target.value})} />
+            <input type="number" placeholder="5th" className="p-2 bg-white border rounded-lg text-sm" onChange={e => setForm({...form, prize5: e.target.value})} />
+            <input type="number" placeholder="Per Kill" className="p-2 bg-white border rounded-lg text-sm" onChange={e => setForm({...form, perKill: e.target.value})} />
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
-          <input type="number" placeholder="Per Kill" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-indigo-500" onChange={e => setForm({...form, perKill: e.target.value})} required />
-          <input type="text" placeholder="Map (Bermuda)" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-indigo-500" onChange={e => setForm({...form, map: e.target.value})} required />
+          <input type="text" placeholder="Map (Bermuda)" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl" onChange={e => setForm({...form, map: e.target.value})} required />
+          <input type="number" placeholder="Starts In (Min)" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl" onChange={e => setForm({...form, startsIn: e.target.value})} required />
         </div>
-        <input type="text" placeholder="Match Time (Date & Time)" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-indigo-500" onChange={e => setForm({...form, time: e.target.value})} required />
+        <input type="text" placeholder="Match Time" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl" onChange={e => setForm({...form, time: e.target.value})} required />
         
-        <div>
-          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Starts In (Minutes Only)</label>
-          <input type="number" placeholder="Example: 30" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-indigo-500" onChange={e => setForm({...form, startsIn: e.target.value})} required />
-        </div>
-        
-        <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg mt-6 active:scale-95 transition-all">
+        <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg">
           CREATE NEW MATCH
         </button>
       </form>
@@ -134,7 +222,7 @@ const AdminPanel = ({ onAddMatch, onBack }) => {
   );
 };
 
-// --- ৪. মেইন ড্যাশবোর্ড (হুবহু এক রাখা হয়েছে) ---
+// --- ৫. মেইন ড্যাশবোর্ড ---
 const AppDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('play');
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -226,9 +314,13 @@ const AppDashboard = ({ onLogout }) => {
         )}
       </main>
 
+      {/* নেভিগেশন বার - আগের মতোই আছে */}
       <div className="fixed bottom-0 w-full max-w-[450px] bg-white border-t border-gray-100 flex justify-around py-3 px-2 z-50 rounded-t-3xl shadow-[0_-10px_25px_rgba(0,0,0,0.05)]">
         <div onClick={() => setActiveTab('shop')} className={`flex flex-col items-center gap-1 cursor-pointer ${activeTab === 'shop' ? 'text-cyan-600' : 'text-gray-300'}`}>
           <span className="text-xl">🏪</span><span className="text-[9px] font-bold uppercase">Shop</span>
+        </div>
+        <div onClick={() => setActiveTab('my_match')} className={`flex flex-col items-center gap-1 cursor-pointer ${activeTab === 'my_match' ? 'text-orange-500' : 'text-gray-300'}`}>
+          <span className="text-xl">🏆</span><span className="text-[9px] font-bold uppercase">My Match</span>
         </div>
         <div onClick={() => setActiveTab('play')} className={`flex flex-col items-center gap-1 cursor-pointer ${activeTab === 'play' ? 'text-indigo-700' : 'text-gray-300'}`}>
           <div className={`${activeTab === 'play' ? 'bg-indigo-50' : ''} p-1 px-4 rounded-2xl transition-all`}><span className="text-xl">🎮</span></div>
