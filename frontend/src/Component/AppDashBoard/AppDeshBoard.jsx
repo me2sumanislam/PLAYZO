@@ -77,6 +77,15 @@ const AppDashboard = ({ onLogout }) => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [defaultBR] = useState([
+    { id: 1, title: "BR Classic Match", time: "Today 7:00 PM", imageUrl: "/image/img-1.jpg", winPrize: 5000, matchCount: 12 },
+    { id: 2, title: "BR Squad Battle", time: "Today 8:00 PM", imageUrl: "/image/img-2.jpg", winPrize: 8000, matchCount: 20 },
+    { id: 3, title: "BR Fast Fight", time: "Tomorrow 5:00 PM", imageUrl: "/image/img-3.jpg", winPrize: 3000, matchCount: 8 },
+    { id: 4, title: "BR Pro League", time: "Tomorrow 6:00 PM", imageUrl: "/image/img-1.jpg", winPrize: 10000, matchCount: 25 },
+    { id: 5, title: "BR Rookie Cup", time: "Today 9:00 PM", imageUrl: "/image/img-2.jpg", winPrize: 2000, matchCount: 5 },
+    { id: 6, title: "BR Elite Zone", time: "Tonight 10:00 PM", imageUrl: "/image/img-3.jpg", winPrize: 15000, matchCount: 30 },
+  ]);
+
   useEffect(() => {
     localStorage.setItem('local_matches', JSON.stringify(matches));
   }, [matches]);
@@ -85,8 +94,8 @@ const AppDashboard = ({ onLogout }) => {
 
   useEffect(() => {
     const t = setInterval(() => {
-      setSlide((p) => (p === imgs.length - 1 ? 0 : p + 1));
-    }, 4000);
+      setSlide((p) => (p === 9 ? 0 : p + 1)); // 10 SLIDES
+    }, 3000);
 
     return () => clearInterval(t);
   }, []);
@@ -109,43 +118,13 @@ const AppDashboard = ({ onLogout }) => {
             <button onClick={() => setView('home')}>❮</button>
             <h2 className="font-black text-sm">BR MATCHES</h2>
           </div>
-          <button onClick={() => window.location.reload()}>🔄</button>
         </div>
 
         <div className="p-3 space-y-5">
           {matches.map((m) => (
             <div key={m.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
               <div className="p-4">
-                <div className="flex gap-3">
-                  <img src={m.imageUrl} alt="" className="w-20 h-14 rounded-lg object-cover" />
-                  <div className="flex-1">
-                    <h3 className="font-black text-xs">{m.title}</h3>
-                    <p className="text-[10px] text-red-500">{m.time}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 text-center mt-4 text-xs font-bold">
-                  <div><p>Prize</p><p>{m.winPrize}</p></div>
-                  <div><p>Type</p><p>{m.entryType}</p></div>
-                  <div><p>Fee</p><p>{m.entryFee}</p></div>
-                </div>
-
-                <div className="mt-4">
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="bg-green-500 h-full" style={{ width: `${(m.joined / m.total) * 100}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mt-4">
-                  <button className="flex-1 py-2 border rounded-lg text-xs">Room</button>
-                  <button onClick={() => setSelMatch(m)} className="flex-1 py-2 border rounded-lg text-xs">
-                    Prize
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-green-700 text-white text-center py-2 text-xs">
-                STARTS IN - <CountdownTimer startMinutes={m.startsIn} />
+                <h3 className="font-black text-xs">{m.title}</h3>
               </div>
             </div>
           ))}
@@ -156,63 +135,59 @@ const AppDashboard = ({ onLogout }) => {
 
   return (
     <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24 relative">
-      <div className="absolute top-4 right-4 z-50">
-        <button
-          onClick={() => setView('admin_dashboard')}
-          className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
-        >
-          ⚙️
-        </button>
-      </div>
 
-      {tab === 'profile' ? (
-        <Profile onLogout={onLogout} onNavigate={(p) => console.log(p)} />
-      ) : (
-        <>
-          <div className="relative h-48 overflow-hidden rounded-b-3xl">
-            {imgs.map((img, i) => (
+      <div className="p-4 mt-4">
+
+        {/* ⭐ SLIDER (10 IMAGES) */}
+        <div className="rounded-3xl overflow-hidden shadow">
+          <div className="relative w-full h-44">
+            {Array.from({ length: 10 }).map((_, i) => (
               <img
                 key={i}
-                src={img}
+                src={`/image/img-${(i % 3) + 1}.jpg`}
+                className="absolute w-full h-full object-cover transition-opacity duration-1000"
+                style={{ opacity: slide === i ? 1 : 0 }}
                 alt=""
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === slide ? 'opacity-100' : 'opacity-0'
-                  }`}
               />
             ))}
           </div>
+        </div>
 
-          <div className="p-4 mt-4">
+        {/* ⭐ MARQUEE */}
+        <div className="mt-3 bg-white py-2 rounded-xl shadow overflow-hidden">
+          <marquee className="text-xs font-bold text-red-500">
+            🔥 Welcome to Battle Arena • Play Free Fire • Win Rewards • Join Now 🔥
+          </marquee>
+        </div>
+
+        {/* ⭐ FREE FIRE TEXT */}
+        <div className="mt-3 text-center">
+          <h2 className="text-lg font-black text-orange-500 tracking-widest">
+            FREE FIRE
+          </h2>
+        </div>
+        {/* 2 COLUMN CARDS (UNCHANGED) */}
+        <div className="mt-4 grid grid-cols-2 gap-3 px-2">
+          {defaultBR.map((m) => (
             <div
+              key={m.id}
               onClick={() => setView('br_list')}
-              className="bg-white p-5 rounded-3xl shadow flex justify-between items-center"
+              className="bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer"
             >
-              <div>
-                <h4 className="font-black">Battle Royale</h4>
-                <p className="text-xs text-green-500">{matches.length} matches online</p>
-              </div>
-              <span>❯</span>
-            </div>
-          </div>
-        </>
-      )}
+              <img src={m.imageUrl} className="w-full h-24 object-cover" alt="" />
 
-      <div className="fixed bottom-0 w-full max-w-[450px] bg-white border-t flex justify-around py-3 rounded-t-3xl">
-        {[
-          { id: 'shop', i: '🏪', l: 'Shop' },
-          { id: 'play', i: '🎮', l: 'Play' },
-          { id: 'my_match', i: '🏆', l: 'Match' },
-          { id: 'results', i: '📊', l: 'Results' },
-          { id: 'profile', i: '👤', l: 'Profile' },
-        ].map((n) => (
-          <div
-            key={n.id}
-            onClick={() => setTab(n.id)}
-            className={`text-center text-xs ${tab === n.id ? 'text-indigo-600' : 'text-gray-400'}`}
-          >
-            <div>{n.i}</div>
-            <div>{n.l}</div>
-          </div>
-        ))}
+              <div className="p-2">
+                <h4 className="font-bold text-xs">{m.title}</h4>
+
+                <div className="flex justify-between text-[10px] mt-2 font-bold">
+                  <span>Match: {m.matchCount}</span>
+                  <span>৳{m.winPrize}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   );
