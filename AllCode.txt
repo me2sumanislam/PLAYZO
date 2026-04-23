@@ -1,0 +1,1549 @@
+ backend
+
+  const mongoose = require("mongoose");
+
+const connectDB = async () => {
+  try {
+    console.log("🔄 Connecting to MongoDB...");
+
+    await mongoose.connect(process.env.MONGO_URI);
+
+    console.log("✔ MongoDB Connected Successfully");
+  } catch (error) {
+    console.error("❌ MongoDB Connection Failed:");
+    console.error(error.message);
+
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+
+
+ const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+require("colors");
+
+// 🔥 DNS FIX for MongoDB Atlas SRV (querySrv ECONNREFUSED)
+const dns = require("node:dns/promises");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);   // Cloudflare + Google DNS
+
+// env load
+dotenv.config();
+
+const connectDB = require("./config/db");
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+console.log("MONGO_URI:", process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found");
+
+connectDB();
+
+// Test route
+app.get("/", (req, res) => {
+  res.send("🚀 Playzo Backend is running!");
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
+});
+
+
+ import React, { useState, useEffect } from 'react';
+import Profile from '../../page/Profile/Profile';
+import AdminDashboard from '../../page/Admin/AdminDashboard/AdminDashboard';
+
+// --- Countdown Timer ---
+const CountdownTimer = ({ startMinutes }) => {
+  const [seconds, setSeconds] = useState(parseInt(startMinutes) * 60 || 0);
+
+  useEffect(() => {
+    if (seconds <= 0) return;
+    const interval = setInterval(() => setSeconds((s) => s - 1), 1000);
+    return () => clearInterval(interval);
+  }, [seconds]);
+
+  if (seconds <= 0) return <span>00m:00s</span>;
+
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  return (
+    <span>
+      {m < 10 ? "0" + m : m}m:{s < 10 ? "0" + s : s}s
+    </span>
+  );
+};
+
+// --- Prize Modal ---
+const PrizeModal = ({ isOpen, onClose, match }) => {
+  if (!isOpen) return null;
+
+  const list = [
+    { i: '👑', l: 'Winner', v: match.prize1 },
+    { i: '🥈', l: '2nd Position', v: match.prize2 },
+    { i: '🥉', l: '3rd Position', v: match.prize3 },
+    { i: '🏅', l: '4th Position', v: match.prize4 },
+    { i: '🏅', l: '5th Position', v: match.prize5 },
+    { i: '🔥', l: 'Per Kill', v: match.perKill },
+    { i: '🏆', l: 'Total Prize Pool', v: match.winPrize },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60" onClick={onClose}>
+      <div className="relative w-full max-w-[320px]" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full font-bold shadow z-50">
+          ✕
+        </button>
+
+        <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
+          <div className="bg-yellow-300 py-5 text-center">
+            <h2 className="font-black text-slate-800 text-lg">Total Win Prize</h2>
+            <p className="text-[10px] font-bold">{match.title}</p>
+          </div>
+
+          <div className="p-5 space-y-3">
+            {list.map((item, idx) => (
+              <div key={idx} className="flex justify-between text-sm font-bold border-b pb-2">
+                <span>{item.i} {item.l}</span>
+                <span>{item.v || 0} TK</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main Dashboard ---
+const AppDashboard = ({ onLogout }) => {
+  const [tab, setTab] = useState('play');
+  const [view, setView] = useState('home');
+  const [slide, setSlide] = useState(0);
+  const [selMatch, setSelMatch] = useState(null);
+
+  const [matches, setMatches] = useState(() => {
+    const saved = localStorage.getItem('local_matches');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('local_matches', JSON.stringify(matches));
+  }, [matches]);
+
+  const imgs = ["/image/img-1.jpg", "/image/img-2.jpg", "/image/img-3.jpg"];
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setSlide((p) => (p === imgs.length - 1 ? 0 : p + 1));
+    }, 4000);
+
+    return () => clearInterval(t);
+  }, []);
+
+  if (view === 'admin_dashboard') {
+    return <AdminDashboard onBack={() => setView('home')} />;
+  }
+
+  if (view === 'br_list') {
+    return (
+      <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-24">
+        <PrizeModal
+          isOpen={!!selMatch}
+          onClose={() => setSelMatch(null)}
+          match={selMatch || {}}
+        />
+
+        <div className="p-4 bg-white flex justify-between items-center sticky top-0 z-50 shadow-sm">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setView('home')}>❮</button>
+            <h2 className="font-black text-sm">BR MATCHES</h2>
+          </div>
+          <button onClick={() => window.location.reload()}>🔄</button>
+        </div>
+
+        <div className="p-3 space-y-5">
+          {matches.map((m) => (
+            <div key={m.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+              <div className="p-4">
+                <div className="flex gap-3">
+                  <img src={m.imageUrl} alt="" className="w-20 h-14 rounded-lg object-cover" />
+                  <div className="flex-1">
+                    <h3 className="font-black text-xs">{m.title}</h3>
+                    <p className="text-[10px] text-red-500">{m.time}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 text-center mt-4 text-xs font-bold">
+                  <div><p>Prize</p><p>{m.winPrize}</p></div>
+                  <div><p>Type</p><p>{m.entryType}</p></div>
+                  <div><p>Fee</p><p>{m.entryFee}</p></div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="bg-green-500 h-full" style={{ width: `${(m.joined / m.total) * 100}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-4">
+                  <button className="flex-1 py-2 border rounded-lg text-xs">Room</button>
+                  <button onClick={() => setSelMatch(m)} className="flex-1 py-2 border rounded-lg text-xs">
+                    Prize
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-green-700 text-white text-center py-2 text-xs">
+                STARTS IN - <CountdownTimer startMinutes={m.startsIn} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24 relative">
+      <div className="absolute top-4 right-4 z-50">
+        <button
+          onClick={() => setView('admin_dashboard')}
+          className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+        >
+          ⚙️
+        </button>
+      </div>
+
+      {tab === 'profile' ? (
+        <Profile onLogout={onLogout} onNavigate={(p) => console.log(p)} />
+      ) : (
+        <>
+          <div className="relative h-48 overflow-hidden rounded-b-3xl">
+            {imgs.map((img, i) => (
+              <img
+                key={i}
+                src={img}
+                alt=""
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === slide ? 'opacity-100' : 'opacity-0'
+                  }`}
+              />
+            ))}
+          </div>
+
+          <div className="p-4 mt-4">
+            <div
+              onClick={() => setView('br_list')}
+              className="bg-white p-5 rounded-3xl shadow flex justify-between items-center"
+            >
+              <div>
+                <h4 className="font-black">Battle Royale</h4>
+                <p className="text-xs text-green-500">{matches.length} matches online</p>
+              </div>
+              <span>❯</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="fixed bottom-0 w-full max-w-[450px] bg-white border-t flex justify-around py-3 rounded-t-3xl">
+        {[
+          { id: 'shop', i: '🏪', l: 'Shop' },
+          { id: 'play', i: '🎮', l: 'Play' },
+          { id: 'my_match', i: '🏆', l: 'Match' },
+          { id: 'results', i: '📊', l: 'Results' },
+          { id: 'profile', i: '👤', l: 'Profile' },
+        ].map((n) => (
+          <div
+            key={n.id}
+            onClick={() => setTab(n.id)}
+            className={`text-center text-xs ${tab === n.id ? 'text-indigo-600' : 'text-gray-400'}`}
+          >
+            <div>{n.i}</div>
+            <div>{n.l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default AppDashboard;
+
+
+ import React from 'react';
+
+const Footer = () => {
+  return (
+    <footer className="bg-[#0f172a] text-white pt-16 pb-8 px-6 border-t border-white/5">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
+        
+        {/* --- Section 1: Logo & About --- */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-1 group cursor-pointer">
+            <div className="w-10 h-10 bg-gradient-to-tr from-[#ff8a00] to-[#ff5f00] rounded-xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,138,0,0.4)]">
+              <span className="text-white font-black text-2xl">U</span>
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-white text-2xl font-black tracking-tighter ml-1">uthi</span>
+              <span className="text-[#ff8a00] text-3xl font-black italic">YO</span>
+            </div>
+          </div>
+          <p className="text-gray-400 leading-relaxed max-w-sm">
+            uthiYO হলো বাংলাদেশের উদীয়মান ই-স্পোর্টস প্ল্যাটফর্ম। আমরা গেমারদের দক্ষতা প্রদর্শনের এবং বড় পুরস্কার জেতার সুযোগ করে দিই। আজই আমাদের কমিউনিটিতে যোগ দিন।
+          </p>
+        </div>
+
+        {/* --- Section 2: Contact Us --- */}
+        <div>
+          <h3 className="text-xl font-bold mb-6 border-l-4 border-[#ff8a00] pl-3">Contact Us</h3>
+          <ul className="space-y-4">
+            <li>
+              <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
+                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">WhatsApp</span>
+                <span className="text-sm">+880 1XXX-XXXXXX</span>
+              </a>
+            </li>
+            <li>
+              <a href="mailto:support@uthiyo.com" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
+                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">Gmail</span>
+                <span className="text-sm">support@uthiyo.com</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
+                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">LinkedIn</span>
+                <span className="text-sm">uthiYO Official</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
+                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">Facebook</span>
+                <span className="text-sm">facebook.com/uthiyo</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        {/* --- Section 3: Navigation Links --- */}
+        <div>
+          <h3 className="text-xl font-bold mb-6 border-l-4 border-[#ff8a00] pl-3">Quick Links</h3>
+          <ul className="grid grid-cols-2 md:grid-cols-1 gap-4">
+            <li>
+              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
+                <span className="text-[#ff8a00]">»</span> হোম
+              </a>
+            </li>
+            <li>
+              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
+                <span className="text-[#ff8a00]">»</span> টুর্নামেন্ট
+              </a>
+            </li>
+            <li>
+              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
+                <span className="text-[#ff8a00]">»</span> আমাদের সম্পর্কে
+              </a>
+            </li>
+            <li>
+              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
+                <span className="text-[#ff8a00]">»</span> নিয়মাবলী
+              </a>
+            </li>
+            <li>
+              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
+                <span className="text-[#ff8a00]">»</span> প্রাইভেসি পলিসি
+              </a>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+
+      {/* Copyright Bottom Bar */}
+      <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/5 text-center">
+        <p className="text-gray-500 text-sm">
+          © {new Date().getFullYear()} <span className="text-gray-300 font-bold">uthiYO</span>. All rights reserved. 
+          <br className="md:hidden" /> Developed by <span className="text-[#ff8a00]">md.suman islam(MERN)</span>
+        </p>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+
+ import React from 'react';
+
+const Hero = () => {
+  return (
+    // এখানে id="home" যোগ করা হয়েছে নেভিগেশনের জন্য
+    <section id="home" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] pt-10 pb-20 px-6 overflow-hidden relative">
+      
+      {/* CSS For Custom Animations */}
+      <style>
+        {`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+          }
+          .animate-custom-float {
+            animation: float 3s ease-in-out infinite;
+          }
+        `}
+      </style>
+
+      {/* Background Decorative Element */}
+      <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
+
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
+        
+        {/* Left Content Section */}
+        <div className="w-full md:w-1/2 text-center md:text-left order-2 md:order-1">
+          <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1]">
+            বাংলাদেশের সেরা <br />
+            <span className="text-[#ff8a00]">টুর্নামেন্ট</span> <br />
+            অ্যাপ
+          </h1>
+
+          {/* Floating Game Tags Section */}
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
+            {[
+              { name: 'Free Fire', color: 'bg-red-500', glow: '#ef4444' },
+              { name: 'PUBG', color: 'bg-yellow-500', glow: '#eab308' },
+              { name: 'Ludo', color: 'bg-blue-500', glow: '#3b82f6' }
+            ].map((game, index) => (
+              <div 
+                key={index}
+                className="animate-custom-float"
+                style={{ animationDelay: `${index * 0.4}s` }}
+              >
+                <span className="cursor-default bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs md:text-sm px-4 py-2 rounded-full flex items-center gap-2 shadow-lg transition-transform active:scale-90">
+                  <span 
+                    className={`w-2.5 h-2.5 ${game.color} rounded-full animate-pulse`}
+                    style={{ boxShadow: `0 0 10px ${game.glow}` }}
+                  ></span>
+                  <span className="font-bold tracking-wide">{game.name}</span>
+                </span>
+              </div>
+            ))}
+
+            {/* + আরও অনেক গেম */}
+            <div className="animate-custom-float" style={{ animationDelay: '1.2s' }}>
+              <span className="cursor-pointer bg-white/5 border border-white/10 text-gray-200 text-xs md:text-sm px-4 py-2 rounded-full flex items-center gap-1.5 hover:bg-white/10 hover:text-white transition-all shadow-lg active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#ff8a00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="italic font-medium">আরও অনেক গেম</span>
+              </span>
+            </div>
+          </div>
+          
+          <p className="mt-8 text-indigo-50 font-medium text-base md:text-lg max-w-xl mx-auto md:mx-0 opacity-90 leading-relaxed">
+            প্রতিদিন নতুন টুর্নামেন্ট, বিশাল পুরস্কার এবং অসাধারণ গেমিং অভিজ্ঞতা। বাংলাদেশের সবচেয়ে বড় গেমিং কমিউনিটিতে আজই যোগ দিন।
+          </p>
+
+          {/* Action Buttons */}
+          <div className="mt-10 flex flex-col sm:flex-row gap-5 justify-center md:justify-start">
+            <button className="bg-[#ff8a00] hover:bg-orange-600 px-10 py-4 rounded-2xl font-black text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)] transition-all transform active:scale-95">
+              এখনই ডাউনলোড করুন
+            </button>
+            <button className="bg-white/10 hover:bg-white/20 border-2 border-white/20 px-10 py-4 rounded-2xl font-bold text-white backdrop-blur-sm transition-all active:scale-95">
+              ভিডিও দেখুন
+            </button>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/20 pt-8">
+            <div className="text-center md:text-left">
+              <span className="block text-2xl md:text-3xl font-black text-white">00</span>
+              <span className="text-[10px] md:text-xs text-indigo-200 uppercase tracking-widest font-bold">দৈনিক টুর্নামেন্ট</span>
+            </div>
+            <div className="text-center md:text-left">
+              <span className="block text-2xl md:text-3xl font-black text-white">000</span>
+              <span className="text-[10px] md:text-xs text-indigo-200 uppercase tracking-widest font-bold">সক্রিয় খেলোয়াড়</span>
+            </div>
+            <div className="text-center md:text-left">
+              <span className="block text-2xl md:text-3xl font-black text-white">000</span>
+              <span className="text-[10px] md:text-xs text-indigo-200 uppercase tracking-widest font-bold">পুরস্কার বিতরণ</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Phone Mockup Section */}
+        <div className="w-full md:w-1/2 flex justify-center order-1 md:order-2">
+          <div className="relative group">
+            <div className="absolute -inset-10 bg-orange-500/20 blur-[100px] rounded-full group-hover:bg-orange-500/30 transition-all duration-1000"></div>
+            
+            <div className="relative w-[280px] md:w-[330px] aspect-[9/18.5] bg-[#020617] rounded-[3rem] border-[10px] border-[#1e293b] shadow-2xl overflow-hidden ring-4 ring-white/5">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#1e293b] rounded-b-2xl z-20"></div>
+              
+              <div className="h-full w-full bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
+                <div className="w-24 h-24 bg-gradient-to-tr from-[#ff3d00] to-[#ff8a00] rounded-[2rem] flex items-center justify-center shadow-2xl mb-6">
+                  {/* লোগো টেক্সট আপডেট করা হয়েছে */}
+                  <span className="text-white font-black text-base leading-tight uppercase tracking-tighter">
+                    uthi<br/>YO
+                  </span>
+                </div>
+                <div className="w-full h-4 bg-gray-200 rounded-full mb-3"></div>
+                <div className="w-4/5 h-4 bg-gray-100 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+};
+
+export default Hero;
+
+ import React, { useState } from 'react';
+
+const Login = ({ onLoginSuccess }) => {
+  const [formData, setFormData] = useState({ phone: '', password: '' });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // এখানে আপনার ব্যাকেন্ড API (যেমন: axios.post('/api/login', formData)) কল করবেন
+    console.log("Login details:", formData);
+    // সফল লগইন হলে নিচের ফাংশনটি কল হবে
+    onLoginSuccess();
+  };
+
+  return (
+    <div className="w-full max-w-[450px] min-h-screen bg-white flex flex-col justify-center px-8 shadow-2xl">
+      <div className="mb-10 text-center">
+        <h1 className="text-4xl font-black text-slate-800 tracking-tighter">uthi<span className="text-orange-500">YO</span></h1>
+        <p className="text-slate-500 mt-2 font-medium">আপনার অ্যাকাউন্টে লগইন করুন</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className="block text-sm font-bold text-slate-700 mb-2">ফোন নাম্বার</label>
+          <input 
+            type="text" 
+            placeholder="01XXXXXXXXX"
+            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all"
+            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-slate-700 mb-2">পাসওয়ার্ড</label>
+          <input 
+            type="password" 
+            placeholder="******"
+            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all"
+            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            required
+          />
+        </div>
+
+        <button 
+          type="submit"
+          className="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold text-lg hover:bg-black transition-all shadow-lg active:scale-95"
+        >
+          লগইন করুন
+        </button>
+      </form>
+
+      <p className="mt-8 text-center text-slate-600">
+        অ্যাকাউন্ট নেই? <span className="text-orange-600 font-bold cursor-pointer">রেজিস্ট্রেশন করুন</span>
+      </p>
+    </div>
+  );
+};
+
+export default Login;
+
+ import React, { useState } from 'react';
+
+const Navbar = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // লিঙ্কগুলো আইডি অনুযায়ী আপডেট করা হয়েছে
+  const menuItems = [
+    { name: 'হোম', href: '#home' },
+    { name: 'ফিচার', href: '#features' },
+    { name: 'টুর্নামেন্ট', href: '#tournaments' },
+    { name: 'ডাউনলোড', href: '#home' },
+  ];
+
+  return (
+    <nav className="bg-[#0f172a] border-b border-white/10 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 md:h-20">
+          
+          {/* uthiYO Logo Section */}
+          <div className="relative flex items-center gap-2 group">
+            <div className="relative">
+              <div className="absolute inset-0 bg-[#ff8a00] blur-md opacity-20 group-hover:opacity-50 transition-opacity"></div>
+              <div className="relative bg-[#0f172a] border-2 border-[#ff8a00] px-3 py-1 rounded-tr-2xl rounded-bl-2xl rotate-[-2deg] shadow-lg">
+                <span className="text-white font-black text-2xl tracking-tight">
+                  uthi<span className="text-[#ff8a00]">YO</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Membership Section (ক্লিক করলে মেম্বারশিপ সেকশনে যাবে) */}
+          <a href="#membership" className="flex-shrink-0 flex items-center gap-2 group cursor-pointer">
+            <div className="w-10 h-10 bg-[#ff8a00] rounded-lg flex items-center justify-center font-bold text-white shadow-lg transition-transform group-active:scale-90">
+              MS
+            </div>
+            <span className="text-white font-bold text-xl tracking-tight hidden sm:block">
+              MemberShip
+            </span>
+          </a>
+
+          {/* Desktop Menu */}
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-baseline space-x-8">
+              {menuItems.map((item) => (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="text-gray-300 hover:text-[#ff8a00] px-3 py-2 font-medium transition-colors"
+                >
+                  {item.name}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-white/10 focus:outline-none"
+            >
+              {isOpen ? (
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu Content (Centered) */}
+      <div 
+        className={`${
+          isOpen ? 'max-h-80 opacity-100 py-6' : 'max-h-0 opacity-0'
+        } md:hidden overflow-hidden transition-all duration-300 ease-in-out bg-[#1e293b]`}
+      >
+        <div className="flex flex-col items-center space-y-4">
+          {menuItems.map((item) => (
+            <a
+              key={item.name}
+              href={item.href}
+              onClick={() => setIsOpen(false)}
+              className="text-white text-lg font-bold hover:text-[#ff8a00] transition-colors w-full text-center py-2"
+            >
+              {item.name}
+            </a>
+          ))}
+          {/* Mobile Membership Link */}
+          <a
+            href="#membership"
+            onClick={() => setIsOpen(false)}
+            className="text-[#ff8a00] text-lg font-black w-full text-center py-2 border-t border-white/5"
+          >
+            MemberShip
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+export default Navbar;
+
+ import React, { useState } from "react";
+import MatchManager from "../MatchManager.jsx/MatchManager";
+import DepositRequests from "../DepositeRequest/DepositeRequest";
+import WithdrawRequests from "../WithdrawRequest/withdrawRequest";
+import UserManager from "../UserManager/UserManager";
+
+const AdminDashboard = ({ onBack }) => {
+  const [tab, setTab] = useState("dashboard");
+
+  const menuItems = [
+    { id: "dashboard", label: "Dashboard", icon: "📊" },
+    { id: "matches", label: "Matches", icon: "🎮" },
+    { id: "deposits", label: "Deposits", icon: "💰" },
+    { id: "withdraws", label: "Withdraws", icon: "🏧" },
+    { id: "users", label: "Users", icon: "👥" },
+  ];
+
+  const renderContent = () => {
+    switch (tab) {
+      case "matches":
+        return <MatchManager />;
+      case "deposits":
+        return <DepositRequests />;
+      case "withdraws":
+        return <WithdrawRequests />;
+      case "users":
+        return <UserManager />;
+      default:
+        return (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white p-5 rounded-2xl shadow">
+              <p className="text-gray-400 text-sm">Total Users</p>
+              <h2 className="text-2xl font-black">120</h2>
+            </div>
+            <div className="bg-white p-5 rounded-2xl shadow">
+              <p className="text-gray-400 text-sm">Matches</p>
+              <h2 className="text-2xl font-black">18</h2>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto">
+      <div className="bg-indigo-600 text-white p-4 flex justify-between items-center">
+        <button onClick={onBack}>❮</button>
+        <h2 className="font-black text-lg">Admin Panel</h2>
+        <span></span>
+      </div>
+
+      <div className="flex overflow-x-auto bg-white border-b">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setTab(item.id)}
+            className={`flex-1 min-w-[90px] py-3 text-xs font-bold ${
+              tab === item.id
+                ? "text-indigo-600 border-b-2 border-indigo-600"
+                : "text-gray-500"
+            }`}
+          >
+            <div>{item.icon}</div>
+            <div>{item.label}</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="p-4">{renderContent()}</div>
+    </div>
+  );
+};
+
+export default AdminDashboard;
+
+ import React from "react";
+
+const DepositRequests = () => {
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow">
+      <h3 className="font-black mb-4">Deposit Requests</h3>
+
+      <div className="border rounded-xl p-3 mb-3">
+        <p>User: Rahim</p>
+        <p>Amount: ৳500</p>
+        <p>TRX: ABC12345</p>
+
+        <div className="flex gap-2 mt-3">
+          <button className="flex-1 bg-green-500 text-white py-2 rounded-xl">
+            Approve
+          </button>
+          <button className="flex-1 bg-red-500 text-white py-2 rounded-xl">
+            Reject
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DepositRequests;
+
+ import React from "react";
+
+const MatchManager = () => {
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-black">Match Manager</h3>
+        <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm">
+          + Create
+        </button>
+      </div>
+
+      <p className="text-sm text-gray-500">
+        এখান থেকে match create / edit / delete করা যাবে।
+      </p>
+    </div>
+  );
+};
+
+export default MatchManager;
+
+
+ import React from "react";
+
+const UserManager = () => {
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow">
+      <h3 className="font-black mb-4">User Manager</h3>
+      <p className="text-gray-500 text-sm">
+        এখান থেকে user block / balance adjust করা যাবে।
+      </p>
+    </div>
+  );
+};
+
+export default UserManager;
+
+ import React from "react";
+
+const WithdrawRequests = () => {
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow">
+      <h3 className="font-black mb-4">Withdraw Requests</h3>
+      <p className="text-gray-500 text-sm">
+        এখান থেকে withdraw approve/reject হবে।
+      </p>
+    </div>
+  );
+};
+
+export default WithdrawRequests;
+
+ import React, { useState } from "react";
+
+const AdminPanel = () => {
+  const [activeTab, setActiveTab] = useState("matches");
+
+  const inputStyle =
+    "w-full px-6 py-5 rounded-3xl border border-gray-700 bg-transparent text-gray-300 text-lg font-bold placeholder:text-gray-500 outline-none focus:border-indigo-500 transition";
+
+  const prizeStyle =
+    "w-full px-4 py-4 rounded-2xl border border-gray-700 bg-transparent text-gray-300 text-base font-bold placeholder:text-gray-500 outline-none text-center";
+
+  return (
+    <div className="h-screen bg-[#0f172a] text-white flex flex-col md:flex-row overflow-hidden">
+      
+      {/* Sidebar */}
+      <div className="w-full md:w-72 bg-[#111827] border-r border-white/5 p-6 shrink-0">
+        <h2 className="text-2xl font-black text-orange-500 mb-8">ADMIN</h2>
+
+        <nav className="space-y-3">
+          <button
+            onClick={() => setActiveTab("matches")}
+            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
+              activeTab === "matches"
+                ? "bg-orange-500 text-white"
+                : "text-gray-400 hover:bg-white/5"
+            }`}
+          >
+            🎮 Match Create
+          </button>
+
+          <button
+            onClick={() => setActiveTab("money")}
+            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
+              activeTab === "money"
+                ? "bg-orange-500 text-white"
+                : "text-gray-400 hover:bg-white/5"
+            }`}
+          >
+            💰 Add Money Req
+          </button>
+
+          <button
+            onClick={() => setActiveTab("withdraw")}
+            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
+              activeTab === "withdraw"
+                ? "bg-orange-500 text-white"
+                : "text-gray-400 hover:bg-white/5"
+            }`}
+          >
+            💸 Withdraw Req
+          </button>
+        </nav>
+      </div>
+
+      {/* Main Content Scroll */}
+      <div className="flex-1 p-6 md:p-10 bg-[#0b1221] overflow-y-auto">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-8">
+            <h1 className="text-3xl font-black text-indigo-500">
+              CREATE TOURNAMENT
+            </h1>
+            <span className="text-red-500 text-2xl font-bold cursor-pointer">
+              X
+            </span>
+          </div>
+
+          <div className="space-y-8 pb-20">
+            <input type="text" placeholder="Match Name" className={inputStyle} />
+
+            <div>
+              <label className="block mb-2 text-sm font-bold text-gray-400 uppercase">
+                Thumbnail
+              </label>
+              <div className="w-full px-6 py-5 rounded-3xl border border-gray-700 bg-transparent">
+                <input type="file" className="w-full text-gray-400" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <input type="text" placeholder="Total Win Prize" className={inputStyle} />
+              <input type="text" placeholder="Entry Fee" className={inputStyle} />
+            </div>
+
+            <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
+              <p className="text-sm text-indigo-400 font-bold mb-4 uppercase">
+                Prizes (1-5) & Per Kill
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <input type="text" placeholder="1st" className={prizeStyle} />
+                <input type="text" placeholder="2nd" className={prizeStyle} />
+                <input type="text" placeholder="3rd" className={prizeStyle} />
+                <input type="text" placeholder="4th" className={prizeStyle} />
+                <input type="text" placeholder="5th" className={prizeStyle} />
+                <input
+                  type="text"
+                  placeholder="Kill"
+                  className="w-full px-4 py-4 rounded-2xl border border-orange-500 bg-transparent text-orange-400 text-base font-bold placeholder:text-orange-300 outline-none text-center"
+                />
+              </div>
+            </div>
+
+            <input type="text" placeholder="Date & Time" className={inputStyle} />
+
+            <button className="w-full py-5 rounded-3xl bg-indigo-600 hover:bg-indigo-700 text-xl font-black tracking-wide transition shadow-xl">
+              PUBLISH
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminPanel;
+
+ import React from 'react';
+
+const HomeCard = () => {
+  return (
+    <div className="w-full">
+      {/* CSS For Animations */}
+      <style>
+        {`
+          @keyframes float-slow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+          }
+          .animate-card-float {
+            animation: float-slow 4s ease-in-out infinite;
+          }
+        `}
+      </style>
+
+      {/* --- Section 1: Features (ID: features added) --- */}
+      <section id="features" className="bg-[#f8fafc] py-16 px-6 scroll-mt-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black text-slate-800">আমাদের বিশেষত্ব</h2>
+            <div className="w-20 h-1.5 bg-[#ff8a00] mx-auto mt-4 rounded-full"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <div key={item} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                <h3 className="text-xl font-bold text-slate-800 mb-3">সেরা সার্ভিস {item}</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  আমরা দিচ্ছি বাংলাদেশের সবচেয়ে দ্রুত পেমেন্ট সিস্টেম এবং ২৪/৭ কাস্টমার সাপোর্ট।
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- Section 2: Live Tournaments (ID: tournaments added) --- */}
+      <section id="tournaments" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] py-16 px-6 scroll-mt-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black text-white">চলমান টুর্নামেন্ট</h2>
+            <p className="text-indigo-100 mt-2">আপনার প্রিয় গেমটি বেছে নিন এবং অংশ নিন</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <div key={item} className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 text-white hover:bg-white/15 transition-all">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold uppercase tracking-wide">Free Fire</h3>
+                  <div className="flex items-center gap-1.5 bg-red-500 px-3 py-1 rounded-full text-[10px] font-bold animate-pulse">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full"></span> LIVE
+                  </div>
+                </div>
+
+                <h4 className="text-lg font-semibold text-orange-400 mb-4">Solo Pro League</h4>
+
+                <ul className="space-y-3 mb-6">
+                  <li className="flex items-center gap-3 text-sm text-indigo-50">
+                    <span className="bg-white/10 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
+                  </li>
+                  <li className="flex items-center gap-3 text-sm text-indigo-50">
+                    <span className="bg-white/10 p-1.5 rounded-lg">⏰</span> রাত ৯:৩০ মিনিট
+                  </li>
+                  <li className="flex items-center gap-3 text-sm text-indigo-50">
+                    <span className="bg-white/10 p-1.5 rounded-lg">🏆</span> প্রাইজপুল: ৫০০০৳
+                  </li>
+                </ul>
+
+                <button className="w-full bg-[#ff8a00] hover:bg-orange-600 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg">
+                  যোগ দিন
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- Section 3: Membership (ID: membership added) --- */}
+      <section id="membership" className="bg-white py-20 px-6 overflow-hidden scroll-mt-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {[
+              { title: 'দ্রুত পেমেন্ট', icon: '🚀', color: 'border-orange-200' },
+              { title: '২৪/৭ সাপোর্ট', icon: '📞', color: 'border-indigo-200' },
+              { title: 'নিরাপদ গেমিং', icon: '🛡️', color: 'border-green-200' }
+            ].map((card, index) => (
+              <div 
+                key={index} 
+                className={`animate-card-float bg-white border-2 ${card.color} p-10 rounded-[2.5rem] text-center shadow-xl shadow-slate-100`}
+                style={{ animationDelay: `${index * 0.5}s` }}
+              >
+                <div className="text-5xl mb-6">{card.icon}</div>
+                <h3 className="text-2xl font-black text-slate-800 mb-4">{card.title}</h3>
+                <p className="text-slate-500">
+                  আমরা নিশ্চিত করি আপনার গেমিং অভিজ্ঞাতা যেন হয় একদম নিরবচ্ছিন্ন।
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default HomeCard;
+
+ import React, { useState } from 'react';
+
+const MatchJoin = ({ match, onBack, onConfirmJoin }) => {
+  const [formData, setFormData] = useState({
+    userName: '',
+    gameId: ''
+  });
+
+  if (!match) return null;
+
+  return (
+    <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto">
+
+      <button onClick={onBack}>❮</button>
+
+      <h2>{match.title}</h2>
+
+      <input
+        placeholder="Game Name"
+        onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+      />
+
+      <input
+        placeholder="UID"
+        onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
+      />
+
+      <button onClick={() => onConfirmJoin(formData)}>
+        Confirm Join
+      </button>
+
+    </div>
+  );
+};
+
+export default MatchJoin;
+
+ import React from 'react';
+
+const MatchList = ({ matches, onBack }) => {
+  return (
+    <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-10">
+      {/* Header */}
+      <div className="flex items-center px-4 py-4 bg-white sticky top-0 z-10 shadow-sm">
+        <button onClick={onBack} className="text-2xl mr-4">❮</button>
+        <h2 className="text-lg font-black uppercase tracking-tight">BR MATCHES</h2>
+        <button className="ml-auto text-blue-500 text-xl">🔄</button>
+      </div>
+
+      {/* Match Cards Container */}
+      <div className="px-3 py-4 space-y-5">
+        {matches.map((match) => (
+          <div key={match.id} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+            {/* Title & Banner */}
+            <div className="flex gap-3 p-3">
+              <div className="w-24 h-16 bg-indigo-900 rounded-lg flex items-center justify-center overflow-hidden">
+                <img src="https://via.placeholder.com/100x60/1e1b4b/ffffff?text=FREE+FIRE" alt="banner" className="object-cover" />
+              </div>
+              <div>
+                <h3 className="font-black text-sm text-slate-800 leading-tight">
+                  {match.title} | {match.version} | {match.type}
+                </h3>
+                <p className="text-[10px] text-red-500 font-bold mt-1">{match.time}</p>
+              </div>
+            </div>
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-3 gap-y-4 px-4 py-2 border-t border-gray-50 text-center">
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Win Prize</p>
+                <p className="text-xs font-black">{match.winPrize} TK</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Entry Type</p>
+                <p className="text-xs font-black">{match.entryType}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Entry Fee</p>
+                <p className="text-xs font-black">{match.entryFee} TK</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Per Kill</p>
+                <p className="text-xs font-black">{match.perKill} TK</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Map</p>
+                <p className="text-xs font-black">{match.mapName}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Version</p>
+                <p className="text-xs font-black">{match.version}</p>
+              </div>
+            </div>
+
+            {/* Progress Bar & Join Button */}
+            <div className="px-4 py-3 flex items-center gap-4 border-t border-gray-50">
+              <div className="flex-1">
+                <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-green-500 h-full rounded-full" 
+                    style={{ width: `${(match.joined / match.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <p className="text-[9px] text-gray-400 font-bold">Only {match.total - match.joined} spots left</p>
+                  <p className="text-[9px] text-gray-600 font-black">{match.joined}/{match.total}</p>
+                </div>
+              </div>
+              <button className={`px-4 py-2 rounded-lg border-2 font-black text-xs ${match.joined >= match.total ? 'border-gray-200 text-gray-400' : 'border-indigo-600 text-indigo-600 active:bg-indigo-50'}`}>
+                {match.joined >= match.total ? 'Match Full' : 'Join Now'}
+              </button>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="grid grid-cols-2 gap-2 px-3 py-3 bg-gray-50">
+               <button className="bg-white border border-indigo-200 text-indigo-700 py-1.5 rounded-md text-[10px] font-black uppercase flex items-center justify-center gap-1">
+                 🔑 Room Details <span>▼</span>
+               </button>
+               <button className="bg-white border border-indigo-200 text-indigo-700 py-1.5 rounded-md text-[10px] font-black uppercase flex items-center justify-center gap-1">
+                 🏆 Total Prize Details <span>▼</span>
+               </button>
+            </div>
+
+            {/* Starts In Timer */}
+            <div className="bg-green-600 text-white text-center py-2 text-xs font-bold flex items-center justify-center gap-2">
+              🕒 STARTS IN - <span className="text-sm font-black">{match.startsIn}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default MatchList;
+
+ import React from 'react';
+
+const Profile = ({ onLogout, onNavigate }) => {
+  const menuItems = [
+    { id: 'wallet', label: 'Wallet', icon: '👛', color: 'text-blue-500' },
+    { id: 'withdraw', label: 'Withdraw', icon: '💵', color: 'text-cyan-500' },
+    { id: 'my_profile', label: 'My Profile', icon: '👤', color: 'text-blue-400' },
+    { id: 'all_rules', label: 'All Rules', icon: '📋', color: 'text-teal-500', hasArrow: true },
+    { id: 'top_players', label: 'Top Players', icon: '📈', color: 'text-indigo-500' },
+    { id: 'dev_profile', label: 'Developer Profile', icon: '📂', color: 'text-blue-600' },
+  ];
+
+  return (
+    <div className="bg-white min-h-screen pb-10">
+      {/* হেডার */}
+      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 px-6 text-center text-white">
+        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 border-4 border-white/30 flex items-center justify-center text-4xl shadow-inner">👨‍💻</div>
+        <h2 className="text-xl font-bold tracking-tight">sumon2233555</h2>
+        <div className="grid grid-cols-3 mt-8 items-center border-t border-white/20 pt-4">
+          <div className="text-center">
+            <p className="text-xl font-black">0</p>
+            <p className="text-[10px] font-bold uppercase opacity-90">ম্যাচ জয়েন</p>
+          </div>
+          <div className="border-x border-white/20 text-center px-2">
+            <p className="text-xl font-black italic uppercase">BDT 0</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-black">0</p>
+            <p className="text-[10px] font-bold uppercase opacity-90">জিতেছেন</p>
+          </div>
+        </div>
+      </div>
+
+      {/* মেনু */}
+      <div className="mt-4 px-2 space-y-0.5">
+        {menuItems.map((item) => (
+          <button key={item.id} onClick={() => onNavigate(item.id)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 border-b border-gray-50">
+            <div className="flex items-center gap-4">
+              <span className={`text-2xl ${item.color}`}>{item.icon}</span>
+              <span className="text-gray-700 font-bold text-sm">{item.label}</span>
+            </div>
+            {item.hasArrow && <span className="text-gray-300 text-xl">›</span>}
+          </button>
+        ))}
+      </div>
+
+      <div className="px-8 mt-12">
+        <button onClick={onLogout} className="w-full bg-[#3B82F6] text-white py-3.5 rounded-full font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200">Logout</button>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;
+
+import React, { useState } from 'react';
+
+const AddMoney = ({ onBack }) => {
+  const [method, setMethod] = useState(''); // bkash, nagad, rocket
+  const [amount, setAmount] = useState('');
+  const [trxId, setTrxId] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const adminNumbers = {
+    bkash: "017XXXXXXXX",
+    nagad: "019XXXXXXXX",
+    rocket: "018XXXXXXXX"
+  };
+
+  const handleCopy = (num) => {
+    navigator.clipboard.writeText(num);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if(!method || !amount || !trxId) return alert("সবগুলো তথ্য সঠিকভাবে দিন");
+    
+    // এখানে আপনি আপনার ব্যাকেন্ড বা লোকাল স্টোরেজে ডাটা পাঠাতে পারেন
+    const requestData = { method, amount, trxId, status: 'pending', time: new Date().toLocaleString() };
+    console.log("Payment Request Sent:", requestData);
+    
+    alert("আপনার রিকোয়েস্ট জমা হয়েছে! এডমিন চেক করে ব্যালেন্স এড করে দিবে।");
+    onBack();
+  };
+
+  return (
+    <div className="bg-[#F8FAFC] min-h-screen max-w-[450px] mx-auto font-sans pb-10">
+      {/* হেডার */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-b-[2.5rem] shadow-lg">
+        <div className="flex items-center gap-4 text-white">
+          <button onClick={onBack} className="text-xl">❮</button>
+          <h2 className="text-lg font-black uppercase tracking-widest">Add Money</h2>
+        </div>
+      </div>
+
+      <div className="p-5 space-y-6 -mt-4">
+        {/* স্টেপ ১: মেথড সিলেক্ট */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <p className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest text-center">Step 1: Select Method</p>
+          <div className="grid grid-cols-3 gap-4">
+            {['bkash', 'nagad', 'rocket'].map((m) => (
+              <div 
+                key={m}
+                onClick={() => setMethod(m)}
+                className={`p-3 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${method === m ? 'border-indigo-500 bg-indigo-50 scale-105' : 'border-gray-50 bg-gray-50 opacity-60'}`}
+              >
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-white shadow-sm">
+                   <span className="capitalize font-black text-[10px]">{m}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {method && (
+          <>
+            {/* স্টেপ ২: নাম্বার কপি */}
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest">Step 2: Send Money ({method})</p>
+              <div className="bg-slate-900 p-4 rounded-2xl flex justify-between items-center border-l-4 border-yellow-400">
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Our {method} Number</p>
+                  <p className="text-white font-black text-lg tracking-wider">{adminNumbers[method]}</p>
+                </div>
+                <button 
+                  onClick={() => handleCopy(adminNumbers[method])}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${copied ? 'bg-green-500 text-white' : 'bg-yellow-400 text-slate-900'}`}
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <p className="text-[9px] text-red-500 font-bold mt-3 italic">* অবশ্যই Send Money করবেন। ক্যাশ আউট গ্রহণযোগ্য নয়।</p>
+            </div>
+
+            {/* স্টেপ ৩: ভেরিফিকেশন ফর্ম */}
+            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-4 animate-in fade-in slide-in-from-bottom-8">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Step 3: Verify Payment</p>
+              
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 ml-1 uppercase">Amount (৳)</label>
+                <input 
+                  type="number" 
+                  placeholder="কত টাকা পাঠিয়েছেন?" 
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl font-bold text-sm focus:ring-2 ring-indigo-500 outline-none"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 ml-1 uppercase">Transaction ID (TrxID)</label>
+                <input 
+                  type="text" 
+                  placeholder="TrxID এখানে দিন" 
+                  className="w-full p-4 bg-gray-50 border-none rounded-2xl font-bold text-sm focus:ring-2 ring-indigo-500 outline-none uppercase"
+                  value={trxId}
+                  onChange={(e) => setTrxId(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 active:scale-95 transition-all uppercase tracking-widest text-xs"
+              >
+                Verify & Add Money
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AddMoney;
+
+ import React, { useState } from 'react';
+
+const TransactionHistory = ({ onBack }) => {
+  const [activeTab, setActiveTab] = useState('deposit'); // 'deposit' or 'withdraw'
+
+  // ডামি ডাটা (পরবর্তীতে আপনি ডাটাবেস থেকে আনবেন)
+  const history = {
+    deposit: [
+      { id: 1, method: 'Bkash', amount: 500, date: '20 Oct, 10:30 AM', status: 'Success', trxId: 'TRX782341' },
+      { id: 2, method: 'Nagad', amount: 200, date: '18 Oct, 02:15 PM', status: 'Pending', trxId: 'TRX112903' },
+    ],
+    withdraw: [
+      { id: 1, method: 'Rocket', amount: 300, date: '15 Oct, 09:00 PM', status: 'Success' },
+    ]
+  };
+
+  return (
+    <div className="bg-[#0f172a] min-h-screen max-w-[450px] mx-auto font-sans text-white pb-10 animate-in slide-in-from-right duration-300">
+      {/* Header */}
+      <div className="p-4 flex items-center gap-4 sticky top-0 bg-[#0f172a] z-50 border-b border-white/5">
+        <button onClick={onBack} className="text-2xl font-bold p-2 active:scale-90 transition-all">❮</button>
+        <h2 className="font-black uppercase text-lg tracking-tight">Transactions</h2>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex p-4 gap-2">
+        <button 
+          onClick={() => setActiveTab('deposit')}
+          className={`flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'deposit' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-slate-800 text-slate-400'}`}
+        >
+          Deposits
+        </button>
+        <button 
+          onClick={() => setActiveTab('withdraw')}
+          className={`flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'withdraw' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-slate-800 text-slate-400'}`}
+        >
+          Withdraws
+        </button>
+      </div>
+
+      {/* List Container */}
+      <div className="px-4 space-y-3">
+        {history[activeTab].length > 0 ? (
+          history[activeTab].map((item) => (
+            <div key={item.id} className="bg-slate-800/40 p-4 rounded-3xl border border-white/5 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${activeTab === 'deposit' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                  {activeTab === 'deposit' ? '↙' : '↗'}
+                </div>
+                <div>
+                  <p className="font-black text-sm">{item.method} {activeTab === 'deposit' ? 'Deposit' : 'Withdraw'}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">{item.date}</p>
+                  {item.trxId && <p className="text-[9px] text-indigo-400 font-mono mt-1">ID: {item.trxId}</p>}
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`font-black text-base ${activeTab === 'deposit' ? 'text-green-400' : 'text-red-400'}`}>
+                  {activeTab === 'deposit' ? '+' : '-'} ৳{item.amount}
+                </p>
+                <span className={`text-[8px] font-black px-2 py-1 rounded-md uppercase tracking-tighter ${item.status === 'Success' ? 'bg-green-500/20 text-green-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                  {item.status}
+                </span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-20 opacity-30">
+            <span className="text-5xl block mb-4">📂</span>
+            <p className="font-black text-xs uppercase">No History Found</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TransactionHistory;
+
+ import React from 'react';
+
+const Wallet = ({ balance, deposited, winning, onBack }) => {
+  return (
+    <div className="bg-[#0f172a] min-h-screen text-white">
+
+      <button onClick={onBack}>❮</button>
+
+      <h2>Wallet</h2>
+
+      <p>Balance: {balance}</p>
+      <p>Deposited: {deposited}</p>
+      <p>Winning: {winning}</p>
+
+    </div>
+  );
+};
+
+export default Wallet;
+
+
+ import React, { useState, useEffect } from "react";
+import "./App.css";
+
+// ওয়েবসাইট সেকশন (Landing Page)
+import Footer from "./Component/Footer/Footer";
+import Hero from "./Component/HeroSection/HeroSection";
+import Navbar from "./Component/Navbar/Navbar";
+import HomeCard from "./page/HomeCard/HomeCard";
+
+// অ্যাপ সেকশন (App UI & Logic)
+import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
+import Login from "./Component/Login/Login";
+
+function App() {
+  // ইউজার অ্যাপ মোডে আছে কিনা তা চেক করার স্টেট
+  const [isAppMode, setIsAppMode] = useState(false);
+  // ইউজার লগইন করা আছে কিনা তার স্টেট
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // চেক করা হচ্ছে ইউজার কি ইন্সটল করা অ্যাপ (Standalone) থেকে ওপেন করেছে কি না
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    
+    if (isStandalone) {
+      setIsAppMode(true);
+    }
+  }, []);
+
+  /**
+   * লজিক ১: অ্যাপ মোড (যখন ইউজার মোবাইল অ্যাপ বা আইকন থেকে ঢুকবে)
+   */
+  if (isAppMode) {
+    return (
+      <div className="app-container">
+        {isLoggedIn ? (
+          // লগইন করা থাকলে সরাসরি ড্যাশবোর্ড (ইমেজের মতো ভিউ)
+          <AppDashboard onLogout={() => setIsLoggedIn(false)} />
+        ) : (
+          // লগইন না থাকলে প্রথমে লগইন পেজ
+          <Login onLoginSuccess={() => setIsLoggedIn(true)} />
+        )}
+      </div>
+    );
+  }
+
+  /**
+   * লজিক ২: ওয়েবসাইট মোড (ব্রাউজারে uthiyo.com এ সাধারণ ভিজিট)
+   */
+  return (
+    <div className="website-layout">
+      <Navbar />
+      <Hero />
+      <HomeCard />
+      <Footer />
+      
+      {/* ডেভেলপমেন্ট এবং টেস্ট করার জন্য নিচের বাটনটি খুব কাজের */}
+      <button 
+        onClick={() => setIsAppMode(true)}
+        className="fixed bottom-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-full text-[10px] font-bold z-[9999] shadow-lg transition-all active:scale-95"
+      >
+        Preview App Interface
+      </button>
+    </div>
+  );
+}
+
+export default App;
+
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
