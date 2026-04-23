@@ -1,6 +1,6 @@
  import React from 'react';
 
-const Profile = ({ onLogout, onNavigate }) => {
+const BottomMenu = ({ onLogout, onNavigate }) => {
   const menuItems = [
     { id: 'wallet', label: 'Wallet', icon: '👛', color: 'text-blue-500' },
     { id: 'withdraw', label: 'Withdraw', icon: '💵', color: 'text-cyan-500' },
@@ -51,4 +51,4 @@ const Profile = ({ onLogout, onNavigate }) => {
   );
 };
 
-export default Profile;
+export default BottomMenu;

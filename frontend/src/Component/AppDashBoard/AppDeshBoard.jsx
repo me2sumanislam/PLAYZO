@@ -1,6 +1,7 @@
  import React, { useState, useEffect } from 'react';
-import Profile from '../../page/Profile/Profile';
+import Profile from '../../page/BottomManu/BottomMenu';
 import AdminDashboard from '../../page/Admin/AdminDashboard/AdminDashboard';
+
 
 // --- Countdown Timer ---
 const CountdownTimer = ({ startMinutes }) => {
