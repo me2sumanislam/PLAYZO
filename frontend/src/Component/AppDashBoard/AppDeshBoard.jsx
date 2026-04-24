@@ -1,7 +1,7 @@
    import React, { useState, useEffect } from 'react';
-import Profile from '../../page/BottomManu/BottomMenu';
 import AdminDashboard from '../../page/Admin/AdminDashboard/AdminDashboard';
-
+import BottomMenu from '../BottomMenu/BottomMenu';
+ 
 
 // --- Countdown Timer ---
 const CountdownTimer = ({ startMinutes }) => {
@@ -190,6 +190,8 @@ const AppDashboard = ({ onLogout }) => {
         </div>
 
       </div>
+      {/*  Componant input area */}
+       <BottomMenu tab={tab} setTab={setTab} />
     </div>
   );
 };
