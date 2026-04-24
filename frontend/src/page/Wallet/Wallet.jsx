@@ -70,11 +70,6 @@ const Wallet = ({ onBack }) => {
           ))
         )}
       </div>
-      <div className="m-3 bg-white p-4 rounded-xl shadow">
-        <h3 className="font-bold mb-2">Learning Video add hobe</h3>
-
-      </div>
-     
 
     </div>
   );

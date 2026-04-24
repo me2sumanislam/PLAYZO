@@ -1,6 +1,9 @@
  import React from "react";
+import { useNavigate } from "react-router-dom";
 
-const Profile = ({ onLogout, onNavigate, activeTab }) => {
+const Profile = ({ onLogout }) => {
+  const navigate = useNavigate();
+
   const menuItems = [
     { id: "wallet", label: "Wallet", icon: "👛" },
     { id: "withdraw", label: "Withdraw", icon: "💵" },
@@ -10,9 +13,12 @@ const Profile = ({ onLogout, onNavigate, activeTab }) => {
     { id: "dev_profile", label: "Developer Profile", icon: "📂" },
   ];
 
+  const handleNavigate = (id) => {
+    if (id === "wallet") navigate("/wallet");
+  };
+
   return (
     <div className="bg-white min-h-screen pb-10">
-
       <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
         <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
           👨‍💻
@@ -25,7 +31,7 @@ const Profile = ({ onLogout, onNavigate, activeTab }) => {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.id)}   // ✅ THIS IS THE FIX
+            onClick={() => handleNavigate(item.id)}
             className="w-full flex justify-between p-4 border-b"
           >
             <div className="flex gap-4">
@@ -45,7 +51,6 @@ const Profile = ({ onLogout, onNavigate, activeTab }) => {
           Logout
         </button>
       </div>
-
     </div>
   );
 };

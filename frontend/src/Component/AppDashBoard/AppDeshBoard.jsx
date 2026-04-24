@@ -1,29 +1,32 @@
- import React, { useState, useEffect } from 'react';
-import AdminDashboard from '../../page/Admin/AdminDashboard/AdminDashboard';
-import BottomMenu from '../BottomMenu/BottomMenu';
-import Profile from '../../page/Profile/profile';
-import Wallet from '../../page/Wallet/Wallet';
+ import React, { useState, useEffect } from "react";
+import BottomMenu from "../BottomMenu/BottomMenu";
+import Profile from "../../page/Profile/profile";
+import Wallet from "../../page/Wallet/Wallet";
 
-// --- MAIN DASHBOARD ---
 const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab] = useState('play');
-
-  // ⭐ SCREEN CONTROL (FIXED NAVIGATION)
-  const [screen, setScreen] = useState('home');
-  const [view, setView] = useState('home');
+  const [tab, setTab] = useState("play");
+  const [screen, setScreen] = useState("home");
   const [slide, setSlide] = useState(0);
+  const [matches, setMatches] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
-  const [matches] = useState([]);
+  // ================= LOAD MATCHES =================
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const res = await fetch("/api/matches");
+        const data = await res.json();
+        setMatches(data);
+      } catch (err) {
+        const local = localStorage.getItem("matches");
+        setMatches(local ? JSON.parse(local) : []);
+      }
+    };
 
-  const [defaultBR] = useState([
-    { id: 1, title: "BR Classic Match", imageUrl: "/image/img-1.jpg", winPrize: 5000, matchCount: 12 },
-    { id: 2, title: "BR Squad Battle", imageUrl: "/image/img-2.jpg", winPrize: 8000, matchCount: 20 },
-    { id: 3, title: "BR Fast Fight", imageUrl: "/image/img-3.jpg", winPrize: 3000, matchCount: 8 },
-    { id: 4, title: "BR Pro League", imageUrl: "/image/img-1.jpg", winPrize: 10000, matchCount: 25 },
-    { id: 5, title: "BR Rookie Cup", imageUrl: "/image/img-2.jpg", winPrize: 2000, matchCount: 5 },
-    { id: 6, title: "BR Elite Zone", imageUrl: "/image/img-3.jpg", winPrize: 15000, matchCount: 30 },
-  ]);
+    loadData();
+  }, []);
 
+  // ================= SLIDER =================
   useEffect(() => {
     const t = setInterval(() => {
       setSlide((p) => (p === 9 ? 0 : p + 1));
@@ -32,7 +35,16 @@ const AppDashboard = ({ onLogout }) => {
     return () => clearInterval(t);
   }, []);
 
-  // ================= WALLET SCREEN =================
+  const categories = [
+    { key: "solo", title: "SOLO MATCH", img: "/image/img-1.jpg" },
+    { key: "duo", title: "DUO MATCH", img: "/image/img-2.jpg" },
+    { key: "squad", title: "SQUAD MATCH", img: "/image/img-3.jpg" },
+    { key: "cs", title: "CS MATCH", img: "/image/img-1.jpg" },
+    { key: "custom", title: "CUSTOM", img: "/image/img-2.jpg" },
+    { key: "tournament", title: "TOURNAMENT", img: "/image/img-3.jpg" },
+  ];
+
+  // ================= WALLET =================
   if (screen === "wallet") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -42,56 +54,51 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= PROFILE SCREEN =================
-  if (tab === "profile" || screen === "profile") {
+  // ================= PROFILE =================
+  if (tab === "profile") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-
         <Profile
           onLogout={onLogout}
           onNavigate={(id) => {
-
-            // ⭐ FIXED NAVIGATION FLOW
-            if (id === "wallet") {
-              setScreen("wallet");
-            }
-
-            if (id === "withdraw") {
-              alert("Withdraw coming soon");
-            }
-
-            if (id === "my_profile") {
-              setScreen("profile");
-            }
+            if (id === "wallet") setScreen("wallet");
           }}
         />
-
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
 
-  // ================= ADMIN =================
-  if (view === 'admin_dashboard') {
-    return <AdminDashboard onBack={() => setView('home')} />;
-  }
+  // ================= CATEGORY =================
+  if (screen === "category") {
+    const filtered = matches.filter(
+      (m) => m.category === selectedCategory
+    );
 
-  // ================= BR LIST =================
-  if (view === 'br_list') {
     return (
-      <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-24">
+      <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
 
-        <div className="p-4 bg-white shadow">
-          <button onClick={() => setView('home')}>❮ Back</button>
-          <h2 className="font-bold">BR MATCHES</h2>
+        <div className="bg-white p-4 flex items-center gap-3 shadow">
+          <button onClick={() => setScreen("home")}>←</button>
+          <h2 className="font-bold uppercase">{selectedCategory}</h2>
         </div>
 
         <div className="p-3 space-y-3">
-          {matches.map((m, i) => (
-            <div key={i} className="bg-white p-3 rounded-xl shadow">
-              {m.title}
+          {filtered.length === 0 ? (
+            <div className="bg-white p-4 rounded-xl text-center text-gray-400">
+              No Match Available
             </div>
-          ))}
+          ) : (
+            filtered.map((m, i) => (
+              <div key={i} className="bg-white p-4 rounded-xl shadow">
+                <h3 className="font-bold">{m.title}</h3>
+                <div className="flex justify-between text-xs mt-2">
+                  <span>৳{m.winPrize}</span>
+                  <span>Entry ৳{m.entryFee}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         <BottomMenu tab={tab} setTab={setTab} />
@@ -99,11 +106,13 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= HOME =================
+  // ================= HOME (NO UI CHANGE) =================
   return (
     <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
 
       <div className="p-4">
+
+        {/* SLIDER */}
         <div className="relative w-full h-44 overflow-hidden rounded-2xl">
           {Array.from({ length: 10 }).map((_, i) => (
             <img
@@ -120,19 +129,28 @@ const AppDashboard = ({ onLogout }) => {
           FREE FIRE
         </h2>
 
+        {/* CATEGORY CARDS */}
         <div className="grid grid-cols-2 gap-3 mt-4">
-          {defaultBR.map((m) => (
-            <div
-              key={m.id}
-              onClick={() => setView('br_list')}
-              className="bg-white rounded-xl shadow p-2 cursor-pointer"
-            >
-              <img src={m.imageUrl} className="h-24 w-full object-cover rounded-lg" />
-              <p className="text-xs font-bold mt-1">{m.title}</p>
-              <p className="text-[10px]">৳{m.winPrize}</p>
-            </div>
-          ))}
+          {categories.map((c) => {
+            const count = matches.filter(m => m.category === c.key).length;
+
+            return (
+              <div
+                key={c.key}
+                onClick={() => {
+                  setSelectedCategory(c.key);
+                  setScreen("category");
+                }}
+                className="bg-white rounded-xl shadow p-2 cursor-pointer"
+              >
+                <img src={c.img} className="h-24 w-full object-cover rounded-lg" />
+                <p className="text-xs font-bold">{c.title}</p>
+                <p className="text-[11px] text-gray-500">{count} Matches</p>
+              </div>
+            );
+          })}
         </div>
+
       </div>
 
       <BottomMenu tab={tab} setTab={setTab} />
