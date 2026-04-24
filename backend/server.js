@@ -3,29 +3,44 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 require("colors");
 
-// 🔥 DNS FIX for MongoDB Atlas SRV (querySrv ECONNREFUSED)
+// 🔥 DNS FIX for MongoDB Atlas SRV issue
 const dns = require("node:dns/promises");
-dns.setServers(["1.1.1.1", "8.8.8.8"]);   // Cloudflare + Google DNS
+dns.setServers(["1.1.1.1", "8.8.8.8"]); // Cloudflare + Google DNS
 
-// env load
 dotenv.config();
 
+// DB CONNECT
 const connectDB = require("./config/db");
 
 const app = express();
 
-// Middleware
+// ================= MIDDLEWARE =================
 app.use(cors());
 app.use(express.json());
 
-console.log("MONGO_URI:", process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found");
-
+// ================= DB CONNECTION =================
 connectDB();
 
-// Test route
+// ================= LOG CHECK =================
+console.log(
+  "MONGO_URI:",
+  process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
+);
+
+// ================= TEST ROUTE =================
 app.get("/", (req, res) => {
-  res.send("🚀 Playzo Backend is running!");
+  res.json({
+    success: true,
+    message: "🚀 Playzo Backend is running!",
+  });
 });
+
+// ================= ROUTES (ADDED PART ONLY) =================
+const matchRoutes = require("./routes/matchRoutes");
+app.use("/api/matches", matchRoutes);
+
+// ================= FUTURE ROUTES (KEEP SAFE) =================
+// app.use("/api/users", require("./routes/userRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
