@@ -1,72 +1,103 @@
  import React, { useState } from "react";
-import MatchManager from "../MatchManager.jsx/MatchManager";
-import DepositRequests from "../DepositeRequest/DepositeRequest";
-import WithdrawRequests from "../WithdrawRequest/withdrawRequest";
-import UserManager from "../UserManager/UserManager";
 
 const AdminDashboard = ({ onBack }) => {
-  const [tab, setTab] = useState("dashboard");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("solo");
+  const [winPrize, setWinPrize] = useState("");
+  const [entryFee, setEntryFee] = useState("");
 
-  const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: "📊" },
-    { id: "matches", label: "Matches", icon: "🎮" },
-    { id: "deposits", label: "Deposits", icon: "💰" },
-    { id: "withdraws", label: "Withdraws", icon: "🏧" },
-    { id: "users", label: "Users", icon: "👥" },
-  ];
+  const [matches, setMatches] = useState([]);
 
-  const renderContent = () => {
-    switch (tab) {
-      case "matches":
-        return <MatchManager />;
-      case "deposits":
-        return <DepositRequests />;
-      case "withdraws":
-        return <WithdrawRequests />;
-      case "users":
-        return <UserManager />;
-      default:
-        return (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-5 rounded-2xl shadow">
-              <p className="text-gray-400 text-sm">Total Users</p>
-              <h2 className="text-2xl font-black">120</h2>
-            </div>
-            <div className="bg-white p-5 rounded-2xl shadow">
-              <p className="text-gray-400 text-sm">Matches</p>
-              <h2 className="text-2xl font-black">18</h2>
-            </div>
-          </div>
-        );
+  // CREATE MATCH
+  const handleCreate = () => {
+    if (!title || !winPrize || !entryFee) {
+      alert("সব ফিল্ড পূরণ করুন");
+      return;
     }
+
+    const newMatch = {
+      id: Date.now(),
+      title,
+      category,
+      winPrize: Number(winPrize),
+      entryFee: Number(entryFee),
+    };
+
+    setMatches([newMatch, ...matches]);
+
+    setTitle("");
+    setWinPrize("");
+    setEntryFee("");
+
+    alert("Match created successfully");
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto">
-      <div className="bg-indigo-600 text-white p-4 flex justify-between items-center">
-        <button onClick={onBack}>❮</button>
-        <h2 className="font-black text-lg">Admin Panel</h2>
-        <span></span>
+    <div className="min-h-screen bg-gray-100 max-w-[450px] mx-auto pb-20">
+
+      {/* HEADER */}
+      <div className="bg-white p-4 flex items-center gap-3 shadow">
+        <button onClick={onBack}>←</button>
+        <h2 className="font-bold">Admin Panel</h2>
       </div>
 
-      <div className="flex overflow-x-auto bg-white border-b">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className={`flex-1 min-w-[90px] py-3 text-xs font-bold ${
-              tab === item.id
-                ? "text-indigo-600 border-b-2 border-indigo-600"
-                : "text-gray-500"
-            }`}
-          >
-            <div>{item.icon}</div>
-            <div>{item.label}</div>
-          </button>
+      {/* FORM */}
+      <div className="p-3 space-y-3">
+
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Match Title"
+          className="w-full p-3 rounded-lg border bg-white"
+        />
+
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full p-3 rounded-lg border bg-white"
+        >
+          <option value="solo">Solo</option>
+          <option value="duo">Duo</option>
+          <option value="squad">Squad</option>
+          <option value="cs">CS</option>
+        </select>
+
+        <input
+          value={winPrize}
+          onChange={(e) => setWinPrize(e.target.value)}
+          placeholder="Win Prize"
+          type="number"
+          className="w-full p-3 rounded-lg border bg-white"
+        />
+
+        <input
+          value={entryFee}
+          onChange={(e) => setEntryFee(e.target.value)}
+          placeholder="Entry Fee"
+          type="number"
+          className="w-full p-3 rounded-lg border bg-white"
+        />
+
+        <button
+          onClick={handleCreate}
+          className="w-full bg-green-500 text-white p-3 rounded-lg font-bold"
+        >
+          CREATE MATCH
+        </button>
+      </div>
+
+      {/* LIST */}
+      <div className="p-3 space-y-2">
+        {matches.map((m) => (
+          <div key={m.id} className="bg-white p-3 rounded-lg shadow">
+            <h3 className="font-bold">{m.title}</h3>
+            <p className="text-xs text-gray-500">
+              {m.category} | Win ৳{m.winPrize} | Entry ৳{m.entryFee}
+            </p>
+          </div>
         ))}
       </div>
 
-      <div className="p-4">{renderContent()}</div>
     </div>
   );
 };
