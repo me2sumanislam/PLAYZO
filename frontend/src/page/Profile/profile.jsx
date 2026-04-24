@@ -25,7 +25,7 @@ const Profile = ({ onLogout, onNavigate, activeTab }) => {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.id)}
+            onClick={() => onNavigate(item.id)}   // ✅ THIS IS THE FIX
             className="w-full flex justify-between p-4 border-b"
           >
             <div className="flex gap-4">

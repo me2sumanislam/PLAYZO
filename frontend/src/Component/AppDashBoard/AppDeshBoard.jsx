@@ -8,9 +8,8 @@ import Wallet from '../../page/Wallet/Wallet';
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState('play');
 
-  // ⭐ NEW SCREEN CONTROL
+  // ⭐ SCREEN CONTROL (FIXED NAVIGATION)
   const [screen, setScreen] = useState('home');
-
   const [view, setView] = useState('home');
   const [slide, setSlide] = useState(0);
 
@@ -29,6 +28,7 @@ const AppDashboard = ({ onLogout }) => {
     const t = setInterval(() => {
       setSlide((p) => (p === 9 ? 0 : p + 1));
     }, 3000);
+
     return () => clearInterval(t);
   }, []);
 
@@ -43,15 +43,26 @@ const AppDashboard = ({ onLogout }) => {
   }
 
   // ================= PROFILE SCREEN =================
-  if (tab === "profile") {
+  if (tab === "profile" || screen === "profile") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
 
         <Profile
           onLogout={onLogout}
           onNavigate={(id) => {
-            if (id === "wallet") setScreen("wallet");   // ✅ FIXED
-            if (id === "withdraw") alert("Withdraw coming soon");
+
+            // ⭐ FIXED NAVIGATION FLOW
+            if (id === "wallet") {
+              setScreen("wallet");
+            }
+
+            if (id === "withdraw") {
+              alert("Withdraw coming soon");
+            }
+
+            if (id === "my_profile") {
+              setScreen("profile");
+            }
           }}
         />
 
@@ -92,7 +103,6 @@ const AppDashboard = ({ onLogout }) => {
   return (
     <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
 
-      {/* SLIDER */}
       <div className="p-4">
         <div className="relative w-full h-44 overflow-hidden rounded-2xl">
           {Array.from({ length: 10 }).map((_, i) => (
@@ -106,12 +116,10 @@ const AppDashboard = ({ onLogout }) => {
           ))}
         </div>
 
-        {/* TITLE */}
         <h2 className="text-center font-black text-orange-500 mt-3">
           FREE FIRE
         </h2>
 
-        {/* CARDS */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           {defaultBR.map((m) => (
             <div
