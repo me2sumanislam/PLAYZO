@@ -1,19 +1,24 @@
  const express = require("express");
 const router = express.Router();
 const Match = require("../models/Match");
+const jwt = require("jsonwebtoken");
 
-// ================= MIDDLEWARE (TEMP SIMPLE PROTECT) =================
-// পরে চাইলে আলাদা file এ move করা যাবে
+
+// ================= ADMIN MIDDLEWARE =================
 const protectAdmin = (req, res, next) => {
-  const token = req.headers.authorization;
-
-  if (!token) {
-    return res.json({ success: false, message: "No token found" });
-  }
-
   try {
-    const jwt = require("jsonwebtoken");
-    const decoded = jwt.verify(token.split(" ")[1], process.env.JWT_SECRET);
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.json({
+        success: false,
+        message: "No token found",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.role !== "admin") {
       return res.json({
@@ -36,7 +41,11 @@ const protectAdmin = (req, res, next) => {
 // ================= CREATE MATCH (ADMIN ONLY) =================
 router.post("/create", protectAdmin, async (req, res) => {
   try {
-    const match = await Match.create(req.body);
+    const match = await Match.create({
+      ...req.body,
+      joinedPlayers: 0,
+      status: "upcoming",
+    });
 
     res.status(201).json({
       success: true,
@@ -57,7 +66,10 @@ router.get("/", async (req, res) => {
   try {
     const matches = await Match.find().sort({ createdAt: -1 });
 
-    res.json(matches);
+    res.json({
+      success: true,
+      data: matches,
+    });
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -72,7 +84,10 @@ router.get("/:id", async (req, res) => {
   try {
     const match = await Match.findById(req.params.id);
 
-    res.json(match);
+    res.json({
+      success: true,
+      data: match,
+    });
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -92,8 +107,8 @@ router.put("/update-room/:id", protectAdmin, async (req, res) => {
       {
         roomId,
         roomPassword,
-        isRoomOpen: true,
         status: "live",
+        isRoomOpen: true,
       },
       { new: true }
     );

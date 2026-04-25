@@ -1,112 +1,221 @@
- import React, { useState } from "react";
+ import React, { useEffect, useState } from "react";
 
 const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState("matches");
+  const [matches, setMatches] = useState([]);
 
-  const inputStyle =
-    "w-full px-6 py-5 rounded-3xl border border-gray-700 bg-transparent text-gray-300 text-lg font-bold placeholder:text-gray-500 outline-none focus:border-indigo-500 transition";
+  const [form, setForm] = useState({
+    title: "",
+    category: "solo",
+    entryFee: "",
+    winPrize: "",
+    totalPlayers: "",
+  });
 
-  const prizeStyle =
-    "w-full px-4 py-4 rounded-2xl border border-gray-700 bg-transparent text-gray-300 text-base font-bold placeholder:text-gray-500 outline-none text-center";
+  // 👇 FIX: per match room data safe state
+  const [roomData, setRoomData] = useState({});
+
+  // ================= LOAD MATCHES =================
+  const loadMatches = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/matches");
+
+      if (!res.ok) throw new Error("API error");
+
+      const data = await res.json();
+
+      console.log("MATCHES:", data);
+
+      setMatches(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.log("LOAD ERROR:", err);
+      setMatches([]);
+    }
+  };
+
+  useEffect(() => {
+    loadMatches();
+  }, []);
+
+  // ================= CREATE MATCH =================
+  const createMatch = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await fetch("http://localhost:5000/api/matches/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Match Created 🎮");
+
+        setForm({
+          title: "",
+          category: "solo",
+          entryFee: "",
+          winPrize: "",
+          totalPlayers: "",
+        });
+
+        loadMatches();
+      } else {
+        alert(data.message || "Failed");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // ================= UPDATE ROOM =================
+  const updateRoom = async (id) => {
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/matches/update-room/${id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(roomData[id] || {}),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Room Updated 🔥");
+        loadMatches();
+      } else {
+        alert(data.message || "Update failed");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   return (
-    <div className="h-screen bg-[#0f172a] text-white flex flex-col md:flex-row overflow-hidden">
-      
-      {/* Sidebar */}
-      <div className="w-full md:w-72 bg-[#111827] border-r border-white/5 p-6 shrink-0">
-        <h2 className="text-2xl font-black text-orange-500 mb-8">ADMIN</h2>
+    <div className="min-h-screen bg-gray-100 p-4 max-w-[500px] mx-auto">
 
-        <nav className="space-y-3">
-          <button
-            onClick={() => setActiveTab("matches")}
-            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
-              activeTab === "matches"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:bg-white/5"
-            }`}
-          >
-            🎮 Match Create
-          </button>
+      {/* HEADER */}
+      <h1 className="text-2xl font-black text-center mb-4">
+        🎮 ADMIN PANEL
+      </h1>
 
-          <button
-            onClick={() => setActiveTab("money")}
-            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
-              activeTab === "money"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:bg-white/5"
-            }`}
-          >
-            💰 Add Money Req
-          </button>
+      {/* CREATE MATCH */}
+      <div className="bg-white p-4 rounded-xl shadow mb-4">
+        <h2 className="font-bold mb-2">Create Match</h2>
 
-          <button
-            onClick={() => setActiveTab("withdraw")}
-            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
-              activeTab === "withdraw"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:bg-white/5"
-            }`}
+        <form onSubmit={createMatch} className="space-y-2">
+
+          <input
+            placeholder="Title"
+            className="w-full p-2 border rounded"
+            value={form.title}
+            onChange={(e) =>
+              setForm({ ...form, title: e.target.value })
+            }
+          />
+
+          <select
+            className="w-full p-2 border rounded"
+            value={form.category}
+            onChange={(e) =>
+              setForm({ ...form, category: e.target.value })
+            }
           >
-            💸 Withdraw Req
+            <option value="solo">Solo</option>
+            <option value="duo">Duo</option>
+            <option value="squad">Squad</option>
+            <option value="cs">CS</option>
+            <option value="tournament">Tournament</option>
+          </select>
+
+          <input
+            placeholder="Entry Fee"
+            className="w-full p-2 border rounded"
+            onChange={(e) =>
+              setForm({ ...form, entryFee: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Win Prize"
+            className="w-full p-2 border rounded"
+            onChange={(e) =>
+              setForm({ ...form, winPrize: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Total Players"
+            className="w-full p-2 border rounded"
+            onChange={(e) =>
+              setForm({ ...form, totalPlayers: e.target.value })
+            }
+          />
+
+          <button className="w-full bg-black text-white p-2 rounded">
+            Create
           </button>
-        </nav>
+        </form>
       </div>
 
-      {/* Main Content Scroll */}
-      <div className="flex-1 p-6 md:p-10 bg-[#0b1221] overflow-y-auto">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-8">
-            <h1 className="text-3xl font-black text-indigo-500">
-              CREATE TOURNAMENT
-            </h1>
-            <span className="text-red-500 text-2xl font-bold cursor-pointer">
-              X
-            </span>
-          </div>
+      {/* MATCH LIST */}
+      <div className="space-y-3">
 
-          <div className="space-y-8 pb-20">
-            <input type="text" placeholder="Match Name" className={inputStyle} />
+        {Array.isArray(matches) &&
+          matches.map((m) => (
+            <div
+              key={m._id}
+              className="bg-white p-3 rounded-xl shadow"
+            >
+              <h3 className="font-bold">{m.title}</h3>
 
-            <div>
-              <label className="block mb-2 text-sm font-bold text-gray-400 uppercase">
-                Thumbnail
-              </label>
-              <div className="w-full px-6 py-5 rounded-3xl border border-gray-700 bg-transparent">
-                <input type="file" className="w-full text-gray-400" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <input type="text" placeholder="Total Win Prize" className={inputStyle} />
-              <input type="text" placeholder="Entry Fee" className={inputStyle} />
-            </div>
-
-            <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
-              <p className="text-sm text-indigo-400 font-bold mb-4 uppercase">
-                Prizes (1-5) & Per Kill
+              <p className="text-sm text-gray-500">
+                {m.category} | Players: {m.joinedPlayers || 0}/{m.totalPlayers}
               </p>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <input type="text" placeholder="1st" className={prizeStyle} />
-                <input type="text" placeholder="2nd" className={prizeStyle} />
-                <input type="text" placeholder="3rd" className={prizeStyle} />
-                <input type="text" placeholder="4th" className={prizeStyle} />
-                <input type="text" placeholder="5th" className={prizeStyle} />
+              {/* ROOM UPDATE */}
+              <div className="mt-2 space-y-1">
+
                 <input
-                  type="text"
-                  placeholder="Kill"
-                  className="w-full px-4 py-4 rounded-2xl border border-orange-500 bg-transparent text-orange-400 text-base font-bold placeholder:text-orange-300 outline-none text-center"
+                  placeholder="Room ID"
+                  className="w-full p-1 border rounded"
+                  onChange={(e) =>
+                    setRoomData((prev) => ({
+                      ...prev,
+                      [m._id]: {
+                        ...prev[m._id],
+                        roomId: e.target.value,
+                      },
+                    }))
+                  }
                 />
+
+                <input
+                  placeholder="Room Password"
+                  className="w-full p-1 border rounded"
+                  onChange={(e) =>
+                    setRoomData((prev) => ({
+                      ...prev,
+                      [m._id]: {
+                        ...prev[m._id],
+                        roomPassword: e.target.value,
+                      },
+                    }))
+                  }
+                />
+
+                <button
+                  onClick={() => updateRoom(m._id)}
+                  className="w-full bg-green-600 text-white p-2 rounded"
+                >
+                  Update Room
+                </button>
               </div>
             </div>
-
-            <input type="text" placeholder="Date & Time" className={inputStyle} />
-
-            <button className="w-full py-5 rounded-3xl bg-indigo-600 hover:bg-indigo-700 text-xl font-black tracking-wide transition shadow-xl">
-              PUBLISH
-            </button>
-          </div>
-        </div>
+          ))}
       </div>
     </div>
   );

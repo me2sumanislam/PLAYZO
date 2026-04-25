@@ -39,9 +39,13 @@ app.get("/", (req, res) => {
 const matchRoutes = require("./routes/matchRoutes");
 app.use("/api/matches", matchRoutes);
 
-// ================= AUTH ROUTES (ADDED) =================
+// ================= AUTH ROUTES =================
 const authRoutes = require("./routes/authRoutes");
 app.use("/api/auth", authRoutes);
+
+// ================= ADMIN AUTH ROUTES =================
+const adminAuthRoutes = require("./routes/adminAuthRoutes");
+app.use("/api/admin", adminAuthRoutes);
 
 // ================= FUTURE ROUTES =================
 // app.use("/api/users", require("./routes/userRoutes"));
