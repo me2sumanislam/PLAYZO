@@ -5,19 +5,11 @@ const matchSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
-      trim: true,
     },
 
     category: {
       type: String,
-      enum: ["solo", "duo", "squad", "cs", "custom", "tournament"],
       required: true,
-    },
-
-    winPrize: {
-      type: Number,
-      required: true,
-      default: 0,
     },
 
     entryFee: {
@@ -26,8 +18,9 @@ const matchSchema = new mongoose.Schema(
       default: 0,
     },
 
-    perKill: {
+    winPrize: {
       type: Number,
+      required: true,
       default: 0,
     },
 
@@ -41,7 +34,6 @@ const matchSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // 🎮 ROOM SYSTEM
     roomId: {
       type: String,
       default: "",
@@ -52,23 +44,9 @@ const matchSchema = new mongoose.Schema(
       default: "",
     },
 
-    // ⏰ MATCH START TIME (VERY IMPORTANT FOR 10 MIN RULE)
-    startTime: {
-      type: Date,
-      required: true,
-    },
-
-    // 🔥 STATUS CONTROL
     status: {
       type: String,
-      enum: ["upcoming", "live", "completed"],
       default: "upcoming",
-    },
-
-    // 🔒 ROOM OPEN CONTROL (10 MIN BEFORE START)
-    isRoomOpen: {
-      type: Boolean,
-      default: false,
     },
   },
   {

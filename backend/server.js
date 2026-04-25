@@ -35,12 +35,17 @@ app.get("/", (req, res) => {
   });
 });
 
-// ================= ROUTES (ADDED PART ONLY) =================
+// ================= MATCH ROUTES =================
 const matchRoutes = require("./routes/matchRoutes");
 app.use("/api/matches", matchRoutes);
 
-// ================= FUTURE ROUTES (KEEP SAFE) =================
+// ================= AUTH ROUTES (ADDED) =================
+const authRoutes = require("./routes/authRoutes");
+app.use("/api/auth", authRoutes);
+
+// ================= FUTURE ROUTES =================
 // app.use("/api/users", require("./routes/userRoutes"));
+// app.use("/api/wallet", require("./routes/walletRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
