@@ -9,7 +9,11 @@ const AdminPanel = () => {
     entryFee: "",
     winPrize: "",
     totalPlayers: "",
-    startTime: "", // 🔥 FIX ADDED
+    startTime: "",
+    map: "",
+    perKill: "",
+    device: "Mobile",
+    image: "",
   });
 
   const [roomData, setRoomData] = useState({});
@@ -33,6 +37,24 @@ const AdminPanel = () => {
   useEffect(() => {
     loadMatches();
   }, []);
+
+  // ================= IMAGE UPLOAD =================
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      setForm({
+        ...form,
+        image: reader.result,
+      });
+    };
+
+    reader.readAsDataURL(file);
+  };
 
   // ================= CREATE MATCH =================
   const createMatch = async (e) => {
@@ -62,6 +84,10 @@ const AdminPanel = () => {
           winPrize: "",
           totalPlayers: "",
           startTime: "",
+          map: "",
+          perKill: "",
+          device: "Mobile",
+          image: "",
         });
 
         loadMatches();
@@ -103,12 +129,10 @@ const AdminPanel = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-4 max-w-[500px] mx-auto">
 
-      {/* HEADER */}
       <h1 className="text-2xl font-black text-center mb-4">
         🎮 ADMIN PANEL
       </h1>
 
-      {/* CREATE MATCH */}
       <div className="bg-white p-4 rounded-xl shadow mb-4">
         <h2 className="font-bold mb-2">Create Match</h2>
 
@@ -137,7 +161,6 @@ const AdminPanel = () => {
             <option value="tournament">Tournament</option>
           </select>
 
-          {/* 🔥 START TIME FIX */}
           <input
             type="datetime-local"
             className="w-full p-2 border rounded"
@@ -150,6 +173,7 @@ const AdminPanel = () => {
           <input
             placeholder="Entry Fee"
             className="w-full p-2 border rounded"
+            value={form.entryFee}
             onChange={(e) =>
               setForm({ ...form, entryFee: e.target.value })
             }
@@ -158,6 +182,7 @@ const AdminPanel = () => {
           <input
             placeholder="Win Prize"
             className="w-full p-2 border rounded"
+            value={form.winPrize}
             onChange={(e) =>
               setForm({ ...form, winPrize: e.target.value })
             }
@@ -166,10 +191,57 @@ const AdminPanel = () => {
           <input
             placeholder="Total Players"
             className="w-full p-2 border rounded"
+            value={form.totalPlayers}
             onChange={(e) =>
               setForm({ ...form, totalPlayers: e.target.value })
             }
           />
+
+          <input
+            placeholder="Map"
+            className="w-full p-2 border rounded"
+            value={form.map}
+            onChange={(e) =>
+              setForm({ ...form, map: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Per Kill"
+            className="w-full p-2 border rounded"
+            value={form.perKill}
+            onChange={(e) =>
+              setForm({ ...form, perKill: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Device"
+            className="w-full p-2 border rounded"
+            value={form.device}
+            onChange={(e) =>
+              setForm({ ...form, device: e.target.value })
+            }
+          />
+
+          {/* IMAGE UPLOAD */}
+          <label className="w-full p-2 border rounded block cursor-pointer text-center bg-gray-50">
+            Upload Match Image
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </label>
+
+          {form.image && (
+            <img
+              src={form.image}
+              alt=""
+              className="w-24 h-16 object-cover rounded"
+            />
+          )}
 
           <button className="w-full bg-black text-white p-2 rounded">
             Create Match
@@ -177,9 +249,7 @@ const AdminPanel = () => {
         </form>
       </div>
 
-      {/* MATCH LIST */}
       <div className="space-y-3">
-
         {matches.map((m) => (
           <div key={m._id} className="bg-white p-3 rounded-xl shadow">
 
@@ -193,7 +263,6 @@ const AdminPanel = () => {
               Start: {m.startTime}
             </p>
 
-            {/* ROOM */}
             <div className="mt-2 space-y-1">
 
               <input
@@ -234,7 +303,6 @@ const AdminPanel = () => {
             </div>
           </div>
         ))}
-
       </div>
     </div>
   );

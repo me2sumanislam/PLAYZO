@@ -1,4 +1,5 @@
  import React from "react";
+import MatchCard from "../MatchCard/MatchCard";
 
 const MatchList = ({ matches, onBack, onSelectMatch, title }) => {
   return (
@@ -32,19 +33,9 @@ const MatchList = ({ matches, onBack, onSelectMatch, title }) => {
             <div
               key={match._id || match.id}
               onClick={() => onSelectMatch(match)}
-              className="bg-white p-4 rounded-xl shadow cursor-pointer active:scale-95 transition"
+              className="cursor-pointer active:scale-95 transition"
             >
-              <h3 className="font-bold text-sm">
-                {match.title}
-              </h3>
-
-              <p className="text-xs text-gray-500 mt-1">
-                Category: {match.category}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                Entry: ৳{match.entryFee} | Win: ৳{match.winPrize}
-              </p>
+              <MatchCard match={match} />
             </div>
           ))
         )}
