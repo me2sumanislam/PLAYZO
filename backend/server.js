@@ -1,15 +1,13 @@
- const express = require("express");
-const cors = require("cors");
+ const dns = require("node:dns/promises");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
 const dotenv = require("dotenv");
-require("colors");
-
-// 🔥 DNS FIX for MongoDB Atlas SRV issue
-const dns = require("node:dns/promises");
-dns.setServers(["1.1.1.1", "8.8.8.8"]); // Cloudflare + Google DNS
-
 dotenv.config();
 
-// DB CONNECT
+require("colors");
+
+const express = require("express");
+const cors = require("cors");
 const connectDB = require("./config/db");
 
 const app = express();
@@ -29,30 +27,22 @@ console.log(
 
 // ================= TEST ROUTE =================
 app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "🚀 Playzo Backend is running!",
-  });
+  res.json({ success: true, message: "🚀 Playzo Backend is running!" });
 });
 
 // ================= MATCH ROUTES =================
-const matchRoutes = require("./routes/matchRoutes");
-app.use("/api/matches", matchRoutes);
+app.use("/api/matches", require("./routes/matchRoutes"));
 
 // ================= AUTH ROUTES =================
-const authRoutes = require("./routes/authRoutes");
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", require("./routes/authRoutes"));
 
 // ================= ADMIN AUTH ROUTES =================
-const adminAuthRoutes = require("./routes/adminAuthRoutes");
-app.use("/api/admin", adminAuthRoutes);
+app.use("/api/admin", require("./routes/adminAuthRoutes"));
 
-// ================= FUTURE ROUTES =================
-// app.use("/api/users", require("./routes/userRoutes"));
-// app.use("/api/wallet", require("./routes/walletRoutes"));
+// ================= NEW ADMIN PANEL ROUTES =================
+app.use("/api/admin", require("./routes/admin"));
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
 });
