@@ -12,8 +12,6 @@ import AdminPanel from "./page/AdminPenal/AdminPanel";
 
 function App() {
   const [isAppMode, setIsAppMode] = useState(false);
-
-  // 🔥 FIX: start with null (loading safe)
   const [isLoggedIn, setIsLoggedIn] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -61,7 +59,7 @@ function App() {
     setIsAdmin(false);
   };
 
-  // ================= LOADING STATE =================
+  // ================= LOADING =================
   if (isLoggedIn === null) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -96,7 +94,15 @@ function App() {
       <Footer />
 
       <button
-        onClick={() => setIsAppMode(true)}
+        onClick={() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("isAdmin");
+
+          setIsLoggedIn(false);
+          setIsAdmin(false);
+          setIsAppMode(true);
+        }}
         className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
       >
         📱 Open othiyO App

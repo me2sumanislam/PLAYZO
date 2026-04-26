@@ -32,21 +32,20 @@ const Auth = ({ onLoginSuccess }) => {
 
       const data = await res.json();
 
-      // 🔥 DEBUG (must see in console)
       console.log("LOGIN RESPONSE:", data);
 
       if (data.success) {
-        // save token + user
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        // admin check
         localStorage.setItem(
           "isAdmin",
           data?.user?.role === "admin" ? "true" : "false"
         );
 
-        onLoginSuccess();
+        setTimeout(() => {
+          onLoginSuccess();
+        }, 100);
       } else {
         alert(data.message || "Login failed");
       }
@@ -70,8 +69,6 @@ const Auth = ({ onLoginSuccess }) => {
 
   return (
     <div className="w-full max-w-[450px] mx-auto min-h-screen flex flex-col justify-center bg-white px-6">
-
-      {/* HEADER */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-black">
           GAME<span className="text-orange-500">ZONE</span>
@@ -81,9 +78,9 @@ const Auth = ({ onLoginSuccess }) => {
         </p>
       </div>
 
-      {/* TOGGLE */}
       <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
         <button
+          type="button"
           onClick={() => setIsLogin(true)}
           className={`flex-1 p-2 rounded-lg font-bold ${
             isLogin ? "bg-black text-white" : "text-gray-600"
@@ -93,6 +90,7 @@ const Auth = ({ onLoginSuccess }) => {
         </button>
 
         <button
+          type="button"
           onClick={() => setIsLogin(false)}
           className={`flex-1 p-2 rounded-lg font-bold ${
             !isLogin ? "bg-green-600 text-white" : "text-gray-600"
@@ -102,10 +100,7 @@ const Auth = ({ onLoginSuccess }) => {
         </button>
       </div>
 
-      {/* FORM */}
       <form onSubmit={handleSubmit} className="space-y-4">
-
-        {/* PHONE */}
         <input
           type="text"
           placeholder="Phone Number"
@@ -116,7 +111,6 @@ const Auth = ({ onLoginSuccess }) => {
           required
         />
 
-        {/* PASSWORD */}
         <input
           type="password"
           placeholder="Password"
@@ -127,7 +121,6 @@ const Auth = ({ onLoginSuccess }) => {
           required
         />
 
-        {/* USERNAME */}
         {!isLogin && (
           <input
             type="text"
@@ -139,7 +132,6 @@ const Auth = ({ onLoginSuccess }) => {
           />
         )}
 
-        {/* EMAIL */}
         {!isLogin && (
           <input
             type="email"
@@ -151,7 +143,6 @@ const Auth = ({ onLoginSuccess }) => {
           />
         )}
 
-        {/* SUBMIT */}
         <button
           type="submit"
           disabled={isLogin ? !isLoginValid : !isRegisterValid}

@@ -3,7 +3,7 @@ import BottomMenu from "../BottomMenu/BottomMenu";
 import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
-import MatchJoin from "../../page/MatchJoin/MatachJoin";
+import MatchJoin from "../../page/MatchJoin/MatchJoin";
 
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
@@ -12,17 +12,32 @@ const AppDashboard = ({ onLogout }) => {
 
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedMatch, setSelectedMatch] = useState(null);
-
   const [matches, setMatches] = useState([]);
 
-  // ================= BACKEND FETCH =================
+  // ================= LOAD MATCHES =================
   useEffect(() => {
     const loadMatches = async () => {
       try {
-        const res = await fetch("/api/matches");
+        const res = await fetch("http://localhost:5000/api/matches");
+
         const data = await res.json();
-        setMatches(data);
+
+        console.log("RAW MATCHES API:", data);
+
+        // 🔥 MOST IMPORTANT FIX
+        let safeData = [];
+
+        if (Array.isArray(data)) {
+          safeData = data;
+        } else if (Array.isArray(data?.matches)) {
+          safeData = data.matches;
+        } else if (Array.isArray(data?.data)) {
+          safeData = data.data;
+        }
+
+        setMatches(safeData);
       } catch (err) {
+        console.log("MATCH LOAD ERROR:", err);
         setMatches([]);
       }
     };
@@ -33,13 +48,12 @@ const AppDashboard = ({ onLogout }) => {
   // ================= SLIDER =================
   useEffect(() => {
     const timer = setInterval(() => {
-      setSlide((p) => (p === 9 ? 0 : p + 1));
+      setSlide((p) => (p === 2 ? 0 : p + 1));
     }, 3000);
 
     return () => clearInterval(timer);
   }, []);
 
-  // ================= CATEGORY =================
   const categories = [
     { key: "solo", title: "SOLO", img: "/image/img-1.jpg" },
     { key: "duo", title: "DUO", img: "/image/img-2.jpg" },
@@ -49,7 +63,14 @@ const AppDashboard = ({ onLogout }) => {
     { key: "tournament", title: "TOURNAMENT", img: "/image/img-3.jpg" },
   ];
 
-  // ================= WALLET SCREEN =================
+  // ================= SAFE FILTER =================
+  const filteredMatches = matches.filter(
+    (m) =>
+      (m.category || "").toLowerCase().trim() ===
+      selectedCategory.toLowerCase().trim()
+  );
+
+  // ================= WALLET =================
   if (screen === "wallet") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -63,19 +84,13 @@ const AppDashboard = ({ onLogout }) => {
   if (tab === "profile") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-        <Profile
-          onLogout={onLogout}
-          onNavigate={(id) => {
-            if (id === "wallet") setScreen("wallet");
-            if (id === "my_profile") setScreen("profile");
-          }}
-        />
+        <Profile onLogout={onLogout} />
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
 
-  // ================= MATCH JOIN =================
+  // ================= JOIN =================
   if (screen === "join") {
     return (
       <MatchJoin
@@ -85,16 +100,12 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= MATCH LIST =================
+  // ================= CATEGORY =================
   if (screen === "category") {
-    const filtered = matches.filter(
-      (m) => m.category === selectedCategory
-    );
-
     return (
       <div className="max-w-[450px] mx-auto">
         <MatchList
-          matches={filtered}
+          matches={filteredMatches}
           title={selectedCategory}
           onBack={() => setScreen("home")}
           onSelectMatch={(match) => {
@@ -110,15 +121,14 @@ const AppDashboard = ({ onLogout }) => {
   // ================= HOME =================
   return (
     <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
-
       <div className="p-4">
 
         {/* SLIDER */}
         <div className="relative w-full h-44 overflow-hidden rounded-2xl">
-          {Array.from({ length: 10 }).map((_, i) => (
+          {categories.slice(0, 3).map((c, i) => (
             <img
               key={i}
-              src={`/image/img-${(i % 3) + 1}.jpg`}
+              src={c.img}
               className="absolute w-full h-full object-cover transition-opacity duration-1000"
               style={{ opacity: slide === i ? 1 : 0 }}
               alt=""
@@ -132,10 +142,10 @@ const AppDashboard = ({ onLogout }) => {
 
         {/* CATEGORY GRID */}
         <div className="grid grid-cols-2 gap-3 mt-4">
-
           {categories.map((c) => {
             const count = matches.filter(
-              (m) => m.category === c.key
+              (m) =>
+                (m.category || "").toLowerCase().trim() === c.key
             ).length;
 
             return (
@@ -150,6 +160,7 @@ const AppDashboard = ({ onLogout }) => {
                 <img
                   src={c.img}
                   className="h-24 w-full object-cover rounded-lg"
+                  alt=""
                 />
                 <p className="text-xs font-bold mt-1 uppercase">
                   {c.title}
@@ -160,8 +171,8 @@ const AppDashboard = ({ onLogout }) => {
               </div>
             );
           })}
-
         </div>
+
       </div>
 
       <BottomMenu tab={tab} setTab={setTab} />

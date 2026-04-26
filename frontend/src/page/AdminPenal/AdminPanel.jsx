@@ -9,9 +9,9 @@ const AdminPanel = () => {
     entryFee: "",
     winPrize: "",
     totalPlayers: "",
+    startTime: "", // 🔥 FIX ADDED
   });
 
-  // 👇 FIX: per match room data safe state
   const [roomData, setRoomData] = useState({});
 
   // ================= LOAD MATCHES =================
@@ -22,8 +22,6 @@ const AdminPanel = () => {
       if (!res.ok) throw new Error("API error");
 
       const data = await res.json();
-
-      console.log("MATCHES:", data);
 
       setMatches(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -40,10 +38,15 @@ const AdminPanel = () => {
   const createMatch = async (e) => {
     e.preventDefault();
 
+    const token = localStorage.getItem("token");
+
     try {
       const res = await fetch("http://localhost:5000/api/matches/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(form),
       });
 
@@ -58,11 +61,12 @@ const AdminPanel = () => {
           entryFee: "",
           winPrize: "",
           totalPlayers: "",
+          startTime: "",
         });
 
         loadMatches();
       } else {
-        alert(data.message || "Failed");
+        alert(data.message || "Failed to create match");
       }
     } catch (err) {
       console.log(err);
@@ -76,7 +80,9 @@ const AdminPanel = () => {
         `http://localhost:5000/api/matches/update-room/${id}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(roomData[id] || {}),
         }
       );
@@ -131,6 +137,16 @@ const AdminPanel = () => {
             <option value="tournament">Tournament</option>
           </select>
 
+          {/* 🔥 START TIME FIX */}
+          <input
+            type="datetime-local"
+            className="w-full p-2 border rounded"
+            value={form.startTime}
+            onChange={(e) =>
+              setForm({ ...form, startTime: e.target.value })
+            }
+          />
+
           <input
             placeholder="Entry Fee"
             className="w-full p-2 border rounded"
@@ -156,7 +172,7 @@ const AdminPanel = () => {
           />
 
           <button className="w-full bg-black text-white p-2 rounded">
-            Create
+            Create Match
           </button>
         </form>
       </div>
@@ -164,58 +180,61 @@ const AdminPanel = () => {
       {/* MATCH LIST */}
       <div className="space-y-3">
 
-        {Array.isArray(matches) &&
-          matches.map((m) => (
-            <div
-              key={m._id}
-              className="bg-white p-3 rounded-xl shadow"
-            >
-              <h3 className="font-bold">{m.title}</h3>
+        {matches.map((m) => (
+          <div key={m._id} className="bg-white p-3 rounded-xl shadow">
 
-              <p className="text-sm text-gray-500">
-                {m.category} | Players: {m.joinedPlayers || 0}/{m.totalPlayers}
-              </p>
+            <h3 className="font-bold">{m.title}</h3>
 
-              {/* ROOM UPDATE */}
-              <div className="mt-2 space-y-1">
+            <p className="text-sm text-gray-500">
+              {m.category} | Players: {m.joinedPlayers || 0}/{m.totalPlayers}
+            </p>
 
-                <input
-                  placeholder="Room ID"
-                  className="w-full p-1 border rounded"
-                  onChange={(e) =>
-                    setRoomData((prev) => ({
-                      ...prev,
-                      [m._id]: {
-                        ...prev[m._id],
-                        roomId: e.target.value,
-                      },
-                    }))
-                  }
-                />
+            <p className="text-xs text-gray-400">
+              Start: {m.startTime}
+            </p>
 
-                <input
-                  placeholder="Room Password"
-                  className="w-full p-1 border rounded"
-                  onChange={(e) =>
-                    setRoomData((prev) => ({
-                      ...prev,
-                      [m._id]: {
-                        ...prev[m._id],
-                        roomPassword: e.target.value,
-                      },
-                    }))
-                  }
-                />
+            {/* ROOM */}
+            <div className="mt-2 space-y-1">
 
-                <button
-                  onClick={() => updateRoom(m._id)}
-                  className="w-full bg-green-600 text-white p-2 rounded"
-                >
-                  Update Room
-                </button>
-              </div>
+              <input
+                placeholder="Room ID"
+                className="w-full p-1 border rounded"
+                onChange={(e) =>
+                  setRoomData((prev) => ({
+                    ...prev,
+                    [m._id]: {
+                      ...prev[m._id],
+                      roomId: e.target.value,
+                    },
+                  }))
+                }
+              />
+
+              <input
+                placeholder="Room Password"
+                className="w-full p-1 border rounded"
+                onChange={(e) =>
+                  setRoomData((prev) => ({
+                    ...prev,
+                    [m._id]: {
+                      ...prev[m._id],
+                      roomPassword: e.target.value,
+                    },
+                  }))
+                }
+              />
+
+              <button
+                onClick={() => updateRoom(m._id)}
+                className="w-full bg-green-600 text-white p-2 rounded"
+              >
+                Update Room
+              </button>
+
             </div>
-          ))}
+          </div>
+        ))}
+
       </div>
     </div>
   );
