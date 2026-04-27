@@ -19,14 +19,10 @@ const AppDashboard = ({ onLogout }) => {
     const loadMatches = async () => {
       try {
         const res = await fetch("http://localhost:5000/api/matches");
-
         const data = await res.json();
-
         console.log("RAW MATCHES API:", data);
 
-        // 🔥 MOST IMPORTANT FIX
         let safeData = [];
-
         if (Array.isArray(data)) {
           safeData = data;
         } else if (Array.isArray(data?.matches)) {
@@ -50,7 +46,6 @@ const AppDashboard = ({ onLogout }) => {
     const timer = setInterval(() => {
       setSlide((p) => (p === 2 ? 0 : p + 1));
     }, 3000);
-
     return () => clearInterval(timer);
   }, []);
 
@@ -63,7 +58,6 @@ const AppDashboard = ({ onLogout }) => {
     { key: "tournament", title: "TOURNAMENT", img: "/image/img-3.jpg" },
   ];
 
-  // ================= SAFE FILTER =================
   const filteredMatches = matches.filter(
     (m) =>
       (m.category || "").toLowerCase().trim() ===
@@ -84,7 +78,43 @@ const AppDashboard = ({ onLogout }) => {
   if (tab === "profile") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-        <Profile onLogout={onLogout} />
+        <Profile onLogout={onLogout} onWallet={() => setScreen("wallet")} />
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+  // ================= SHOP =================
+  if (tab === "shop") {
+    return (
+      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
+        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
+          🛒 Shop Coming Soon...
+        </div>
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+  // ================= MY MATCHES =================
+  if (tab === "matches") {
+    return (
+      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
+        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
+          📋 My Matches Coming Soon...
+        </div>
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+  // ================= RESULTS =================
+  if (tab === "results") {
+    return (
+      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
+        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
+          📊 Results Coming Soon...
+        </div>
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
@@ -118,7 +148,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= HOME =================
+  // ================= HOME (PLAY) =================
   return (
     <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
       <div className="p-4">
@@ -162,12 +192,8 @@ const AppDashboard = ({ onLogout }) => {
                   className="h-24 w-full object-cover rounded-lg"
                   alt=""
                 />
-                <p className="text-xs font-bold mt-1 uppercase">
-                  {c.title}
-                </p>
-                <p className="text-[11px] text-gray-500">
-                  {count} Matches
-                </p>
+                <p className="text-xs font-bold mt-1 uppercase">{c.title}</p>
+                <p className="text-[11px] text-gray-500">{count} Matches</p>
               </div>
             );
           })}

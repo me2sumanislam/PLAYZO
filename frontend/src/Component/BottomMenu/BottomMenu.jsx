@@ -1,40 +1,30 @@
  import React from "react";
-import {
-  Store,
-  Gamepad2,
-  ClipboardList,
-  BarChart3,
-  Cat
-} from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Store, Gamepad2, ClipboardList, BarChart3, Cat } from "lucide-react";
 
-const BottomMenu = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
+const BottomMenu = ({ tab, setTab }) => {
   const menus = [
     {
-      id: "/shop",
+      id: "shop",
       label: "Shop",
       icon: <Store size={24} className="text-cyan-400" strokeWidth={2.2} />,
     },
     {
-      id: "/",
+      id: "play",
       label: "Play",
       icon: <Gamepad2 size={24} className="text-purple-500" strokeWidth={2.2} />,
     },
     {
-      id: "/matches",
+      id: "matches",
       label: "My Match...",
       icon: <ClipboardList size={24} className="text-orange-500" strokeWidth={2.2} />,
     },
     {
-      id: "/results",
+      id: "results",
       label: "Results",
       icon: <BarChart3 size={24} className="text-green-400" strokeWidth={2.2} />,
     },
     {
-      id: "/profile",
+      id: "profile",
       label: "Profile",
       icon: <Cat size={24} className="text-purple-500" strokeWidth={2.2} />,
     },
@@ -44,12 +34,12 @@ const BottomMenu = () => {
     <div className="fixed bottom-0 left-0 right-0 max-w-[450px] mx-auto bg-[#f7f2fb] border-t border-gray-100 z-50">
       <div className="flex justify-between items-end px-2 pt-3 pb-4">
         {menus.map((item) => {
-          const active = location.pathname === item.id;
+          const active = tab === item.id;
 
           return (
             <button
               key={item.id}
-              onClick={() => navigate(item.id)}
+              onClick={() => setTab(item.id)}
               className="flex flex-col items-center justify-center flex-1"
             >
               <div
@@ -59,7 +49,6 @@ const BottomMenu = () => {
               >
                 {item.icon}
               </div>
-
               <span
                 className={`mt-2 text-[11px] leading-none ${
                   active ? "font-bold text-black" : "font-medium text-black"
