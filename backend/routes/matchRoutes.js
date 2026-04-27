@@ -10,39 +10,42 @@ const protectAdmin = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      return res.json({
-        success: false,
-        message: "No token found",
-      });
+      return res.json({ success: false, message: "No token found" });
     }
 
     const token = authHeader.split(" ")[1];
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.role !== "admin") {
-      return res.json({
-        success: false,
-        message: "Admin only access",
-      });
+    // ✅ "admin" OR "super-admin" দুইটাই allow
+    if (decoded.role !== "admin" && decoded.role !== "super-admin") {
+      return res.json({ success: false, message: "Admin only access" });
     }
 
     req.user = decoded;
     next();
   } catch (err) {
-    return res.json({
-      success: false,
-      message: "Invalid token",
-    });
+    return res.json({ success: false, message: "Invalid token: " + err.message });
   }
 };
+
+
+
 
 
 // ================= CREATE MATCH (ADMIN ONLY) =================
 router.post("/create", protectAdmin, async (req, res) => {
   try {
+    const { startTime, ...rest } = req.body;
+
+    // ✅ startTime থেকে 20 মিনিট পরে auto delete হবে
+    const expiresAt = startTime
+      ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
+      : new Date(Date.now() + 20 * 60 * 1000);
+
     const match = await Match.create({
-      ...req.body,
+      ...rest,
+      startTime,
+      expiresAt,
       joinedPlayers: 0,
       status: "upcoming",
     });

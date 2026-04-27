@@ -1,79 +1,27 @@
- const mongoose = require("mongoose");
 
-const matchSchema = new mongoose.Schema(
-  {
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
 
-    category: {
-      type: String,
-      enum: ["solo", "duo", "squad", "cs", "custom", "tournament"],
-      required: true,
-    },
+const mongoose = require("mongoose");
 
-    winPrize: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
+const matchSchema = new mongoose.Schema({
+  title:         { type: String, required: true },
+  category:      { type: String, required: true },
+  entryFee:      { type: Number, default: 0 },
+  winPrize:      { type: Number, default: 0 },
+  perKill:       { type: Number, default: 0 },
+  totalPlayers:  { type: Number, default: 48 },
+  joinedPlayers: { type: Number, default: 0 },
+  roomId:        { type: String, default: "" },
+  roomPassword:  { type: String, default: "" },
+  map:           { type: String, default: "Bermuda" },
+  device:        { type: String, default: "Mobile" },
+  image:         { type: String, default: "" },
+  status:        { type: String, default: "upcoming" },
+  isRoomOpen:    { type: Boolean, default: false },
+  startTime:     { type: Date, default: null },   // ✅ required false
+  expiresAt:     { type: Date, default: null },   // ✅ TTL field
+}, { timestamps: true });
 
-    entryFee: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
-
-    perKill: {
-      type: Number,
-      default: 0,
-    },
-
-    totalPlayers: {
-      type: Number,
-      default: 48,
-    },
-
-    joinedPlayers: {
-      type: Number,
-      default: 0,
-    },
-
-    // 🎮 ROOM SYSTEM
-    roomId: {
-      type: String,
-      default: "",
-    },
-
-    roomPassword: {
-      type: String,
-      default: "",
-    },
-
-    // ⏰ MATCH START TIME (VERY IMPORTANT FOR 10 MIN RULE)
-    startTime: {
-      type: Date,
-      required: true,
-    },
-
-    // 🔥 STATUS CONTROL
-    status: {
-      type: String,
-      enum: ["upcoming", "live", "completed"],
-      default: "upcoming",
-    },
-
-    // 🔒 ROOM OPEN CONTROL (10 MIN BEFORE START)
-    isRoomOpen: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
+// ✅ TTL index — expiresAt সময়ে auto delete
+matchSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model("Match", matchSchema);
