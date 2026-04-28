@@ -50,11 +50,11 @@ const AppDashboard = ({ onLogout }) => {
   }, []);
 
   const categories = [
-    { key: "solo", title: "SOLO", img: "/image/img-1.jpg" },
-    { key: "duo", title: "DUO", img: "/image/img-2.jpg" },
-    { key: "squad", title: "SQUAD", img: "/image/img-3.jpg" },
-    { key: "cs", title: "CS", img: "/image/img-1.jpg" },
-    { key: "custom", title: "CUSTOM", img: "/image/img-2.jpg" },
+    { key: "solo",       title: "SOLO",       img: "/image/img-1.jpg" },
+    { key: "duo",        title: "DUO",        img: "/image/img-2.jpg" },
+    { key: "squad",      title: "SQUAD",      img: "/image/img-3.jpg" },
+    { key: "cs",         title: "CS",         img: "/image/img-1.jpg" },
+    { key: "custom",     title: "CUSTOM",     img: "/image/img-2.jpg" },
     { key: "tournament", title: "TOURNAMENT", img: "/image/img-3.jpg" },
   ];
 
@@ -64,27 +64,51 @@ const AppDashboard = ({ onLogout }) => {
       selectedCategory.toLowerCase().trim()
   );
 
-  // ================= WALLET =================
-  if (screen === "wallet") {
-    return (
-      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-        <Wallet onBack={() => setScreen("profile")} />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // ================= PROFILE =================
+  // ================= PROFILE TAB =================
   if (tab === "profile") {
+
+    if (screen === "wallet") {
+      return (
+        <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
+          <Wallet onBack={() => setScreen("home")} />
+          <BottomMenu tab={tab} setTab={setTab} />
+        </div>
+      );
+    }
+
+    if (screen === "withdraw") {
+      return (
+        <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
+          <div className="p-4 flex items-center gap-3 bg-white shadow">
+            <button
+              onClick={() => setScreen("home")}
+              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"
+            >
+              ←
+            </button>
+            <h2 className="font-bold">Withdraw</h2>
+          </div>
+          <div className="p-8 text-center text-gray-400 mt-20 text-lg font-bold">
+            💵 Withdraw Coming Soon...
+          </div>
+          <BottomMenu tab={tab} setTab={setTab} />
+        </div>
+      );
+    }
+
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-        <Profile onLogout={onLogout} onWallet={() => setScreen("wallet")} />
+        <Profile
+          onLogout={onLogout}
+          onWallet={() => setScreen("wallet")}
+          onWithdraw={() => setScreen("withdraw")}
+        />
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
 
-  // ================= SHOP =================
+  // ================= SHOP TAB =================
   if (tab === "shop") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -96,7 +120,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= MY MATCHES =================
+  // ================= MATCHES TAB =================
   if (tab === "matches") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -108,7 +132,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= RESULTS =================
+  // ================= RESULTS TAB =================
   if (tab === "results") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -174,8 +198,7 @@ const AppDashboard = ({ onLogout }) => {
         <div className="grid grid-cols-2 gap-3 mt-4">
           {categories.map((c) => {
             const count = matches.filter(
-              (m) =>
-                (m.category || "").toLowerCase().trim() === c.key
+              (m) => (m.category || "").toLowerCase().trim() === c.key
             ).length;
 
             return (
