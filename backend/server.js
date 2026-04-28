@@ -42,6 +42,9 @@ app.use("/api/admin", require("./routes/adminAuthRoutes"));
 // ================= NEW ADMIN PANEL ROUTES =================
 app.use("/api/admin", require("./routes/admin"));
 
+// ================= WALLET ROUTES =================
+app.use("/api/wallet", require("./routes/walletRoutes"));
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);

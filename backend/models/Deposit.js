@@ -1,10 +1,29 @@
  const mongoose = require("mongoose");
-const DepositSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  amount: Number,
-  method: String,
-  status: { type: String, enum: ["pending","approved","rejected"], default: "pending" },
-  approvedBy: String,
-  rejectedBy: String,
-}, { timestamps: true });
-module.exports = mongoose.model("Deposit", DepositSchema);
+
+const depositSchema = new mongoose.Schema({
+  method: {
+    type: String,
+    enum: ["bkash", "nagad", "rocket"],
+    required: true,
+  },
+  amount: {
+    type: Number,
+    required: true,
+  },
+  trxId: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+module.exports = mongoose.model("Deposit", depositSchema);
