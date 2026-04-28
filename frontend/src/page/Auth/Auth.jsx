@@ -59,8 +59,7 @@ const Auth = ({ onLoginSuccess }) => {
 
   // ================= VALIDATION =================
   const isLoginValid =
-    formData.phone.trim().length > 5 &&
-    formData.password.trim().length > 3;
+    formData.phone.trim().length > 5 && formData.password.trim().length > 3;
 
   const isRegisterValid =
     formData.phone.trim().length > 5 &&
@@ -102,8 +101,9 @@ const Auth = ({ onLoginSuccess }) => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
-          type="text"
+          type="tel"
           placeholder="Phone Number"
+          autoComplete="tel"
           className="w-full p-4 border rounded-2xl"
           onChange={(e) =>
             setFormData({ ...formData, phone: e.target.value })
@@ -114,6 +114,7 @@ const Auth = ({ onLoginSuccess }) => {
         <input
           type="password"
           placeholder="Password"
+          autoComplete={isLogin ? "current-password" : "new-password"}
           className="w-full p-4 border rounded-2xl"
           onChange={(e) =>
             setFormData({ ...formData, password: e.target.value })
@@ -125,6 +126,7 @@ const Auth = ({ onLoginSuccess }) => {
           <input
             type="text"
             placeholder="Gaming Username"
+            autoComplete="username"
             className="w-full p-4 border rounded-2xl"
             onChange={(e) =>
               setFormData({ ...formData, username: e.target.value })
@@ -136,6 +138,7 @@ const Auth = ({ onLoginSuccess }) => {
           <input
             type="email"
             placeholder="Email (optional)"
+            autoComplete="email"
             className="w-full p-4 border rounded-2xl"
             onChange={(e) =>
               setFormData({ ...formData, email: e.target.value })
@@ -152,11 +155,7 @@ const Auth = ({ onLoginSuccess }) => {
               : "bg-gray-400 cursor-not-allowed"
           }`}
         >
-          {loading
-            ? "Please wait..."
-            : isLogin
-            ? "LOGIN"
-            : "CREATE ACCOUNT"}
+          {loading ? "Please wait..." : isLogin ? "LOGIN" : "CREATE ACCOUNT"}
         </button>
       </form>
 

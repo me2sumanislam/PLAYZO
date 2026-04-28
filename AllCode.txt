@@ -1,283 +1,328 @@
- backend
+ frontend  all code 
 
-  const mongoose = require("mongoose");
+  import React from "react";
+import { Routes, Route } from "react-router-dom";
 
-const connectDB = async () => {
-  try {
-    console.log("🔄 Connecting to MongoDB...");
+import AppDashboard from "../AppDashBoard/AppDeshBoard";
+import Profile from "../../page/Profile/profile";
+import Wallet from "../../page/Wallet/Wallet";
 
-    await mongoose.connect(process.env.MONGO_URI);
-
-    console.log("✔ MongoDB Connected Successfully");
-  } catch (error) {
-    console.error("❌ MongoDB Connection Failed:");
-    console.error(error.message);
-
-    process.exit(1);
-  }
-};
-
-module.exports = connectDB;
-
-
- const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-require("colors");
-
-// 🔥 DNS FIX for MongoDB Atlas SRV (querySrv ECONNREFUSED)
-const dns = require("node:dns/promises");
-dns.setServers(["1.1.1.1", "8.8.8.8"]);   // Cloudflare + Google DNS
-
-// env load
-dotenv.config();
-
-const connectDB = require("./config/db");
-
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-console.log("MONGO_URI:", process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found");
-
-connectDB();
-
-// Test route
-app.get("/", (req, res) => {
-  res.send("🚀 Playzo Backend is running!");
-});
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
-});
-
-
- import React, { useState, useEffect } from 'react';
-import Profile from '../../page/Profile/Profile';
-import AdminDashboard from '../../page/Admin/AdminDashboard/AdminDashboard';
-
-// --- Countdown Timer ---
-const CountdownTimer = ({ startMinutes }) => {
-  const [seconds, setSeconds] = useState(parseInt(startMinutes) * 60 || 0);
-
-  useEffect(() => {
-    if (seconds <= 0) return;
-    const interval = setInterval(() => setSeconds((s) => s - 1), 1000);
-    return () => clearInterval(interval);
-  }, [seconds]);
-
-  if (seconds <= 0) return <span>00m:00s</span>;
-
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-
+const AppRouter = ({ onLogout }) => {
   return (
-    <span>
-      {m < 10 ? "0" + m : m}m:{s < 10 ? "0" + s : s}s
-    </span>
+    <Routes>
+
+      {/* MAIN APP */}
+      <Route path="/" element={<AppDashboard onLogout={onLogout} />} />
+
+      {/* PROFILE */}
+      <Route path="/profile" element={<Profile onLogout={onLogout} />} />
+
+      {/* WALLET */}
+      <Route path="/wallet" element={<Wallet />} />
+
+    </Routes>
   );
 };
 
-// --- Prize Modal ---
-const PrizeModal = ({ isOpen, onClose, match }) => {
-  if (!isOpen) return null;
+export default AppRouter;
 
-  const list = [
-    { i: '👑', l: 'Winner', v: match.prize1 },
-    { i: '🥈', l: '2nd Position', v: match.prize2 },
-    { i: '🥉', l: '3rd Position', v: match.prize3 },
-    { i: '🏅', l: '4th Position', v: match.prize4 },
-    { i: '🏅', l: '5th Position', v: match.prize5 },
-    { i: '🔥', l: 'Per Kill', v: match.perKill },
-    { i: '🏆', l: 'Total Prize Pool', v: match.winPrize },
-  ];
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60" onClick={onClose}>
-      <div className="relative w-full max-w-[320px]" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full font-bold shadow z-50">
-          ✕
-        </button>
 
-        <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
-          <div className="bg-yellow-300 py-5 text-center">
-            <h2 className="font-black text-slate-800 text-lg">Total Win Prize</h2>
-            <p className="text-[10px] font-bold">{match.title}</p>
-          </div>
+ import React, { useState, useEffect } from "react";
+import BottomMenu from "../BottomMenu/BottomMenu";
+import Profile from "../../page/Profile/profile";
+import Wallet from "../../page/Wallet/Wallet";
+import MatchList from "../../page/MatchList/MatchList";
+import MatchJoin from "../../page/MatchJoin/MatchJoin";
 
-          <div className="p-5 space-y-3">
-            {list.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-sm font-bold border-b pb-2">
-                <span>{item.i} {item.l}</span>
-                <span>{item.v || 0} TK</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Main Dashboard ---
 const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab] = useState('play');
-  const [view, setView] = useState('home');
+  const [tab, setTab] = useState("play");
+  const [screen, setScreen] = useState("home");
   const [slide, setSlide] = useState(0);
-  const [selMatch, setSelMatch] = useState(null);
 
-  const [matches, setMatches] = useState(() => {
-    const saved = localStorage.getItem('local_matches');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [matches, setMatches] = useState([]);
 
+  // ================= LOAD MATCHES =================
   useEffect(() => {
-    localStorage.setItem('local_matches', JSON.stringify(matches));
-  }, [matches]);
+    const loadMatches = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/matches");
 
-  const imgs = ["/image/img-1.jpg", "/image/img-2.jpg", "/image/img-3.jpg"];
+        const data = await res.json();
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      setSlide((p) => (p === imgs.length - 1 ? 0 : p + 1));
-    }, 4000);
+        console.log("RAW MATCHES API:", data);
 
-    return () => clearInterval(t);
+        // 🔥 MOST IMPORTANT FIX
+        let safeData = [];
+
+        if (Array.isArray(data)) {
+          safeData = data;
+        } else if (Array.isArray(data?.matches)) {
+          safeData = data.matches;
+        } else if (Array.isArray(data?.data)) {
+          safeData = data.data;
+        }
+
+        setMatches(safeData);
+      } catch (err) {
+        console.log("MATCH LOAD ERROR:", err);
+        setMatches([]);
+      }
+    };
+
+    loadMatches();
   }, []);
 
-  if (view === 'admin_dashboard') {
-    return <AdminDashboard onBack={() => setView('home')} />;
-  }
+  // ================= SLIDER =================
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSlide((p) => (p === 2 ? 0 : p + 1));
+    }, 3000);
 
-  if (view === 'br_list') {
+    return () => clearInterval(timer);
+  }, []);
+
+  const categories = [
+    { key: "solo", title: "SOLO", img: "/image/img-1.jpg" },
+    { key: "duo", title: "DUO", img: "/image/img-2.jpg" },
+    { key: "squad", title: "SQUAD", img: "/image/img-3.jpg" },
+    { key: "cs", title: "CS", img: "/image/img-1.jpg" },
+    { key: "custom", title: "CUSTOM", img: "/image/img-2.jpg" },
+    { key: "tournament", title: "TOURNAMENT", img: "/image/img-3.jpg" },
+  ];
+
+  // ================= SAFE FILTER =================
+  const filteredMatches = matches.filter(
+    (m) =>
+      (m.category || "").toLowerCase().trim() ===
+      selectedCategory.toLowerCase().trim()
+  );
+
+  // ================= WALLET =================
+  if (screen === "wallet") {
     return (
-      <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-24">
-        <PrizeModal
-          isOpen={!!selMatch}
-          onClose={() => setSelMatch(null)}
-          match={selMatch || {}}
-        />
-
-        <div className="p-4 bg-white flex justify-between items-center sticky top-0 z-50 shadow-sm">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setView('home')}>❮</button>
-            <h2 className="font-black text-sm">BR MATCHES</h2>
-          </div>
-          <button onClick={() => window.location.reload()}>🔄</button>
-        </div>
-
-        <div className="p-3 space-y-5">
-          {matches.map((m) => (
-            <div key={m.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-              <div className="p-4">
-                <div className="flex gap-3">
-                  <img src={m.imageUrl} alt="" className="w-20 h-14 rounded-lg object-cover" />
-                  <div className="flex-1">
-                    <h3 className="font-black text-xs">{m.title}</h3>
-                    <p className="text-[10px] text-red-500">{m.time}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 text-center mt-4 text-xs font-bold">
-                  <div><p>Prize</p><p>{m.winPrize}</p></div>
-                  <div><p>Type</p><p>{m.entryType}</p></div>
-                  <div><p>Fee</p><p>{m.entryFee}</p></div>
-                </div>
-
-                <div className="mt-4">
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="bg-green-500 h-full" style={{ width: `${(m.joined / m.total) * 100}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mt-4">
-                  <button className="flex-1 py-2 border rounded-lg text-xs">Room</button>
-                  <button onClick={() => setSelMatch(m)} className="flex-1 py-2 border rounded-lg text-xs">
-                    Prize
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-green-700 text-white text-center py-2 text-xs">
-                STARTS IN - <CountdownTimer startMinutes={m.startsIn} />
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
+        <Wallet onBack={() => setScreen("profile")} />
+        <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
 
+  // ================= PROFILE =================
+  if (tab === "profile") {
+    return (
+      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
+        <Profile onLogout={onLogout} />
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+  // ================= JOIN =================
+  if (screen === "join") {
+    return (
+      <MatchJoin
+        match={selectedMatch}
+        onBack={() => setScreen("category")}
+      />
+    );
+  }
+
+  // ================= CATEGORY =================
+  if (screen === "category") {
+    return (
+      <div className="max-w-[450px] mx-auto">
+        <MatchList
+          matches={filteredMatches}
+          title={selectedCategory}
+          onBack={() => setScreen("home")}
+          onSelectMatch={(match) => {
+            setSelectedMatch(match);
+            setScreen("join");
+          }}
+        />
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+  // ================= HOME =================
   return (
-    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24 relative">
-      <div className="absolute top-4 right-4 z-50">
-        <button
-          onClick={() => setView('admin_dashboard')}
-          className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
-        >
-          ⚙️
-        </button>
+    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
+      <div className="p-4">
+
+        {/* SLIDER */}
+        <div className="relative w-full h-44 overflow-hidden rounded-2xl">
+          {categories.slice(0, 3).map((c, i) => (
+            <img
+              key={i}
+              src={c.img}
+              className="absolute w-full h-full object-cover transition-opacity duration-1000"
+              style={{ opacity: slide === i ? 1 : 0 }}
+              alt=""
+            />
+          ))}
+        </div>
+
+        <h2 className="text-center font-black text-orange-500 mt-3">
+          FREE FIRE
+        </h2>
+
+        {/* CATEGORY GRID */}
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          {categories.map((c) => {
+            const count = matches.filter(
+              (m) =>
+                (m.category || "").toLowerCase().trim() === c.key
+            ).length;
+
+            return (
+              <div
+                key={c.key}
+                onClick={() => {
+                  setSelectedCategory(c.key);
+                  setScreen("category");
+                }}
+                className="bg-white rounded-xl shadow p-2 cursor-pointer active:scale-95 transition"
+              >
+                <img
+                  src={c.img}
+                  className="h-24 w-full object-cover rounded-lg"
+                  alt=""
+                />
+                <p className="text-xs font-bold mt-1 uppercase">
+                  {c.title}
+                </p>
+                <p className="text-[11px] text-gray-500">
+                  {count} Matches
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
       </div>
 
-      {tab === 'profile' ? (
-        <Profile onLogout={onLogout} onNavigate={(p) => console.log(p)} />
-      ) : (
-        <>
-          <div className="relative h-48 overflow-hidden rounded-b-3xl">
-            {imgs.map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt=""
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === slide ? 'opacity-100' : 'opacity-0'
-                  }`}
-              />
-            ))}
-          </div>
+      <BottomMenu tab={tab} setTab={setTab} />
+    </div>
+  );
+};
 
-          <div className="p-4 mt-4">
-            <div
-              onClick={() => setView('br_list')}
-              className="bg-white p-5 rounded-3xl shadow flex justify-between items-center"
+export default AppDashboard;  
+
+
+ import React from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+
+import AppDashboard from "../AppDashBoard/AppDeshBoard";
+import Profile from "../../page/Profile/profile";
+import Wallet from "../../page/Wallet/Wallet";
+
+const AppRouter = ({ onLogout }) => {
+  const navigate = useNavigate();
+
+  return (
+    <Routes>
+      {/* HOME */}
+      <Route path="/" element={<AppDashboard onLogout={onLogout} />} />
+
+      {/* PROFILE */}
+      <Route path="/profile" element={<Profile onLogout={onLogout} />} />
+
+      {/* WALLET */}
+      <Route
+        path="/wallet"
+        element={<Wallet onBack={() => navigate("/profile")} />}
+      />
+
+      {/* UNKNOWN PAGE */}
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
+  );
+};
+
+export default AppRouter;
+
+ import React from "react";
+import {
+  Store,
+  Gamepad2,
+  ClipboardList,
+  BarChart3,
+  Cat
+} from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+
+const BottomMenu = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const menus = [
+    {
+      id: "/shop",
+      label: "Shop",
+      icon: <Store size={24} className="text-cyan-400" strokeWidth={2.2} />,
+    },
+    {
+      id: "/",
+      label: "Play",
+      icon: <Gamepad2 size={24} className="text-purple-500" strokeWidth={2.2} />,
+    },
+    {
+      id: "/matches",
+      label: "My Match...",
+      icon: <ClipboardList size={24} className="text-orange-500" strokeWidth={2.2} />,
+    },
+    {
+      id: "/results",
+      label: "Results",
+      icon: <BarChart3 size={24} className="text-green-400" strokeWidth={2.2} />,
+    },
+    {
+      id: "/profile",
+      label: "Profile",
+      icon: <Cat size={24} className="text-purple-500" strokeWidth={2.2} />,
+    },
+  ];
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 max-w-[450px] mx-auto bg-[#f7f2fb] border-t border-gray-100 z-50">
+      <div className="flex justify-between items-end px-2 pt-3 pb-4">
+        {menus.map((item) => {
+          const active = location.pathname === item.id;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => navigate(item.id)}
+              className="flex flex-col items-center justify-center flex-1"
             >
-              <div>
-                <h4 className="font-black">Battle Royale</h4>
-                <p className="text-xs text-green-500">{matches.length} matches online</p>
+              <div
+                className={`flex items-center justify-center h-12 px-6 rounded-full transition-all duration-200 ${
+                  active ? "bg-[#ece2fb]" : ""
+                }`}
+              >
+                {item.icon}
               </div>
-              <span>❯</span>
-            </div>
-          </div>
-        </>
-      )}
 
-      <div className="fixed bottom-0 w-full max-w-[450px] bg-white border-t flex justify-around py-3 rounded-t-3xl">
-        {[
-          { id: 'shop', i: '🏪', l: 'Shop' },
-          { id: 'play', i: '🎮', l: 'Play' },
-          { id: 'my_match', i: '🏆', l: 'Match' },
-          { id: 'results', i: '📊', l: 'Results' },
-          { id: 'profile', i: '👤', l: 'Profile' },
-        ].map((n) => (
-          <div
-            key={n.id}
-            onClick={() => setTab(n.id)}
-            className={`text-center text-xs ${tab === n.id ? 'text-indigo-600' : 'text-gray-400'}`}
-          >
-            <div>{n.i}</div>
-            <div>{n.l}</div>
-          </div>
-        ))}
+              <span
+                className={`mt-2 text-[11px] leading-none ${
+                  active ? "font-bold text-black" : "font-medium text-black"
+                }`}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-export default AppDashboard;
-
+export default BottomMenu;
 
  import React from 'react';
 
@@ -379,6 +424,7 @@ const Footer = () => {
 };
 
 export default Footer;
+
 
  import React from 'react';
 
@@ -504,67 +550,106 @@ const Hero = () => {
   );
 };
 
-export default Hero;
+export default Hero; 
 
- import React, { useState } from 'react';
+ import React, { useState } from "react";
 
 const Login = ({ onLoginSuccess }) => {
-  const [formData, setFormData] = useState({ phone: '', password: '' });
+  const [formData, setFormData] = useState({
+    phone: "",
+    password: "",
+    deviceType: "mobile",
+  });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // এখানে আপনার ব্যাকেন্ড API (যেমন: axios.post('/api/login', formData)) কল করবেন
-    console.log("Login details:", formData);
-    // সফল লগইন হলে নিচের ফাংশনটি কল হবে
-    onLoginSuccess();
+
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // 🔐 save token
+        localStorage.setItem("token", data.token);
+
+        alert("Login Successful 🎮");
+
+        onLoginSuccess();
+      } else {
+        alert(data.message || "Login failed");
+      }
+    } catch (err) {
+      console.log(err);
+      alert("Server error");
+    }
   };
 
   return (
-    <div className="w-full max-w-[450px] min-h-screen bg-white flex flex-col justify-center px-8 shadow-2xl">
+    <div className="w-full max-w-[450px] min-h-screen bg-white flex flex-col justify-center px-8">
+
       <div className="mb-10 text-center">
-        <h1 className="text-4xl font-black text-slate-800 tracking-tighter">uthi<span className="text-orange-500">YO</span></h1>
-        <p className="text-slate-500 mt-2 font-medium">আপনার অ্যাকাউন্টে লগইন করুন</p>
+        <h1 className="text-4xl font-black text-slate-800">
+          GAME<span className="text-orange-500">ZONE</span>
+        </h1>
+        <p className="text-slate-500 mt-2">
+          Mobile Gaming Tournament Login
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">ফোন নাম্বার</label>
-          <input 
-            type="text" 
-            placeholder="01XXXXXXXXX"
-            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all"
-            onChange={(e) => setFormData({...formData, phone: e.target.value})}
-            required
-          />
-        </div>
 
-        <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">পাসওয়ার্ড</label>
-          <input 
-            type="password" 
-            placeholder="******"
-            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all"
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            required
-          />
-        </div>
+        {/* PHONE */}
+        <input
+          type="text"
+          placeholder="Phone Number"
+          className="w-full p-4 border rounded-2xl"
+          onChange={(e) =>
+            setFormData({ ...formData, phone: e.target.value })
+          }
+          required
+        />
 
-        <button 
+        {/* PASSWORD */}
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-4 border rounded-2xl"
+          onChange={(e) =>
+            setFormData({ ...formData, password: e.target.value })
+          }
+          required
+        />
+
+        {/* DEVICE LOCK (IMPORTANT IDEA) */}
+        <input
+          type="hidden"
+          value="mobile"
+        />
+
+        <button
           type="submit"
-          className="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold text-lg hover:bg-black transition-all shadow-lg active:scale-95"
+          className="w-full bg-black text-white p-4 rounded-2xl font-bold active:scale-95"
         >
-          লগইন করুন
+          LOGIN TO GAME
         </button>
       </form>
 
-      <p className="mt-8 text-center text-slate-600">
-        অ্যাকাউন্ট নেই? <span className="text-orange-600 font-bold cursor-pointer">রেজিস্ট্রেশন করুন</span>
+      <p className="text-center mt-6 text-sm text-gray-500">
+        ⚠ Only Mobile Devices Allowed
       </p>
+
     </div>
   );
 };
 
-export default Login;
+export default Login;  
 
  import React, { useState } from 'react';
 
@@ -674,123 +759,491 @@ const Navbar = () => {
 
 export default Navbar;
 
+
+ import React, { createContext, useContext, useEffect, useState } from "react";
+
+const MatchContext = createContext();
+
+export const useMatch = () => useContext(MatchContext);
+
+export const MatchProvider = ({ children }) => {
+  const [matches, setMatches] = useState([]);
+
+  // 🔥 LIVE FETCH FROM BACKEND
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/matches");
+        const data = await res.json();
+        setMatches(data);
+      } catch {
+        setMatches([]);
+      }
+    };
+
+    load();
+  }, []);
+
+  return (
+    <MatchContext.Provider value={{ matches, setMatches }}>
+      {children}
+    </MatchContext.Provider>
+  );
+};
+
  import React, { useState } from "react";
-import MatchManager from "../MatchManager.jsx/MatchManager";
-import DepositRequests from "../DepositeRequest/DepositeRequest";
-import WithdrawRequests from "../WithdrawRequest/withdrawRequest";
-import UserManager from "../UserManager/UserManager";
 
-const AdminDashboard = ({ onBack }) => {
-  const [tab, setTab] = useState("dashboard");
+const AdminCreateMatch = () => {
+  const [form, setForm] = useState({
+    title: "",
+    category: "solo",
+    entryFee: "",
+    winPrize: "",
+    totalPlayers: "",
+    perKill: "",
+    roomId: "",
+    roomPassword: "",
+    startTime: "",
+  });
 
-  const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: "📊" },
-    { id: "matches", label: "Matches", icon: "🎮" },
-    { id: "deposits", label: "Deposits", icon: "💰" },
-    { id: "withdraws", label: "Withdraws", icon: "🏧" },
-    { id: "users", label: "Users", icon: "👥" },
-  ];
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  const renderContent = () => {
-    switch (tab) {
-      case "matches":
-        return <MatchManager />;
-      case "deposits":
-        return <DepositRequests />;
-      case "withdraws":
-        return <WithdrawRequests />;
-      case "users":
-        return <UserManager />;
-      default:
-        return (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-5 rounded-2xl shadow">
-              <p className="text-gray-400 text-sm">Total Users</p>
-              <h2 className="text-2xl font-black">120</h2>
-            </div>
-            <div className="bg-white p-5 rounded-2xl shadow">
-              <p className="text-gray-400 text-sm">Matches</p>
-              <h2 className="text-2xl font-black">18</h2>
-            </div>
-          </div>
-        );
+  // ================= CREATE MATCH =================
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await fetch("http://localhost:5000/api/matches/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (data.success || data._id || data.data) {
+        alert("Match Created Successfully 🚀");
+
+        setForm({
+          title: "",
+          category: "solo",
+          entryFee: "",
+          winPrize: "",
+          totalPlayers: "",
+          perKill: "",
+          roomId: "",
+          roomPassword: "",
+          startTime: "",
+        });
+      } else {
+        alert("Failed to create match");
+      }
+    } catch (err) {
+      alert("Server Error");
+      console.log(err);
     }
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto">
-      <div className="bg-indigo-600 text-white p-4 flex justify-between items-center">
-        <button onClick={onBack}>❮</button>
-        <h2 className="font-black text-lg">Admin Panel</h2>
-        <span></span>
+    <div className="min-h-screen bg-gray-100 flex justify-center p-3">
+      <div className="w-full max-w-[450px] bg-white rounded-2xl shadow p-4">
+
+        <h2 className="text-center font-bold text-xl text-blue-600 mb-4">
+          CREATE MATCH (ADMIN)
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+
+          {/* TITLE */}
+          <input
+            name="title"
+            value={form.title}
+            onChange={handleChange}
+            placeholder="Match Title"
+            className="w-full p-3 border rounded-xl"
+            required
+          />
+
+          {/* CATEGORY */}
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-xl"
+          >
+            <option value="solo">SOLO</option>
+            <option value="duo">DUO</option>
+            <option value="squad">SQUAD</option>
+            <option value="cs">CS</option>
+            <option value="custom">CUSTOM</option>
+            <option value="tournament">TOURNAMENT</option>
+          </select>
+
+          {/* ENTRY FEE */}
+          <input
+            name="entryFee"
+            value={form.entryFee}
+            onChange={handleChange}
+            placeholder="Entry Fee"
+            type="number"
+            className="w-full p-3 border rounded-xl"
+          />
+
+          {/* WIN PRIZE */}
+          <input
+            name="winPrize"
+            value={form.winPrize}
+            onChange={handleChange}
+            placeholder="Win Prize"
+            type="number"
+            className="w-full p-3 border rounded-xl"
+          />
+
+          {/* PER KILL */}
+          <input
+            name="perKill"
+            value={form.perKill}
+            onChange={handleChange}
+            placeholder="Per Kill"
+            type="number"
+            className="w-full p-3 border rounded-xl"
+          />
+
+          {/* TOTAL PLAYERS */}
+          <input
+            name="totalPlayers"
+            value={form.totalPlayers}
+            onChange={handleChange}
+            placeholder="Total Players"
+            type="number"
+            className="w-full p-3 border rounded-xl"
+          />
+
+          {/* ROOM ID */}
+          <input
+            name="roomId"
+            value={form.roomId}
+            onChange={handleChange}
+            placeholder="Room ID (optional now)"
+            className="w-full p-3 border rounded-xl"
+          />
+
+          {/* PASSWORD */}
+          <input
+            name="roomPassword"
+            value={form.roomPassword}
+            onChange={handleChange}
+            placeholder="Room Password (optional now)"
+            className="w-full p-3 border rounded-xl"
+          />
+
+          {/* START TIME */}
+          <input
+            name="startTime"
+            value={form.startTime}
+            onChange={handleChange}
+            type="datetime-local"
+            className="w-full p-3 border rounded-xl"
+          />
+
+          {/* BUTTON */}
+          <button
+            type="submit"
+            className="w-full bg-green-600 text-white p-3 rounded-xl font-bold active:scale-95"
+          >
+            CREATE MATCH
+          </button>
+
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default AdminCreateMatch;
+
+ import React, { useState } from "react";
+
+const AdminDashboard = ({ onBack }) => {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("solo");
+  const [winPrize, setWinPrize] = useState("");
+  const [entryFee, setEntryFee] = useState("");
+
+  const [matches, setMatches] = useState([]);
+
+  // CREATE MATCH
+  const handleCreate = () => {
+    if (!title || !winPrize || !entryFee) {
+      alert("সব ফিল্ড পূরণ করুন");
+      return;
+    }
+
+    const newMatch = {
+      id: Date.now(),
+      title,
+      category,
+      winPrize: Number(winPrize),
+      entryFee: Number(entryFee),
+    };
+
+    setMatches([newMatch, ...matches]);
+
+    setTitle("");
+    setWinPrize("");
+    setEntryFee("");
+
+    alert("Match created successfully");
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 max-w-[450px] mx-auto pb-20">
+
+      {/* HEADER */}
+      <div className="bg-white p-4 flex items-center gap-3 shadow">
+        <button onClick={onBack}>←</button>
+        <h2 className="font-bold">Admin Panel</h2>
       </div>
 
-      <div className="flex overflow-x-auto bg-white border-b">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className={`flex-1 min-w-[90px] py-3 text-xs font-bold ${
-              tab === item.id
-                ? "text-indigo-600 border-b-2 border-indigo-600"
-                : "text-gray-500"
-            }`}
-          >
-            <div>{item.icon}</div>
-            <div>{item.label}</div>
-          </button>
+      {/* FORM */}
+      <div className="p-3 space-y-3">
+
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Match Title"
+          className="w-full p-3 rounded-lg border bg-white"
+        />
+
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full p-3 rounded-lg border bg-white"
+        >
+          <option value="solo">Solo</option>
+          <option value="duo">Duo</option>
+          <option value="squad">Squad</option>
+          <option value="cs">CS</option>
+        </select>
+
+        <input
+          value={winPrize}
+          onChange={(e) => setWinPrize(e.target.value)}
+          placeholder="Win Prize"
+          type="number"
+          className="w-full p-3 rounded-lg border bg-white"
+        />
+
+        <input
+          value={entryFee}
+          onChange={(e) => setEntryFee(e.target.value)}
+          placeholder="Entry Fee"
+          type="number"
+          className="w-full p-3 rounded-lg border bg-white"
+        />
+
+        <button
+          onClick={handleCreate}
+          className="w-full bg-green-500 text-white p-3 rounded-lg font-bold"
+        >
+          CREATE MATCH
+        </button>
+      </div>
+
+      {/* LIST */}
+      <div className="p-3 space-y-2">
+        {matches.map((m) => (
+          <div key={m.id} className="bg-white p-3 rounded-lg shadow">
+            <h3 className="font-bold">{m.title}</h3>
+            <p className="text-xs text-gray-500">
+              {m.category} | Win ৳{m.winPrize} | Entry ৳{m.entryFee}
+            </p>
+          </div>
         ))}
       </div>
 
-      <div className="p-4">{renderContent()}</div>
     </div>
   );
 };
 
-export default AdminDashboard;
+export default AdminDashboard; 
 
- import React from "react";
 
-const DepositRequests = () => {
+ import React, { useState } from "react";
+
+const AdminMatchCreate = () => {
+  const [form, setForm] = useState({
+    title: "",
+    category: "solo",
+    winPrize: "",
+    entryFee: "",
+  });
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async () => {
+    try {
+      await fetch("/api/matches", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      alert("Match Created Successfully");
+
+      setForm({
+        title: "",
+        category: "solo",
+        winPrize: "",
+        entryFee: "",
+      });
+    } catch (err) {
+      alert("Error creating match");
+    }
+  };
+
   return (
-    <div className="bg-white rounded-2xl p-4 shadow">
-      <h3 className="font-black mb-4">Deposit Requests</h3>
+    <div className="max-w-[450px] mx-auto min-h-screen bg-gray-100 p-4">
 
-      <div className="border rounded-xl p-3 mb-3">
-        <p>User: Rahim</p>
-        <p>Amount: ৳500</p>
-        <p>TRX: ABC12345</p>
+      <h2 className="text-xl font-bold mb-4">Create Match</h2>
 
-        <div className="flex gap-2 mt-3">
-          <button className="flex-1 bg-green-500 text-white py-2 rounded-xl">
-            Approve
-          </button>
-          <button className="flex-1 bg-red-500 text-white py-2 rounded-xl">
-            Reject
-          </button>
-        </div>
-      </div>
+      <input
+        name="title"
+        value={form.title}
+        onChange={handleChange}
+        placeholder="Match Title"
+        className="w-full p-3 mb-3 rounded bg-white"
+      />
+
+      <select
+        name="category"
+        value={form.category}
+        onChange={handleChange}
+        className="w-full p-3 mb-3 rounded bg-white"
+      >
+        <option value="solo">Solo</option>
+        <option value="duo">Duo</option>
+        <option value="squad">Squad</option>
+        <option value="cs">CS</option>
+        <option value="custom">Custom</option>
+        <option value="tournament">Tournament</option>
+      </select>
+
+      <input
+        name="winPrize"
+        value={form.winPrize}
+        onChange={handleChange}
+        placeholder="Win Prize"
+        className="w-full p-3 mb-3 rounded bg-white"
+      />
+
+      <input
+        name="entryFee"
+        value={form.entryFee}
+        onChange={handleChange}
+        placeholder="Entry Fee"
+        className="w-full p-3 mb-3 rounded bg-white"
+      />
+
+      <button
+        onClick={handleSubmit}
+        className="w-full bg-green-500 text-white p-3 rounded font-bold"
+      >
+        Create Match
+      </button>
     </div>
   );
 };
 
-export default DepositRequests;
+export default AdminMatchCreate;
 
- import React from "react";
+ import React, { useState } from "react";
 
 const MatchManager = () => {
+  const [matches, setMatches] = useState([]);
+  const [title, setTitle] = useState("");
+  const [showForm, setShowForm] = useState(false);
+
+  // create match
+  const handleCreate = () => {
+    if (!title.trim()) return;
+
+    const newMatch = {
+      id: Date.now(),
+      name: title,
+    };
+
+    setMatches([newMatch, ...matches]);
+    setTitle("");
+    setShowForm(false);
+  };
+
   return (
     <div className="bg-white rounded-2xl p-4 shadow">
+
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-black">Match Manager</h3>
-        <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm">
+
+        <button
+          onClick={() => setShowForm(true)}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm"
+        >
           + Create
         </button>
       </div>
 
-      <p className="text-sm text-gray-500">
-        এখান থেকে match create / edit / delete করা যাবে।
-      </p>
+      {/* Create Form */}
+      {showForm && (
+        <div className="mb-4 border p-3 rounded-xl">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="border p-2 w-full rounded-lg mb-2"
+            placeholder="Match name লিখুন"
+          />
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreate}
+              className="bg-green-600 text-white px-3 py-1 rounded-lg"
+            >
+              Save
+            </button>
+
+            <button
+              onClick={() => setShowForm(false)}
+              className="bg-gray-400 text-white px-3 py-1 rounded-lg"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Match List */}
+      <div className="space-y-2">
+        {matches.length === 0 ? (
+          <p className="text-sm text-gray-500">No match created yet</p>
+        ) : (
+          matches.map((m) => (
+            <div
+              key={m.id}
+              className="p-2 border rounded-lg bg-gray-50"
+            >
+              {m.name}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 };
@@ -798,151 +1251,569 @@ const MatchManager = () => {
 export default MatchManager;
 
 
- import React from "react";
-
-const UserManager = () => {
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow">
-      <h3 className="font-black mb-4">User Manager</h3>
-      <p className="text-gray-500 text-sm">
-        এখান থেকে user block / balance adjust করা যাবে।
-      </p>
-    </div>
-  );
-};
-
-export default UserManager;
-
- import React from "react";
-
-const WithdrawRequests = () => {
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow">
-      <h3 className="font-black mb-4">Withdraw Requests</h3>
-      <p className="text-gray-500 text-sm">
-        এখান থেকে withdraw approve/reject হবে।
-      </p>
-    </div>
-  );
-};
-
-export default WithdrawRequests;
-
  import React, { useState } from "react";
 
-const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState("matches");
+const AdminLogin = ({ onLogin }) => {
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const inputStyle =
-    "w-full px-6 py-5 rounded-3xl border border-gray-700 bg-transparent text-gray-300 text-lg font-bold placeholder:text-gray-500 outline-none focus:border-indigo-500 transition";
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  const prizeStyle =
-    "w-full px-4 py-4 rounded-2xl border border-gray-700 bg-transparent text-gray-300 text-base font-bold placeholder:text-gray-500 outline-none text-center";
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone, password }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        localStorage.setItem("adminToken", data.token);
+        localStorage.setItem("role", data.user.role);
+
+        alert("Admin Login Success 🚀");
+
+        onLogin(); // go to admin panel
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.log(err);
+      alert("Server error");
+    }
+
+    setLoading(false);
+  };
 
   return (
-    <div className="h-screen bg-[#0f172a] text-white flex flex-col md:flex-row overflow-hidden">
-      
-      {/* Sidebar */}
-      <div className="w-full md:w-72 bg-[#111827] border-r border-white/5 p-6 shrink-0">
-        <h2 className="text-2xl font-black text-orange-500 mb-8">ADMIN</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+      <form
+        onSubmit={handleLogin}
+        className="bg-gray-800 p-8 rounded-2xl w-[90%] max-w-sm space-y-4"
+      >
+        <h2 className="text-2xl font-bold text-center text-orange-500">
+          Admin Login
+        </h2>
 
-        <nav className="space-y-3">
-          <button
-            onClick={() => setActiveTab("matches")}
-            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
-              activeTab === "matches"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:bg-white/5"
-            }`}
-          >
-            🎮 Match Create
-          </button>
+        <input
+          type="text"
+          placeholder="Phone"
+          className="w-full p-3 rounded bg-gray-700"
+          onChange={(e) => setPhone(e.target.value)}
+          required
+        />
 
-          <button
-            onClick={() => setActiveTab("money")}
-            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
-              activeTab === "money"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:bg-white/5"
-            }`}
-          >
-            💰 Add Money Req
-          </button>
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-3 rounded bg-gray-700"
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
-          <button
-            onClick={() => setActiveTab("withdraw")}
-            className={`w-full text-left px-5 py-4 rounded-2xl font-bold transition ${
-              activeTab === "withdraw"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:bg-white/5"
-            }`}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-orange-500 p-3 rounded font-bold"
+        >
+          {loading ? "Logging..." : "LOGIN"}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default AdminLogin;
+
+ import React, { useEffect, useState } from "react";
+
+const AdminPanel = () => {
+  const [matches, setMatches] = useState([]);
+
+  const [form, setForm] = useState({
+    title: "",
+    category: "solo",
+    entryFee: "",
+    winPrize: "",
+    totalPlayers: "",
+    startTime: "",
+    map: "",
+    perKill: "",
+    device: "Mobile",
+    image: "",
+  });
+
+  const [roomData, setRoomData] = useState({});
+
+  // ================= LOAD MATCHES =================
+  const loadMatches = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/matches");
+
+      if (!res.ok) throw new Error("API error");
+
+      const data = await res.json();
+
+      setMatches(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.log("LOAD ERROR:", err);
+      setMatches([]);
+    }
+  };
+
+  useEffect(() => {
+    loadMatches();
+  }, []);
+
+  // ================= IMAGE UPLOAD =================
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      setForm({
+        ...form,
+        image: reader.result,
+      });
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  // ================= CREATE MATCH =================
+  const createMatch = async (e) => {
+    e.preventDefault();
+
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/matches/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Match Created 🎮");
+
+        setForm({
+          title: "",
+          category: "solo",
+          entryFee: "",
+          winPrize: "",
+          totalPlayers: "",
+          startTime: "",
+          map: "",
+          perKill: "",
+          device: "Mobile",
+          image: "",
+        });
+
+        loadMatches();
+      } else {
+        alert(data.message || "Failed to create match");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // ================= UPDATE ROOM =================
+  const updateRoom = async (id) => {
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/matches/update-room/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(roomData[id] || {}),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Room Updated 🔥");
+        loadMatches();
+      } else {
+        alert(data.message || "Update failed");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-4 max-w-[500px] mx-auto">
+
+      <h1 className="text-2xl font-black text-center mb-4">
+        🎮 ADMIN PANEL
+      </h1>
+
+      <div className="bg-white p-4 rounded-xl shadow mb-4">
+        <h2 className="font-bold mb-2">Create Match</h2>
+
+        <form onSubmit={createMatch} className="space-y-2">
+
+          <input
+            placeholder="Title"
+            className="w-full p-2 border rounded"
+            value={form.title}
+            onChange={(e) =>
+              setForm({ ...form, title: e.target.value })
+            }
+          />
+
+          <select
+            className="w-full p-2 border rounded"
+            value={form.category}
+            onChange={(e) =>
+              setForm({ ...form, category: e.target.value })
+            }
           >
-            💸 Withdraw Req
+            <option value="solo">Solo</option>
+            <option value="duo">Duo</option>
+            <option value="squad">Squad</option>
+            <option value="cs">CS</option>
+            <option value="tournament">Tournament</option>
+          </select>
+
+          <input
+            type="datetime-local"
+            className="w-full p-2 border rounded"
+            value={form.startTime}
+            onChange={(e) =>
+              setForm({ ...form, startTime: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Entry Fee"
+            className="w-full p-2 border rounded"
+            value={form.entryFee}
+            onChange={(e) =>
+              setForm({ ...form, entryFee: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Win Prize"
+            className="w-full p-2 border rounded"
+            value={form.winPrize}
+            onChange={(e) =>
+              setForm({ ...form, winPrize: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Total Players"
+            className="w-full p-2 border rounded"
+            value={form.totalPlayers}
+            onChange={(e) =>
+              setForm({ ...form, totalPlayers: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Map"
+            className="w-full p-2 border rounded"
+            value={form.map}
+            onChange={(e) =>
+              setForm({ ...form, map: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Per Kill"
+            className="w-full p-2 border rounded"
+            value={form.perKill}
+            onChange={(e) =>
+              setForm({ ...form, perKill: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Device"
+            className="w-full p-2 border rounded"
+            value={form.device}
+            onChange={(e) =>
+              setForm({ ...form, device: e.target.value })
+            }
+          />
+
+          {/* IMAGE UPLOAD */}
+          <label className="w-full p-2 border rounded block cursor-pointer text-center bg-gray-50">
+            Upload Match Image
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </label>
+
+          {form.image && (
+            <img
+              src={form.image}
+              alt=""
+              className="w-24 h-16 object-cover rounded"
+            />
+          )}
+
+          <button className="w-full bg-black text-white p-2 rounded">
+            Create Match
           </button>
-        </nav>
+        </form>
       </div>
 
-      {/* Main Content Scroll */}
-      <div className="flex-1 p-6 md:p-10 bg-[#0b1221] overflow-y-auto">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-8">
-            <h1 className="text-3xl font-black text-indigo-500">
-              CREATE TOURNAMENT
-            </h1>
-            <span className="text-red-500 text-2xl font-bold cursor-pointer">
-              X
-            </span>
+      <div className="space-y-3">
+        {matches.map((m) => (
+          <div key={m._id} className="bg-white p-3 rounded-xl shadow">
+
+            <h3 className="font-bold">{m.title}</h3>
+
+            <p className="text-sm text-gray-500">
+              {m.category} | Players: {m.joinedPlayers || 0}/{m.totalPlayers}
+            </p>
+
+            <p className="text-xs text-gray-400">
+              Start: {m.startTime}
+            </p>
+
+            <div className="mt-2 space-y-1">
+
+              <input
+                placeholder="Room ID"
+                className="w-full p-1 border rounded"
+                onChange={(e) =>
+                  setRoomData((prev) => ({
+                    ...prev,
+                    [m._id]: {
+                      ...prev[m._id],
+                      roomId: e.target.value,
+                    },
+                  }))
+                }
+              />
+
+              <input
+                placeholder="Room Password"
+                className="w-full p-1 border rounded"
+                onChange={(e) =>
+                  setRoomData((prev) => ({
+                    ...prev,
+                    [m._id]: {
+                      ...prev[m._id],
+                      roomPassword: e.target.value,
+                    },
+                  }))
+                }
+              />
+
+              <button
+                onClick={() => updateRoom(m._id)}
+                className="w-full bg-green-600 text-white p-2 rounded"
+              >
+                Update Room
+              </button>
+
+            </div>
           </div>
-
-          <div className="space-y-8 pb-20">
-            <input type="text" placeholder="Match Name" className={inputStyle} />
-
-            <div>
-              <label className="block mb-2 text-sm font-bold text-gray-400 uppercase">
-                Thumbnail
-              </label>
-              <div className="w-full px-6 py-5 rounded-3xl border border-gray-700 bg-transparent">
-                <input type="file" className="w-full text-gray-400" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <input type="text" placeholder="Total Win Prize" className={inputStyle} />
-              <input type="text" placeholder="Entry Fee" className={inputStyle} />
-            </div>
-
-            <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
-              <p className="text-sm text-indigo-400 font-bold mb-4 uppercase">
-                Prizes (1-5) & Per Kill
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <input type="text" placeholder="1st" className={prizeStyle} />
-                <input type="text" placeholder="2nd" className={prizeStyle} />
-                <input type="text" placeholder="3rd" className={prizeStyle} />
-                <input type="text" placeholder="4th" className={prizeStyle} />
-                <input type="text" placeholder="5th" className={prizeStyle} />
-                <input
-                  type="text"
-                  placeholder="Kill"
-                  className="w-full px-4 py-4 rounded-2xl border border-orange-500 bg-transparent text-orange-400 text-base font-bold placeholder:text-orange-300 outline-none text-center"
-                />
-              </div>
-            </div>
-
-            <input type="text" placeholder="Date & Time" className={inputStyle} />
-
-            <button className="w-full py-5 rounded-3xl bg-indigo-600 hover:bg-indigo-700 text-xl font-black tracking-wide transition shadow-xl">
-              PUBLISH
-            </button>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
 };
 
 export default AdminPanel;
+
+ import React, { useState } from "react";
+
+const Auth = ({ onLoginSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
+
+  const [formData, setFormData] = useState({
+    phone: "",
+    password: "",
+    username: "",
+    email: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+
+  // ================= HANDLE SUBMIT =================
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const url = isLogin
+      ? "http://localhost:5000/api/auth/login"
+      : "http://localhost:5000/api/auth/register";
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      console.log("LOGIN RESPONSE:", data);
+
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        localStorage.setItem(
+          "isAdmin",
+          data?.user?.role === "admin" ? "true" : "false"
+        );
+
+        setTimeout(() => {
+          onLoginSuccess();
+        }, 100);
+      } else {
+        alert(data.message || "Login failed");
+      }
+    } catch (err) {
+      console.log("ERROR:", err);
+      alert("Server error");
+    }
+
+    setLoading(false);
+  };
+
+  // ================= VALIDATION =================
+  const isLoginValid =
+    formData.phone.trim().length > 5 &&
+    formData.password.trim().length > 3;
+
+  const isRegisterValid =
+    formData.phone.trim().length > 5 &&
+    formData.password.trim().length > 3 &&
+    formData.username.trim().length > 2;
+
+  return (
+    <div className="w-full max-w-[450px] mx-auto min-h-screen flex flex-col justify-center bg-white px-6">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-black">
+          GAME<span className="text-orange-500">ZONE</span>
+        </h1>
+        <p className="text-gray-500 mt-2">
+          {isLogin ? "Login to continue" : "Create gaming account"}
+        </p>
+      </div>
+
+      <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
+        <button
+          type="button"
+          onClick={() => setIsLogin(true)}
+          className={`flex-1 p-2 rounded-lg font-bold ${
+            isLogin ? "bg-black text-white" : "text-gray-600"
+          }`}
+        >
+          LOGIN
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsLogin(false)}
+          className={`flex-1 p-2 rounded-lg font-bold ${
+            !isLogin ? "bg-green-600 text-white" : "text-gray-600"
+          }`}
+        >
+          REGISTER
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          type="text"
+          placeholder="Phone Number"
+          className="w-full p-4 border rounded-2xl"
+          onChange={(e) =>
+            setFormData({ ...formData, phone: e.target.value })
+          }
+          required
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-4 border rounded-2xl"
+          onChange={(e) =>
+            setFormData({ ...formData, password: e.target.value })
+          }
+          required
+        />
+
+        {!isLogin && (
+          <input
+            type="text"
+            placeholder="Gaming Username"
+            className="w-full p-4 border rounded-2xl"
+            onChange={(e) =>
+              setFormData({ ...formData, username: e.target.value })
+            }
+          />
+        )}
+
+        {!isLogin && (
+          <input
+            type="email"
+            placeholder="Email (optional)"
+            className="w-full p-4 border rounded-2xl"
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
+          />
+        )}
+
+        <button
+          type="submit"
+          disabled={isLogin ? !isLoginValid : !isRegisterValid}
+          className={`w-full p-4 rounded-2xl font-bold text-white transition-all ${
+            (isLogin ? isLoginValid : isRegisterValid)
+              ? "bg-black active:scale-95"
+              : "bg-gray-400 cursor-not-allowed"
+          }`}
+        >
+          {loading
+            ? "Please wait..."
+            : isLogin
+            ? "LOGIN"
+            : "CREATE ACCOUNT"}
+        </button>
+      </form>
+
+      <p className="text-center text-sm text-gray-500 mt-6">
+        🎮 Mobile Gaming Tournament System
+      </p>
+    </div>
+  );
+};
+
+export default Auth;
+
 
  import React from 'react';
 
@@ -1054,145 +1925,175 @@ const HomeCard = () => {
 
 export default HomeCard;
 
- import React, { useState } from 'react';
+ import React, { useEffect, useState } from "react";
 
-const MatchJoin = ({ match, onBack, onConfirmJoin }) => {
-  const [formData, setFormData] = useState({
-    userName: '',
-    gameId: ''
-  });
+const MatchCard = ({ match, onClick }) => {
+  const [timeLeft, setTimeLeft] = useState("");
 
-  if (!match) return null;
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+
+      // ✅ PRIORITY: admin countdown (minutes)
+      let startTime;
+
+      if (match.startCountdown) {
+        startTime =
+          now + Number(match.startCountdown) * 60 * 1000;
+      } else {
+        startTime = new Date(match.startTime).getTime();
+      }
+
+      const distance = startTime - now;
+
+      if (distance <= 0) {
+        setTimeLeft("Custom Ready Room Details থেকে নিন");
+        clearInterval(timer);
+        return;
+      }
+
+      const hours = Math.floor(distance / (1000 * 60 * 60));
+      const minutes = Math.floor(
+        (distance % (1000 * 60 * 60)) / (1000 * 60)
+      );
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      setTimeLeft(
+        `${hours > 0 ? `${hours}h ` : ""}${minutes}m:${seconds}s`
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [match.startTime, match.startCountdown]);
+
+  const joined = Number(match.joinedPlayers || 0);
+  const total = Number(match.totalPlayers || 0);
+  const spotsLeft = total - joined;
+  const isFull = joined >= total;
 
   return (
-    <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto">
+    <div
+      onClick={onClick}
+      className="bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer"
+    >
+      <div className="p-3">
+        {/* top */}
+        <div className="flex gap-3">
+          <img
+            src={match.image || "/image/img-1.jpg"}
+            alt=""
+            className="w-28 h-16 rounded object-cover"
+          />
 
-      <button onClick={onBack}>❮</button>
+          <div className="flex-1">
+            <h3 className="font-bold text-lg leading-tight">
+              {match.title} | {match.device || "Mobile"} | Regular
+            </h3>
 
-      <h2>{match.title}</h2>
+            <p className="text-red-400 text-sm mt-1">
+              {new Date(match.startTime).toLocaleString()}
+            </p>
+          </div>
+        </div>
 
-      <input
-        placeholder="Game Name"
-        onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-      />
+        {/* middle stats */}
+        <div className="grid grid-cols-3 gap-y-6 text-center mt-6">
+          <div>
+            <p className="text-gray-500 text-sm font-semibold">WIN PRIZE</p>
+            <p className="font-bold text-2xl">{match.winPrize} TK</p>
+          </div>
 
-      <input
-        placeholder="UID"
-        onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
-      />
+          <div>
+            <p className="text-gray-500 text-sm font-semibold">ENTRY TYPE</p>
+            <p className="font-bold text-2xl capitalize">
+              {match.category}
+            </p>
+          </div>
 
-      <button onClick={() => onConfirmJoin(formData)}>
-        Confirm Join
-      </button>
+          <div>
+            <p className="text-gray-500 text-sm font-semibold">ENTRY FEE</p>
+            <p className="font-bold text-2xl">{match.entryFee} TK</p>
+          </div>
 
-    </div>
-  );
-};
+          <div>
+            <p className="text-gray-500 text-sm font-semibold">PER KILL</p>
+            <p className="font-bold text-2xl">{match.perKill || 0} TK</p>
+          </div>
 
-export default MatchJoin;
+          <div>
+            <p className="text-gray-500 text-sm font-semibold">MAP</p>
+            <p className="font-bold text-2xl">{match.map || "Bermuda"}</p>
+          </div>
 
- import React from 'react';
+          <div>
+            <p className="text-gray-500 text-sm font-semibold">VERSION</p>
+            <p className="font-bold text-2xl uppercase">
+              {match.device || "MOBILE"}
+            </p>
+          </div>
+        </div>
 
-const MatchList = ({ matches, onBack }) => {
-  return (
-    <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-10">
-      {/* Header */}
-      <div className="flex items-center px-4 py-4 bg-white sticky top-0 z-10 shadow-sm">
-        <button onClick={onBack} className="text-2xl mr-4">❮</button>
-        <h2 className="text-lg font-black uppercase tracking-tight">BR MATCHES</h2>
-        <button className="ml-auto text-blue-500 text-xl">🔄</button>
-      </div>
-
-      {/* Match Cards Container */}
-      <div className="px-3 py-4 space-y-5">
-        {matches.map((match) => (
-          <div key={match.id} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-            {/* Title & Banner */}
-            <div className="flex gap-3 p-3">
-              <div className="w-24 h-16 bg-indigo-900 rounded-lg flex items-center justify-center overflow-hidden">
-                <img src="https://via.placeholder.com/100x60/1e1b4b/ffffff?text=FREE+FIRE" alt="banner" className="object-cover" />
-              </div>
-              <div>
-                <h3 className="font-black text-sm text-slate-800 leading-tight">
-                  {match.title} | {match.version} | {match.type}
-                </h3>
-                <p className="text-[10px] text-red-500 font-bold mt-1">{match.time}</p>
-              </div>
+        {/* progress */}
+        <div className="flex items-center gap-3 mt-6">
+          <div className="flex-1">
+            <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500"
+                style={{
+                  width: `${total ? (joined / total) * 100 : 0}%`,
+                }}
+              />
             </div>
 
-            {/* Info Grid */}
-            <div className="grid grid-cols-3 gap-y-4 px-4 py-2 border-t border-gray-50 text-center">
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">Win Prize</p>
-                <p className="text-xs font-black">{match.winPrize} TK</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">Entry Type</p>
-                <p className="text-xs font-black">{match.entryType}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">Entry Fee</p>
-                <p className="text-xs font-black">{match.entryFee} TK</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">Per Kill</p>
-                <p className="text-xs font-black">{match.perKill} TK</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">Map</p>
-                <p className="text-xs font-black">{match.mapName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">Version</p>
-                <p className="text-xs font-black">{match.version}</p>
-              </div>
-            </div>
-
-            {/* Progress Bar & Join Button */}
-            <div className="px-4 py-3 flex items-center gap-4 border-t border-gray-50">
-              <div className="flex-1">
-                <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-green-500 h-full rounded-full" 
-                    style={{ width: `${(match.joined / match.total) * 100}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <p className="text-[9px] text-gray-400 font-bold">Only {match.total - match.joined} spots left</p>
-                  <p className="text-[9px] text-gray-600 font-black">{match.joined}/{match.total}</p>
-                </div>
-              </div>
-              <button className={`px-4 py-2 rounded-lg border-2 font-black text-xs ${match.joined >= match.total ? 'border-gray-200 text-gray-400' : 'border-indigo-600 text-indigo-600 active:bg-indigo-50'}`}>
-                {match.joined >= match.total ? 'Match Full' : 'Join Now'}
-              </button>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="grid grid-cols-2 gap-2 px-3 py-3 bg-gray-50">
-               <button className="bg-white border border-indigo-200 text-indigo-700 py-1.5 rounded-md text-[10px] font-black uppercase flex items-center justify-center gap-1">
-                 🔑 Room Details <span>▼</span>
-               </button>
-               <button className="bg-white border border-indigo-200 text-indigo-700 py-1.5 rounded-md text-[10px] font-black uppercase flex items-center justify-center gap-1">
-                 🏆 Total Prize Details <span>▼</span>
-               </button>
-            </div>
-
-            {/* Starts In Timer */}
-            <div className="bg-green-600 text-white text-center py-2 text-xs font-bold flex items-center justify-center gap-2">
-              🕒 STARTS IN - <span className="text-sm font-black">{match.startsIn}</span>
+            <div className="flex justify-between text-sm mt-1 text-gray-500">
+              <span>Only {spotsLeft} spots are left</span>
+              <span>
+                {joined}/{total}
+              </span>
             </div>
           </div>
-        ))}
+
+          {/* JOIN / FULL BUTTON */}
+          <div>
+            {isFull ? (
+              <div className="bg-red-500 text-white px-4 py-3 rounded-xl font-bold text-center">
+                Match Full
+              </div>
+            ) : (
+              <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl font-bold">
+                Join
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* buttons */}
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <button className="border border-blue-500 rounded-lg py-2 font-semibold text-blue-700">
+            🔑 Room Details
+          </button>
+
+          <button className="border border-blue-500 rounded-lg py-2 font-semibold text-blue-700">
+            🏆 Total Prize
+          </button>
+        </div>
+      </div>
+
+      {/* footer */}
+      <div className="bg-green-700 text-white text-center py-3 font-semibold">
+        {isFull
+          ? "কাস্টম Ready Room Details থেকে নিন"
+          : `⏰ STARTS IN - ${timeLeft}`}
       </div>
     </div>
   );
 };
 
-export default MatchList;
+export default MatchCard;  
 
  import React from 'react';
 
-const Profile = ({ onLogout, onNavigate }) => {
+const BottomMenu = ({ onLogout, onNavigate }) => {
   const menuItems = [
     { id: 'wallet', label: 'Wallet', icon: '👛', color: 'text-blue-500' },
     { id: 'withdraw', label: 'Withdraw', icon: '💵', color: 'text-cyan-500' },
@@ -1238,6 +2139,66 @@ const Profile = ({ onLogout, onNavigate }) => {
 
       <div className="px-8 mt-12">
         <button onClick={onLogout} className="w-full bg-[#3B82F6] text-white py-3.5 rounded-full font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200">Logout</button>
+      </div>
+    </div>
+  );
+};
+
+export default BottomMenu;
+
+
+ import React from "react";
+import { useNavigate } from "react-router-dom";
+
+const Profile = ({ onLogout }) => {
+  const navigate = useNavigate();
+
+  const menuItems = [
+    { id: "wallet", label: "Wallet", icon: "👛" },
+    { id: "withdraw", label: "Withdraw", icon: "💵" },
+    { id: "my_profile", label: "My Profile", icon: "👤" },
+    { id: "all_rules", label: "All Rules", icon: "📋", hasArrow: true },
+    { id: "top_players", label: "Top Players", icon: "📈" },
+    { id: "dev_profile", label: "Developer Profile", icon: "📂" },
+  ];
+
+  const handleNavigate = (id) => {
+    if (id === "wallet") navigate("/wallet");
+  };
+
+  return (
+    <div className="bg-white min-h-screen pb-10">
+      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
+        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
+          👨‍💻
+        </div>
+
+        <h2 className="text-xl font-bold">sumon2233555</h2>
+      </div>
+
+      <div className="mt-4 px-2">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => handleNavigate(item.id)}
+            className="w-full flex justify-between p-4 border-b"
+          >
+            <div className="flex gap-4">
+              <span>{item.icon}</span>
+              <span className="font-bold text-sm">{item.label}</span>
+            </div>
+            {item.hasArrow && <span>›</span>}
+          </button>
+        ))}
+      </div>
+
+      <div className="px-8 mt-12">
+        <button
+          onClick={onLogout}
+          className="w-full bg-blue-500 text-white py-3 rounded-full font-bold"
+        >
+          Logout
+        </button>
       </div>
     </div>
   );
@@ -1368,7 +2329,7 @@ const AddMoney = ({ onBack }) => {
   );
 };
 
-export default AddMoney;
+export default AddMoney; 
 
  import React, { useState } from 'react';
 
@@ -1448,19 +2409,78 @@ const TransactionHistory = ({ onBack }) => {
 
 export default TransactionHistory;
 
- import React from 'react';
+ import React, { useState } from "react";
 
-const Wallet = ({ balance, deposited, winning, onBack }) => {
+const Wallet = ({ onBack }) => {
+  const [balance, setBalance] = useState(0);
+  const [deposited, setDeposited] = useState(0);
+  const [winning, setWinning] = useState(0);
+  const [history, setHistory] = useState([]);
+
+  const addMoney = () => {
+    const amount = 500;
+    setBalance(balance + amount);
+    setDeposited(deposited + amount);
+    setHistory([{ type: "Add Money", amount }, ...history]);
+  };
+
+  const withdrawMoney = () => {
+    const amount = 200;
+    if (balance < amount) return alert("Not enough balance");
+
+    setBalance(balance - amount);
+    setHistory([{ type: "Withdraw", amount }, ...history]);
+  };
+
   return (
-    <div className="bg-[#0f172a] min-h-screen text-white">
+    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-20">
 
-      <button onClick={onBack}>❮</button>
+      <div className="bg-white p-4 flex items-center gap-3 shadow">
+        <button onClick={onBack}>←</button>
+        <h2 className="font-bold">Wallet</h2>
+      </div>
 
-      <h2>Wallet</h2>
+      <div className="m-3 bg-white p-4 rounded-xl shadow">
+        <h3 className="font-bold">Your Balance</h3>
+        <p className="text-2xl font-black">৳ {balance}</p>
+      </div>
 
-      <p>Balance: {balance}</p>
-      <p>Deposited: {deposited}</p>
-      <p>Winning: {winning}</p>
+      <div className="grid grid-cols-2 gap-3 m-3">
+        <div className="bg-white p-3 rounded-xl shadow">
+          <p>Deposited</p>
+          <b>৳ {deposited}</b>
+        </div>
+
+        <div className="bg-white p-3 rounded-xl shadow">
+          <p>Winning</p>
+          <b>৳ {winning}</b>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 m-3">
+        <button onClick={addMoney} className="bg-green-500 text-white p-3 rounded-xl font-bold">
+          Add Money
+        </button>
+
+        <button onClick={withdrawMoney} className="bg-red-500 text-white p-3 rounded-xl font-bold">
+          Withdraw
+        </button>
+      </div>
+
+      <div className="m-3 bg-white p-4 rounded-xl shadow">
+        <h3 className="font-bold mb-2">Transaction History</h3>
+
+        {history.length === 0 ? (
+          <p className="text-gray-400 text-sm">No transaction yet</p>
+        ) : (
+          history.map((h, i) => (
+            <div key={i} className="flex justify-between border-b py-2 text-sm">
+              <span>{h.type}</span>
+              <span>৳ {h.amount}</span>
+            </div>
+          ))
+        )}
+      </div>
 
     </div>
   );
@@ -1468,68 +2488,114 @@ const Wallet = ({ balance, deposited, winning, onBack }) => {
 
 export default Wallet;
 
-
  import React, { useState, useEffect } from "react";
 import "./App.css";
 
-// ওয়েবসাইট সেকশন (Landing Page)
 import Footer from "./Component/Footer/Footer";
 import Hero from "./Component/HeroSection/HeroSection";
 import Navbar from "./Component/Navbar/Navbar";
-import HomeCard from "./page/HomeCard/HomeCard";
+import HomeCard from "../src/page/HomeCard/HomeCard";
 
-// অ্যাপ সেকশন (App UI & Logic)
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
-import Login from "./Component/Login/Login";
+import Auth from "./page/Auth/Auth";
+import AdminPanel from "./page/AdminPenal/AdminPanel";
 
 function App() {
-  // ইউজার অ্যাপ মোডে আছে কিনা তা চেক করার স্টেট
   const [isAppMode, setIsAppMode] = useState(false);
-  // ইউজার লগইন করা আছে কিনা তার স্টেট
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
+  // ================= INIT AUTH CHECK =================
   useEffect(() => {
-    // চেক করা হচ্ছে ইউজার কি ইন্সটল করা অ্যাপ (Standalone) থেকে ওপেন করেছে কি না
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    
+    const token = localStorage.getItem("token");
+    const admin = localStorage.getItem("isAdmin");
+
+    if (token) {
+      setIsLoggedIn(true);
+      setIsAdmin(admin === "true");
+    } else {
+      setIsLoggedIn(false);
+      setIsAdmin(false);
+    }
+  }, []);
+
+  // ================= PWA CHECK =================
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone;
+
     if (isStandalone) {
       setIsAppMode(true);
     }
   }, []);
 
-  /**
-   * লজিক ১: অ্যাপ মোড (যখন ইউজার মোবাইল অ্যাপ বা আইকন থেকে ঢুকবে)
-   */
+  // ================= LOGIN SUCCESS =================
+  const handleLoginSuccess = () => {
+    const token = localStorage.getItem("token");
+    const admin = localStorage.getItem("isAdmin");
+
+    setIsLoggedIn(!!token);
+    setIsAdmin(admin === "true");
+  };
+
+  // ================= LOGOUT =================
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("isAdmin");
+
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+  };
+
+  // ================= LOADING =================
+  if (isLoggedIn === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
+  }
+
+  // ================= APP MODE =================
   if (isAppMode) {
     return (
-      <div className="app-container">
+      <div className="app-container bg-[#fcfaff] min-h-screen">
         {isLoggedIn ? (
-          // লগইন করা থাকলে সরাসরি ড্যাশবোর্ড (ইমেজের মতো ভিউ)
-          <AppDashboard onLogout={() => setIsLoggedIn(false)} />
+          isAdmin ? (
+            <AdminPanel onLogout={handleLogout} />
+          ) : (
+            <AppDashboard onLogout={handleLogout} />
+          )
         ) : (
-          // লগইন না থাকলে প্রথমে লগইন পেজ
-          <Login onLoginSuccess={() => setIsLoggedIn(true)} />
+          <Auth onLoginSuccess={handleLoginSuccess} />
         )}
       </div>
     );
   }
 
-  /**
-   * লজিক ২: ওয়েবসাইট মোড (ব্রাউজারে uthiyo.com এ সাধারণ ভিজিট)
-   */
+  // ================= WEBSITE MODE =================
   return (
     <div className="website-layout">
       <Navbar />
       <Hero />
       <HomeCard />
       <Footer />
-      
-      {/* ডেভেলপমেন্ট এবং টেস্ট করার জন্য নিচের বাটনটি খুব কাজের */}
-      <button 
-        onClick={() => setIsAppMode(true)}
-        className="fixed bottom-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-full text-[10px] font-bold z-[9999] shadow-lg transition-all active:scale-95"
+
+      <button
+        onClick={() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("isAdmin");
+
+          setIsLoggedIn(false);
+          setIsAdmin(false);
+          setIsAppMode(true);
+        }}
+        className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
       >
-        Preview App Interface
+        📱 Open othiyO App
       </button>
     </div>
   );
@@ -1537,13 +2603,892 @@ function App() {
 
 export default App;
 
-import { StrictMode } from 'react'
+
+ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
-  </StrictMode>,
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>
 )
+
+
+
+
+
+
+backend code 
+
+
+ const mongoose = require("mongoose");
+
+const connectDB = async () => {
+  try {
+    console.log("🔄 Connecting to MongoDB...");
+
+    await mongoose.connect(process.env.MONGO_URI);
+
+    console.log("✔ MongoDB Connected Successfully");
+  } catch (error) {
+    console.error("❌ MongoDB Connection Failed:");
+    console.error(error.message);
+
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+
+
+ const jwt = require("jsonwebtoken");
+
+const protect = (req, res, next) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res.json({ success: false, message: "No token" });
+  }
+
+  try {
+    const decoded = jwt.verify(token.split(" ")[1], process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.json({ success: false, message: "Invalid token" });
+  }
+};
+
+// 🔥 ADMIN ONLY
+const adminOnly = (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return res.json({ success: false, message: "Admin only access" });
+  }
+  next();
+};
+
+module.exports = { protect, adminOnly };
+
+
+ const Match = require("../models/matchModel");
+
+
+// ================= CREATE MATCH =================
+const createMatch = async (req, res) => {
+  try {
+    const {
+      title,
+      category,
+      entryFee,
+      winPrize,
+      totalPlayers,
+      roomId,
+      roomPassword,
+    } = req.body;
+
+    const newMatch = await Match.create({
+      title,
+      category,
+      entryFee,
+      winPrize,
+      totalPlayers,
+      roomId,
+      roomPassword,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Match created successfully",
+      data: newMatch,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// ================= GET ALL MATCHES =================
+const getMatches = async (req, res) => {
+  try {
+    const matches = await Match.find().sort({ createdAt: -1 });
+
+    res.json(matches);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+module.exports = {
+  createMatch,
+  getMatches,
+};
+
+
+ const mongoose = require("mongoose");
+
+const matchSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+    },
+
+    category: {
+      type: String,
+      required: true,
+    },
+
+    entryFee: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    winPrize: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    totalPlayers: {
+      type: Number,
+      default: 48,
+    },
+
+    joinedPlayers: {
+      type: Number,
+      default: 0,
+    },
+
+    roomId: {
+      type: String,
+      default: "",
+    },
+
+    roomPassword: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      default: "upcoming",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Match", matchSchema);
+
+
+ const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema(
+  {
+    phone: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+    },
+
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+
+    // 💰 WALLET SYSTEM
+    balance: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🎮 GAMING INFO
+    totalMatchesPlayed: {
+      type: Number,
+      default: 0,
+    },
+
+    totalWins: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🔒 SECURITY (future use)
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastLogin: {
+      type: Date,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("User", userSchema);  
+
+ const mongoose = require("mongoose");
+
+const matchSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    category: {
+      type: String,
+      enum: ["solo", "duo", "squad", "cs", "custom", "tournament"],
+      required: true,
+    },
+
+    winPrize: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    entryFee: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    perKill: {
+      type: Number,
+      default: 0,
+    },
+
+    totalPlayers: {
+      type: Number,
+      default: 48,
+    },
+
+    joinedPlayers: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🎮 ROOM SYSTEM
+    roomId: {
+      type: String,
+      default: "",
+    },
+
+    roomPassword: {
+      type: String,
+      default: "",
+    },
+
+    // ⏰ MATCH START TIME (VERY IMPORTANT FOR 10 MIN RULE)
+    startTime: {
+      type: Date,
+      required: true,
+    },
+
+    // 🔥 STATUS CONTROL
+    status: {
+      type: String,
+      enum: ["upcoming", "live", "completed"],
+      default: "upcoming",
+    },
+
+    // 🔒 ROOM OPEN CONTROL (10 MIN BEFORE START)
+    isRoomOpen: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Match", matchSchema);
+
+
+ const mongoose = require("mongoose");
+
+const matchSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+    },
+
+    category: {
+      type: String,
+      required: true,
+    },
+
+    entryFee: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    winPrize: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    totalPlayers: {
+      type: Number,
+      default: 48,
+    },
+
+    joinedPlayers: {
+      type: Number,
+      default: 0,
+    },
+
+    roomId: {
+      type: String,
+      default: "",
+    },
+
+    roomPassword: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      default: "upcoming",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Match", matchSchema);
+
+
+ const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema(
+  {
+    phone: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+    },
+
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+
+    // 💰 WALLET SYSTEM
+    balance: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🎮 GAMING INFO
+    totalMatchesPlayed: {
+      type: Number,
+      default: 0,
+    },
+
+    totalWins: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🔒 SECURITY (future use)
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastLogin: {
+      type: Date,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("User", userSchema);
+
+
+ const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+
+// ================= ADMIN LOGIN =================
+router.post("/login", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    // 🔥 FIND USER
+    const user = await User.findOne({ phone });
+
+    if (!user) {
+      return res.json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // 🔥 CHECK ROLE
+    if (user.role !== "admin") {
+      return res.json({
+        success: false,
+        message: "Not an admin account",
+      });
+    }
+
+    // 🔥 PASSWORD CHECK
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.json({
+        success: false,
+        message: "Wrong password",
+      });
+    }
+
+    // 🔐 TOKEN GENERATE
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // ✅ RESPONSE
+    res.json({
+      success: true,
+      message: "Admin login success 🚀",
+      token,
+      user: {
+        id: user._id,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+module.exports = router;
+
+ const express = require("express");
+const router = express.Router();
+const Match = require("../models/Match");
+const jwt = require("jsonwebtoken");
+
+
+// ================= ADMIN MIDDLEWARE =================
+const protectAdmin = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.json({
+        success: false,
+        message: "No token found",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== "admin") {
+      return res.json({
+        success: false,
+        message: "Admin only access",
+      });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.json({
+      success: false,
+      message: "Invalid token",
+    });
+  }
+};
+
+
+// ================= CREATE MATCH (ADMIN ONLY) =================
+router.post("/create", protectAdmin, async (req, res) => {
+  try {
+    const match = await Match.create({
+      ...req.body,
+      joinedPlayers: 0,
+      status: "upcoming",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Match created successfully",
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+// ================= GET ALL MATCHES =================
+router.get("/", async (req, res) => {
+  try {
+    const matches = await Match.find().sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: matches,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+// ================= GET SINGLE MATCH =================
+router.get("/:id", async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+
+    res.json({
+      success: true,
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+// ================= UPDATE ROOM (ADMIN ONLY) =================
+router.put("/update-room/:id", protectAdmin, async (req, res) => {
+  try {
+    const { roomId, roomPassword } = req.body;
+
+    const match = await Match.findByIdAndUpdate(
+      req.params.id,
+      {
+        roomId,
+        roomPassword,
+        status: "live",
+        isRoomOpen: true,
+      },
+      { new: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Room updated successfully",
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+// ================= JOIN MATCH =================
+router.put("/join/:id", async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+
+    if (!match) {
+      return res.status(404).json({
+        success: false,
+        message: "Match not found",
+      });
+    }
+
+    if (match.joinedPlayers >= match.totalPlayers) {
+      return res.json({
+        success: false,
+        message: "Match is full",
+      });
+    }
+
+    match.joinedPlayers += 1;
+
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "Joined successfully",
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+module.exports = router;
+
+ const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+
+
+// ================= REGISTER =================
+router.post("/register", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    const existingUser = await User.findOne({ phone });
+
+    if (existingUser) {
+      return res.json({
+        success: false,
+        message: "User already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      phone,
+      password: hashedPassword,
+    });
+
+    res.json({
+      success: true,
+      message: "User created successfully",
+      data: user,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+// ================= LOGIN =================
+router.post("/login", async (req, res) => {
+  try {
+    const { phone, password, deviceType } = req.body;
+
+    // 🔥 MOBILE ONLY CHECK (basic anti-PC system)
+    if (deviceType && deviceType !== "mobile") {
+      return res.json({
+        success: false,
+        message: "Only mobile devices allowed 🎮",
+      });
+    }
+
+    const user = await User.findOne({ phone });
+
+    if (!user) {
+      return res.json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.json({
+        success: false,
+        message: "Wrong password",
+      });
+    }
+
+    // 🔐 JWT TOKEN
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+        phone: user.phone,
+      },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "7d" }
+    );
+
+    // 🔥 update last login (gaming tracking)
+    user.lastLogin = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Login success",
+      token,
+      user: {
+        id: user._id,
+        phone: user.phone,
+        role: user.role,
+        balance: user.balance,
+        totalMatchesPlayed: user.totalMatchesPlayed,
+        totalWins: user.totalWins,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+module.exports = router;
+
+ const dns = require("node:dns");
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+
+const dotenv = require("dotenv");
+dotenv.config();
+
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const User = require("./models/User");
+
+// DEBUG
+console.log("MONGO_URI:", process.env.MONGO_URI);
+
+mongoose.connect(process.env.MONGO_URI, {
+  serverSelectionTimeoutMS: 10000,
+});
+
+const createAdmins = async () => {
+  try {
+    const hashedPassword = await bcrypt.hash("123456", 10);
+
+    const admins = [
+      { phone: "admin1", password: hashedPassword, role: "admin" },
+      { phone: "admin2", password: hashedPassword, role: "admin" },
+      { phone: "admin3", password: hashedPassword, role: "admin" },
+      { phone: "admin4", password: hashedPassword, role: "admin" },
+      { phone: "admin5", password: hashedPassword, role: "admin" },
+    ];
+
+    await User.insertMany(admins);
+
+    console.log("5 Admin Created 🚀");
+    process.exit();
+  } catch (err) {
+    console.log("Error:", err.message);
+    process.exit();
+  }
+};
+
+createAdmins();
+
+ const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+require("colors");
+
+// 🔥 DNS FIX for MongoDB Atlas SRV issue
+const dns = require("node:dns/promises");
+dns.setServers(["1.1.1.1", "8.8.8.8"]); // Cloudflare + Google DNS
+
+dotenv.config();
+
+// DB CONNECT
+const connectDB = require("./config/db");
+
+const app = express();
+
+// ================= MIDDLEWARE =================
+app.use(cors());
+app.use(express.json());
+
+// ================= DB CONNECTION =================
+connectDB();
+
+// ================= LOG CHECK =================
+console.log(
+  "MONGO_URI:",
+  process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
+);
+
+// ================= TEST ROUTE =================
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "🚀 Playzo Backend is running!",
+  });
+});
+
+// ================= MATCH ROUTES =================
+const matchRoutes = require("./routes/matchRoutes");
+app.use("/api/matches", matchRoutes);
+
+// ================= AUTH ROUTES =================
+const authRoutes = require("./routes/authRoutes");
+app.use("/api/auth", authRoutes);
+
+// ================= ADMIN AUTH ROUTES =================
+const adminAuthRoutes = require("./routes/adminAuthRoutes");
+app.use("/api/admin", adminAuthRoutes);
+
+// ================= FUTURE ROUTES =================
+// app.use("/api/users", require("./routes/userRoutes"));
+// app.use("/api/wallet", require("./routes/walletRoutes"));
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
+});
