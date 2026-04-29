@@ -13,8 +13,14 @@ const connectDB = require("./config/db");
 const app = express();
 
 // ================= MIDDLEWARE =================
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 
 // ================= DB CONNECTION =================
 connectDB();
@@ -44,6 +50,20 @@ app.use("/api/admin", require("./routes/admin"));
 
 // ================= WALLET ROUTES =================
 app.use("/api/wallet", require("./routes/walletRoutes"));
+
+// ================= PAYMENT NUMBERS (User side — active only) =================
+const PaymentNumber = require("./models/PaymentNumber");
+app.get("/api/payment-numbers", async (req, res) => {
+  try {
+    const data = await PaymentNumber.find({ active: true }).sort({ createdAt: -1 });
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ================= PAYMENT NUMBERS ADMIN ROUTES =================
+app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
