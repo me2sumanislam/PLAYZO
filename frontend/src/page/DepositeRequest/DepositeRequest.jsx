@@ -1,168 +1,176 @@
- import React, { useEffect, useState } from "react";
-
-const API = "http://localhost:5000";
-
-const methodColor = {
-  bkash:  { bg: "#fff0f6", badge: "#E2136E", text: "#E2136E", label: "bKash"  },
-  nagad:  { bg: "#fff5f0", badge: "#F05A22", text: "#F05A22", label: "Nagad"  },
-  rocket: { bg: "#fdf0fa", badge: "#8C1A6A", text: "#8C1A6A", label: "Rocket" },
-};
+ import React, { useState, useEffect } from "react";
 
 const DepositRequests = () => {
-  const [deposits, setDeposits] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [actionId, setActionId] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [filter, setFilter] = useState("pending");
 
-  const fetchDeposits = async () => {
-    setLoading(true);
-    try {
-      const res  = await fetch(`${API}/api/wallet/deposits`);
-      const data = await res.json();
-      setDeposits(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setDeposits([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Load & auto-refresh every 3 seconds
   useEffect(() => {
-    fetchDeposits();
+    const load = () => {
+      const data = JSON.parse(
+        localStorage.getItem("deposit_requests") || "[]"
+      );
+      setRequests(data);
+    };
+    load();
+    const interval = setInterval(load, 3000);
+    return () => clearInterval(interval);
   }, []);
 
-  const handleAction = async (id, status) => {
-    setActionId(id);
-    try {
-      const res  = await fetch(`${API}/api/wallet/deposit/${id}`, {
-        method:  "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ status }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setDeposits((prev) => prev.filter((d) => d._id !== id));
-      } else {
-        alert("Error: " + data.message);
-      }
-    } catch (err) {
-      alert("Server error: " + err.message);
-    } finally {
-      setActionId(null);
+  const updateStatus = (id, status) => {
+    const updated = requests.map((r) =>
+      r.id === id ? { ...r, status } : r
+    );
+    setRequests(updated);
+    localStorage.setItem("deposit_requests", JSON.stringify(updated));
+
+    // Approve হলে balance বাড়াও
+    if (status === "approved") {
+      const req = requests.find((r) => r.id === id);
+      const currentBalance = parseInt(
+        localStorage.getItem("user_balance") || "0"
+      );
+      localStorage.setItem(
+        "user_balance",
+        String(currentBalance + parseInt(req.amount))
+      );
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const filtered = requests.filter((r) =>
+    filter === "all" ? true : r.status === filter
+  );
 
-  if (deposits.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl p-10 shadow text-center">
-        <p className="text-4xl mb-3">📭</p>
-        <p className="font-bold text-gray-500">কোনো pending request নেই</p>
-        <button
-          onClick={fetchDeposits}
-          className="mt-4 px-5 py-2 bg-indigo-500 text-white rounded-xl text-sm font-bold"
-        >
-          🔄 Refresh
-        </button>
-      </div>
-    );
-  }
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   return (
-    <div>
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-black text-lg">
-          Deposit Requests
-          <span className="ml-2 bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full font-bold">
-            {deposits.length} pending
+      <div className="bg-white rounded-2xl p-4 shadow flex justify-between items-center">
+        <div>
+          <h3 className="font-black text-indigo-700 text-base">
+            💰 Deposit Requests
+          </h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            মোট: {requests.length} | Pending:{" "}
+            <span className="text-orange-500 font-bold">{pendingCount}</span>
+          </p>
+        </div>
+        {pendingCount > 0 && (
+          <span className="bg-orange-500 text-white text-xs font-black px-3 py-1 rounded-full animate-pulse">
+            {pendingCount} নতুন
           </span>
-        </h3>
-        <button
-          onClick={fetchDeposits}
-          className="text-xs text-indigo-500 font-bold px-3 py-1.5 border border-indigo-300 rounded-xl"
-        >
-          🔄 Refresh
-        </button>
+        )}
       </div>
 
-      {/* Cards */}
-      <div className="space-y-4">
-        {deposits.map((d) => {
-          const m         = methodColor[d.method] || methodColor.bkash;
-          const isLoading = actionId === d._id;
+      {/* Filter Tabs */}
+      <div className="flex gap-2">
+        {[
+          { id: "pending", label: "⏳ Pending" },
+          { id: "approved", label: "✅ Approved" },
+          { id: "rejected", label: "❌ Rejected" },
+          { id: "all", label: "📋 সব" },
+        ].map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
+              filter === f.id
+                ? "bg-indigo-600 text-white"
+                : "bg-white text-gray-500 border"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-          return (
-            <div
-              key={d._id}
-              className="bg-white rounded-2xl shadow overflow-hidden border border-gray-100"
-            >
-              {/* Color strip on top */}
-              <div className="h-1.5 w-full" style={{ background: m.badge }} />
+      {/* Empty State */}
+      {filtered.length === 0 && (
+        <div className="bg-white rounded-2xl p-8 text-center shadow">
+          <p className="text-4xl mb-2">📭</p>
+          <p className="text-gray-400 text-sm font-bold">
+            কোনো request নেই
+          </p>
+        </div>
+      )}
 
-              <div className="p-4">
-                {/* Method + time */}
-                <div className="flex justify-between items-center mb-3">
-                  <span
-                    className="text-xs font-black px-3 py-1 rounded-full"
-                    style={{ background: m.bg, color: m.text }}
-                  >
-                    {m.label}
-                  </span>
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(d.createdAt).toLocaleString("bn-BD")}
-                  </span>
-                </div>
+      {/* Request Cards */}
+      {filtered
+        .slice()
+        .reverse()
+        .map((req) => (
+          <div
+            key={req.id}
+            className={`rounded-2xl p-4 shadow border ${
+              req.status === "pending"
+                ? "bg-yellow-50 border-yellow-200"
+                : req.status === "approved"
+                ? "bg-green-50 border-green-200"
+                : "bg-red-50 border-red-200"
+            }`}
+          >
+            {/* User Info */}
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="font-black text-sm">👤 {req.user}</p>
+                <p className="text-xs text-gray-500">{req.phone}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{req.time}</p>
+              </div>
+              <span
+                className={`text-xs font-black px-3 py-1 rounded-full ${
+                  req.status === "pending"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : req.status === "approved"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {req.status === "pending"
+                  ? "⏳ Pending"
+                  : req.status === "approved"
+                  ? "✅ Approved"
+                  : "❌ Rejected"}
+              </span>
+            </div>
 
-                {/* Info */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Amount</span>
-                    <span className="font-black text-green-600">৳ {d.amount}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">TrxID</span>
-                    <span className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded text-xs">
-                      {d.trxId}
-                    </span>
-                  </div>
-                  {d.userId && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 font-medium">User ID</span>
-                      <span className="font-mono text-xs text-gray-600">{d.userId}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleAction(d._id, "approved")}
-                    disabled={isLoading}
-                    className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 active:scale-95 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-                  >
-                    {isLoading ? "..." : "✓ Approve"}
-                  </button>
-                  <button
-                    onClick={() => handleAction(d._id, "rejected")}
-                    disabled={isLoading}
-                    className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-                  >
-                    {isLoading ? "..." : "✕ Reject"}
-                  </button>
-                </div>
+            {/* Details Grid */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="bg-white rounded-xl p-2 text-center">
+                <p className="text-[10px] text-gray-400">পরিমাণ</p>
+                <p className="font-black text-green-600 text-sm">
+                  ৳{req.amount}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl p-2 text-center">
+                <p className="text-[10px] text-gray-400">Method</p>
+                <p className="font-bold text-xs">{req.method}</p>
+              </div>
+              <div className="bg-white rounded-xl p-2 text-center">
+                <p className="text-[10px] text-gray-400">TRX ID</p>
+                <p className="font-bold text-xs truncate">{req.trxId}</p>
               </div>
             </div>
-          );
-        })}
-      </div>
+
+            {/* Approve / Reject Buttons — only for pending */}
+            {req.status === "pending" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => updateStatus(req.id, "approved")}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl text-sm font-black transition"
+                >
+                  ✅ Approve
+                </button>
+                <button
+                  onClick={() => updateStatus(req.id, "rejected")}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-black transition"
+                >
+                  ❌ Reject
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
     </div>
   );
 };

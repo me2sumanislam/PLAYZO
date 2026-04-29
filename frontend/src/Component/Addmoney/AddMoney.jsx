@@ -1,261 +1,238 @@
- import { useState } from "react";
- 
- // ✅ Admin panel থেকে এই number change করতে পারবেন — DB/API থেকে আনুন
- const PAYMENT_NUMBER = "01567868517";
- 
- const METHODS = [
-   {
-     id: "bkash",
-     label: "bKash",
-     initial: "b",
-     color: "#E2136E",
-     bg: "#fff0f6",
-     border: "#E2136E55",
-   },
-   {
-     id: "nagad",
-     label: "Nagad",
-     initial: "N",
-     color: "#F05A22",
-     bg: "#fff5f0",
-     border: "#F05A2255",
-   },
-   {
-     id: "rocket",
-     label: "Rocket",
-     initial: "R",
-     color: "#8C1A6A",
-     bg: "#fdf0fa",
-     border: "#8C1A6A55",
-   },
- ];
- 
- export default function AddMoneyModal({ isOpen, onClose, onSubmit }) {
-   const [selected, setSelected] = useState(null);
-   const [amount, setAmount] = useState("");
-   const [trxId, setTrxId] = useState("");
-   const [copied, setCopied] = useState(false);
-   const [submitted, setSubmitted] = useState(false);
-   const [error, setError] = useState("");
- 
-   const method = METHODS.find((m) => m.id === selected);
- 
-   const handleCopy = () => {
-     navigator.clipboard.writeText(PAYMENT_NUMBER).then(() => {
-       setCopied(true);
-       setTimeout(() => setCopied(false), 2000);
-     });
-   };
- 
-   const handleConfirm = () => {
-     setError("");
-     if (!selected) return setError("Payment method বেছে নিন।");
-     if (!amount || parseFloat(amount) <= 0) return setError("সঠিক Amount দিন।");
-     if (!trxId.trim()) return setError("TrxID দিন।");
- 
-     // parent-এ data পাঠান (API call এখানে বা onSubmit-এ করুন)
-     onSubmit?.({ method: selected, amount: parseFloat(amount), trxId: trxId.trim() });
-     setSubmitted(true);
-   };
- 
-   const handleClose = () => {
-     setSelected(null);
-     setAmount("");
-     setTrxId("");
-     setCopied(false);
-     setSubmitted(false);
-     setError("");
-     onClose();
-   };
- 
-   if (!isOpen) return null;
- 
-   return (
-     <div style={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleClose()}>
-       <div style={styles.modal}>
-         {/* Header */}
-         <div style={styles.header}>
-           <span style={styles.title}>Add Money</span>
-           <button style={styles.closeBtn} onClick={handleClose}>×</button>
-         </div>
- 
-         {/* Body */}
-         <div style={styles.body}>
-           {submitted ? (
-             /* ✅ Success Screen */
-             <div style={styles.successBox}>
-               <div style={{ ...styles.successIcon, background: method.bg, color: method.color }}>✓</div>
-               <p style={styles.successTitle}>Request Submitted!</p>
-               <p style={styles.successSub}>Payment verify হলে wallet-এ যোগ হবে।</p>
-               <div style={styles.summaryBox}>
-                 {[
-                   ["Method", method.label],
-                   ["Amount", `৳${parseFloat(amount).toFixed(0)}`],
-                   ["TrxID", trxId],
-                 ].map(([k, v]) => (
-                   <div key={k} style={styles.summaryRow}>
-                     <span style={styles.summaryKey}>{k}</span>
-                     <span style={{ ...styles.summaryVal, fontFamily: k === "TrxID" ? "monospace" : "inherit" }}>{v}</span>
-                   </div>
-                 ))}
-               </div>
-               <button style={styles.closeOutlineBtn} onClick={handleClose}>Close</button>
-             </div>
-           ) : (
-             <>
-               {/* Step 1 — Select Method */}
-               <p style={styles.stepLabel}>১. Payment method বেছে নিন</p>
-               <div style={styles.methodGrid}>
-                 {METHODS.map((m) => (
-                   <button
-                     key={m.id}
-                     onClick={() => setSelected(m.id)}
-                     style={{
-                       ...styles.methodCard,
-                       borderColor: selected === m.id ? m.color : "#e0e0e0",
-                       background: selected === m.id ? m.bg : "#fff",
-                       borderWidth: selected === m.id ? 2 : 1.5,
-                     }}
-                   >
-                     <div style={{ ...styles.methodIcon, background: m.color }}>{m.initial}</div>
-                     <span style={styles.methodName}>{m.label}</span>
-                   </button>
-                 ))}
-               </div>
- 
-               {/* Step 2 — Number + Copy */}
-               {method && (
-                 <>
-                   <p style={styles.stepLabel}>২. এই নম্বরে Send Money করুন</p>
-                   <div style={{ ...styles.sendBox, background: method.bg, borderColor: method.border }}>
-                     <p style={{ ...styles.sendBoxLabel, color: method.color }}>{method.label} Number</p>
-                     <div style={styles.sendRow}>
-                       <span style={styles.sendNumber}>{PAYMENT_NUMBER}</span>
-                       <button
-                         onClick={handleCopy}
-                         style={{ ...styles.copyBtn, borderColor: method.color, color: method.color }}
-                       >
-                         {copied ? "✓ Copied!" : "⎘ Copy"}
-                       </button>
-                     </div>
-                   </div>
- 
-                   {/* Step 3 — Amount + TrxId */}
-                   <p style={styles.stepLabel}>৩. Payment details দিন</p>
-                   <div style={styles.formGroup}>
-                     <label style={styles.formLabel}>Amount (টাকা)</label>
-                     <input
-                       style={styles.input}
-                       type="number"
-                       min="1"
-                       placeholder="কত টাকা পাঠিয়েছেন?"
-                       value={amount}
-                       onChange={(e) => setAmount(e.target.value)}
-                     />
-                   </div>
-                   <div style={styles.formGroup}>
-                     <label style={styles.formLabel}>Transaction ID (TrxID)</label>
-                     <input
-                       style={styles.input}
-                       type="text"
-                       placeholder="যেমন: 8K9J2T4XYZ"
-                       value={trxId}
-                       onChange={(e) => setTrxId(e.target.value)}
-                     />
-                   </div>
- 
-                   {error && <p style={styles.errorText}>{error}</p>}
- 
-                   <button
-                     onClick={handleConfirm}
-                     style={{ ...styles.confirmBtn, background: method.color }}
-                   >
-                     Confirm Payment
-                   </button>
-                 </>
-               )}
-             </>
-           )}
-         </div>
-       </div>
-     </div>
-   );
- }
- 
- /* ---- Styles ---- */
- const styles = {
-   overlay: {
-     position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-     display: "flex", alignItems: "center", justifyContent: "center",
-     zIndex: 1000, padding: 16,
-   },
-   modal: {
-     background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420,
-     boxShadow: "0 8px 32px rgba(0,0,0,0.18)", overflow: "hidden",
-   },
-   header: {
-     padding: "16px 20px", borderBottom: "1px solid #f0f0f0",
-     display: "flex", alignItems: "center", justifyContent: "space-between",
-   },
-   title: { fontSize: 16, fontWeight: 600, color: "#1a1a1a" },
-   closeBtn: {
-     width: 28, height: 28, borderRadius: "50%", border: "1px solid #ddd",
-     background: "transparent", cursor: "pointer", fontSize: 18, lineHeight: 1,
-     display: "flex", alignItems: "center", justifyContent: "center", color: "#666",
-   },
-   body: { padding: "18px 20px" },
-   stepLabel: { fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 10, letterSpacing: "0.03em" },
-   methodGrid: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 },
-   methodCard: {
-     border: "1.5px solid #e0e0e0", borderRadius: 10, padding: "12px 8px",
-     cursor: "pointer", display: "flex", flexDirection: "column",
-     alignItems: "center", gap: 6, transition: "all 0.15s",
-   },
-   methodIcon: {
-     width: 40, height: 40, borderRadius: "50%", color: "#fff",
-     display: "flex", alignItems: "center", justifyContent: "center",
-     fontSize: 16, fontWeight: 600,
-   },
-   methodName: { fontSize: 12, fontWeight: 600, color: "#333" },
-   sendBox: {
-     borderRadius: 10, padding: "12px 14px", marginBottom: 16,
-     border: "1px solid",
-   },
-   sendBoxLabel: { fontSize: 11, fontWeight: 600, marginBottom: 6 },
-   sendRow: { display: "flex", alignItems: "center", justifyContent: "space-between" },
-   sendNumber: { fontSize: 17, fontWeight: 600, color: "#1a1a1a", letterSpacing: "0.02em" },
-   copyBtn: {
-     padding: "5px 12px", borderRadius: 8, border: "1.5px solid",
-     cursor: "pointer", fontSize: 12, fontWeight: 600, background: "transparent",
-   },
-   formGroup: { marginBottom: 12 },
-   formLabel: { display: "block", fontSize: 12, color: "#666", marginBottom: 5 },
-   input: {
-     width: "100%", border: "1px solid #ddd", borderRadius: 8,
-     padding: "9px 12px", fontSize: 14, color: "#1a1a1a", outline: "none",
-   },
-   errorText: { fontSize: 12, color: "#E24B4A", marginBottom: 8 },
-   confirmBtn: {
-     width: "100%", padding: 12, borderRadius: 8, border: "none",
-     color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", marginTop: 4,
-   },
-   successBox: { textAlign: "center", padding: "8px 0 4px" },
-   successIcon: {
-     width: 56, height: 56, borderRadius: "50%", margin: "0 auto 12px",
-     display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
-   },
-   successTitle: { fontSize: 16, fontWeight: 600, color: "#1a1a1a", marginBottom: 6 },
-   successSub: { fontSize: 13, color: "#888", marginBottom: 16 },
-   summaryBox: {
-     background: "#f7f7f7", borderRadius: 10, padding: "12px 16px",
-     textAlign: "left", marginBottom: 16,
-   },
-   summaryRow: { display: "flex", justifyContent: "space-between", marginBottom: 8 },
-   summaryKey: { fontSize: 13, color: "#888" },
-   summaryVal: { fontSize: 13, fontWeight: 600, color: "#1a1a1a" },
-   closeOutlineBtn: {
-     padding: "8px 28px", borderRadius: 8, border: "1px solid #ddd",
-     background: "transparent", cursor: "pointer", fontSize: 13, color: "#333",
-   },
- };
- 
+ import React, { useState, useEffect } from "react";
+
+const API = "http://localhost:5000/api";
+
+const AddMoneyModal = ({ isOpen, onClose }) => {
+  const [form, setForm] = useState({ method: "bKash", amount: "", trxId: "" });
+  const [submitted, setSubmitted] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [paymentNumbers, setPaymentNumbers] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const token = localStorage.getItem("token");
+    fetch(`${API}/payment-numbers`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) =>
+        setPaymentNumbers(
+          Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []
+        )
+      )
+      .catch(() => setPaymentNumbers([]));
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const activeNumbers = paymentNumbers.filter(
+    (n) => n.method === form.method && n.active
+  );
+  const currentNumber = activeNumbers[0]?.number || "নম্বর এখনো যোগ করা হয়নি";
+  const hasNumber = activeNumbers.length > 0;
+
+  const handleCopy = () => {
+    if (!hasNumber) return;
+    navigator.clipboard.writeText(currentNumber).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!hasNumber) {
+      alert("এই মেথডে কোনো নম্বর নেই। অন্য মেথড বেছে নিন।");
+      return;
+    }
+    if (!form.amount || !form.trxId) {
+      alert("সব তথ্য পূরণ করুন!");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      const res = await fetch(`${API}/wallet/deposit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          method: form.method,
+          amount: Number(form.amount),
+          trxId: form.trxId,
+          paymentNumber: currentNumber,
+          userId: user.id || user._id || null,
+        }),
+      });
+
+      const d = await res.json();
+      if (d.success) {
+        setSubmitted(true);
+        setForm({ method: "bKash", amount: "", trxId: "" });
+      } else {
+        alert(d.message || "কিছু একটা সমস্যা হয়েছে!");
+      }
+    } catch {
+      alert("Server error! আবার চেষ্টা করুন।");
+    }
+  };
+
+  const handleClose = () => {
+    setSubmitted(false);
+    setCopied(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/60 flex items-end justify-center">
+      <div className="bg-white w-full max-w-[450px] rounded-t-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center">
+          <h3 className="font-black text-lg text-indigo-700">💰 Add Money</h3>
+          <button
+            onClick={handleClose}
+            className="w-8 h-8 bg-gray-100 rounded-full font-bold text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+
+        {!submitted ? (
+          <>
+            <div>
+              <label className="text-sm font-bold text-gray-600 block mb-2">
+                পেমেন্ট মেথড বেছে নিন
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {["bKash", "Nagad", "Rocket"].map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => {
+                      setForm({ ...form, method });
+                      setCopied(false);
+                    }}
+                    className={`py-3 rounded-xl font-black text-sm border-2 transition ${
+                      form.method === method
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                        : "border-gray-200 text-gray-500"
+                    }`}
+                  >
+                    {method === "bKash" && "🩷 bKash"}
+                    {method === "Nagad" && "🧡 Nagad"}
+                    {method === "Rocket" && "💜 Rocket"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className={`rounded-2xl p-4 border-2 ${
+                hasNumber
+                  ? "bg-indigo-50 border-indigo-200"
+                  : "bg-red-50 border-red-200"
+              }`}
+            >
+              <p
+                className={`text-xs font-bold mb-1 ${
+                  hasNumber ? "text-indigo-500" : "text-red-400"
+                }`}
+              >
+                {hasNumber
+                  ? `এই নম্বরে টাকা পাঠান (${form.method})`
+                  : "⚠️ এই মেথডে কোনো নম্বর নেই"}
+              </p>
+              {hasNumber && (
+                <>
+                  <div className="flex items-center justify-between gap-3 mt-1">
+                    <p className="text-xl font-black text-indigo-800 tracking-wider">
+                      {currentNumber}
+                    </p>
+                    <button
+                      onClick={handleCopy}
+                      className={`px-4 py-2 rounded-xl text-sm font-black transition ${
+                        copied
+                          ? "bg-green-500 text-white"
+                          : "bg-indigo-600 text-white"
+                      }`}
+                    >
+                      {copied ? "✅ Copied!" : "Copy"}
+                    </button>
+                  </div>
+                  {activeNumbers[0]?.limit && (
+                    <p className="text-[11px] text-indigo-400 mt-2">
+                      📊 সর্বোচ্চ লিমিট: ৳{activeNumbers[0].limit}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-indigo-400 mt-1">
+                    ⚠️ টাকা পাঠানোর পর Transaction ID সংগ্রহ করুন
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-gray-600 block mb-1">
+                পরিমাণ (টাকা)
+              </label>
+              <input
+                type="number"
+                placeholder="যেমন: 500"
+                className="w-full p-3 border border-gray-200 rounded-xl font-bold bg-gray-50 focus:outline-none focus:border-indigo-400"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-gray-600 block mb-1">
+                Transaction ID
+              </label>
+              <input
+                type="text"
+                placeholder="TRX ID লিখুন"
+                className="w-full p-3 border border-gray-200 rounded-xl font-bold bg-gray-50 focus:outline-none focus:border-indigo-400"
+                value={form.trxId}
+                onChange={(e) => setForm({ ...form, trxId: e.target.value })}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={handleClose}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-200 font-bold text-gray-600"
+              >
+                বাতিল
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold shadow-lg"
+              >
+                ✅ Request পাঠান
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-6xl mb-4">✅</div>
+            <p className="text-green-700 font-black text-xl">
+              Request পাঠানো হয়েছে!
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Admin approve করলে আপনার ব্যালেন্সে টাকা যোগ হবে।
+            </p>
+            <button
+              onClick={handleClose}
+              className="mt-6 bg-indigo-600 text-white px-10 py-3 rounded-2xl font-bold shadow"
+            >
+              ঠিক আছে
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AddMoneyModal;
