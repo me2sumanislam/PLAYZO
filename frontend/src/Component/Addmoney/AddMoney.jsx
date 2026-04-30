@@ -3,7 +3,7 @@
 const API = "http://localhost:5000/api";
 
 const AddMoneyModal = ({ isOpen, onClose }) => {
-  const [form, setForm] = useState({ method: "bKash", amount: "", trxId: "" });
+  const [form, setForm] = useState({ method: "bkash", amount: "", trxId: "" });
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [paymentNumbers, setPaymentNumbers] = useState([]);
@@ -11,9 +11,9 @@ const AddMoneyModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (!isOpen) return;
     const token = localStorage.getItem("token");
-    fetch(`${API}/payment-numbers`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+fetch(`${API}/payment-numbers?activeOnly=true`, {
+  headers: { Authorization: `Bearer ${token}` },
+})
       .then((r) => r.json())
       .then((d) =>
         setPaymentNumbers(
@@ -71,7 +71,7 @@ const AddMoneyModal = ({ isOpen, onClose }) => {
       const d = await res.json();
       if (d.success) {
         setSubmitted(true);
-        setForm({ method: "bKash", amount: "", trxId: "" });
+        setForm({ method: "bkash", amount: "", trxId: "" });
       } else {
         alert(d.message || "কিছু একটা সমস্যা হয়েছে!");
       }
@@ -106,7 +106,7 @@ const AddMoneyModal = ({ isOpen, onClose }) => {
                 পেমেন্ট মেথড বেছে নিন
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {["bKash", "Nagad", "Rocket"].map((method) => (
+                {["bkash", "nagad", "rocket"].map((method) => (
                   <button
                     key={method}
                     onClick={() => {
@@ -119,9 +119,9 @@ const AddMoneyModal = ({ isOpen, onClose }) => {
                         : "border-gray-200 text-gray-500"
                     }`}
                   >
-                    {method === "bKash" && "🩷 bKash"}
-                    {method === "Nagad" && "🧡 Nagad"}
-                    {method === "Rocket" && "💜 Rocket"}
+                    {method === "bkash" && "🩷 bkash"}
+                    {method === "nagad" && "🧡 nagad"}
+                    {method === "rocket" && "💜 rocket"}
                   </button>
                 ))}
               </div>

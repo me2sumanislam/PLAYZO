@@ -1,45 +1,51 @@
  import React, { useState, useEffect } from "react";
 
+const API = "http://localhost:5000/api/wallet"; // আপনার backend URL
+
 const DepositRequests = () => {
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState("pending");
+  const [loading, setLoading] = useState(false);
 
-  // Load & auto-refresh every 3 seconds
-  useEffect(() => {
-    const load = () => {
-      const data = JSON.parse(
-        localStorage.getItem("deposit_requests") || "[]"
-      );
-      setRequests(data);
-    };
-    load();
-    const interval = setInterval(load, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const updateStatus = (id, status) => {
-    const updated = requests.map((r) =>
-      r.id === id ? { ...r, status } : r
-    );
-    setRequests(updated);
-    localStorage.setItem("deposit_requests", JSON.stringify(updated));
-
-    // Approve হলে balance বাড়াও
-    if (status === "approved") {
-      const req = requests.find((r) => r.id === id);
-      const currentBalance = parseInt(
-        localStorage.getItem("user_balance") || "0"
-      );
-      localStorage.setItem(
-        "user_balance",
-        String(currentBalance + parseInt(req.amount))
-      );
+  const loadRequests = async () => {
+    try {
+      const res = await fetch(`${API}/deposits`);
+      const data = await res.json();
+      setRequests(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Load error:", err);
     }
   };
 
-  const filtered = requests.filter((r) =>
-    filter === "all" ? true : r.status === filter
-  );
+  useEffect(() => {
+    loadRequests();
+    const interval = setInterval(loadRequests, 5000); // প্রতি ৫ সেকেন্ডে refresh
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateStatus = async (id, status) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/deposit/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      alert(data.message);
+      loadRequests(); // refresh list
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+    setLoading(false);
+  };
+
+  // pending ছাড়া বাকিগুলো দেখতে চাইলে আলাদা endpoint লাগবে
+  // এখন filter "pending" এ শুধু backend data, বাকিগুলো local
+  const filtered =
+    filter === "pending"
+      ? requests
+      : requests.filter((r) => r.status === filter);
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
@@ -89,9 +95,7 @@ const DepositRequests = () => {
       {filtered.length === 0 && (
         <div className="bg-white rounded-2xl p-8 text-center shadow">
           <p className="text-4xl mb-2">📭</p>
-          <p className="text-gray-400 text-sm font-bold">
-            কোনো request নেই
-          </p>
+          <p className="text-gray-400 text-sm font-bold">কোনো request নেই</p>
         </div>
       )}
 
@@ -101,7 +105,7 @@ const DepositRequests = () => {
         .reverse()
         .map((req) => (
           <div
-            key={req.id}
+            key={req._id}
             className={`rounded-2xl p-4 shadow border ${
               req.status === "pending"
                 ? "bg-yellow-50 border-yellow-200"
@@ -110,12 +114,13 @@ const DepositRequests = () => {
                 : "bg-red-50 border-red-200"
             }`}
           >
-            {/* User Info */}
+            {/* Info */}
             <div className="flex justify-between items-start mb-3">
               <div>
-                <p className="font-black text-sm">👤 {req.user}</p>
-                <p className="text-xs text-gray-500">{req.phone}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{req.time}</p>
+                <p className="font-black text-sm">👤 {req.userId || "Guest"}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {new Date(req.createdAt).toLocaleString("bn-BD")}
+                </p>
               </div>
               <span
                 className={`text-xs font-black px-3 py-1 rounded-full ${
@@ -152,18 +157,20 @@ const DepositRequests = () => {
               </div>
             </div>
 
-            {/* Approve / Reject Buttons — only for pending */}
+            {/* Approve / Reject */}
             {req.status === "pending" && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => updateStatus(req.id, "approved")}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl text-sm font-black transition"
+                  onClick={() => updateStatus(req._id, "approved")}
+                  disabled={loading}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl text-sm font-black transition disabled:opacity-50"
                 >
                   ✅ Approve
                 </button>
                 <button
-                  onClick={() => updateStatus(req.id, "rejected")}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-black transition"
+                  onClick={() => updateStatus(req._id, "rejected")}
+                  disabled={loading}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-black transition disabled:opacity-50"
                 >
                   ❌ Reject
                 </button>

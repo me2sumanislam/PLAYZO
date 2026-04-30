@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-
+// import PaymentNumbers from "../../Component/PaymentNumberManager/paymentNumberManager";
 const API = "http://localhost:5000/api";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -309,7 +309,7 @@ const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
         {r.user?.name || r.user?.phone || r.userName || "Unknown"}
       </div>
       <div style={{ fontSize: 11, color: "#6b7280" }}>
-        {r.method || "bKash"} · {timeAgo(r.createdAt)}
+        {r.method || "bkash"} · {timeAgo(r.createdAt)}
       </div>
       {r.trxId && (
         <div style={{ fontSize: 10, color: "#3b82f6", marginTop: 1 }}>
@@ -1596,8 +1596,8 @@ const PaymentNumbers = () => {
     Nagad: "#ea580c",
     Rocket: "#7c3aed",
   };
-  const methodBadge = { bKash: "pink", Nagad: "orange", Rocket: "purple" };
-  const methodEmoji = { bKash: "🩷", Nagad: "🧡", Rocket: "💜" };
+  const methodBadge = { bkash: "pink", Nagad: "orange", Rocket: "purple" };
+  const methodEmoji = { bkash: "🩷", Nagad: "🧡", Rocket: "💜" };
 
   return (
     <div
@@ -1647,7 +1647,7 @@ const PaymentNumbers = () => {
                 gap: 6,
               }}
             >
-              {["bKash", "Nagad", "Rocket"].map((m) => (
+              {["bkash", "nagad", "rocket"].map((m) => (
                 <button
                   key={m}
                   onClick={() => setForm((p) => ({ ...p, method: m }))}
@@ -1846,9 +1846,9 @@ const PaymentNumbers = () => {
                       }
                       style={{ ...inp, padding: "7px 10px" }}
                     >
-                      <option value="bKash">bKash</option>
-                      <option value="Nagad">Nagad</option>
-                      <option value="Rocket">Rocket</option>
+                      <option value="bkash">bKash</option>
+                      <option value="nagad">Nagad</option>
+                      <option value="rocket">Rocket</option>
                     </select>
                     <input
                       style={{ ...inp, padding: "7px 10px" }}
@@ -2479,7 +2479,7 @@ const AdminPanel = () => {
     "match-results": ["Match results", "Enter winner and distribute prize"],
     "payment-numbers": [
       "Payment Numbers",
-      "bKash / Nagad / Rocket নম্বর manage করুন",
+      "bkash/ Nagad / Rocket নম্বর manage করুন",
     ],
     "activity-log": ["Activity log", "All admin actions"],
     "manage-admins": ["Manage admins", "Add or manage admin accounts"],
@@ -2524,7 +2524,7 @@ const AdminPanel = () => {
         {page === "withdraw-history" && <History type="withdraw" />}
         {page === "users" && <Users />}
         {page === "match-results" && <MatchResults />}
-        {page === "payment-numbers" && <PaymentNumbers />}
+        {page === "payment-numbers" && <PaymentNumbers api={api} />}
         {page === "activity-log" && <ActivityLog />}
         {page === "manage-admins" && <ManageAdmins />}
       </main>
