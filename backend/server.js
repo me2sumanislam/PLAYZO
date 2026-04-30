@@ -36,7 +36,7 @@ app.get("/", (req, res) => {
   res.json({ success: true, message: "🚀 Playzo Backend is running!" });
 });
 
-// ================= MATCH ROUTES =================
+// === MATCH ROUTES ===
 app.use("/api/matches", require("./routes/matchRoutes"));
 
 // ================= AUTH ROUTES =================
