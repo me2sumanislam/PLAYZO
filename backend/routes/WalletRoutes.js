@@ -19,7 +19,7 @@ router.post("/deposit", async (req, res) => {
     }
 
     const deposit = await Deposit.create({
-      method: method.toLowerCase(), // ✅ fix
+      method: method, // ✅ fix
       amount: Number(amount),
       trxId,
       userId: userId || null,

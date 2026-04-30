@@ -15,7 +15,7 @@ const app = express();
 // ================= MIDDLEWARE =================
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
@@ -45,26 +45,22 @@ app.use("/api/auth", require("./routes/authRoutes"));
 // ================= ADMIN AUTH ROUTES =================
 app.use("/api/admin", require("./routes/adminAuthRoutes"));
 
-// ================= NEW ADMIN PANEL ROUTES =================
+// ================= ADMIN PANEL ROUTES =================
 app.use("/api/admin", require("./routes/admin"));
 
 // ================= WALLET ROUTES =================
 app.use("/api/wallet", require("./routes/walletRoutes"));
 
-// ================= PAYMENT NUMBERS (User side — active only) =================
-const PaymentNumber = require("./models/PaymentNumber");
-app.get("/api/payment-numbers", async (req, res) => {
-  try {
-    const data = await PaymentNumber.find({ active: true }).sort({ createdAt: -1 });
-    res.json({ success: true, data });
-  } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
-  }
-});
+// ================= DEPOSIT ROUTES =================
+app.use("/api/wallet", require("./routes/deposit")); // user POST /api/wallet/deposit
+app.use("/api/admin", require("./routes/deposit"));  // admin GET /api/admin/deposits
 
-// ================= PAYMENT NUMBERS ADMIN ROUTES =================
+// ================= PAYMENT NUMBERS =================
+app.use("/api/payment-numbers", require("./routes/paymentNumbers"));
+app.use("/admin/payment-numbers", require("./routes/paymentNumbers"));
 app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
 
+// ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);

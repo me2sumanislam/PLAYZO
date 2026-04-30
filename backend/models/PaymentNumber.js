@@ -4,7 +4,7 @@ const paymentNumberSchema = new mongoose.Schema(
   {
     method: {
       type: String,
-      enum: ["bKash", "Nagad", "Rocket"],
+      enum: ["bkash", "nagad", "rocket"],
       required: true,
     },
     number: {
