@@ -4,26 +4,27 @@ import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
 import MatchJoin from "../../page/MatchJoin/MatchJoin";
+import Withdraw from "../../page/Withdraw/Withdraw"; // নিশ্চিত করুন এই ফাইলটি তৈরি করেছেন
 
 const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab]                           = useState("play");
-  const [screen, setScreen]                     = useState("home");
-  const [slide, setSlide]                       = useState(0);
+  const [tab, setTab] = useState("play");
+  const [screen, setScreen] = useState("home");
+  const [slide, setSlide] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedMatch, setSelectedMatch]       = useState(null);
-  const [matches, setMatches]                   = useState([]);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [matches, setMatches] = useState([]);
 
   // ================= LOAD MATCHES =================
   useEffect(() => {
     const loadMatches = async () => {
       try {
-        const res  = await fetch("http://localhost:5000/api/matches");
+        const res = await fetch("http://localhost:5000/api/matches");
         const data = await res.json();
 
         let safeData = [];
-        if (Array.isArray(data))               safeData = data;
+        if (Array.isArray(data)) safeData = data;
         else if (Array.isArray(data?.matches)) safeData = data.matches;
-        else if (Array.isArray(data?.data))    safeData = data.data;
+        else if (Array.isArray(data?.data)) safeData = data.data;
 
         setMatches(safeData);
       } catch (err) {
@@ -57,7 +58,9 @@ const AppDashboard = ({ onLogout }) => {
       selectedCategory.toLowerCase().trim()
   );
 
-  // ================= PROFILE TAB =================
+  // ================= RENDER LOGIC =================
+
+  // --- 1. PROFILE TAB LOGIC ---
   if (tab === "profile") {
     if (screen === "wallet") {
       return (
@@ -70,19 +73,8 @@ const AppDashboard = ({ onLogout }) => {
 
     if (screen === "withdraw") {
       return (
-        <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-          <div className="p-4 flex items-center gap-3 bg-white shadow">
-            <button
-              onClick={() => setScreen("home")}
-              className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"
-            >
-              ←
-            </button>
-            <h2 className="font-bold">Withdraw</h2>
-          </div>
-          <div className="p-8 text-center text-gray-400 mt-20 text-lg font-bold">
-            💵 Withdraw Coming Soon...
-          </div>
+        <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24 shadow-xl">
+          <Withdraw onBack={() => setScreen("home")} />
           <BottomMenu tab={tab} setTab={setTab} />
         </div>
       );
@@ -100,7 +92,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= SHOP TAB =================
+  // --- 2. OTHER TABS (Shop, Matches, Results) ---
   if (tab === "shop") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -112,7 +104,6 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= MATCHES TAB =================
   if (tab === "matches") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -124,7 +115,6 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= RESULTS TAB =================
   if (tab === "results") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -136,7 +126,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= JOIN =================
+  // --- 3. MATCH SCREENS (Join & Category) ---
   if (screen === "join") {
     return (
       <MatchJoin
@@ -146,10 +136,9 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= CATEGORY =================
   if (screen === "category") {
     return (
-      <div className="max-w-[450px] mx-auto">
+      <div className="max-w-[450px] mx-auto min-h-screen bg-white">
         <MatchList
           matches={filteredMatches}
           title={selectedCategory}
@@ -164,30 +153,37 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // ================= HOME (PLAY) =================
+  // --- 4. HOME SCREEN (PLAY) ---
   return (
-    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
+    <div className="bg-gray-50 min-h-screen max-w-[450px] mx-auto pb-24">
       <div className="p-4">
-
         {/* SLIDER */}
-        <div className="relative w-full h-44 overflow-hidden rounded-2xl">
+        <div className="relative w-full h-44 overflow-hidden rounded-3xl shadow-lg border-4 border-white">
           {categories.slice(0, 3).map((c, i) => (
             <img
               key={i}
               src={c.img}
               className="absolute w-full h-full object-cover transition-opacity duration-1000"
               style={{ opacity: slide === i ? 1 : 0 }}
-              alt=""
+              alt="Slider"
             />
           ))}
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className={`h-1.5 rounded-full transition-all ${slide === i ? "w-6 bg-white" : "w-1.5 bg-white/50"}`} />
+            ))}
+          </div>
         </div>
 
-        <h2 className="text-center font-black text-orange-500 mt-3">
-          FREE FIRE
-        </h2>
+        <div className="flex items-center justify-between mt-6 px-1">
+          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
+            Free Fire <span className="text-orange-500">Arena</span>
+          </h2>
+          <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">LIVE NOW</span>
+        </div>
 
         {/* CATEGORY GRID */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="grid grid-cols-2 gap-4 mt-4">
           {categories.map((c) => {
             const count = matches.filter(
               (m) => (m.category || "").toLowerCase().trim() === c.key
@@ -200,20 +196,28 @@ const AppDashboard = ({ onLogout }) => {
                   setSelectedCategory(c.key);
                   setScreen("category");
                 }}
-                className="bg-white rounded-xl shadow p-2 cursor-pointer active:scale-95 transition"
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2.5 cursor-pointer active:scale-95 transition hover:shadow-md"
               >
-                <img
-                  src={c.img}
-                  className="h-24 w-full object-cover rounded-lg"
-                  alt=""
-                />
-                <p className="text-xs font-bold mt-1 uppercase">{c.title}</p>
-                <p className="text-[11px] text-gray-500">{count} Matches</p>
+                <div className="relative">
+                   <img
+                    src={c.img}
+                    className="h-28 w-full object-cover rounded-xl"
+                    alt={c.title}
+                  />
+                  {count > 0 && (
+                    <span className="absolute top-2 right-2 bg-green-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold">
+                      {count}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 ml-1">
+                  <p className="text-xs font-black text-gray-800 uppercase tracking-wide">{c.title}</p>
+                  <p className="text-[10px] text-gray-400 font-medium">Join Tournament</p>
+                </div>
               </div>
             );
           })}
         </div>
-
       </div>
 
       <BottomMenu tab={tab} setTab={setTab} />
