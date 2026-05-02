@@ -4,7 +4,8 @@ import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
 import MatchJoin from "../../page/MatchJoin/MatchJoin";
-import Withdraw from "../../page/Withdraw/Withdraw"; // নিশ্চিত করুন এই ফাইলটি তৈরি করেছেন
+import Withdraw from "../../page/Withdraw/Withdraw";
+import AllRulesPage from "../AllRulesPage/AllRulesPage"; // ✅ নতুন
 
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
@@ -14,18 +15,15 @@ const AppDashboard = ({ onLogout }) => {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [matches, setMatches] = useState([]);
 
-  // ================= LOAD MATCHES =================
   useEffect(() => {
     const loadMatches = async () => {
       try {
         const res = await fetch("http://localhost:5000/api/matches");
         const data = await res.json();
-
         let safeData = [];
         if (Array.isArray(data)) safeData = data;
         else if (Array.isArray(data?.matches)) safeData = data.matches;
         else if (Array.isArray(data?.data)) safeData = data.data;
-
         setMatches(safeData);
       } catch (err) {
         console.log("MATCH LOAD ERROR:", err);
@@ -35,7 +33,6 @@ const AppDashboard = ({ onLogout }) => {
     loadMatches();
   }, []);
 
-  // ================= SLIDER =================
   useEffect(() => {
     const timer = setInterval(() => {
       setSlide((p) => (p === 2 ? 0 : p + 1));
@@ -58,10 +55,9 @@ const AppDashboard = ({ onLogout }) => {
       selectedCategory.toLowerCase().trim()
   );
 
-  // ================= RENDER LOGIC =================
-
-  // --- 1. PROFILE TAB LOGIC ---
+  // --- PROFILE TAB ---
   if (tab === "profile") {
+
     if (screen === "wallet") {
       return (
         <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -80,19 +76,29 @@ const AppDashboard = ({ onLogout }) => {
       );
     }
 
+    // ✅ নতুন
+    if (screen === "all_rules") {
+      return (
+        <div className="bg-white min-h-screen max-w-[450px] mx-auto">
+          <AllRulesPage onBack={() => setScreen("home")} />
+        </div>
+      );
+    }
+
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
         <Profile
           onLogout={onLogout}
           onWallet={() => setScreen("wallet")}
           onWithdraw={() => setScreen("withdraw")}
+          onAllRules={() => setScreen("all_rules")} // ✅ নতুন
         />
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
 
-  // --- 2. OTHER TABS (Shop, Matches, Results) ---
+  // --- OTHER TABS ---
   if (tab === "shop") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -126,7 +132,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // --- 3. MATCH SCREENS (Join & Category) ---
+  // --- MATCH SCREENS ---
   if (screen === "join") {
     return (
       <MatchJoin
@@ -153,11 +159,10 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // --- 4. HOME SCREEN (PLAY) ---
+  // --- HOME SCREEN ---
   return (
     <div className="bg-gray-50 min-h-screen max-w-[450px] mx-auto pb-24">
       <div className="p-4">
-        {/* SLIDER */}
         <div className="relative w-full h-44 overflow-hidden rounded-3xl shadow-lg border-4 border-white">
           {categories.slice(0, 3).map((c, i) => (
             <img
@@ -170,7 +175,12 @@ const AppDashboard = ({ onLogout }) => {
           ))}
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
             {[0, 1, 2].map((i) => (
-              <div key={i} className={`h-1.5 rounded-full transition-all ${slide === i ? "w-6 bg-white" : "w-1.5 bg-white/50"}`} />
+              <div
+                key={i}
+                className={`h-1.5 rounded-full transition-all ${
+                  slide === i ? "w-6 bg-white" : "w-1.5 bg-white/50"
+                }`}
+              />
             ))}
           </div>
         </div>
@@ -179,10 +189,11 @@ const AppDashboard = ({ onLogout }) => {
           <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
             Free Fire <span className="text-orange-500">Arena</span>
           </h2>
-          <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">LIVE NOW</span>
+          <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
+            LIVE NOW
+          </span>
         </div>
 
-        {/* CATEGORY GRID */}
         <div className="grid grid-cols-2 gap-4 mt-4">
           {categories.map((c) => {
             const count = matches.filter(
@@ -199,7 +210,7 @@ const AppDashboard = ({ onLogout }) => {
                 className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2.5 cursor-pointer active:scale-95 transition hover:shadow-md"
               >
                 <div className="relative">
-                   <img
+                  <img
                     src={c.img}
                     className="h-28 w-full object-cover rounded-xl"
                     alt={c.title}
@@ -211,7 +222,9 @@ const AppDashboard = ({ onLogout }) => {
                   )}
                 </div>
                 <div className="mt-2 ml-1">
-                  <p className="text-xs font-black text-gray-800 uppercase tracking-wide">{c.title}</p>
+                  <p className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                    {c.title}
+                  </p>
                   <p className="text-[10px] text-gray-400 font-medium">Join Tournament</p>
                 </div>
               </div>

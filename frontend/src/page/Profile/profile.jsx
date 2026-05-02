@@ -5,7 +5,7 @@ import Withdraw from "../../page/withdraw/Withdraw";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-const Profile = ({ onLogout }) => {
+const Profile = ({ onLogout, onAllRules }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [balance, setBalance] = useState(0);
@@ -32,14 +32,15 @@ const Profile = ({ onLogout }) => {
     { id: "wallet",      label: "Wallet / Add Money", icon: "👛" },
     { id: "withdraw",    label: "Withdraw",            icon: "💵" },
     { id: "my_profile",  label: "My Profile",          icon: "👤" },
-    { id: "all_rules",   label: "All Rules",            icon: "📋" },
-    { id: "top_players", label: "Top Players",          icon: "📈" },
-    { id: "dev_profile", label: "Developer Profile",    icon: "📂" },
+    { id: "all_rules",   label: "All Rules",           icon: "📋" },
+    { id: "top_players", label: "Top Players",         icon: "📈" },
+    { id: "dev_profile", label: "Developer Profile",   icon: "📂" },
   ];
 
   const handleNavigate = (id) => {
-    if (id === "wallet")   setShowAddMoney(true);
-    if (id === "withdraw") setShowWithdraw(true);
+    if (id === "wallet")     setShowAddMoney(true);
+    if (id === "withdraw")   setShowWithdraw(true);
+    if (id === "all_rules")  onAllRules();       // ✅ নতুন
   };
 
   return (
