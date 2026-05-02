@@ -419,7 +419,7 @@ const Dashboard = () => {
         );
       })
       .catch(() => {});
-    api("/admin/withdraws?status=pending&limit=3")
+api("/withdraw/admin/all?status=pending")
       .then((d) => {
         setRecentWithdraws(
           Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [],
@@ -938,36 +938,38 @@ const DepositRequests = ({ adminName, refresh }) => {
     </div>
   );
 };
-
 // ─── WITHDRAW REQUESTS ────────────────────────────────────────────────────────
 const WithdrawRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
+
   const load = useCallback(() => {
-    api("/admin/withdraws?status=pending")
+    api("/withdraw/admin/all?status=pending")
       .then((d) => {
         setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
       })
       .catch(() => {});
   }, []);
+
   useEffect(() => {
     load();
   }, [load]);
 
   const approve = async (id) => {
-    await api(`/admin/withdraws/${id}/approve`, {
+    await api(`/withdraw/admin/approve/${id}`, {
       method: "PUT",
       body: JSON.stringify({ adminName }),
     });
     load();
-    refresh();
+    if (refresh) refresh();
   };
+
   const reject = async (id) => {
-    await api(`/admin/withdraws/${id}/reject`, {
+    await api(`/withdraw/admin/reject/${id}`, {
       method: "PUT",
       body: JSON.stringify({ adminName }),
     });
     load();
-    refresh();
+    if (refresh) refresh();
   };
 
   return (
@@ -991,6 +993,7 @@ const WithdrawRequests = ({ adminName, refresh }) => {
           <div style={{ fontSize: 14, fontWeight: 600 }}>Withdraw requests</div>
           <Badge color="red">{list.length} pending</Badge>
         </div>
+
         {list.length === 0 ? (
           <p
             style={{
@@ -1017,6 +1020,7 @@ const WithdrawRequests = ({ adminName, refresh }) => {
     </div>
   );
 };
+
 
 // ─── MONEY OVERVIEW ───────────────────────────────────────────────────────────
 const MoneyOverview = () => {
@@ -2420,13 +2424,13 @@ const AdminPanel = () => {
   const [badges, setBadges] = useState({ deposit: 0, withdraw: 0 });
 
   const loadBadges = useCallback(() => {
-    api("/admin/deposits?status=pending")
+    api("/deposits?status=pending")
       .then((d) => {
         const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
         setBadges((p) => ({ ...p, deposit: arr.length }));
       })
       .catch(() => {});
-    api("/admin/withdraws?status=pending")
+   api("/withdraw/admin/all?status=pending")
       .then((d) => {
         const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
         setBadges((p) => ({ ...p, withdraw: arr.length }));

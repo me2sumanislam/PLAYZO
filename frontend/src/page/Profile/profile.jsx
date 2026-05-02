@@ -1,8 +1,10 @@
  import React, { useState } from "react";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
+import Withdraw from "../../page/withdraw/Withdraw"; // ← এই line যোগ করুন
 
-const Profile = ({ onLogout, onWithdraw }) => {
+const Profile = ({ onLogout }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false); // ← এই line যোগ করুন
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -17,7 +19,7 @@ const Profile = ({ onLogout, onWithdraw }) => {
 
   const handleNavigate = (id) => {
     if (id === "wallet")   setShowAddMoney(true);
-    if (id === "withdraw") onWithdraw?.();
+    if (id === "withdraw") setShowWithdraw(true); // ← এই line যোগ করুন
   };
 
   return (
@@ -31,7 +33,6 @@ const Profile = ({ onLogout, onWithdraw }) => {
         <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
         <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
 
-        {/* Balance */}
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
           <p className="text-xs text-blue-100">ব্যালেন্স</p>
           <p className="text-2xl font-black">
@@ -72,6 +73,13 @@ const Profile = ({ onLogout, onWithdraw }) => {
         isOpen={showAddMoney}
         onClose={() => setShowAddMoney(false)}
       />
+
+      {/* Withdraw Modal ← এই block যোগ করুন */}
+      <Withdraw
+        isOpen={showWithdraw}
+        onClose={() => setShowWithdraw(false)}
+      />
+
     </div>
   );
 };
