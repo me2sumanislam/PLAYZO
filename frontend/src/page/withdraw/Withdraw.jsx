@@ -30,22 +30,8 @@
    );
  };
  
- /**
-  * FILE: Withdraw.jsx
-  * ─────────────────────────────────────────
-  * User-facing withdraw bottom sheet modal.
-  *
-  * Props:
-  *   isOpen  : boolean
-  *   onClose : () => void
-  *
-  * How to use in any page:
-  *   import Withdraw from './Withdraw';
-  *
-  *   const [showWithdraw, setShowWithdraw] = useState(false);
-  *   <button onClick={() => setShowWithdraw(true)}>Withdraw</button>
-  *   <Withdraw isOpen={showWithdraw} onClose={() => setShowWithdraw(false)} />
-  */
+ 
+ 
  const Withdraw = ({ isOpen, onClose }) => {
    const [amount, setAmount]           = useState('');
    const [method, setMethod]           = useState('bKash');

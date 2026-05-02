@@ -1,12 +1,32 @@
- import React, { useState } from "react";
+ import React, { useState, useEffect } from "react";
+import axios from "axios";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
-import Withdraw from "../../page/withdraw/Withdraw"; // ← এই line যোগ করুন
+import Withdraw from "../../page/withdraw/Withdraw";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Profile = ({ onLogout }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false); // ← এই line যোগ করুন
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [balance, setBalance] = useState(0);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const token = localStorage.getItem("token");
+
+  const fetchBalance = async () => {
+    try {
+      const res = await axios.get(`${API}/api/users/balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchBalance();
+  }, []);
 
   const menuItems = [
     { id: "wallet",      label: "Wallet / Add Money", icon: "👛" },
@@ -19,7 +39,7 @@ const Profile = ({ onLogout }) => {
 
   const handleNavigate = (id) => {
     if (id === "wallet")   setShowAddMoney(true);
-    if (id === "withdraw") setShowWithdraw(true); // ← এই line যোগ করুন
+    if (id === "withdraw") setShowWithdraw(true);
   };
 
   return (
@@ -35,9 +55,7 @@ const Profile = ({ onLogout }) => {
 
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
           <p className="text-xs text-blue-100">ব্যালেন্স</p>
-          <p className="text-2xl font-black">
-            ৳ {localStorage.getItem("user_balance") || "0"}
-          </p>
+          <p className="text-2xl font-black">৳ {balance.toLocaleString()}</p>
         </div>
       </div>
 
@@ -71,13 +89,13 @@ const Profile = ({ onLogout }) => {
       {/* Add Money Modal */}
       <AddMoneyModal
         isOpen={showAddMoney}
-        onClose={() => setShowAddMoney(false)}
+        onClose={() => { setShowAddMoney(false); fetchBalance(); }}
       />
 
-      {/* Withdraw Modal ← এই block যোগ করুন */}
+      {/* Withdraw Modal */}
       <Withdraw
         isOpen={showWithdraw}
-        onClose={() => setShowWithdraw(false)}
+        onClose={() => { setShowWithdraw(false); fetchBalance(); }}
       />
 
     </div>

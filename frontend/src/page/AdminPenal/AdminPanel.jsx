@@ -354,49 +354,68 @@ const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
 );
 
 // ─── HISTORY ROW ──────────────────────────────────────────────────────────────
-const HistRow = ({ h }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: "9px 0",
+ const STATUS_MAP = {
+  pending:  { bg: "#fff8e1", color: "#b45309", label: "Pending"  },
+  approved: { bg: "#e8f5e9", color: "#2e7d32", label: "Approved" },
+  rejected: { bg: "#ffebee", color: "#c62828", label: "Rejected" },
+};
+
+const HistRow = ({ h }) => {
+  const s = STATUS_MAP[h.status] || STATUS_MAP.pending;
+  const formatDate = (d) =>
+    new Date(d).toLocaleString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+
+  return (
+    <div style={{
+      display: "flex", flexWrap: "wrap", alignItems: "center",
+      gap: 10, padding: "12px 0",
       borderBottom: "1px solid #f3f4f6",
-    }}
-  >
-    <div
-      style={{
-        width: 30,
-        height: 30,
-        borderRadius: "50%",
-        background: "#f3f4f6",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#374151",
-      }}
-    >
-      {(h.user?.name || h.user?.phone || h.userName || "U")
-        .charAt(0)
-        .toUpperCase()}
+    }}>
+      {/* User */}
+      <div style={{ minWidth: 120, flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+          {h.user?.name || h.user?.phone || "Unknown"}
+        </div>
+        {h.user?.name && (
+          <div style={{ fontSize: 11, color: "#6b7280" }}>{h.user?.phone}</div>
+        )}
+      </div>
+
+      {/* Amount */}
+      <div style={{ minWidth: 80, fontWeight: 700, fontSize: 14, color: "#1e3a8a" }}>
+        ৳ {Number(h.amount).toLocaleString()}
+      </div>
+
+      {/* Method + Account */}
+      <div style={{ minWidth: 130 }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{h.method || "—"}</div>
+        <div style={{ fontSize: 11, color: "#6b7280" }}>{h.accountNo || h.trxId || "—"}</div>
+      </div>
+
+      {/* TrxID */}
+      <div style={{ minWidth: 100, fontSize: 12, color: "#059669" }}>
+        {h.trxId ? `TrxID: ${h.trxId}` : "—"}
+      </div>
+
+      {/* Date */}
+      <div style={{ minWidth: 110, fontSize: 11, color: "#9ca3af" }}>
+        {formatDate(h.createdAt)}
+      </div>
+
+      {/* Status */}
+      <span style={{
+        background: s.bg, color: s.color,
+        padding: "3px 10px", borderRadius: 20,
+        fontSize: 11, fontWeight: 700,
+      }}>
+        {s.label}
+      </span>
     </div>
-    <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>
-        {h.user?.name || h.user?.phone || h.userName || "Unknown"}
-      </div>
-      <div style={{ fontSize: 11, color: "#6b7280" }}>
-        {h.method || ""} · {timeAgo(h.updatedAt || h.createdAt)}
-      </div>
-      <div style={{ fontSize: 10, color: "#3b82f6", marginTop: 1 }}>
-        By {h.approvedBy || h.rejectedBy || "Admin"}
-      </div>
-    </div>
-    <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(h.amount)}</div>
-    <Badge color={h.status === "approved" ? "green" : "red"}>{h.status}</Badge>
-  </div>
-);
+  );
+};
 
 // ════════════════════════════════════════════════════════════════════════════
 // PAGES
@@ -1106,12 +1125,16 @@ const MoneyOverview = () => {
 };
 
 // ─── HISTORY ──────────────────────────────────────────────────────────────────
-const History = ({ type }) => {
+ const History = ({ type }) => {
   const [list, setList] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    api(`/admin/${type}s?status=all&limit=50`)
+    const url = type === "withdraw"
+      ? "/withdraw/admin/all"
+      : `/admin/${type}s?status=all&limit=50`;
+
+    api(url)
       .then((d) => {
         setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
       })
@@ -1126,22 +1149,18 @@ const History = ({ type }) => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 14,
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 14,
-          }}
-        >
+      <div style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 14,
+        padding: 20,
+      }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>
             {type === "deposit" ? "Deposit" : "Withdraw"} history
           </div>
@@ -1158,15 +1177,12 @@ const History = ({ type }) => {
             }}
           />
         </div>
+
         {filtered.length === 0 ? (
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              textAlign: "center",
-              padding: 24,
-            }}
-          >
+          <p style={{
+            fontSize: 13, color: "#9ca3af",
+            textAlign: "center", padding: 24,
+          }}>
             No records
           </p>
         ) : (
@@ -1176,7 +1192,6 @@ const History = ({ type }) => {
     </div>
   );
 };
-
 // ─── USERS ────────────────────────────────────────────────────────────────────
 const Users = () => {
   const [list, setList] = useState([]);
@@ -2424,7 +2439,7 @@ const AdminPanel = () => {
   const [badges, setBadges] = useState({ deposit: 0, withdraw: 0 });
 
   const loadBadges = useCallback(() => {
-    api("/deposits?status=pending")
+   api("/admin/deposits?status=pending")
       .then((d) => {
         const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
         setBadges((p) => ({ ...p, deposit: arr.length }));
