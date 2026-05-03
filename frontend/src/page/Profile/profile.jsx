@@ -2,12 +2,14 @@
 import axios from "axios";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
 import Withdraw from "../../page/withdraw/Withdraw";
+import BuildYourApp from "../../page/BuildYourApp/BuildYourApp"; // নতুন import
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showBuildApp, setShowBuildApp] = useState(false);
   const [balance, setBalance] = useState(0);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -31,18 +33,23 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
   const menuItems = [
     { id: "wallet",      label: "Wallet / Add Money", icon: "👛" },
     { id: "withdraw",    label: "Withdraw",            icon: "💵" },
-    { id: "my_profile",  label: "Account Info",        icon: "👤" }, // ✅ label change
+    { id: "my_profile",  label: "Account Info",        icon: "👤" },
     { id: "all_rules",   label: "All Rules",           icon: "📋" },
     { id: "top_players", label: "Top Players",         icon: "📈" },
-    { id: "dev_profile", label: "Developer Profile",   icon: "📂" },
+    { id: "dev_profile", label: "Build Your App",      icon: "🚀" },
   ];
 
   const handleNavigate = (id) => {
-    if (id === "wallet")     setShowAddMoney(true);
-    if (id === "withdraw")   setShowWithdraw(true);
-    if (id === "all_rules")  onAllRules();
-    if (id === "my_profile") onMyProfile(); // ✅ নতুন
+    if (id === "wallet")      setShowAddMoney(true);
+    if (id === "withdraw")    setShowWithdraw(true);
+    if (id === "all_rules")   onAllRules();
+    if (id === "my_profile")  onMyProfile();
+    if (id === "dev_profile") setShowBuildApp(true);
   };
+
+  if (showBuildApp) {
+    return <BuildYourApp onBack={() => setShowBuildApp(false)} />;
+  }
 
   return (
     <div className="bg-white min-h-screen pb-10">
@@ -88,18 +95,15 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
         </button>
       </div>
 
-      {/* Add Money Modal */}
+      {/* Modals */}
       <AddMoneyModal
         isOpen={showAddMoney}
         onClose={() => { setShowAddMoney(false); fetchBalance(); }}
       />
-
-      {/* Withdraw Modal */}
       <Withdraw
         isOpen={showWithdraw}
         onClose={() => { setShowWithdraw(false); fetchBalance(); }}
       />
-
     </div>
   );
 };
