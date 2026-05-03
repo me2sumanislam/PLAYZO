@@ -5,7 +5,8 @@ import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
 import MatchJoin from "../../page/MatchJoin/MatchJoin";
 import Withdraw from "../../page/Withdraw/Withdraw";
-import AllRulesPage from "../AllRulesPage/AllRulesPage"; // ✅ নতুন
+import AllRulesPage from "../AllRulesPage/AllRulesPage";
+import AccountInfo from "../../page/AccountInfo/AccountInfo";
 
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
@@ -76,11 +77,19 @@ const AppDashboard = ({ onLogout }) => {
       );
     }
 
-    // ✅ নতুন
     if (screen === "all_rules") {
       return (
         <div className="bg-white min-h-screen max-w-[450px] mx-auto">
           <AllRulesPage onBack={() => setScreen("home")} />
+        </div>
+      );
+    }
+
+    // ✅ নতুন
+    if (screen === "my_profile") {
+      return (
+        <div className="bg-white min-h-screen max-w-[450px] mx-auto">
+          <AccountInfo onBack={() => setScreen("home")} />
         </div>
       );
     }
@@ -91,7 +100,8 @@ const AppDashboard = ({ onLogout }) => {
           onLogout={onLogout}
           onWallet={() => setScreen("wallet")}
           onWithdraw={() => setScreen("withdraw")}
-          onAllRules={() => setScreen("all_rules")} // ✅ নতুন
+          onAllRules={() => setScreen("all_rules")}
+          onMyProfile={() => setScreen("my_profile")} // ✅ নতুন
         />
         <BottomMenu tab={tab} setTab={setTab} />
       </div>

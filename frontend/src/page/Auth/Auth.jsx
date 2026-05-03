@@ -191,7 +191,7 @@ const Auth = ({ onLoginSuccess }) => {
       {/* ===== LOGO ===== */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-black text-slate-800">
-          GAME<span className="text-orange-500">ZONE</span>
+          uth<span className="text-orange-500">iyO</span>
         </h1>
         <p className="text-slate-500 mt-1 text-sm">
           {screen === "login"   && "আপনার অ্যাকাউন্টে লগইন করুন"}
