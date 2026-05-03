@@ -39,7 +39,6 @@ const MatchCard = ({ match, onClick }) => {
   const isFull = joined >= total && total > 0;
   const fillPercent = total > 0 ? (joined / total) * 100 : 0;
 
-  // startTime format: "2026-04-26 at 11:00 AM"
   const formatTime = (t) => {
     if (!t) return "";
     const d = new Date(t);
@@ -121,7 +120,6 @@ const MatchCard = ({ match, onClick }) => {
           </div>
         </div>
 
-        {/* JOIN / FULL BUTTON */}
         {isFull ? (
           <div style={{
             padding: "8px 16px", border: "1.5px solid #1e40af", borderRadius: 8,
@@ -162,7 +160,7 @@ const MatchCard = ({ match, onClick }) => {
               marginTop: 6, background: "#f0f9ff", borderRadius: 8,
               padding: "10px 12px", border: "1px solid #bae6fd",
             }}>
-              {match.roomId || match.roomPassword ? (
+              {match.isRoomOpen ? (
                 <>
                   <div style={{ fontSize: 12, color: "#0369a1", marginBottom: 4 }}>
                     <b>Room ID:</b> {match.roomId || "—"}
@@ -173,7 +171,7 @@ const MatchCard = ({ match, onClick }) => {
                 </>
               ) : (
                 <div style={{ fontSize: 12, color: "#64748b", textAlign: "center" }}>
-                  Room details not available yet
+                  ⏳ Room details not available yet
                 </div>
               )}
             </div>
@@ -190,22 +188,31 @@ const MatchCard = ({ match, onClick }) => {
               fontWeight: 600, fontSize: 12, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             }}>
-            🏆 Total Prize Details {showPrizeDetails ? "▲" : "▼"}
+            🏆 Prize Details {showPrizeDetails ? "▲" : "▼"}
           </button>
           {showPrizeDetails && (
             <div style={{
               marginTop: 6, background: "#fefce8", borderRadius: 8,
               padding: "10px 12px", border: "1px solid #fde68a",
             }}>
-              <div style={{ fontSize: 12, color: "#92400e", marginBottom: 4 }}>
-                <b>🥇 1st:</b> ৳{match.winPrize || 0}
-              </div>
-              <div style={{ fontSize: 12, color: "#92400e", marginBottom: 4 }}>
-                <b>🔫 Per Kill:</b> ৳{match.perKill || 0}
-              </div>
-              <div style={{ fontSize: 12, color: "#92400e" }}>
-                <b>Entry Fee:</b> ৳{match.entryFee || 0}
-              </div>
+              {[
+                { label: "🥇 1st Prize", value: match.prizes?.first  || match.winPrize || 0 },
+                { label: "🥈 2nd Prize", value: match.prizes?.second || 0 },
+                { label: "🥉 3rd Prize", value: match.prizes?.third  || 0 },
+                { label: "4️⃣ 4th Prize", value: match.prizes?.fourth || 0 },
+                { label: "🔫 Per Kill",  value: match.perKill || 0 },
+                { label: "🎟 Entry Fee", value: match.entryFee || 0 },
+              ].map((p, i) => (
+                <div key={i} style={{
+                  display: "flex", justifyContent: "space-between",
+                  fontSize: 12, color: "#92400e",
+                  paddingBottom: 5, marginBottom: 5,
+                  borderBottom: i < 5 ? "1px solid #fde68a" : "none",
+                }}>
+                  <span>{p.label}</span>
+                  <span><b>৳{p.value}</b></span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -214,7 +221,7 @@ const MatchCard = ({ match, onClick }) => {
 
       {/* ── FOOTER: countdown or room ready ── */}
       <div style={{
-        background: isStarted ? "#16a34a" : "#16a34a",
+        background: "#16a34a",
         padding: "12px",
         textAlign: "center",
         color: "#fff",
@@ -222,7 +229,7 @@ const MatchCard = ({ match, onClick }) => {
         fontSize: 14,
       }}>
         {isStarted ? (
-          <span>কাস্টম Ready Room Details থেকে নিন</span>
+          <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
         ) : (
           <span>⏰ STARTS IN - <span style={{ fontSize: 16 }}>{timeLeft}</span></span>
         )}
