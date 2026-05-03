@@ -1,10 +1,16 @@
  import React, { useEffect, useState } from "react";
 
-const MatchCard = ({ match, onClick }) => {
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const MatchCard = ({ match, onJoinSuccess }) => {
   const [timeLeft, setTimeLeft] = useState("");
   const [isStarted, setIsStarted] = useState(false);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
   const [showPrizeDetails, setShowPrizeDetails] = useState(false);
+
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
+  const [joinSuccess, setJoinSuccess] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -43,13 +49,48 @@ const MatchCard = ({ match, onClick }) => {
     if (!t) return "";
     const d = new Date(t);
     return d.toLocaleString("en-BD", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: true,
     }).replace(",", " at");
+  };
+
+  // ── সরাসরি Join — কোনো modal/form নেই ──
+  const handleJoin = async () => {
+    setJoinLoading(true);
+    setJoinError("");
+    setJoinSuccess(false);
+
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch(`${API}/api/matches/join/${match._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId: user._id || user.id }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        const updatedUser = { ...user, balance: data.newBalance };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setJoinSuccess(true);
+        if (onJoinSuccess) onJoinSuccess(data.newBalance);
+        setTimeout(() => setJoinSuccess(false), 3000);
+      } else {
+        setJoinError(data.message || "সমস্যা হয়েছে");
+        setTimeout(() => setJoinError(""), 3000);
+      }
+    } catch (err) {
+      setJoinError("Server error, আবার চেষ্টা করুন");
+      setTimeout(() => setJoinError(""), 3000);
+    } finally {
+      setJoinLoading(false);
+    }
   };
 
   return (
@@ -59,10 +100,9 @@ const MatchCard = ({ match, onClick }) => {
       boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
       overflow: "hidden",
       marginBottom: 16,
-      cursor: "pointer",
     }}>
 
-      {/* ── TOP: image + title + time ── */}
+      {/* ── TOP ── */}
       <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
         <img
           src={match.image || "/image/img-1.jpg"}
@@ -81,11 +121,8 @@ const MatchCard = ({ match, onClick }) => {
 
       {/* ── STATS GRID ── */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr 1fr",
-        padding: "0 14px",
-        rowGap: 14,
-        marginBottom: 14,
+        display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+        padding: "0 14px", rowGap: 14, marginBottom: 14,
       }}>
         {[
           { label: "WIN PRIZE", value: `${match.winPrize} TK` },
@@ -103,15 +140,12 @@ const MatchCard = ({ match, onClick }) => {
       </div>
 
       {/* ── PROGRESS BAR + JOIN BUTTON ── */}
-      <div style={{ padding: "0 14px 12px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: "0 14px 10px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ flex: 1 }}>
           <div style={{ height: 10, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
             <div style={{
-              height: "100%",
-              width: `${fillPercent}%`,
-              background: "#22c55e",
-              borderRadius: 20,
-              transition: "width 0.5s",
+              height: "100%", width: `${fillPercent}%`,
+              background: "#22c55e", borderRadius: 20, transition: "width 0.5s",
             }} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
@@ -122,25 +156,51 @@ const MatchCard = ({ match, onClick }) => {
 
         {isFull ? (
           <div style={{
-            padding: "8px 16px", border: "1.5px solid #1e40af", borderRadius: 8,
-            color: "#1e40af", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap",
+            padding: "8px 16px", border: "1.5px solid #1e40af",
+            borderRadius: 8, color: "#1e40af", fontWeight: 700,
+            fontSize: 13, whiteSpace: "nowrap",
           }}>
             Match Full
           </div>
         ) : (
           <button
-            onClick={onClick}
+            onClick={handleJoin}
+            disabled={joinLoading || joinSuccess}
             style={{
-              padding: "8px 20px", background: "#22c55e", border: "none",
-              borderRadius: 8, color: "#fff", fontWeight: 700, fontSize: 13,
-              cursor: "pointer", whiteSpace: "nowrap",
+              padding: "8px 20px",
+              background: joinSuccess ? "#16a34a" : joinLoading ? "#86efac" : "#22c55e",
+              border: "none", borderRadius: 8, color: "#fff",
+              fontWeight: 700, fontSize: 13,
+              cursor: (joinLoading || joinSuccess) ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap", minWidth: 70,
+              transition: "background 0.2s",
             }}>
-            Join
+            {joinSuccess ? "✅ Joined" : joinLoading ? "..." : "Join"}
           </button>
         )}
       </div>
 
-      {/* ── ROOM DETAILS + PRIZE DETAILS BUTTONS ── */}
+      {/* ── ERROR / SUCCESS MESSAGE ── */}
+      {joinError && (
+        <div style={{
+          margin: "0 14px 10px",
+          background: "#fee2e2", borderRadius: 8,
+          padding: "8px 12px", color: "#dc2626", fontSize: 13,
+        }}>
+          ❌ {joinError}
+        </div>
+      )}
+      {joinSuccess && (
+        <div style={{
+          margin: "0 14px 10px",
+          background: "#dcfce7", borderRadius: 8,
+          padding: "8px 12px", color: "#16a34a", fontSize: 13, fontWeight: 600,
+        }}>
+          ✅ Joined! ৳{match.entryFee} balance কাটা হয়েছে
+        </div>
+      )}
+
+      {/* ── ROOM DETAILS + PRIZE DETAILS ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "0 14px 12px" }}>
 
         {/* Room Details */}
@@ -162,10 +222,10 @@ const MatchCard = ({ match, onClick }) => {
             }}>
               {match.isRoomOpen ? (
                 <>
-                  <div style={{ fontSize: 12, color: "#0369a1", marginBottom: 4 }}>
+                  <div style={{ fontSize: 13, color: "#0369a1", marginBottom: 6 }}>
                     <b>Room ID:</b> {match.roomId || "—"}
                   </div>
-                  <div style={{ fontSize: 12, color: "#0369a1" }}>
+                  <div style={{ fontSize: 13, color: "#0369a1" }}>
                     <b>Password:</b> {match.roomPassword || "—"}
                   </div>
                 </>
@@ -178,7 +238,7 @@ const MatchCard = ({ match, onClick }) => {
           )}
         </div>
 
-        {/* Total Prize Details */}
+        {/* Prize Details */}
         <div>
           <button
             onClick={() => setShowPrizeDetails(!showPrizeDetails)}
@@ -219,14 +279,10 @@ const MatchCard = ({ match, onClick }) => {
 
       </div>
 
-      {/* ── FOOTER: countdown or room ready ── */}
+      {/* ── FOOTER ── */}
       <div style={{
-        background: "#16a34a",
-        padding: "12px",
-        textAlign: "center",
-        color: "#fff",
-        fontWeight: 700,
-        fontSize: 14,
+        background: "#16a34a", padding: "12px",
+        textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14,
       }}>
         {isStarted ? (
           <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>

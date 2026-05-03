@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-// import PaymentNumbers from "../../Component/PaymentNumberManager/paymentNumberManager";
+
 const API = "http://localhost:5000/api";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -39,20 +39,16 @@ const Badge = ({ color, children }) => {
     amber: { bg: "#fef3c7", color: "#92400e" },
     blue: { bg: "#dbeafe", color: "#1e40af" },
     gray: { bg: "#f3f4f6", color: "#374151" },
-    pink: { bg: "#fce7f3", color: "#9d174d" },
-    purple: { bg: "#ede9fe", color: "#5b21b6" },
-    orange: { bg: "#ffedd5", color: "#9a3412" },
   };
   const s = map[color] || map.gray;
   return (
     <span
       style={{
-        background: s.bg,
-        color: s.color,
+        ...s,
         fontSize: 10,
         padding: "2px 8px",
         borderRadius: 20,
-        fontWeight: 600,
+        fontWeight: 500,
       }}
     >
       {children}
@@ -64,6 +60,7 @@ const Badge = ({ color, children }) => {
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: "⊞" },
   { key: "create-match", label: "Create match", icon: "＋" },
+  { key: "match-results", label: "Match results", icon: "🏆" },
   {
     key: "deposit-requests",
     label: "Deposit requests",
@@ -80,8 +77,6 @@ const NAV = [
   { key: "deposit-history", label: "Deposit history", icon: "◷" },
   { key: "withdraw-history", label: "Withdraw history", icon: "◷" },
   { key: "users", label: "Users", icon: "👥" },
-  { key: "match-results", label: "Match results", icon: "🏆" },
-  { key: "payment-numbers", label: "Payment Numbers", icon: "💳" },
   { key: "activity-log", label: "Activity log", icon: "📋" },
   { key: "manage-admins", label: "Manage admins", icon: "🔐" },
 ];
@@ -116,7 +111,6 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
         Free Fire Tournament
       </div>
     </div>
-
     <div
       style={{
         margin: "12px 12px 8px",
@@ -153,7 +147,6 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
         </div>
       </div>
     </div>
-
     <nav style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
       {NAV.map((n) => {
         const cnt =
@@ -199,7 +192,6 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
         );
       })}
     </nav>
-
     <div style={{ padding: 12, borderTop: "1px solid #1e293b" }}>
       <button
         onClick={onLogout}
@@ -354,8 +346,8 @@ const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
 );
 
 // ─── HISTORY ROW ──────────────────────────────────────────────────────────────
- const STATUS_MAP = {
-  pending:  { bg: "#fff8e1", color: "#b45309", label: "Pending"  },
+const STATUS_MAP = {
+  pending: { bg: "#fff8e1", color: "#b45309", label: "Pending" },
   approved: { bg: "#e8f5e9", color: "#2e7d32", label: "Approved" },
   rejected: { bg: "#ffebee", color: "#c62828", label: "Rejected" },
 };
@@ -364,16 +356,24 @@ const HistRow = ({ h }) => {
   const s = STATUS_MAP[h.status] || STATUS_MAP.pending;
   const formatDate = (d) =>
     new Date(d).toLocaleString("en-GB", {
-      day: "2-digit", month: "short", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
 
   return (
-    <div style={{
-      display: "flex", flexWrap: "wrap", alignItems: "center",
-      gap: 10, padding: "12px 0",
-      borderBottom: "1px solid #f3f4f6",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 0",
+        borderBottom: "1px solid #f3f4f6",
+      }}
+    >
       {/* User */}
       <div style={{ minWidth: 120, flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
@@ -385,14 +385,23 @@ const HistRow = ({ h }) => {
       </div>
 
       {/* Amount */}
-      <div style={{ minWidth: 80, fontWeight: 700, fontSize: 14, color: "#1e3a8a" }}>
+      <div
+        style={{
+          minWidth: 80,
+          fontWeight: 700,
+          fontSize: 14,
+          color: "#1e3a8a",
+        }}
+      >
         ৳ {Number(h.amount).toLocaleString()}
       </div>
 
       {/* Method + Account */}
       <div style={{ minWidth: 130 }}>
         <div style={{ fontSize: 13, fontWeight: 600 }}>{h.method || "—"}</div>
-        <div style={{ fontSize: 11, color: "#6b7280" }}>{h.accountNo || h.trxId || "—"}</div>
+        <div style={{ fontSize: 11, color: "#6b7280" }}>
+          {h.accountNo || h.trxId || "—"}
+        </div>
       </div>
 
       {/* TrxID */}
@@ -406,11 +415,16 @@ const HistRow = ({ h }) => {
       </div>
 
       {/* Status */}
-      <span style={{
-        background: s.bg, color: s.color,
-        padding: "3px 10px", borderRadius: 20,
-        fontSize: 11, fontWeight: 700,
-      }}>
+      <span
+        style={{
+          background: s.bg,
+          color: s.color,
+          padding: "3px 10px",
+          borderRadius: 20,
+          fontSize: 11,
+          fontWeight: 700,
+        }}
+      >
         {s.label}
       </span>
     </div>
@@ -438,7 +452,7 @@ const Dashboard = () => {
         );
       })
       .catch(() => {});
-api("/withdraw/admin/all?status=pending")
+    api("/admin/withdraws?status=pending&limit=3")
       .then((d) => {
         setRecentWithdraws(
           Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [],
@@ -484,7 +498,6 @@ api("/withdraw/admin/all?status=pending")
           sub="Needs action"
         />
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div
           style={{
@@ -560,6 +573,7 @@ const CreateMatch = () => {
     map: "",
     device: "Mobile",
     image: "",
+    prizes: { first: "", second: "", third: "", fourth: "" },
   });
   const [msg, setMsg] = useState("");
 
@@ -575,8 +589,7 @@ const CreateMatch = () => {
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const compressed = canvas.toDataURL("image/jpeg", 0.6);
-      setForm((p) => ({ ...p, image: compressed }));
+      setForm((p) => ({ ...p, image: canvas.toDataURL("image/jpeg", 0.6) }));
     };
     img.src = URL.createObjectURL(file);
   };
@@ -603,6 +616,7 @@ const CreateMatch = () => {
         map: "",
         device: "Mobile",
         image: "",
+        prizes: { first: "", second: "", third: "", fourth: "" },
       });
   };
 
@@ -620,9 +634,15 @@ const CreateMatch = () => {
     value: form[k],
     onChange: (e) => setForm((p) => ({ ...p, [k]: e.target.value })),
   });
+  const fp = (k) => ({
+    style: inp,
+    value: form.prizes[k],
+    onChange: (e) =>
+      setForm((p) => ({ ...p, prizes: { ...p.prizes, [k]: e.target.value } })),
+  });
 
   return (
-    <div style={{ padding: 24, maxWidth: 520 }}>
+    <div style={{ padding: 24, maxWidth: 540 }}>
       <div
         style={{
           background: "#fff",
@@ -631,10 +651,11 @@ const CreateMatch = () => {
           padding: 20,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>
           🎮 New Match Create
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Title */}
           <div>
             <div
               style={{
@@ -648,6 +669,8 @@ const CreateMatch = () => {
             </div>
             <input placeholder="যেমন: Solo Time" {...f("title")} />
           </div>
+
+          {/* Category */}
           <div>
             <div
               style={{
@@ -666,14 +689,17 @@ const CreateMatch = () => {
                 setForm((p) => ({ ...p, category: e.target.value }))
               }
             >
-              <option value="solo">SOLO</option>
-              <option value="duo">DUO</option>
-              <option value="squad">SQUAD</option>
-              <option value="cs">CS</option>
-              <option value="custom">CUSTOM</option>
-              <option value="tournament">TOURNAMENT</option>
+              {["solo", "duo", "squad", "cs", "custom", "tournament"].map(
+                (c) => (
+                  <option key={c} value={c}>
+                    {c.toUpperCase()}
+                  </option>
+                ),
+              )}
             </select>
           </div>
+
+          {/* Start Time */}
           <div>
             <div
               style={{
@@ -683,40 +709,119 @@ const CreateMatch = () => {
                 fontWeight: 600,
               }}
             >
-              Start Time * (এই সময়ের 20 মিনিট পরে match auto delete হবে)
+              Start Time *{" "}
+              <span style={{ color: "#f59e0b" }}>
+                (এই সময়ের 20 মিনিট পরে match auto delete হবে)
+              </span>
             </div>
             <input type="datetime-local" {...f("startTime")} />
           </div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
-                Entry Fee (৳)
-              </div>
-              <input placeholder="যেমন: 10" {...f("entryFee")} />
+
+          {/* Entry Fee + Win Prize */}
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+                marginBottom: 6,
+                fontWeight: 600,
+              }}
+            >
+              Entry & Prize
             </div>
-            <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
-                Win Prize (৳)
-              </div>
-              <input placeholder="যেমন: 405" {...f("winPrize")} />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <input placeholder="Entry Fee (৳)" {...f("entryFee")} />
+              <input
+                placeholder="Win Prize / Prize Pool (৳)"
+                {...f("winPrize")}
+              />
             </div>
           </div>
+
+          {/* Prize Breakdown */}
+          <div
+            style={{
+              background: "#fefce8",
+              border: "1px solid #fde68a",
+              borderRadius: 10,
+              padding: 14,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#92400e",
+                marginBottom: 10,
+              }}
+            >
+              🏆 Prize Breakdown (optional)
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  🥇 1st Prize (৳)
+                </div>
+                <input
+                  placeholder="যেমন: 60"
+                  {...fp("first")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  🥈 2nd Prize (৳)
+                </div>
+                <input
+                  placeholder="যেমন: 40"
+                  {...fp("second")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  🥉 3rd Prize (৳)
+                </div>
+                <input
+                  placeholder="যেমন: 20"
+                  {...fp("third")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  4️⃣ 4th Prize (৳)
+                </div>
+                <input
+                  placeholder="যেমন: 10"
+                  {...fp("fourth")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Total Players + Per Kill */}
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
           >
@@ -747,6 +852,8 @@ const CreateMatch = () => {
               <input placeholder="যেমন: 5" {...f("perKill")} />
             </div>
           </div>
+
+          {/* Map + Device */}
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
           >
@@ -787,6 +894,8 @@ const CreateMatch = () => {
               </select>
             </div>
           </div>
+
+          {/* Image Upload */}
           <div>
             <div
               style={{
@@ -851,6 +960,7 @@ const CreateMatch = () => {
               </div>
             )}
           </div>
+
           {msg && (
             <div
               style={{
@@ -864,6 +974,7 @@ const CreateMatch = () => {
               {msg}
             </div>
           )}
+
           <button
             onClick={submit}
             style={{
@@ -946,7 +1057,7 @@ const DepositRequests = ({ adminName, refresh }) => {
               padding: 24,
             }}
           >
-            No pending deposit requests
+            No pending
           </p>
         ) : (
           list.map((r) => (
@@ -957,38 +1068,36 @@ const DepositRequests = ({ adminName, refresh }) => {
     </div>
   );
 };
+
 // ─── WITHDRAW REQUESTS ────────────────────────────────────────────────────────
 const WithdrawRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
-
   const load = useCallback(() => {
-    api("/withdraw/admin/all?status=pending")
+    api("/admin/withdraws?status=pending")
       .then((d) => {
         setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
       })
       .catch(() => {});
   }, []);
-
   useEffect(() => {
     load();
   }, [load]);
 
   const approve = async (id) => {
-    await api(`/withdraw/admin/approve/${id}`, {
+    await api(`/admin/withdraws/${id}/approve`, {
       method: "PUT",
       body: JSON.stringify({ adminName }),
     });
     load();
-    if (refresh) refresh();
+    refresh();
   };
-
   const reject = async (id) => {
-    await api(`/withdraw/admin/reject/${id}`, {
+    await api(`/admin/withdraws/${id}/reject`, {
       method: "PUT",
       body: JSON.stringify({ adminName }),
     });
     load();
-    if (refresh) refresh();
+    refresh();
   };
 
   return (
@@ -1012,7 +1121,6 @@ const WithdrawRequests = ({ adminName, refresh }) => {
           <div style={{ fontSize: 14, fontWeight: 600 }}>Withdraw requests</div>
           <Badge color="red">{list.length} pending</Badge>
         </div>
-
         {list.length === 0 ? (
           <p
             style={{
@@ -1022,7 +1130,7 @@ const WithdrawRequests = ({ adminName, refresh }) => {
               padding: 24,
             }}
           >
-            No pending withdraw requests
+            No pending
           </p>
         ) : (
           list.map((r) => (
@@ -1039,7 +1147,6 @@ const WithdrawRequests = ({ adminName, refresh }) => {
     </div>
   );
 };
-
 
 // ─── MONEY OVERVIEW ───────────────────────────────────────────────────────────
 const MoneyOverview = () => {
@@ -1125,16 +1232,12 @@ const MoneyOverview = () => {
 };
 
 // ─── HISTORY ──────────────────────────────────────────────────────────────────
- const History = ({ type }) => {
+const History = ({ type }) => {
   const [list, setList] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const url = type === "withdraw"
-      ? "/withdraw/admin/all"
-      : `/admin/${type}s?status=all&limit=50`;
-
-    api(url)
+    api(`/admin/${type}s?status=all&limit=50`)
       .then((d) => {
         setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
       })
@@ -1149,18 +1252,22 @@ const MoneyOverview = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
-        borderRadius: 14,
-        padding: 20,
-      }}>
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 14,
-        }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 14,
+          }}
+        >
           <div style={{ fontSize: 14, fontWeight: 600 }}>
             {type === "deposit" ? "Deposit" : "Withdraw"} history
           </div>
@@ -1177,12 +1284,15 @@ const MoneyOverview = () => {
             }}
           />
         </div>
-
         {filtered.length === 0 ? (
-          <p style={{
-            fontSize: 13, color: "#9ca3af",
-            textAlign: "center", padding: 24,
-          }}>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              textAlign: "center",
+              padding: 24,
+            }}
+          >
             No records
           </p>
         ) : (
@@ -1192,6 +1302,7 @@ const MoneyOverview = () => {
     </div>
   );
 };
+
 // ─── USERS ────────────────────────────────────────────────────────────────────
 const Users = () => {
   const [list, setList] = useState([]);
@@ -1260,14 +1371,7 @@ const Users = () => {
         >
           <thead>
             <tr style={{ background: "#f9fafb" }}>
-              {[
-                "Name/Phone",
-                "Balance",
-                "Deposit",
-                "Withdraw",
-                "Status",
-                "Action",
-              ].map((h) => (
+              {["Name/Phone", "Balance", "Status", "Action"].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -1298,8 +1402,6 @@ const Users = () => {
                 >
                   {fmt(u.balance)}
                 </td>
-                <td style={{ padding: "9px 10px" }}>{fmt(u.totalDeposit)}</td>
-                <td style={{ padding: "9px 10px" }}>{fmt(u.totalWithdraw)}</td>
                 <td style={{ padding: "9px 10px" }}>
                   <Badge color={u.isBlocked ? "red" : "green"}>
                     {u.isBlocked ? "Banned" : "Active"}
@@ -1333,10 +1435,11 @@ const Users = () => {
 // ─── MATCH RESULTS ────────────────────────────────────────────────────────────
 const MatchResults = () => {
   const [matches, setMatches] = useState([]);
-  const [winner, setWinner] = useState({});
   const [roomData, setRoomData] = useState({});
+  const [winner, setWinner] = useState({});
+  const [msg, setMsg] = useState({});
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api("/matches")
       .then((d) => {
         setMatches(
@@ -1352,6 +1455,22 @@ const MatchResults = () => {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const updateRoom = async (id) => {
+    const d = await api(`/matches/update-room/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(roomData[id] || {}),
+    });
+    setMsg((p) => ({
+      ...p,
+      [id]: d.success ? "✅ Room updated!" : "❌ Failed",
+    }));
+    if (d.success) load();
+  };
+
   const submitResult = async (matchId) => {
     const w = winner[matchId];
     if (!w) return alert("Winner phone / name দিন");
@@ -1359,20 +1478,12 @@ const MatchResults = () => {
       method: "PUT",
       body: JSON.stringify({ winner: w }),
     });
-    alert(d.message || "Result saved!");
-  };
-
-  const updateRoom = async (id) => {
-    const d = await api(`/matches/update-room/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(roomData[id] || {}),
-    });
-    if (d.success) alert("Room updated! ✅");
+    setMsg((p) => ({ ...p, [matchId]: d.message || "Result saved!" }));
   };
 
   return (
     <div
-      style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}
+      style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}
     >
       {matches.length === 0 && (
         <p
@@ -1393,22 +1504,29 @@ const MatchResults = () => {
             background: "#fff",
             border: "1px solid #e5e7eb",
             borderRadius: 14,
-            padding: 16,
+            padding: 20,
           }}
         >
+          {/* Match Info */}
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 10,
+              alignItems: "flex-start",
+              marginBottom: 16,
             }}
           >
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{m.title}</div>
-              <div style={{ fontSize: 12, color: "#6b7280" }}>
-                {m.category} · {m.joinedPlayers || 0}/{m.totalPlayers} players ·
-                Prize: {fmt(m.winPrize)}
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+                {m.title}
+              </div>
+              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 3 }}>
+                {m.category?.toUpperCase()} · {m.joinedPlayers || 0}/
+                {m.totalPlayers} players · Prize Pool: {fmt(m.winPrize)}
+              </div>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                Start:{" "}
+                {m.startTime ? new Date(m.startTime).toLocaleString() : "—"}
               </div>
             </div>
             <Badge
@@ -1423,96 +1541,192 @@ const MatchResults = () => {
               {m.status || "upcoming"}
             </Badge>
           </div>
+
+          {/* ── Room ID & Password ── */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 8,
-              marginBottom: 8,
+              background: "#f0f9ff",
+              border: "1px solid #bae6fd",
+              borderRadius: 10,
+              padding: 14,
+              marginBottom: 12,
             }}
           >
-            <input
-              placeholder="Room ID"
-              onChange={(e) =>
-                setRoomData((p) => ({
-                  ...p,
-                  [m._id]: { ...p[m._id], roomId: e.target.value },
-                }))
-              }
+            <div
               style={{
-                padding: "8px 10px",
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
                 fontSize: 12,
-                outline: "none",
+                fontWeight: 700,
+                color: "#0369a1",
+                marginBottom: 10,
               }}
-            />
-            <input
-              placeholder="Room Password"
-              onChange={(e) =>
-                setRoomData((p) => ({
-                  ...p,
-                  [m._id]: { ...p[m._id], roomPassword: e.target.value },
-                }))
-              }
+            >
+              🔑 Room Details (user দেখতে পাবে)
+            </div>
+
+            {/* Current room info */}
+            {m.roomId && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#0369a1",
+                  marginBottom: 8,
+                  background: "#e0f2fe",
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                }}
+              >
+                Current → ID: <b>{m.roomId}</b> | Pass:{" "}
+                <b>{m.roomPassword || "—"}</b>
+              </div>
+            )}
+
+            <div
               style={{
-                padding: "8px 10px",
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                fontSize: 12,
-                outline: "none",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+                marginBottom: 10,
               }}
-            />
-          </div>
-          <button
-            onClick={() => updateRoom(m._id)}
-            style={{
-              width: "100%",
-              padding: "7px",
-              background: "#059669",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              marginBottom: 8,
-            }}
-          >
-            Update Room ✅
-          </button>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              placeholder="Winner phone / name"
-              value={winner[m._id] || ""}
-              onChange={(e) =>
-                setWinner((p) => ({ ...p, [m._id]: e.target.value }))
-              }
-              style={{
-                flex: 1,
-                padding: "8px 10px",
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                fontSize: 12,
-                outline: "none",
-              }}
-            />
+            >
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#0369a1", marginBottom: 3 }}
+                >
+                  Room ID
+                </div>
+                <input
+                  placeholder="Room ID দিন"
+                  defaultValue={m.roomId || ""}
+                  onChange={(e) =>
+                    setRoomData((p) => ({
+                      ...p,
+                      [m._id]: { ...p[m._id], roomId: e.target.value },
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    border: "1px solid #bae6fd",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#0369a1", marginBottom: 3 }}
+                >
+                  Room Password
+                </div>
+                <input
+                  placeholder="Password দিন"
+                  defaultValue={m.roomPassword || ""}
+                  onChange={(e) =>
+                    setRoomData((p) => ({
+                      ...p,
+                      [m._id]: { ...p[m._id], roomPassword: e.target.value },
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    border: "1px solid #bae6fd",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
             <button
-              onClick={() => submitResult(m._id)}
+              onClick={() => updateRoom(m._id)}
               style={{
-                padding: "8px 14px",
-                background: "#111827",
+                width: "100%",
+                padding: "9px",
+                background: "#0284c7",
                 color: "#fff",
                 border: "none",
                 borderRadius: 8,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
               }}
             >
-              Save result
+              🔑 Update Room Details
             </button>
           </div>
+
+          {/* ── Winner ── */}
+          <div
+            style={{
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              borderRadius: 10,
+              padding: 14,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#15803d",
+                marginBottom: 10,
+              }}
+            >
+              🏆 Winner Set করুন (prize automatically যাবে)
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                placeholder="Winner phone / name"
+                value={winner[m._id] || ""}
+                onChange={(e) =>
+                  setWinner((p) => ({ ...p, [m._id]: e.target.value }))
+                }
+                style={{
+                  flex: 1,
+                  padding: "8px 10px",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={() => submitResult(m._id)}
+                style={{
+                  padding: "8px 16px",
+                  background: "#15803d",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Save ✅
+              </button>
+            </div>
+          </div>
+
+          {/* Message */}
+          {msg[m._id] && (
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 12,
+                padding: "6px 10px",
+                borderRadius: 6,
+                background: msg[m._id].startsWith("✅") ? "#d1fae5" : "#dbeafe",
+                color: msg[m._id].startsWith("✅") ? "#065f46" : "#1e40af",
+              }}
+            >
+              {msg[m._id]}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -2246,7 +2460,6 @@ const ManageAdmins = () => {
           </button>
         </div>
       </div>
-
       <div
         style={{
           background: "#fff",
@@ -2324,9 +2537,7 @@ const Login = ({ onLogin }) => {
       if (d.success || d.token) {
         localStorage.setItem("adminToken", d.token);
         onLogin(d.admin || d.user || { name: "Admin", role: "admin" });
-      } else {
-        setErr(d.message || "Login failed");
-      }
+      } else setErr(d.message || "Login failed");
     } catch {
       setErr("Server error");
     }
@@ -2439,13 +2650,13 @@ const AdminPanel = () => {
   const [badges, setBadges] = useState({ deposit: 0, withdraw: 0 });
 
   const loadBadges = useCallback(() => {
-   api("/admin/deposits?status=pending")
+    api("/admin/deposits?status=pending")
       .then((d) => {
         const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
         setBadges((p) => ({ ...p, deposit: arr.length }));
       })
       .catch(() => {});
-   api("/withdraw/admin/all?status=pending")
+    api("/admin/withdraws?status=pending")
       .then((d) => {
         const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
         setBadges((p) => ({ ...p, withdraw: arr.length }));
@@ -2483,6 +2694,7 @@ const AdminPanel = () => {
   const titles = {
     dashboard: ["Dashboard", "Overview of all activity"],
     "create-match": ["Create match", "Add a new tournament match"],
+    "match-results": ["Match results", "Set Room ID/Password & Winner"],
     "deposit-requests": [
       "Deposit requests",
       "Approve or reject incoming deposits",
@@ -2495,11 +2707,6 @@ const AdminPanel = () => {
     "deposit-history": ["Deposit history", "All deposit transactions"],
     "withdraw-history": ["Withdraw history", "All withdrawal transactions"],
     users: ["Users", "Manage all users"],
-    "match-results": ["Match results", "Enter winner and distribute prize"],
-    "payment-numbers": [
-      "Payment Numbers",
-      "bkash/ Nagad / Rocket নম্বর manage করুন",
-    ],
     "activity-log": ["Activity log", "All admin actions"],
     "manage-admins": ["Manage admins", "Add or manage admin accounts"],
   };
@@ -2526,6 +2733,7 @@ const AdminPanel = () => {
         <Topbar title={title} sub={sub} />
         {page === "dashboard" && <Dashboard />}
         {page === "create-match" && <CreateMatch />}
+        {page === "match-results" && <MatchResults />}
         {page === "deposit-requests" && (
           <DepositRequests
             adminName={admin.name || admin.phone}
@@ -2542,8 +2750,6 @@ const AdminPanel = () => {
         {page === "deposit-history" && <History type="deposit" />}
         {page === "withdraw-history" && <History type="withdraw" />}
         {page === "users" && <Users />}
-        {page === "match-results" && <MatchResults />}
-        {page === "payment-numbers" && <PaymentNumbers api={api} />}
         {page === "activity-log" && <ActivityLog />}
         {page === "manage-admins" && <ManageAdmins />}
       </main>

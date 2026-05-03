@@ -3,7 +3,6 @@ import BottomMenu from "../BottomMenu/BottomMenu";
 import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
-import MatchJoin from "../../page/MatchJoin/MatchJoin";
 import Withdraw from "../../page/Withdraw/Withdraw";
 import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
@@ -13,7 +12,6 @@ const AppDashboard = ({ onLogout }) => {
   const [screen, setScreen] = useState("home");
   const [slide, setSlide] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedMatch, setSelectedMatch] = useState(null);
   const [matches, setMatches] = useState([]);
 
   useEffect(() => {
@@ -58,7 +56,6 @@ const AppDashboard = ({ onLogout }) => {
 
   // --- PROFILE TAB ---
   if (tab === "profile") {
-
     if (screen === "wallet") {
       return (
         <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -67,7 +64,6 @@ const AppDashboard = ({ onLogout }) => {
         </div>
       );
     }
-
     if (screen === "withdraw") {
       return (
         <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24 shadow-xl">
@@ -76,7 +72,6 @@ const AppDashboard = ({ onLogout }) => {
         </div>
       );
     }
-
     if (screen === "all_rules") {
       return (
         <div className="bg-white min-h-screen max-w-[450px] mx-auto">
@@ -84,7 +79,6 @@ const AppDashboard = ({ onLogout }) => {
         </div>
       );
     }
-
     if (screen === "my_profile") {
       return (
         <div className="bg-white min-h-screen max-w-[450px] mx-auto">
@@ -92,7 +86,6 @@ const AppDashboard = ({ onLogout }) => {
         </div>
       );
     }
-
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
         <Profile
@@ -141,34 +134,6 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // --- MATCH JOIN SCREEN ---
-  if (screen === "join") {
-    return (
-      <MatchJoin
-        match={selectedMatch}
-        onBack={() => setScreen("category")}
-        onJoinSuccess={(newBalance) => {
-          // LocalStorage balance update
-          const user = JSON.parse(localStorage.getItem("user") || "{}");
-          const updatedUser = { ...user, balance: newBalance };
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-
-          // Match list এ joinedPlayers বাড়াও
-          setMatches((prev) =>
-            prev.map((m) =>
-              m._id === selectedMatch._id
-                ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
-                : m
-            )
-          );
-
-          setScreen("category");
-          alert("✅ Match-এ join সফল হয়েছে!");
-        }}
-      />
-    );
-  }
-
   // --- CATEGORY SCREEN ---
   if (screen === "category") {
     return (
@@ -177,9 +142,18 @@ const AppDashboard = ({ onLogout }) => {
           matches={filteredMatches}
           title={selectedCategory}
           onBack={() => setScreen("home")}
-          onSelectMatch={(match) => {
-            setSelectedMatch(match);
-            setScreen("join");
+          onJoinSuccess={(matchId, newBalance) => {
+            // balance update
+            const user = JSON.parse(localStorage.getItem("user") || "{}");
+            localStorage.setItem("user", JSON.stringify({ ...user, balance: newBalance }));
+            // joinedPlayers বাড়াও
+            setMatches((prev) =>
+              prev.map((m) =>
+                m._id === matchId
+                  ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
+                  : m
+              )
+            );
           }}
         />
         <BottomMenu tab={tab} setTab={setTab} />
