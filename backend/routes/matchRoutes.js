@@ -16,7 +16,6 @@ const protectAdmin = (req, res, next) => {
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // ✅ "admin" OR "super-admin" দুইটাই allow
     if (decoded.role !== "admin" && decoded.role !== "super-admin") {
       return res.json({ success: false, message: "Admin only access" });
     }
@@ -29,15 +28,11 @@ const protectAdmin = (req, res, next) => {
 };
 
 
-
-
-
 // ================= CREATE MATCH (ADMIN ONLY) =================
 router.post("/create", protectAdmin, async (req, res) => {
   try {
     const { startTime, ...rest } = req.body;
 
-    // ✅ startTime থেকে 20 মিনিট পরে auto delete হবে
     const expiresAt = startTime
       ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
       : new Date(Date.now() + 20 * 60 * 1000);
@@ -150,7 +145,6 @@ router.put("/join/:id", async (req, res) => {
     }
 
     match.joinedPlayers += 1;
-
     await match.save();
 
     res.json({
@@ -165,5 +159,20 @@ router.put("/join/:id", async (req, res) => {
     });
   }
 });
+
+
+// ================= DELETE ALL OLD MATCHES (একবার চালাও) =================
+router.delete("/clear-all", protectAdmin, async (req, res) => {
+  try {
+    const result = await Match.deleteMany({});
+    res.json({
+      success: true,
+      message: `${result.deletedCount} টা match delete হয়েছে`,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 module.exports = router;
