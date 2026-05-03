@@ -126,40 +126,60 @@ router.put("/update-room/:id", protectAdmin, async (req, res) => {
 
 
 // ================= JOIN MATCH =================
+ // ================= JOIN MATCH =================
 router.put("/join/:id", async (req, res) => {
   try {
+    const { userId } = req.body;
     const match = await Match.findById(req.params.id);
 
     if (!match) {
-      return res.status(404).json({
-        success: false,
-        message: "Match not found",
-      });
+      return res.status(404).json({ success: false, message: "Match not found" });
     }
 
     if (match.joinedPlayers >= match.totalPlayers) {
-      return res.json({
-        success: false,
-        message: "Match is full",
-      });
+      return res.json({ success: false, message: "Match is full" });
     }
 
+    // User balance check ও কাটা
+    const User = require("../models/User");
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (user.balance < match.entryFee) {
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+    }
+
+    // Balance কাটো
+    user.balance -= match.entryFee;
+
+    // Join history রাখো
+    if (!user.joinHistory) user.joinHistory = [];
+    user.joinHistory.push({
+      matchId: match._id,
+      matchTitle: match.title,
+      entryFee: match.entryFee,
+      joinedAt: new Date(),
+    });
+
+    await user.save();
+
+    // joinedPlayers বাড়াও
     match.joinedPlayers += 1;
     await match.save();
 
     res.json({
       success: true,
-      message: "Joined successfully",
+      message: "Match-এ join সফল হয়েছে",
+      newBalance: user.balance,
       data: match,
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
-
 
 // ================= DELETE ALL OLD MATCHES (একবার চালাও) =================
 router.delete("/clear-all", protectAdmin, async (req, res) => {

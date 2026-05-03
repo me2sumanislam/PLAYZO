@@ -1,6 +1,4 @@
-
-
-const mongoose = require("mongoose");
+ const mongoose = require("mongoose");
 
 const matchSchema = new mongoose.Schema({
   title:         { type: String, required: true },
@@ -17,11 +15,17 @@ const matchSchema = new mongoose.Schema({
   image:         { type: String, default: "" },
   status:        { type: String, default: "upcoming" },
   isRoomOpen:    { type: Boolean, default: false },
-  startTime:     { type: Date, default: null },   // ✅ required false
-  expiresAt:     { type: Date, default: null },   // ✅ TTL field
+  startTime:     { type: Date, default: null },
+  expiresAt:     { type: Date, default: null },
+  // Prize breakdown
+  prizes: {
+    first:  { type: Number, default: 0 },
+    second: { type: Number, default: 0 },
+    third:  { type: Number, default: 0 },
+    fourth: { type: Number, default: 0 },
+  },
 }, { timestamps: true });
 
-// ✅ TTL index — expiresAt সময়ে auto delete
 matchSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model("Match", matchSchema);

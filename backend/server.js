@@ -29,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 // সব route এ — ১৫ মিনিটে সর্বোচ্চ ১০০ request
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: { message: "অনেক বেশি request। কিছুক্ষণ পর আবার চেষ্টা করুন।" },
   standardHeaders: true,
   legacyHeaders: false,
