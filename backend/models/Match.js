@@ -1,38 +1,44 @@
  const mongoose = require("mongoose");
  
- const matchSchema = new mongoose.Schema({
-   title:         { type: String, required: true },
-   category:      { type: String, required: true },
-   entryFee:      { type: Number, default: 0 },
-   winPrize:      { type: Number, default: 0 },
-   perKill:       { type: Number, default: 0 },
-   totalPlayers:  { type: Number, default: 48 },
-   joinedPlayers: { type: Number, default: 0 },
-   roomId:        { type: String, default: "" },
-   roomPassword:  { type: String, default: "" },
-   map:           { type: String, default: "Bermuda" },
-   device:        { type: String, default: "Mobile" },
-   image:         { type: String, default: "" },
-   status:        { type: String, default: "upcoming" },
-   isRoomOpen:    { type: Boolean, default: false },
-   startTime:     { type: Date, default: null },
-   expiresAt:     { type: Date, default: null },
+ const matchSchema = new mongoose.Schema(
+   {
+     title: { type: String, required: true },
+     category: { type: String, required: true },
+     entryFee: { type: Number, required: true, default: 0 },
+     winPrize: { type: Number, required: true, default: 0 },
  
-   // ✅ Prize breakdown
-   prizes: {
-     first:  { type: Number, default: 0 },
-     second: { type: Number, default: 0 },
-     third:  { type: Number, default: 0 },
-     fourth: { type: Number, default: 0 },
+     prizes: {
+       first:  { type: Number, default: 0 },
+       second: { type: Number, default: 0 },
+       third:  { type: Number, default: 0 },
+       fourth: { type: Number, default: 0 },
+     },
+ 
+     perKill:      { type: Number, default: 0 },
+     map:          { type: String, default: "Bermuda" },
+     device:       { type: String, default: "Mobile" },
+     image:        { type: String, default: "" },
+     startTime:    { type: Date },
+     totalPlayers: { type: Number, default: 48 },
+     joinedPlayers:{ type: Number, default: 0 },
+ 
+     // ── প্রতিটা joined user এর info ──
+     joinedUsers: [
+       {
+         userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+         slotNumber: { type: Number },
+         joinedAt:   { type: Date, default: Date.now },
+       },
+     ],
+ 
+     roomId:       { type: String, default: "" },
+     roomPassword: { type: String, default: "" },
+     isRoomOpen:   { type: Boolean, default: false },
+ 
+     status: { type: String, default: "upcoming" },
    },
- 
-   // ✅ Joined users list (My Match এর জন্য)
-   joinedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
- 
- }, { timestamps: true });
- 
- // ✅ TTL index — expiresAt সময়ে auto delete
- matchSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+   { timestamps: true }
+ );
  
  module.exports = mongoose.model("Match", matchSchema);
  
