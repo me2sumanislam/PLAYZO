@@ -1,6 +1,8 @@
  const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
+
 // ================= PROTECT =================
 const protect = async (req, res, next) => {
   let token;
@@ -17,14 +19,13 @@ const protect = async (req, res, next) => {
         process.env.JWT_SECRET || "secretkey"
       );
 
-      // 🔥 DB থেকে real user আনো
       const user = await User.findById(decoded.id).select("-password");
 
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
 
-      req.user = user; // ✔ real user object
+      req.user = user;
       next();
     } else {
       return res.status(401).json({ message: "No token provided" });
@@ -36,7 +37,7 @@ const protect = async (req, res, next) => {
 
 // ================= ADMIN ONLY =================
 const adminOnly = (req, res, next) => {
-  if (req.user && req.user.role === "admin") {
+  if (req.user && ADMIN_ROLES.includes(req.user.role)) {
     next();
   } else {
     return res.status(403).json({ message: "Admin only access" });

@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema(
     email:              { type: String, trim: true, default: "" },
     phone:              { type: String, required: true, unique: true, trim: true },
     password:           { type: String, required: true },
-    role:               { type: String, enum: ["user", "admin"], default: "user" },
+    role:               { type: String, enum: ["user", "admin", "super-admin", "finance"], default: "user" },
     balance:            { type: Number, default: 0 },
     totalMatchesPlayed: { type: Number, default: 0 },
     totalWins:          { type: Number, default: 0 },

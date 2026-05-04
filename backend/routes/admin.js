@@ -1,8 +1,4 @@
- // ============================================================
-// routes/admin.js  — Express Router
-// ============================================================
-
-const express = require("express");
+ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -15,6 +11,7 @@ const ActivityLog = require("../models/ActivityLog");
 const PaymentNumber = require("../models/PaymentNumber");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
 // ─── AUTH MIDDLEWARE ─────────────────────────────────────────
 const authAdmin = async (req, res, next) => {
@@ -22,9 +19,8 @@ const authAdmin = async (req, res, next) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ success: false, message: "No token" });
     const decoded = jwt.verify(token, JWT_SECRET);
-
     const user = await User.findById(decoded.id);
-    if (!user || user.role !== "admin") {
+    if (!user || !ADMIN_ROLES.includes(user.role)) {
       return res.status(401).json({ success: false, message: "Admin not found" });
     }
     req.admin = user;
@@ -47,7 +43,9 @@ router.post("/login", async (req, res) => {
     const { phone, password } = req.body;
     const user = await User.findOne({ phone });
     if (!user) return res.json({ success: false, message: "Admin not found" });
-    if (user.role !== "admin") return res.json({ success: false, message: "Not an admin" });
+    if (!ADMIN_ROLES.includes(user.role)) {
+      return res.json({ success: false, message: "Not an admin account" });
+    }
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.json({ success: false, message: "Wrong password" });
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "7d" });
@@ -153,7 +151,7 @@ router.get("/withdraws", authAdmin, async (req, res) => {
     const { status, limit = 50 } = req.query;
     const query = status && status !== "all" ? { status } : {};
     const data = await Withdraw.find(query)
-      .populate("userId", "name phone")
+      .populate("user", "name phone")
       .sort({ createdAt: -1 })
       .limit(Number(limit));
     res.json({ success: true, data });
@@ -164,19 +162,14 @@ router.get("/withdraws", authAdmin, async (req, res) => {
 
 router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
   try {
-    const wit = await Withdraw.findById(req.params.id).populate("userId");
+    const wit = await Withdraw.findById(req.params.id).populate("user");
     if (!wit) return res.json({ success: false, message: "Not found" });
     if (wit.status !== "pending") return res.json({ success: false, message: "Already processed" });
-    const user = await User.findById(wit.userId._id);
-    if (user.balance < wit.amount) return res.json({ success: false, message: "Insufficient balance" });
     wit.status = "approved";
     wit.approvedBy = req.admin.name;
     wit.updatedAt = new Date();
     await wit.save();
-    await User.findByIdAndUpdate(wit.userId._id, {
-      $inc: { balance: -wit.amount, totalWithdraw: wit.amount },
-    });
-    log(req.admin.name, `approved withdraw of ৳${wit.amount}`, wit.userId?.name, "approve");
+    log(req.admin.name, `approved withdraw of ৳${wit.amount}`, wit.user?.name, "approve");
     res.json({ success: true, message: "Withdraw approved" });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -185,12 +178,19 @@ router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
 
 router.put("/withdraws/:id/reject", authAdmin, async (req, res) => {
   try {
-    const wit = await Withdraw.findByIdAndUpdate(
-      req.params.id,
-      { status: "rejected", rejectedBy: req.admin.name, updatedAt: new Date() },
-      { new: true }
-    ).populate("userId");
-    log(req.admin.name, `rejected withdraw of ৳${wit.amount}`, wit.userId?.name, "reject");
+    const wit = await Withdraw.findById(req.params.id).populate("user");
+    if (!wit) return res.json({ success: false, message: "Not found" });
+    if (wit.status !== "pending") return res.json({ success: false, message: "Already processed" });
+    // ✅ Reject হলে balance ফেরত দাও
+    const user = await User.findById(wit.user._id);
+    if (user) {
+      user.balance += wit.amount;
+      await user.save();
+    }
+    wit.status = "rejected";
+    wit.rejectedBy = req.admin.name;
+    await wit.save();
+    log(req.admin.name, `rejected withdraw of ৳${wit.amount}`, wit.user?.name, "reject");
     res.json({ success: true, message: "Withdraw rejected" });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -271,7 +271,10 @@ router.get("/logs", authAdmin, async (req, res) => {
 
 router.get("/admins", authAdmin, async (req, res) => {
   try {
-    const data = await User.find({ role: "admin" }, "name phone role createdAt").sort({ createdAt: -1 });
+    const data = await User.find(
+      { role: { $in: ADMIN_ROLES } },
+      "name phone role createdAt"
+    ).sort({ createdAt: -1 });
     res.json({ success: true, data });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -280,11 +283,14 @@ router.get("/admins", authAdmin, async (req, res) => {
 
 router.post("/admins/create", authAdmin, async (req, res) => {
   try {
-    const { name, phone, password } = req.body;
+    if (!["super-admin"].includes(req.admin.role)) {
+      return res.json({ success: false, message: "Only super-admin can create admins" });
+    }
+    const { name, phone, password, role } = req.body;
     const exists = await User.findOne({ phone });
     if (exists) return res.json({ success: false, message: "Phone already registered" });
     const hash = await bcrypt.hash(password, 10);
-    const admin = await User.create({ name, phone, password: hash, role: "admin" });
+    const admin = await User.create({ name, phone, password: hash, role: role || "admin" });
     log(req.admin.name, `created admin: ${name}`, phone, "create");
     res.json({ success: true, admin: { name: admin.name, phone: admin.phone, role: admin.role } });
   } catch (e) {
