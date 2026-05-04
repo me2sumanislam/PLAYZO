@@ -2484,7 +2484,7 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     setErr("");
     try {
-      const res = await fetch(`${API}/admin/login`, {
+const res = await fetch(`${API}/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -2634,11 +2634,12 @@ const AdminPanel = () => {
     }
   }, [loadBadges]);
 
-  const handleLogin = (a) => {
-    localStorage.setItem("adminInfo", JSON.stringify(a));
-    setAdmin(a);
-    loadBadges();
-  };
+ const handleLogin = (a) => {
+  console.log("Admin login data:", a); // ← দেখুন কী আসছে
+  localStorage.setItem("adminInfo", JSON.stringify(a));
+  setAdmin(a);
+  loadBadges();
+};
 
   const handleLogout = () => {
     localStorage.removeItem("adminToken");

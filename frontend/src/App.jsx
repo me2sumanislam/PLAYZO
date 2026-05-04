@@ -13,19 +13,27 @@ import AdminPanel from "./page/AdminPenal/AdminPanel";
 function App() {
   const [isAppMode, setIsAppMode] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+
+  // ================= ADMIN ROUTE — সবার আগে =================
+  if (window.location.pathname.startsWith("/admin")) {
+    return (
+      <div className="min-h-screen">
+        <AdminPanel onLogout={() => {
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminInfo");
+          window.location.href = "/";
+        }} />
+      </div>
+    );
+  }
 
   // ================= INIT AUTH CHECK =================
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const admin = localStorage.getItem("isAdmin");
-
-    if (token) {
+    const userToken = localStorage.getItem("token");
+    if (userToken) {
       setIsLoggedIn(true);
-      setIsAdmin(admin === "true");
     } else {
       setIsLoggedIn(false);
-      setIsAdmin(false);
     }
   }, []);
 
@@ -42,25 +50,21 @@ function App() {
 
   // ================= LOGIN SUCCESS =================
   const handleLoginSuccess = () => {
-    const token = localStorage.getItem("token");
-    const admin = localStorage.getItem("isAdmin");
-
-    setIsLoggedIn(!!token);
-    setIsAdmin(admin === "true");
+    const userToken = localStorage.getItem("token");
+    setIsLoggedIn(!!userToken);
   };
 
   // ================= LOGOUT =================
- const handleLogout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  localStorage.removeItem("isAdmin");
-  localStorage.removeItem("adminToken");
-  localStorage.removeItem("adminInfo");
-  localStorage.removeItem("user_balance");
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("isAdmin");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminInfo");
+    localStorage.removeItem("user_balance");
+    setIsLoggedIn(false);
+  };
 
-  setIsLoggedIn(false);
-  setIsAdmin(false);
-};
   // ================= LOADING =================
   if (isLoggedIn === null) {
     return (
@@ -70,16 +74,12 @@ function App() {
     );
   }
 
-  // ================= APP MODE =================
+  // ================= APP MODE (PWA) =================
   if (isAppMode) {
     return (
       <div className="app-container bg-[#fcfaff] min-h-screen">
         {isLoggedIn ? (
-          isAdmin ? (
-            <AdminPanel onLogout={handleLogout} />
-          ) : (
-            <AppDashboard onLogout={handleLogout} />
-          )
+          <AppDashboard onLogout={handleLogout} />
         ) : (
           <Auth onLoginSuccess={handleLoginSuccess} />
         )}
@@ -95,23 +95,22 @@ function App() {
       <HomeCard />
       <Footer />
 
-   <button
-  onClick={() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isAdmin");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminInfo");
-    localStorage.removeItem("user_balance");
+      <button
+        onClick={() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("isAdmin");
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminInfo");
+          localStorage.removeItem("user_balance");
 
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    setIsAppMode(true);
-  }}
-  className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
->
-  📱 Open othiyO App
-</button>
+          setIsLoggedIn(false);
+          setIsAppMode(true);
+        }}
+        className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
+      >
+        📱 Open othiyO App
+      </button>
     </div>
   );
 }

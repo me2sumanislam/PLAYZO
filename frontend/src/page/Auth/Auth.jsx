@@ -1,8 +1,5 @@
  import React, { useState } from "react";
 
-const ADMIN_USERNAME = "admin1";
-const ADMIN_PASSWORD = "123456";
-
 const Auth = ({ onLoginSuccess }) => {
   // 'login' | 'register' | 'forgot'
   const [screen, setScreen] = useState("login");
@@ -22,16 +19,7 @@ const Auth = ({ onLoginSuccess }) => {
     setError("");
     setLoading(true);
 
-    // Admin check
-    if (loginData.phone === ADMIN_USERNAME && loginData.password === ADMIN_PASSWORD) {
-      localStorage.setItem("token", "admin-token");
-      localStorage.setItem("isAdmin", "true");
-      localStorage.setItem("user", JSON.stringify({ name: "Admin", phone: ADMIN_USERNAME }));
-      setLoading(false);
-      onLoginSuccess();
-      return;
-    }
-
+  
     // Normal user — backend
     try {
       const res  = await fetch("http://localhost:5000/api/auth/login", {
