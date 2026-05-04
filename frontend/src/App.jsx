@@ -50,15 +50,17 @@ function App() {
   };
 
   // ================= LOGOUT =================
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isAdmin");
+ const handleLogout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  localStorage.removeItem("isAdmin");
+  localStorage.removeItem("adminToken");
+  localStorage.removeItem("adminInfo");
+  localStorage.removeItem("user_balance");
 
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-  };
-
+  setIsLoggedIn(false);
+  setIsAdmin(false);
+};
   // ================= LOADING =================
   if (isLoggedIn === null) {
     return (
@@ -93,20 +95,23 @@ function App() {
       <HomeCard />
       <Footer />
 
-      <button
-        onClick={() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          localStorage.removeItem("isAdmin");
+   <button
+  onClick={() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("isAdmin");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminInfo");
+    localStorage.removeItem("user_balance");
 
-          setIsLoggedIn(false);
-          setIsAdmin(false);
-          setIsAppMode(true);
-        }}
-        className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
-      >
-        📱 Open othiyO App
-      </button>
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+    setIsAppMode(true);
+  }}
+  className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
+>
+  📱 Open othiyO App
+</button>
     </div>
   );
 }

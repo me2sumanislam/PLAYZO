@@ -32,7 +32,7 @@ const timeAgo = (d) => {
 };
 
 // ─── Badge ───────────────────────────────────────────────────────────────────
-const Badge = ({ color, children }) => {
+ const Badge = ({ color, children }) => {
   const map = {
     green: { bg: "#d1fae5", color: "#065f46" },
     red: { bg: "#fee2e2", color: "#991b1b" },
@@ -42,20 +42,17 @@ const Badge = ({ color, children }) => {
   };
   const s = map[color] || map.gray;
   return (
-    <span
-      style={{
-        ...s,
-        fontSize: 10,
-        padding: "2px 8px",
-        borderRadius: 20,
-        fontWeight: 500,
-      }}
-    >
+    <span style={{
+      ...s,
+      fontSize: 10,
+      padding: "2px 8px",
+      borderRadius: 20,
+      fontWeight: 500,
+    }}>
       {children}
     </span>
   );
 };
-
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: "⊞" },
@@ -268,40 +265,28 @@ const StatCard = ({ label, value, color, sub }) => (
 );
 
 // ─── REQUEST ROW ──────────────────────────────────────────────────────────────
-const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: "10px 0",
-      borderBottom: "1px solid #f3f4f6",
-    }}
-  >
-    <div
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: "50%",
-        background: "#dbeafe",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#1e40af",
-      }}
-    >
-      {(r.user?.name || r.user?.phone || r.userName || "U")
-        .charAt(0)
-        .toUpperCase()}
+ const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
+  <div style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 0",
+    borderBottom: "1px solid #f3f4f6",
+  }}>
+    <div style={{
+      width: 32, height: 32, borderRadius: "50%",
+      background: "#dbeafe", display: "flex",
+      alignItems: "center", justifyContent: "center",
+      fontSize: 11, fontWeight: 700, color: "#1e40af",
+    }}>
+      {(r.user?.name || r.user?.phone || r.userName || "U").charAt(0).toUpperCase()}
     </div>
     <div style={{ flex: 1 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
         {r.user?.name || r.user?.phone || r.userName || "Unknown"}
       </div>
       <div style={{ fontSize: 11, color: "#6b7280" }}>
-        {r.method || "bkash"} · {timeAgo(r.createdAt)}
+        {r.method || "bKash"} · {r.accountNo || ""} · {timeAgo(r.createdAt)}
       </div>
       {r.trxId && (
         <div style={{ fontSize: 10, color: "#3b82f6", marginTop: 1 }}>
@@ -315,14 +300,10 @@ const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
     <button
       onClick={() => onApprove(r._id)}
       style={{
-        fontSize: 11,
-        padding: "4px 10px",
-        background: "#d1fae5",
-        color: "#065f46",
-        border: "none",
-        borderRadius: 6,
-        cursor: "pointer",
-        fontWeight: 600,
+        fontSize: 11, padding: "4px 10px",
+        background: "#d1fae5", color: "#065f46",
+        border: "none", borderRadius: 6,
+        cursor: "pointer", fontWeight: 600,
       }}
     >
       {actionLabel}
@@ -330,14 +311,10 @@ const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
     <button
       onClick={() => onReject(r._id)}
       style={{
-        fontSize: 11,
-        padding: "4px 10px",
-        background: "#fee2e2",
-        color: "#991b1b",
-        border: "none",
-        borderRadius: 6,
-        cursor: "pointer",
-        fontWeight: 600,
+        fontSize: 11, padding: "4px 10px",
+        background: "#fee2e2", color: "#991b1b",
+        border: "none", borderRadius: 6,
+        cursor: "pointer", fontWeight: 600,
       }}
     >
       Reject
@@ -1070,29 +1047,32 @@ const DepositRequests = ({ adminName, refresh }) => {
 };
 
 // ─── WITHDRAW REQUESTS ────────────────────────────────────────────────────────
-const WithdrawRequests = ({ adminName, refresh }) => {
+ const WithdrawRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
+
   const load = useCallback(() => {
-    api("/admin/withdraws?status=pending")
+    api("/withdraw/admin/all?status=pending")
       .then((d) => {
         setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
       })
       .catch(() => {});
   }, []);
+
   useEffect(() => {
     load();
   }, [load]);
 
   const approve = async (id) => {
-    await api(`/admin/withdraws/${id}/approve`, {
+    await api(`/withdraw/admin/approve/${id}`, {
       method: "PUT",
       body: JSON.stringify({ adminName }),
     });
     load();
     refresh();
   };
+
   const reject = async (id) => {
-    await api(`/admin/withdraws/${id}/reject`, {
+    await api(`/withdraw/admin/reject/${id}`, {
       method: "PUT",
       body: JSON.stringify({ adminName }),
     });
@@ -1102,34 +1082,26 @@ const WithdrawRequests = ({ adminName, refresh }) => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 14,
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
+      <div style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 14,
+        padding: 20,
+      }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+        }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Withdraw requests</div>
           <Badge color="red">{list.length} pending</Badge>
         </div>
         {list.length === 0 ? (
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              textAlign: "center",
-              padding: 24,
-            }}
-          >
+          <p style={{
+            fontSize: 13, color: "#9ca3af",
+            textAlign: "center", padding: 24,
+          }}>
             No pending
           </p>
         ) : (
@@ -1232,12 +1204,16 @@ const MoneyOverview = () => {
 };
 
 // ─── HISTORY ──────────────────────────────────────────────────────────────────
-const History = ({ type }) => {
+ const History = ({ type }) => {
   const [list, setList] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    api(`/admin/${type}s?status=all&limit=50`)
+    const url = type === "withdraw"
+      ? "/withdraw/admin/all"
+      : `/admin/${type}s?limit=50`;
+
+    api(url)
       .then((d) => {
         setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
       })
@@ -1252,22 +1228,18 @@ const History = ({ type }) => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 14,
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 14,
-          }}
-        >
+      <div style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 14,
+        padding: 20,
+      }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>
             {type === "deposit" ? "Deposit" : "Withdraw"} history
           </div>
@@ -1285,14 +1257,10 @@ const History = ({ type }) => {
           />
         </div>
         {filtered.length === 0 ? (
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              textAlign: "center",
-              padding: 24,
-            }}
-          >
+          <p style={{
+            fontSize: 13, color: "#9ca3af",
+            textAlign: "center", padding: 24,
+          }}>
             No records
           </p>
         ) : (
@@ -1302,7 +1270,6 @@ const History = ({ type }) => {
     </div>
   );
 };
-
 // ─── USERS ────────────────────────────────────────────────────────────────────
 const Users = () => {
   const [list, setList] = useState([]);
@@ -2650,19 +2617,20 @@ const AdminPanel = () => {
   const [badges, setBadges] = useState({ deposit: 0, withdraw: 0 });
 
   const loadBadges = useCallback(() => {
-    api("/admin/deposits?status=pending")
-      .then((d) => {
-        const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
-        setBadges((p) => ({ ...p, deposit: arr.length }));
-      })
-      .catch(() => {});
-    api("/admin/withdraws?status=pending")
-      .then((d) => {
-        const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
-        setBadges((p) => ({ ...p, withdraw: arr.length }));
-      })
-      .catch(() => {});
-  }, []);
+  api("/admin/deposits?status=pending")
+    .then((d) => {
+      const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+      setBadges((p) => ({ ...p, deposit: arr.length }));
+    })
+    .catch(() => {});
+
+  api("/withdraw/admin/all?status=pending")
+    .then((d) => {
+      const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+      setBadges((p) => ({ ...p, withdraw: arr.length }));
+    })
+    .catch(() => {});
+}, []); 
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
