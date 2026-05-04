@@ -54,28 +54,19 @@ const timeAgo = (d) => {
   );
 };
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
-const NAV = [
-  { key: "dashboard", label: "Dashboard", icon: "⊞" },
-  { key: "create-match", label: "Create match", icon: "＋" },
-  { key: "match-results", label: "Match results", icon: "🏆" },
-  {
-    key: "deposit-requests",
-    label: "Deposit requests",
-    icon: "↓",
-    badge: "deposit",
-  },
-  {
-    key: "withdraw-requests",
-    label: "Withdraw requests",
-    icon: "↑",
-    badge: "withdraw",
-  },
-  { key: "money-overview", label: "Money overview", icon: "₹" },
-  { key: "deposit-history", label: "Deposit history", icon: "◷" },
-  { key: "withdraw-history", label: "Withdraw history", icon: "◷" },
-  { key: "users", label: "Users", icon: "👥" },
-  { key: "activity-log", label: "Activity log", icon: "📋" },
-  { key: "manage-admins", label: "Manage admins", icon: "🔐" },
+ const NAV = [
+  { key: "dashboard",        label: "Dashboard",         icon: "⊞", roles: ["super-admin", "admin", "finance"] },
+  { key: "create-match",     label: "Create match",      icon: "＋", roles: ["super-admin", "admin"] },
+  { key: "deposit-requests", label: "Deposit requests",  icon: "↓", badge: "deposit", roles: ["super-admin", "finance"] },
+  { key: "withdraw-requests",label: "Withdraw requests", icon: "↑", badge: "withdraw", roles: ["super-admin", "finance"] },
+  { key: "money-overview",   label: "Money overview",    icon: "₹", roles: ["super-admin", "finance"] },
+  { key: "deposit-history",  label: "Deposit history",   icon: "◷", roles: ["super-admin", "finance"] },
+  { key: "withdraw-history", label: "Withdraw history",  icon: "◷", roles: ["super-admin", "finance"] },
+  { key: "users",            label: "Users",             icon: "👥", roles: ["super-admin", "admin"] },
+  { key: "match-results",    label: "Match results",     icon: "🏆", roles: ["super-admin", "admin"] },
+  { key: "payment-numbers",  label: "Payment Numbers",   icon: "💳", roles: ["super-admin", "finance"] },
+  { key: "activity-log",     label: "Activity log",      icon: "📋", roles: ["super-admin", "admin"] },
+  { key: "manage-admins",    label: "Manage admins",     icon: "🔐", roles: ["super-admin"] },
 ];
 
 const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
@@ -144,51 +135,49 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
         </div>
       </div>
     </div>
-    <nav style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
-      {NAV.map((n) => {
-        const cnt =
-          n.badge === "deposit"
-            ? badges.deposit
-            : n.badge === "withdraw"
-              ? badges.withdraw
-              : 0;
-        return (
-          <div
-            key={n.key}
-            onClick={() => setPage(n.key)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              padding: "8px 14px",
-              fontSize: 12.5,
-              cursor: "pointer",
-              borderLeft:
-                page === n.key ? "3px solid #3b82f6" : "3px solid transparent",
-              background: page === n.key ? "#1e293b" : "transparent",
-              color: page === n.key ? "#f1f5f9" : "#94a3b8",
-              transition: "all 0.12s",
-            }}
-          >
-            <span style={{ fontSize: 13 }}>{n.icon}</span>
-            <span style={{ flex: 1 }}>{n.label}</span>
-            {cnt > 0 && (
-              <span
-                style={{
-                  background: "#ef4444",
-                  color: "#fff",
-                  fontSize: 9,
-                  padding: "1px 5px",
-                  borderRadius: 20,
-                }}
-              >
-                {cnt}
-              </span>
-            )}
-          </div>
-        );
-      })}
-    </nav>
+ 
+      <nav style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
+  {NAV.filter(n => n.roles.includes(admin?.role)).map((n) => {
+    const cnt =
+      n.badge === "deposit"
+        ? badges.deposit
+        : n.badge === "withdraw"
+          ? badges.withdraw
+          : 0;
+    return (
+      <div
+        key={n.key}
+        onClick={() => setPage(n.key)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          padding: "8px 14px",
+          fontSize: 12.5,
+          cursor: "pointer",
+          borderLeft: page === n.key ? "3px solid #3b82f6" : "3px solid transparent",
+          background: page === n.key ? "#1e293b" : "transparent",
+          color: page === n.key ? "#f1f5f9" : "#94a3b8",
+          transition: "all 0.12s",
+        }}
+      >
+        <span style={{ fontSize: 13 }}>{n.icon}</span>
+        <span style={{ flex: 1 }}>{n.label}</span>
+        {cnt > 0 && (
+          <span style={{
+            background: "#ef4444",
+            color: "#fff",
+            fontSize: 9,
+            padding: "1px 5px",
+            borderRadius: 20,
+          }}>
+            {cnt}
+          </span>
+        )}
+      </div>
+    );
+  })}
+</nav>
     <div style={{ padding: 12, borderTop: "1px solid #1e293b" }}>
       <button
         onClick={onLogout}
