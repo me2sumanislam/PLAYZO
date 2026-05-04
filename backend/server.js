@@ -1,4 +1,4 @@
- const dns = require("node:dns/promises");
+  const dns = require("node:dns/promises");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 const dotenv = require("dotenv");
@@ -8,13 +8,19 @@ require("colors");
 
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+ 
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 
-// ================= APP CREATE FIRST =================
+// ================= APP CREATE =================
 const app = express();
 
-// ================= MIDDLEWARE =================
+// ================= SECURITY MIDDLEWARE =================
+// HTTP Security Headers
+app.use(helmet());
+
+// CORS
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -24,37 +30,17 @@ app.use(cors({
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+ 
+
 // ================= RATE LIMITING =================
-
-// সব route এ — ১৫ মিনিটে সর্বোচ্চ ১০০ request
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10000,
-  message: { message: "অনেক বেশি request। কিছুক্ষণ পর আবার চেষ্টা করুন।" },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Login/Register এ — ১৫ মিনিটে সর্বোচ্চ ১০ বার
+// শুধু Login এ — brute force block
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   message: { message: "অনেকবার চেষ্টা করেছেন। ১৫ মিনিট পর আবার চেষ্টা করুন।" },
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-// Withdraw এ — ১৫ মিনিটে সর্বোচ্চ ৫ বার
-const withdrawLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: { message: "অনেক বেশি withdraw request। কিছুক্ষণ পর আবার চেষ্টা করুন।" },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Global limiter সব route এ
-app.use(globalLimiter);
 
 // ================= DB =================
 connectDB();
@@ -70,21 +56,18 @@ app.get("/", (req, res) => {
 });
 
 // ================= ROUTES =================
-app.use("/api/matches", require("./routes/matchRoutes"));
-app.use("/api/auth", authLimiter, require("./routes/authRoutes"));         // ✅ auth limiter
-app.use("/api/admin", authLimiter, require("./routes/adminAuthRoutes"));   // ✅ auth limiter
-app.use("/api/admin", require("./routes/admin"));
-
-app.use("/api/wallet", require("./routes/walletRoutes"));
-app.use("/api/wallet", require("./routes/deposit"));
-app.use("/api/admin", require("./routes/deposit"));
-
-app.use("/api/payment-numbers", require("./routes/paymentNumbers"));
-app.use("/admin/payment-numbers", require("./routes/paymentNumbers"));
+app.use("/api/matches",          require("./routes/matchRoutes"));
+app.use("/api/auth",             authLimiter, require("./routes/authRoutes"));
+app.use("/api/admin",            authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/admin",            require("./routes/admin"));
+app.use("/api/wallet",           require("./routes/walletRoutes"));
+app.use("/api/wallet",           require("./routes/deposit"));
+app.use("/api/admin",            require("./routes/deposit"));
+app.use("/api/payment-numbers",  require("./routes/paymentNumbers"));
+app.use("/admin/payment-numbers",require("./routes/paymentNumbers"));
 app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
-
-app.use("/api/users", require("./routes/users"));
-app.use("/api/withdraw", withdrawLimiter, require("./routes/withdrawRoutes")); // ✅ withdraw limiter
+app.use("/api/users",            require("./routes/users"));
+app.use("/api/withdraw",         require("./routes/withdrawRoutes"));
 
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
