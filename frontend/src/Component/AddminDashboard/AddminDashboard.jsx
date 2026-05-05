@@ -1,10 +1,10 @@
  import React, { useState, useEffect } from "react";
-import PaymentNumberManager from "../PaymentNumberManager/PaymentNumberManager";
+import PaymentNumbers from "../../Component/PaymentNumberManager/paymentNumberManager";
 
 // DepositRequests component
 const DepositRequests = () => {
   const [requests, setRequests] = useState([]);
-  const [filter, setFilter]     = useState("pending");
+  const [filter, setFilter] = useState("pending");
 
   useEffect(() => {
     const load = () => {
@@ -17,10 +17,9 @@ const DepositRequests = () => {
   }, []);
 
   const updateStatus = (id, status) => {
-    const updated = requests.map((r) => r.id === id ? { ...r, status } : r);
+    const updated = requests.map((r) => (r.id === id ? { ...r, status } : r));
     setRequests(updated);
     localStorage.setItem("deposit_requests", JSON.stringify(updated));
-
     if (status === "approved") {
       const req = requests.find((r) => r.id === id);
       const current = parseInt(localStorage.getItem("user_balance") || "0");
@@ -28,7 +27,9 @@ const DepositRequests = () => {
     }
   };
 
-  const filtered = requests.filter((r) => filter === "all" ? true : r.status === filter);
+  const filtered = requests.filter((r) =>
+    filter === "all" ? true : r.status === filter
+  );
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   return (
@@ -36,7 +37,10 @@ const DepositRequests = () => {
       <div className="bg-white rounded-2xl p-4 shadow flex justify-between items-center">
         <div>
           <h3 className="font-black text-indigo-700 text-base">💰 Deposit Requests</h3>
-          <p className="text-xs text-gray-400">মোট: {requests.length} | Pending: <span className="text-orange-500 font-bold">{pendingCount}</span></p>
+          <p className="text-xs text-gray-400">
+            মোট: {requests.length} | Pending:{" "}
+            <span className="text-orange-500 font-bold">{pendingCount}</span>
+          </p>
         </div>
         {pendingCount > 0 && (
           <span className="bg-orange-500 text-white text-xs font-black px-3 py-1 rounded-full animate-pulse">
@@ -75,9 +79,11 @@ const DepositRequests = () => {
         <div
           key={req.id}
           className={`rounded-2xl p-4 shadow border ${
-            req.status === "pending"  ? "bg-yellow-50 border-yellow-200"
-            : req.status === "approved" ? "bg-green-50 border-green-200"
-            : "bg-red-50 border-red-200"
+            req.status === "pending"
+              ? "bg-yellow-50 border-yellow-200"
+              : req.status === "approved"
+              ? "bg-green-50 border-green-200"
+              : "bg-red-50 border-red-200"
           }`}
         >
           <div className="flex justify-between items-start mb-3">
@@ -87,11 +93,17 @@ const DepositRequests = () => {
               <p className="text-[10px] text-gray-400 mt-0.5">{req.time}</p>
             </div>
             <span className={`text-xs font-black px-3 py-1 rounded-full ${
-              req.status === "pending"  ? "bg-yellow-100 text-yellow-700"
-              : req.status === "approved" ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
+              req.status === "pending"
+                ? "bg-yellow-100 text-yellow-700"
+                : req.status === "approved"
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
             }`}>
-              {req.status === "pending" ? "⏳ Pending" : req.status === "approved" ? "✅ Approved" : "❌ Rejected"}
+              {req.status === "pending"
+                ? "⏳ Pending"
+                : req.status === "approved"
+                ? "✅ Approved"
+                : "❌ Rejected"}
             </span>
           </div>
 
@@ -145,29 +157,72 @@ const AdminDashboard = ({ onBack }) => {
     { id: "users",     label: "Users",     icon: "👥" },
   ];
 
-  const requests       = JSON.parse(localStorage.getItem("deposit_requests") || "[]");
-  const pendingCount   = requests.filter((r) => r.status === "pending").length;
+  const requests     = JSON.parse(localStorage.getItem("deposit_requests") || "[]");
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
+
+  // ── api helper ──────────────────────────────────────────────
+  // Vite .env থেকে URL নেবে, না থাকলে localhost
+  const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+  const api = async (path, method = "GET", body = null) => {
+    const token =
+      localStorage.getItem("adminToken") ||
+      localStorage.getItem("token") ||
+      "";
+
+    const options = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    };
+
+    // path = "/admin/payment-numbers"
+    // URL  = http://localhost:5000/api/admin/payment-numbers
+    const res = await fetch(`${BASE_URL}/api${path}`, options);
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData?.message || `HTTP ${res.status}`);
+    }
+
+    return res.json();
+  };
 
   const renderContent = () => {
     switch (tab) {
       case "deposits":
         return <DepositRequests />;
       case "numbers":
-        return <PaymentNumberManager />;
+        return <PaymentNumbers api={api} />;
       case "withdraws":
-        return <div className="bg-white rounded-2xl p-8 text-center shadow"><p className="text-gray-400 font-bold">🏧 Coming Soon</p></div>;
+        return (
+          <div className="bg-white rounded-2xl p-8 text-center shadow">
+            <p className="text-gray-400 font-bold">🏧 Coming Soon</p>
+          </div>
+        );
       case "matches":
-        return <div className="bg-white rounded-2xl p-8 text-center shadow"><p className="text-gray-400 font-bold">🎮 Coming Soon</p></div>;
+        return (
+          <div className="bg-white rounded-2xl p-8 text-center shadow">
+            <p className="text-gray-400 font-bold">🎮 Coming Soon</p>
+          </div>
+        );
       case "users":
-        return <div className="bg-white rounded-2xl p-8 text-center shadow"><p className="text-gray-400 font-bold">👥 Coming Soon</p></div>;
+        return (
+          <div className="bg-white rounded-2xl p-8 text-center shadow">
+            <p className="text-gray-400 font-bold">👥 Coming Soon</p>
+          </div>
+        );
       default:
         return (
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Total Users",      value: "0",          icon: "👥" },
-              { label: "Matches",          value: "0",          icon: "🎮" },
-              { label: "Total Deposits",   value: requests.length, icon: "💰" },
-              { label: "Pending",          value: pendingCount, icon: "⏳" },
+              { label: "Total Users",    value: "0",             icon: "👥" },
+              { label: "Matches",        value: "0",             icon: "🎮" },
+              { label: "Total Deposits", value: requests.length, icon: "💰" },
+              { label: "Pending",        value: pendingCount,    icon: "⏳" },
             ].map((card) => (
               <div key={card.label} className="bg-white p-5 rounded-2xl shadow">
                 <p className="text-2xl">{card.icon}</p>
@@ -198,7 +253,9 @@ const AdminDashboard = ({ onBack }) => {
             key={item.id}
             onClick={() => setTab(item.id)}
             className={`flex-shrink-0 min-w-[80px] py-3 text-xs font-bold relative ${
-              tab === item.id ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500"
+              tab === item.id
+                ? "text-indigo-600 border-b-2 border-indigo-600"
+                : "text-gray-500"
             }`}
           >
             <div>{item.icon}</div>

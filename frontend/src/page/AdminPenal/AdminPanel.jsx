@@ -2667,6 +2667,7 @@ const AdminPanel = () => {
     users: ["Users", "Manage all users"],
     "activity-log": ["Activity log", "All admin actions"],
     "manage-admins": ["Manage admins", "Add or manage admin accounts"],
+    "payment-numbers": ["Payment Numbers", "Deposit number manage করুন"],
   };
 
   const [title, sub] = titles[page] || ["Admin", ""];
@@ -2710,6 +2711,8 @@ const AdminPanel = () => {
         {page === "users" && <Users />}
         {page === "activity-log" && <ActivityLog />}
         {page === "manage-admins" && <ManageAdmins />}
+        {page === "payment-numbers" && <PaymentNumbers />}
+
       </main>
     </div>
   );

@@ -7,12 +7,344 @@ import Withdraw from "../../page/Withdraw/Withdraw";
 import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 
+// ─── Inline MatchResults Component ────────────────────────────────────────────
+const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
+
+function getRankMeta(rank) {
+  if (rank === 1) return { icon: "🏆", text: "text-yellow-400", bg: "bg-yellow-500/20", border: "border-yellow-500/30", label: "BOOYAH!" };
+  if (rank === 2) return { icon: "🥈", text: "text-gray-300", bg: "bg-gray-500/20", border: "border-gray-400/30", label: "2nd Place" };
+  if (rank === 3) return { icon: "🥉", text: "text-orange-400", bg: "bg-orange-500/20", border: "border-orange-500/30", label: "3rd Place" };
+  return null;
+}
+
+function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt, mapName, currentUserUid }) {
+  const [tab, setTab] = useState("leaderboard");
+
+  const sorted = [...(results || [])].sort((a, b) => {
+    if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
+    return (a.rank || 999) - (b.rank || 999);
+  });
+
+  const myResult = results?.find((r) => r.uid === currentUserUid);
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      {/* Header */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/10 to-transparent pointer-events-none" />
+        <div className="px-4 pt-6 pb-4 relative z-10">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">Result Live</span>
+          </div>
+          <h1 className="text-white text-2xl font-extrabold">{matchTitle || "Match Result"}</h1>
+          <div className="flex items-center gap-3 mt-1 text-gray-500 text-xs flex-wrap">
+            {mapName && <span>🗺️ {mapName}</span>}
+            {killPrice && <><span>•</span><span>⚔️ Kill: ৳{killPrice}</span></>}
+            {publishedAt && <><span>•</span><span>{new Date(publishedAt).toLocaleDateString("en-BD")}</span></>}
+          </div>
+        </div>
+      </div>
+
+      {/* Top 3 Podium */}
+      {sorted.length >= 1 && (
+        <div className="px-4 mb-4">
+          <div className="flex items-end justify-center gap-2">
+            {sorted[1] && (
+              <div className="flex-1 bg-[#111827] border border-gray-400/20 rounded-2xl p-3 text-center pb-4">
+                <p className="text-2xl mb-1">🥈</p>
+                <p className="text-white text-xs font-bold truncate">{sorted[1].playerName}</p>
+                <p className="text-gray-400 text-[10px]">{sorted[1].kills} kills</p>
+                <p className="text-gray-200 text-sm font-black mt-1">৳{sorted[1].totalPrize}</p>
+              </div>
+            )}
+            {sorted[0] && (
+              <div className="flex-1 bg-[#111827] border border-yellow-500/30 rounded-2xl p-3 text-center pb-6 -mb-2 shadow-lg shadow-yellow-500/10">
+                <p className="text-3xl mb-1">🏆</p>
+                <p className="text-yellow-400 text-xs font-extrabold truncate">{sorted[0].playerName}</p>
+                <p className="text-gray-400 text-[10px]">{sorted[0].kills} kills</p>
+                <p className="text-yellow-400 text-base font-black mt-1">৳{sorted[0].totalPrize}</p>
+              </div>
+            )}
+            {sorted[2] && (
+              <div className="flex-1 bg-[#111827] border border-orange-500/20 rounded-2xl p-3 text-center pb-4">
+                <p className="text-2xl mb-1">🥉</p>
+                <p className="text-white text-xs font-bold truncate">{sorted[2].playerName}</p>
+                <p className="text-gray-400 text-[10px]">{sorted[2].kills} kills</p>
+                <p className="text-orange-300 text-sm font-black mt-1">৳{sorted[2].totalPrize}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="px-4 mb-3">
+        <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
+          {[{ key: "leaderboard", label: "Leaderboard" }, { key: "mine", label: "My Result" }].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Leaderboard */}
+      {tab === "leaderboard" && (
+        <div className="px-4 space-y-2">
+          {sorted.length === 0 && (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-gray-500 text-sm">No results yet</p>
+            </div>
+          )}
+          {sorted.map((player, idx) => {
+            const isMe = player.uid === currentUserUid;
+            return (
+              <div
+                key={player.uid + idx}
+                className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
+                    idx === 0 ? "bg-yellow-500/20 text-yellow-400" :
+                    idx === 1 ? "bg-gray-500/20 text-gray-300" :
+                    idx === 2 ? "bg-orange-500/20 text-orange-400" : "bg-white/5 text-gray-500"
+                  }`}>{idx + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}>{player.playerName}</p>
+                      {isMe && <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full shrink-0">YOU</span>}
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
+                      {player.rank && <span>#{player.rank} Rank</span>}
+                      <span>⚔️ {player.kills} kills</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}>
+                      {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
+                    </p>
+                    {player.totalPrize > 0 && <p className="text-[10px] text-gray-600 mt-0.5">credited</p>}
+                  </div>
+                </div>
+                {player.totalPrize > 0 && (
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    {player.rankPrize > 0 && (
+                      <span className="text-[11px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20">Rank ৳{player.rankPrize}</span>
+                    )}
+                    {player.killEarning > 0 && (
+                      <span className="text-[11px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">⚔️ {player.kills} kills ৳{player.killEarning}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* My Result */}
+      {tab === "mine" && (
+        <div className="px-4">
+          {!currentUserUid ? (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-gray-500 text-sm">Login to see your result</p>
+            </div>
+          ) : !myResult ? (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-3xl mb-3">😔</p>
+              <p className="text-white font-bold mb-1">Not in Results</p>
+              <p className="text-gray-500 text-sm">Your UID was not found in this match result</p>
+            </div>
+          ) : (
+            <div>
+              <div className={`rounded-2xl p-5 border mb-4 ${
+                myResult.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" :
+                myResult.rank === 2 ? "bg-gray-500/10 border-gray-400/30" :
+                myResult.rank === 3 ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"
+              }`}>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-gray-400 text-xs">Your IGN</p>
+                    <p className="text-white text-xl font-black">{myResult.playerName}</p>
+                  </div>
+                  {getRankMeta(myResult.rank) && (
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getRankMeta(myResult.rank).bg} ${getRankMeta(myResult.rank).text} ${getRankMeta(myResult.rank).border}`}>
+                      {getRankMeta(myResult.rank).icon} #{myResult.rank}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-white font-black text-lg">#{myResult.rank || "—"}</p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-orange-400 font-black text-lg">{myResult.kills}</p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-green-400 font-black text-lg">৳{myResult.totalPrize}</p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
+                  </div>
+                </div>
+                {myResult.totalPrize > 0 ? (
+                  <div className="bg-black/30 rounded-xl p-3">
+                    <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wider">Prize Breakdown</p>
+                    <div className="space-y-1.5">
+                      {myResult.rankPrize > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Placement Prize</span>
+                          <span className="text-yellow-400 font-bold">+৳{myResult.rankPrize}</span>
+                        </div>
+                      )}
+                      {myResult.killEarning > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">{myResult.kills} Kills × ৳{killPrice}</span>
+                          <span className="text-green-400 font-bold">+৳{myResult.killEarning}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-white/10 pt-1.5 flex justify-between">
+                        <span className="text-white font-bold text-sm">Total Credited</span>
+                        <span className="text-green-400 font-black text-base">৳{myResult.totalPrize}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-black/30 rounded-xl p-4 text-center">
+                    <p className="text-gray-500 text-sm">No prize this match. Better luck next time! 💪</p>
+                  </div>
+                )}
+              </div>
+              {myResult.totalPrize > 0 && (
+                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+                  <span className="text-green-400">✓</span>
+                  <p className="text-green-400 text-sm"><strong>৳{myResult.totalPrize}</strong> has been credited to your wallet</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Results List (all matches with results) ──────────────────────────────────
+function ResultsListPage({ onSelectResult, currentUserUid }) {
+  const [matchResults, setMatchResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:5000/api/matches/results", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setMatchResults(Array.isArray(data) ? data : data?.results || []);
+      } catch (e) {
+        // fallback: empty
+        setMatchResults([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchResults();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 text-sm">Loading results...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      <div className="px-4 pt-6 pb-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">📊 Match Results</span>
+        </div>
+        <h1 className="text-white text-2xl font-extrabold">Results</h1>
+        <p className="text-gray-500 text-xs mt-1">Tap a match to see full leaderboard</p>
+      </div>
+
+      <div className="px-4 space-y-3">
+        {matchResults.length === 0 && (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-3xl mb-3">🎮</p>
+            <p className="text-white font-bold mb-1">No Results Yet</p>
+            <p className="text-gray-500 text-sm">Results will appear here after matches end</p>
+          </div>
+        )}
+        {matchResults.map((match) => {
+          const myEntry = match.results?.find((r) => r.uid === currentUserUid);
+          return (
+            <div
+              key={match.matchId || match._id}
+              onClick={() => onSelectResult(match)}
+              className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm truncate">{match.matchTitle || `Match #${match.matchId}`}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{match.mapName || "Free Fire"} • ৳{match.killPrice}/kill</p>
+                </div>
+                <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">Published</span>
+              </div>
+
+              {/* Top 3 preview */}
+              <div className="flex gap-2 mb-3">
+                {(match.results || []).slice(0, 3).map((p, i) => (
+                  <div key={i} className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1">
+                    <span className="text-sm">{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
+                    <span className="text-white text-[11px] font-bold truncate max-w-[60px]">{p.playerName}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between">
+                {myEntry ? (
+                  <div className={`flex items-center gap-2 text-xs ${myEntry.totalPrize > 0 ? "text-green-400" : "text-gray-500"}`}>
+                    <span>You:</span>
+                    <span className="font-bold">#{myEntry.rank || "—"}</span>
+                    <span>⚔️ {myEntry.kills}</span>
+                    {myEntry.totalPrize > 0 && <span className="font-black">+৳{myEntry.totalPrize}</span>}
+                  </div>
+                ) : (
+                  <span className="text-gray-600 text-xs">You didn't participate</span>
+                )}
+                <span className="text-orange-400 text-xs font-bold">View →</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main AppDashboard ────────────────────────────────────────────────────────
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
   const [screen, setScreen] = useState("home");
   const [slide, setSlide] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [matches, setMatches] = useState([]);
+  const [selectedResult, setSelectedResult] = useState(null); // for results detail view
+
+  // Get current user uid from localStorage
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
   useEffect(() => {
     const loadMatches = async () => {
@@ -100,7 +432,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  // --- OTHER TABS ---
+  // --- SHOP TAB ---
   if (tab === "shop") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -112,6 +444,7 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
+  // --- MY MATCHES TAB ---
   if (tab === "matches") {
     return (
       <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
@@ -123,12 +456,42 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
+  // --- RESULTS TAB ---
   if (tab === "results") {
-    return (
-      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
-          📊 Results Coming Soon...
+    // Detail view
+    if (selectedResult) {
+      return (
+        <div className="max-w-[450px] mx-auto min-h-screen">
+          {/* Back button */}
+          <div className="bg-[#0a0e1a] px-4 pt-4">
+            <button
+              onClick={() => setSelectedResult(null)}
+              className="flex items-center gap-2 text-orange-400 text-sm font-bold mb-2"
+            >
+              ← Back to Results
+            </button>
+          </div>
+          <MatchResultsPage
+            matchId={selectedResult.matchId || selectedResult._id}
+            matchTitle={selectedResult.matchTitle}
+            killPrice={selectedResult.killPrice}
+            results={selectedResult.results}
+            publishedAt={selectedResult.submittedAt || selectedResult.publishedAt}
+            mapName={selectedResult.mapName}
+            currentUserUid={currentUserUid}
+          />
+          <BottomMenu tab={tab} setTab={(t) => { setTab(t); setSelectedResult(null); }} />
         </div>
+      );
+    }
+
+    // List view
+    return (
+      <div className="max-w-[450px] mx-auto min-h-screen">
+        <ResultsListPage
+          onSelectResult={(match) => setSelectedResult(match)}
+          currentUserUid={currentUserUid}
+        />
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
@@ -143,10 +506,8 @@ const AppDashboard = ({ onLogout }) => {
           title={selectedCategory}
           onBack={() => setScreen("home")}
           onJoinSuccess={(matchId, newBalance) => {
-            // balance update
             const user = JSON.parse(localStorage.getItem("user") || "{}");
             localStorage.setItem("user", JSON.stringify({ ...user, balance: newBalance }));
-            // joinedPlayers বাড়াও
             setMatches((prev) =>
               prev.map((m) =>
                 m._id === matchId
