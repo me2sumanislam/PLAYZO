@@ -30,7 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 // ================= RATE LIMITING =================
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max:100,
   message: { message: "অনেকবার চেষ্টা করেছেন। ১৫ মিনিট পর আবার চেষ্টা করুন।" },
   standardHeaders: true,
   legacyHeaders: false,
