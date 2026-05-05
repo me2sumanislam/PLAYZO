@@ -1389,302 +1389,251 @@ const Users = () => {
 };
 
 // ─── MATCH RESULTS ────────────────────────────────────────────────────────────
+  // ─── MATCH RESULTS (NEW + IMPROVED) ───────────────────────────────────────────
 const MatchResults = () => {
   const [matches, setMatches] = useState([]);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [results, setResults] = useState([]);
   const [roomData, setRoomData] = useState({});
-  const [winner, setWinner] = useState({});
-  const [msg, setMsg] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({});
 
-  const load = useCallback(() => {
+  const prizeConfig = {
+    first: 60,
+    second: 40,
+    third: 20,
+    perKill: 5,
+  };
+
+  const loadMatches = useCallback(() => {
     api("/matches")
       .then((d) => {
-        setMatches(
-          Array.isArray(d)
-            ? d
-            : Array.isArray(d?.data)
-              ? d.data
-              : Array.isArray(d?.matches)
-                ? d.matches
-                : [],
-        );
+        const data = Array.isArray(d) ? d : d?.data || d?.matches || [];
+        setMatches(data);
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadMatches();
+  }, [loadMatches]);
 
+  // Add Player
+  const addPlayerResult = () => {
+    setResults([...results, { 
+      userId: '', 
+      username: '', 
+      position: '', 
+      kills: 0 
+    }]);
+  };
+
+  const handleResultChange = (index, field, value) => {
+    const newResults = [...results];
+    newResults[index][field] = value;
+    setResults(newResults);
+  };
+
+  const removePlayer = (index) => {
+    setResults(results.filter((_, i) => i !== index));
+  };
+
+  const calculatePrize = (position, kills) => {
+    let prize = (kills || 0) * prizeConfig.perKill;
+    if (position == 1) prize += prizeConfig.first;
+    else if (position == 2) prize += prizeConfig.second;
+    else if (position == 3) prize += prizeConfig.third;
+    return Math.floor(prize);
+  };
+
+  // Update Room
   const updateRoom = async (id) => {
     const d = await api(`/matches/update-room/${id}`, {
       method: "PUT",
       body: JSON.stringify(roomData[id] || {}),
     });
-    setMsg((p) => ({
+    setMessage((p) => ({
       ...p,
-      [id]: d.success ? "✅ Room updated!" : "❌ Failed",
+      [id]: d.success ? "✅ Room Updated!" : "❌ Failed",
     }));
-    if (d.success) load();
+    if (d.success) loadMatches();
   };
 
-  const submitResult = async (matchId) => {
-    const w = winner[matchId];
-    if (!w) return alert("Winner phone / name দিন");
-    const d = await api(`/admin/matches/${matchId}/result`, {
-      method: "PUT",
-      body: JSON.stringify({ winner: w }),
-    });
-    setMsg((p) => ({ ...p, [matchId]: d.message || "Result saved!" }));
+  // Submit Full Result
+  const submitResult = async () => {
+    if (!selectedMatch) return alert("Match সিলেক্ট করুন");
+    if (results.length === 0) return alert("কমপক্ষে ১ জন প্লেয়ার যোগ করুন");
+
+    setLoading(true);
+
+    try {
+      const payload = {
+        matchId: selectedMatch._id,
+        results: results.map(r => ({
+          ...r,
+          prize: calculatePrize(r.position, r.kills)
+        }))
+      };
+
+      const response = await api("/matches/result", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (response.success) {
+        alert("✅ রেজাল্ট সাবমিট হয়েছে এবং প্রাইজ ডিস্ট্রিবিউট হয়েছে!");
+        setResults([]);
+        setSelectedMatch(null);
+        loadMatches();
+      } else {
+        alert(response.message || "Failed to submit");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server Error");
+    }
+    setLoading(false);
   };
 
   return (
-    <div
-      style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}
-    >
-      {matches.length === 0 && (
-        <p
-          style={{
-            fontSize: 13,
-            color: "#9ca3af",
-            textAlign: "center",
-            padding: 40,
+    <div style={{ padding: 24 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>
+        Match Result Submit & Prize Distribution
+      </h1>
+
+      {/* Match Selection */}
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+          Select Match
+        </label>
+        <select
+          onChange={(e) => {
+            const match = matches.find(m => m._id === e.target.value);
+            setSelectedMatch(match);
+            setResults([]);
+          }}
+          style={{ 
+            width: "100%", 
+            maxWidth: 600, 
+            padding: 14, 
+            borderRadius: 8, 
+            border: "1px solid #ccc",
+            fontSize: 16 
           }}
         >
-          No matches found
-        </p>
-      )}
-      {matches.map((m) => (
-        <div
-          key={m._id}
-          style={{
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 14,
-            padding: 20,
-          }}
-        >
-          {/* Match Info */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 16,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
-                {m.title}
-              </div>
-              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 3 }}>
-                {m.category?.toUpperCase()} · {m.joinedPlayers || 0}/
-                {m.totalPlayers} players · Prize Pool: {fmt(m.winPrize)}
-              </div>
-              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-                Start:{" "}
-                {m.startTime ? new Date(m.startTime).toLocaleString() : "—"}
-              </div>
-            </div>
-            <Badge
-              color={
-                m.status === "live"
-                  ? "green"
-                  : m.status === "completed"
-                    ? "gray"
-                    : "blue"
-              }
-            >
-              {m.status || "upcoming"}
-            </Badge>
-          </div>
+          <option value="">-- Select Match --</option>
+          {matches.map(m => (
+            <option key={m._id} value={m._id}>
+              {m.title} • {m.status} • {m.joinedPlayers || 0}/{m.totalPlayers}
+            </option>
+          ))}
+        </select>
+      </div>
 
-          {/* ── Room ID & Password ── */}
-          <div
-            style={{
-              background: "#f0f9ff",
-              border: "1px solid #bae6fd",
-              borderRadius: 10,
-              padding: 14,
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#0369a1",
-                marginBottom: 10,
-              }}
-            >
-              🔑 Room Details (user দেখতে পাবে)
-            </div>
+      {selectedMatch && (
+        <div style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 24,
+        }}>
+          <h2 style={{ marginBottom: 20 }}>Match: {selectedMatch.title}</h2>
 
-            {/* Current room info */}
-            {m.roomId && (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#0369a1",
-                  marginBottom: 8,
-                  background: "#e0f2fe",
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                }}
-              >
-                Current → ID: <b>{m.roomId}</b> | Pass:{" "}
-                <b>{m.roomPassword || "—"}</b>
-              </div>
-            )}
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 10,
-                marginBottom: 10,
-              }}
-            >
+          {/* Room Update Section */}
+          <div style={{
+            background: "#f0f9ff",
+            border: "1px solid #bae6fd",
+            borderRadius: 10,
+            padding: 16,
+            marginBottom: 20,
+          }}>
+            <h3 style={{ marginBottom: 12, color: "#0369a1" }}>🔑 Room Details</h3>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#0369a1", marginBottom: 3 }}
-                >
-                  Room ID
-                </div>
+                <div style={{ fontSize: 12, marginBottom: 4 }}>Room ID</div>
                 <input
-                  placeholder="Room ID দিন"
-                  defaultValue={m.roomId || ""}
-                  onChange={(e) =>
-                    setRoomData((p) => ({
-                      ...p,
-                      [m._id]: { ...p[m._id], roomId: e.target.value },
-                    }))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    border: "1px solid #bae6fd",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
+                  placeholder="Room ID"
+                  defaultValue={selectedMatch.roomId || ""}
+                  onChange={(e) => setRoomData(p => ({...p, [selectedMatch._id]: {...p[selectedMatch._id], roomId: e.target.value}}))}
+                  style={{ width: "100%", padding: 10, borderRadius: 6, border: "1px solid #bae6fd" }}
                 />
               </div>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#0369a1", marginBottom: 3 }}
-                >
-                  Room Password
-                </div>
+                <div style={{ fontSize: 12, marginBottom: 4 }}>Password</div>
                 <input
-                  placeholder="Password দিন"
-                  defaultValue={m.roomPassword || ""}
-                  onChange={(e) =>
-                    setRoomData((p) => ({
-                      ...p,
-                      [m._id]: { ...p[m._id], roomPassword: e.target.value },
-                    }))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    border: "1px solid #bae6fd",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
+                  placeholder="Room Password"
+                  defaultValue={selectedMatch.roomPassword || ""}
+                  onChange={(e) => setRoomData(p => ({...p, [selectedMatch._id]: {...p[selectedMatch._id], roomPassword: e.target.value}}))}
+                  style={{ width: "100%", padding: 10, borderRadius: 6, border: "1px solid #bae6fd" }}
                 />
               </div>
             </div>
+
             <button
-              onClick={() => updateRoom(m._id)}
-              style={{
-                width: "100%",
-                padding: "9px",
-                background: "#0284c7",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              onClick={() => updateRoom(selectedMatch._id)}
+              style={{ width: "100%", padding: 10, background: "#0284c7", color: "white", border: "none", borderRadius: 8 }}
             >
-              🔑 Update Room Details
+              Update Room Details
             </button>
           </div>
 
-          {/* ── Winner ── */}
-          <div
-            style={{
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
+          {/* Result Input Section */}
+          <h3 style={{ marginBottom: 12 }}>🏆 Player Results</h3>
+          
+          <button 
+            onClick={addPlayerResult}
+            style={{ padding: "10px 20px", background: "#3b82f6", color: "white", border: "none", borderRadius: 8, marginBottom: 16 }}
+          >
+            + Add Player
+          </button>
+
+          {results.map((res, index) => (
+            <div key={index} style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 120px 100px 110px 50px",
+              gap: 10,
+              background: "#f9fafb",
+              padding: 16,
               borderRadius: 10,
-              padding: 14,
+              marginBottom: 12,
+              alignItems: "center"
+            }}>
+              <input placeholder="Username" value={res.username} onChange={(e) => handleResultChange(index, 'username', e.target.value)} style={{ padding: 10, borderRadius: 6 }} />
+              <input placeholder="User ID" value={res.userId} onChange={(e) => handleResultChange(index, 'userId', e.target.value)} style={{ padding: 10, borderRadius: 6 }} />
+              <select value={res.position} onChange={(e) => handleResultChange(index, 'position', e.target.value)} style={{ padding: 10, borderRadius: 6 }}>
+                <option value="">Position</option>
+                <option value="1">1st</option>
+                <option value="2">2nd</option>
+                <option value="3">3rd</option>
+                <option value="4">4th</option>
+                <option value="5+">5+</option>
+              </select>
+              <input type="number" placeholder="Kills" value={res.kills} onChange={(e) => handleResultChange(index, 'kills', parseInt(e.target.value)||0)} style={{ padding: 10, borderRadius: 6 }} />
+              <div style={{ fontWeight: 700, color: "#16a34a", fontSize: 17 }}>৳{calculatePrize(res.position, res.kills)}</div>
+              <button onClick={() => removePlayer(index)} style={{ color: "red" }}>✕</button>
+            </div>
+          ))}
+
+          <button
+            onClick={submitResult}
+            disabled={loading || results.length === 0}
+            style={{
+              marginTop: 20,
+              width: "100%",
+              padding: 16,
+              background: loading ? "#9ca3af" : "#22c55e",
+              color: "white",
+              border: "none",
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 600
             }}
           >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#15803d",
-                marginBottom: 10,
-              }}
-            >
-              🏆 Winner Set করুন (prize automatically যাবে)
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                placeholder="Winner phone / name"
-                value={winner[m._id] || ""}
-                onChange={(e) =>
-                  setWinner((p) => ({ ...p, [m._id]: e.target.value }))
-                }
-                style={{
-                  flex: 1,
-                  padding: "8px 10px",
-                  border: "1px solid #bbf7d0",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  outline: "none",
-                }}
-              />
-              <button
-                onClick={() => submitResult(m._id)}
-                style={{
-                  padding: "8px 16px",
-                  background: "#15803d",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Save ✅
-              </button>
-            </div>
-          </div>
-
-          {/* Message */}
-          {msg[m._id] && (
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 12,
-                padding: "6px 10px",
-                borderRadius: 6,
-                background: msg[m._id].startsWith("✅") ? "#d1fae5" : "#dbeafe",
-                color: msg[m._id].startsWith("✅") ? "#065f46" : "#1e40af",
-              }}
-            >
-              {msg[m._id]}
-            </div>
-          )}
+            {loading ? "Submitting..." : "Submit Result & Distribute Prize"}
+          </button>
         </div>
-      ))}
+      )}
     </div>
   );
 };
