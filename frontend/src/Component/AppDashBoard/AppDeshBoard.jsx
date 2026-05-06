@@ -6,7 +6,7 @@ import MatchList from "../../page/MatchList/MatchList";
 import Withdraw from "../../page/Withdraw/Withdraw";
 import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
-
+import MyMatch from "../../page/MyMatch/MyMatch";
 // ─── Inline MatchResults Component ────────────────────────────────────────────
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
@@ -445,16 +445,14 @@ const AppDashboard = ({ onLogout }) => {
   }
 
   // --- MY MATCHES TAB ---
-  if (tab === "matches") {
-    return (
-      <div className="bg-white min-h-screen max-w-[450px] mx-auto pb-24">
-        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
-          📋 My Matches Coming Soon...
-        </div>
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
+   if (tab === "matches") {
+  return (
+    <div className="max-w-[450px] mx-auto min-h-screen">
+      <MyMatch />
+      <BottomMenu tab={tab} setTab={setTab} />
+    </div>
+  );
+}
 
   // --- RESULTS TAB ---
   if (tab === "results") {
