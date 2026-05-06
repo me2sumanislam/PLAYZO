@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from "react";
 
-const API = "http://localhost:5000/api/wallet"; // আপনার backend URL
+const API = "http://localhost:5000/api/wallet";
 
 const DepositRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -9,7 +9,7 @@ const DepositRequests = () => {
 
   const loadRequests = async () => {
     try {
-      const res = await fetch(`${API}/deposits`);
+      const res = await fetch(`${API}/deposits?status=all`); // ✅ সব আনো
       const data = await res.json();
       setRequests(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -19,7 +19,7 @@ const DepositRequests = () => {
 
   useEffect(() => {
     loadRequests();
-    const interval = setInterval(loadRequests, 5000); // প্রতি ৫ সেকেন্ডে refresh
+    const interval = setInterval(loadRequests, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -33,19 +33,16 @@ const DepositRequests = () => {
       });
       const data = await res.json();
       alert(data.message);
-      loadRequests(); // refresh list
+      loadRequests();
     } catch (err) {
       alert("Error: " + err.message);
     }
     setLoading(false);
   };
 
-  // pending ছাড়া বাকিগুলো দেখতে চাইলে আলাদা endpoint লাগবে
-  // এখন filter "pending" এ শুধু backend data, বাকিগুলো local
+  // ✅ সঠিক filter
   const filtered =
-    filter === "pending"
-      ? requests
-      : requests.filter((r) => r.status === filter);
+    filter === "all" ? requests : requests.filter((r) => r.status === filter);
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
@@ -72,10 +69,10 @@ const DepositRequests = () => {
       {/* Filter Tabs */}
       <div className="flex gap-2">
         {[
-          { id: "pending", label: "⏳ Pending" },
+          { id: "pending",  label: "⏳ Pending"  },
           { id: "approved", label: "✅ Approved" },
           { id: "rejected", label: "❌ Rejected" },
-          { id: "all", label: "📋 সব" },
+          { id: "all",      label: "📋 সব"       },
         ].map((f) => (
           <button
             key={f.id}
@@ -117,7 +114,13 @@ const DepositRequests = () => {
             {/* Info */}
             <div className="flex justify-between items-start mb-3">
               <div>
-                <p className="font-black text-sm">👤 {req.userId || "Guest"}</p>
+                {/* ✅ populate করা name/phone দেখাবে */}
+                <p className="font-black text-sm">
+                  👤 {req.userId?.name || req.userId?.phone || "Guest"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {req.userId?.phone || ""}
+                </p>
                 <p className="text-[10px] text-gray-400 mt-0.5">
                   {new Date(req.createdAt).toLocaleString("bn-BD")}
                 </p>

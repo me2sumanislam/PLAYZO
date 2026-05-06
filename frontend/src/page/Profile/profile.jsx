@@ -2,7 +2,7 @@
 import axios from "axios";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
 import Withdraw from "../../page/withdraw/Withdraw";
-import BuildYourApp from "../../page/BuildYourApp/BuildYourApp"; // নতুন import
+import BuildYourApp from "../../page/BuildYourApp/BuildYourApp";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -15,6 +15,7 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
 
+  // ✅ modal close এর জন্য
   const fetchBalance = async () => {
     try {
       const res = await axios.get(`${API}/api/users/balance`, {
@@ -26,8 +27,27 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
     }
   };
 
+  // ✅ auto-refresh — প্রতি ৫ সেকেন্ডে balance update
   useEffect(() => {
-    fetchBalance();
+    let cancelled = false;
+
+    const getBalance = async () => {
+      try {
+        const res = await axios.get(`${API}/api/users/balance`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) setBalance(res.data.balance || 0);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    getBalance();
+    const interval = setInterval(getBalance, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const menuItems = [

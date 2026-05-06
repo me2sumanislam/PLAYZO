@@ -1,35 +1,63 @@
  import React, { useState, useEffect } from "react";
 import PaymentNumbers from "../../Component/PaymentNumberManager/paymentNumberManager";
 
-// DepositRequests component
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+// ✅ DepositRequests — API থেকে data নেয়
 const DepositRequests = () => {
   const [requests, setRequests] = useState([]);
-  const [filter, setFilter] = useState("pending");
+  const [filter, setFilter]     = useState("pending");
+  const [loading, setLoading]   = useState(false);
 
-  useEffect(() => {
-    const load = () => {
-      const data = JSON.parse(localStorage.getItem("deposit_requests") || "[]");
-      setRequests(data);
-    };
-    load();
-    const interval = setInterval(load, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  const token =
+    localStorage.getItem("adminToken") ||
+    localStorage.getItem("token") ||
+    "";
 
-  const updateStatus = (id, status) => {
-    const updated = requests.map((r) => (r.id === id ? { ...r, status } : r));
-    setRequests(updated);
-    localStorage.setItem("deposit_requests", JSON.stringify(updated));
-    if (status === "approved") {
-      const req = requests.find((r) => r.id === id);
-      const current = parseInt(localStorage.getItem("user_balance") || "0");
-      localStorage.setItem("user_balance", String(current + parseInt(req.amount)));
+  const loadRequests = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/wallet/deposits?status=all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setRequests(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Load error:", err);
     }
   };
 
-  const filtered = requests.filter((r) =>
-    filter === "all" ? true : r.status === filter
-  );
+  useEffect(() => {
+    loadRequests();
+    const interval = setInterval(loadRequests, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateStatus = async (id, status) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/wallet/deposit/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        loadRequests();
+      } else {
+        alert(data.message || "কিছু একটা সমস্যা হয়েছে!");
+      }
+    } catch (err) {
+      alert("Server error!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered     = requests.filter((r) => filter === "all" ? true : r.status === filter);
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   return (
@@ -77,7 +105,7 @@ const DepositRequests = () => {
 
       {filtered.slice().reverse().map((req) => (
         <div
-          key={req.id}
+          key={req._id}
           className={`rounded-2xl p-4 shadow border ${
             req.status === "pending"
               ? "bg-yellow-50 border-yellow-200"
@@ -88,9 +116,11 @@ const DepositRequests = () => {
         >
           <div className="flex justify-between items-start mb-3">
             <div>
-              <p className="font-black text-sm">👤 {req.user}</p>
-              <p className="text-xs text-gray-500">{req.phone}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">{req.time}</p>
+              <p className="font-black text-sm">👤 {req.userId?.name || "Unknown"}</p>
+              <p className="text-xs text-gray-500">{req.userId?.phone || ""}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {new Date(req.createdAt).toLocaleString("bn-BD")}
+              </p>
             </div>
             <span className={`text-xs font-black px-3 py-1 rounded-full ${
               req.status === "pending"
@@ -125,14 +155,16 @@ const DepositRequests = () => {
           {req.status === "pending" && (
             <div className="flex gap-2">
               <button
-                onClick={() => updateStatus(req.id, "approved")}
-                className="flex-1 bg-green-500 text-white py-2.5 rounded-xl text-sm font-black"
+                onClick={() => updateStatus(req._id, "approved")}
+                disabled={loading}
+                className="flex-1 bg-green-500 text-white py-2.5 rounded-xl text-sm font-black disabled:opacity-50"
               >
                 ✅ Approve
               </button>
               <button
-                onClick={() => updateStatus(req.id, "rejected")}
-                className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-black"
+                onClick={() => updateStatus(req._id, "rejected")}
+                disabled={loading}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-black disabled:opacity-50"
               >
                 ❌ Reject
               </button>
@@ -157,12 +189,22 @@ const AdminDashboard = ({ onBack }) => {
     { id: "users",     label: "Users",     icon: "👥" },
   ];
 
-  const requests     = JSON.parse(localStorage.getItem("deposit_requests") || "[]");
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const [requests, setRequests] = useState([]);
 
-  // ── api helper ──────────────────────────────────────────────
-  // Vite .env থেকে URL নেবে, না থাকলে localhost
-  const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  useEffect(() => {
+    const token =
+      localStorage.getItem("adminToken") ||
+      localStorage.getItem("token") ||
+      "";
+    fetch(`${BASE_URL}/api/wallet/deposits?status=pending`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setRequests(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, [tab]);
+
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   const api = async (path, method = "GET", body = null) => {
     const token =
@@ -179,8 +221,6 @@ const AdminDashboard = ({ onBack }) => {
       ...(body ? { body: JSON.stringify(body) } : {}),
     };
 
-    // path = "/admin/payment-numbers"
-    // URL  = http://localhost:5000/api/admin/payment-numbers
     const res = await fetch(`${BASE_URL}/api${path}`, options);
 
     if (!res.ok) {
@@ -219,10 +259,10 @@ const AdminDashboard = ({ onBack }) => {
         return (
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Total Users",    value: "0",             icon: "👥" },
-              { label: "Matches",        value: "0",             icon: "🎮" },
+              { label: "Total Users",    value: "0",            icon: "👥" },
+              { label: "Matches",        value: "0",            icon: "🎮" },
               { label: "Total Deposits", value: requests.length, icon: "💰" },
-              { label: "Pending",        value: pendingCount,    icon: "⏳" },
+              { label: "Pending",        value: pendingCount,   icon: "⏳" },
             ].map((card) => (
               <div key={card.label} className="bg-white p-5 rounded-2xl shadow">
                 <p className="text-2xl">{card.icon}</p>
