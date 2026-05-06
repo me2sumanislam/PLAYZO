@@ -3,13 +3,9 @@ const router  = express.Router();
 const Deposit = require("../models/Deposit");
 const User    = require("../models/User");
 
-// ══════════════════════════════════════════════════════
-// POST /api/wallet/deposit
-// User deposit submit করে
-// ══════════════════════════════════════════════════════
 router.post("/deposit", async (req, res) => {
   try {
-    const { method, amount, trxId, userId } = req.body;
+    const { method, amount, trxId, userId, paymentNumber } = req.body;
 
     if (!method || !amount || !trxId) {
       return res.status(400).json({
@@ -19,10 +15,12 @@ router.post("/deposit", async (req, res) => {
     }
 
     const deposit = await Deposit.create({
-      method: method, // ✅ fix
+      method,
       amount: Number(amount),
       trxId,
+      paymentNumber: paymentNumber || null,
       userId: userId || null,
+      status: "pending",
     });
 
     res.json({ success: true, deposit });
@@ -31,28 +29,19 @@ router.post("/deposit", async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════
-// GET /api/wallet/deposits
-// Admin — সব pending deposit দেখে
-// ══════════════════════════════════════════════════════
 router.get("/deposits", async (req, res) => {
   try {
-    const deposits = await Deposit.find({ status: "pending" })
-      .sort({ createdAt: -1 });
-
+    const { status } = req.query;
+    const filter = status && status !== "all" ? { status } : {};
+    const deposits = await Deposit.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("userId", "name phone");
     res.json(deposits);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// ══════════════════════════════════════════════════════
-// PATCH /api/wallet/deposit/:id
-// Admin — approve বা reject করে
-//
-// ✅ approve → User.balance += deposit.amount
-// ❌ reject  → balance change হয় না
-// ══════════════════════════════════════════════════════
 router.patch("/deposit/:id", async (req, res) => {
   try {
     const { status } = req.body;
@@ -64,7 +53,6 @@ router.patch("/deposit/:id", async (req, res) => {
       });
     }
 
-    // ১. Deposit খোঁজো
     const deposit = await Deposit.findById(req.params.id);
     if (!deposit) {
       return res.status(404).json({
@@ -73,7 +61,6 @@ router.patch("/deposit/:id", async (req, res) => {
       });
     }
 
-    // ২. Already processed কিনা চেক
     if (deposit.status !== "pending") {
       return res.status(400).json({
         success: false,
@@ -81,11 +68,9 @@ router.patch("/deposit/:id", async (req, res) => {
       });
     }
 
-    // ৩. Status update
     deposit.status = status;
     await deposit.save();
 
-    // ৪. Approve হলে → User এর balance বাড়াও
     if (status === "approved" && deposit.userId) {
       const user = await User.findByIdAndUpdate(
         deposit.userId,
@@ -103,9 +88,7 @@ router.patch("/deposit/:id", async (req, res) => {
 
     res.json({
       success: true,
-      message: status === "approved"
-        ? "✅ Approved!"
-        : "❌ Rejected",
+      message: status === "approved" ? "✅ Approved!" : "❌ Rejected",
       deposit,
     });
   } catch (err) {

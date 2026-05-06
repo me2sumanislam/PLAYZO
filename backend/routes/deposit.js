@@ -1,42 +1,14 @@
- const express = require("express");
+ // routes/deposit.js
+const express = require("express");
 const router = express.Router();
 const Deposit = require("../models/Deposit");
+const User = require("../models/User");   // ← এটা import করো
 
-// ✅ User — deposit request পাঠাবে
-router.post("/deposit", async (req, res) => {
-  try {
-    const { method, amount, trxId, userId, paymentNumber } = req.body;
+// POST /deposit (আগেরটা ঠিক আছে)
 
-    const deposit = await Deposit.create({
-      method,
-      amount: Number(amount),
-      trxId,
-      paymentNumber: paymentNumber || null,
-      userId: userId || null,
-      status: "pending",
-    });
+// GET /deposits (আগেরটা ঠিক আছে)
 
-    res.json({ success: true, data: deposit });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ✅ Admin — সব deposit দেখবে (filter by status)
-router.get("/deposits", async (req, res) => {
-  try {
-    const { status } = req.query;
-    const filter = status ? { status } : {};
-    const data = await Deposit.find(filter)
-      .sort({ createdAt: -1 })
-      .populate("userId", "name phone email");
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ✅ Admin — approve / reject করবে
+// PATCH /deposit/:id
 router.patch("/deposit/:id", async (req, res) => {
   try {
     const { status } = req.body;
@@ -45,22 +17,52 @@ router.patch("/deposit/:id", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid status" });
     }
 
-    const deposit = await Deposit.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const deposit = await Deposit.findById(req.params.id).populate("userId");
 
     if (!deposit) {
       return res.status(404).json({ success: false, message: "Deposit not found" });
     }
 
-    res.json({
-      success: true,
-      message: `Deposit ${status} সফলভাবে!`,
-      data: deposit,
-    });
+    if (deposit.status !== "pending") {
+      return res.status(400).json({ success: false, message: "Already processed" });
+    }
+
+    // ==================== APPROVE লজিক ====================
+    if (status === "approved") {
+      if (!deposit.userId) {
+        return res.status(400).json({ success: false, message: "User not found in deposit" });
+      }
+
+      // User এর ব্যালেন্স আপডেট
+      await User.findByIdAndUpdate(
+        deposit.userId._id || deposit.userId,
+        { $inc: { balance: deposit.amount } }
+      );
+
+      // Deposit এর status আপডেট
+      deposit.status = "approved";
+      await deposit.save();
+
+      return res.json({
+        success: true,
+        message: "Deposit approved and balance updated successfully!",
+        data: deposit
+      });
+    } 
+    // ==================== REJECT লজিক ====================
+    else {
+      deposit.status = "rejected";
+      await deposit.save();
+
+      return res.json({
+        success: true,
+        message: "Deposit rejected",
+        data: deposit
+      });
+    }
+
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

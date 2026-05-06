@@ -30,7 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 // ================= RATE LIMITING =================
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max:100,
+  max: 100,
   message: { message: "অনেকবার চেষ্টা করেছেন। ১৫ মিনিট পর আবার চেষ্টা করুন।" },
   standardHeaders: true,
   legacyHeaders: false,
@@ -54,9 +54,7 @@ app.use("/api/matches",               require("./routes/matchRoutes"));
 app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
 app.use("/api/admin",                 authLimiter, require("./routes/adminAuthRoutes"));
 app.use("/api/admin",                 require("./routes/admin"));
-app.use("/api/wallet",                require("./routes/walletRoutes"));
-app.use("/api/wallet",                require("./routes/deposit"));
-app.use("/api/admin",                 require("./routes/deposit"));
+app.use("/api/wallet",                require("./routes/walletRoutes")); // ✅ শুধু এটা
 app.use("/api/payment-numbers",       require("./routes/paymentNumbers"));
 app.use("/admin/payment-numbers",     require("./routes/paymentNumbers"));
 app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
