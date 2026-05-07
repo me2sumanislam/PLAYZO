@@ -1389,49 +1389,61 @@ const Users = () => {
 };
 
 // ─── MATCH RESULTS ────────────────────────────────────────────────────────────
-  // ─── MATCH RESULTS (NEW + IMPROVED) ───────────────────────────────────────────
-const MatchResults = () => {
-  const [matches, setMatches] = useState([]);
+   const MatchResults = () => {
+  const [matches, setMatches]           = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [results, setResults] = useState([]);
-  const [roomData, setRoomData] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({});
-
-  const prizeConfig = {
-    first: 60,
-    second: 40,
-    third: 20,
-    perKill: 5,
-  };
+  const [players, setPlayers]           = useState([]); // ✅ joined players
+  const [results, setResults]           = useState([]);
+  const [roomData, setRoomData]         = useState({});
+  const [loading, setLoading]           = useState(false);
+  const [message, setMessage]           = useState({});
 
   const loadMatches = useCallback(() => {
-    api("/matches")
-      .then((d) => {
-        const data = Array.isArray(d) ? d : d?.data || d?.matches || [];
-        setMatches(data);
-      })
-      .catch(() => {});
+    api("/matches").then((d) => {
+      const data = Array.isArray(d) ? d : d?.data || [];
+      setMatches(data.filter((m) => m.status !== "completed"));
+    });
   }, []);
 
-  useEffect(() => {
-    loadMatches();
-  }, [loadMatches]);
+  useEffect(() => { loadMatches(); }, [loadMatches]);
 
-  // Add Player
+  // ✅ Match select করলে joinedUsers automatic load
+  const handleMatchSelect = (id) => {
+    const match = matches.find((m) => m._id === id);
+    setSelectedMatch(match || null);
+    setResults([]);
+
+    // ✅ joinedUsers থেকে players set — userId string এ convert
+    const joined = (match?.joinedUsers || []).map((p) => ({
+      ...p,
+      userId: p.userId?._id?.toString() || p.userId?.toString() || p.userId,
+    }));
+    console.log("Joined players:", joined); // debug
+    setPlayers(joined);
+  };
+
+  // ✅ Player dropdown থেকে select করলে automatic userId + inGameName
+  const handlePlayerSelect = (index, userId) => {
+    const player = players.find((p) => p.userId === userId);
+    const updated = [...results];
+    updated[index].userId    = userId;
+    updated[index].inGameName = player?.inGameName || "";
+    setResults(updated);
+  };
+
   const addPlayerResult = () => {
-    setResults([...results, { 
-      userId: '', 
-      username: '', 
-      position: '', 
-      kills: 0 
+    setResults([...results, {
+      userId: '',
+      inGameName: '',
+      position: '',
+      kills: 0,
     }]);
   };
 
   const handleResultChange = (index, field, value) => {
-    const newResults = [...results];
-    newResults[index][field] = value;
-    setResults(newResults);
+    const updated = [...results];
+    updated[index][field] = value;
+    setResults(updated);
   };
 
   const removePlayer = (index) => {
@@ -1439,12 +1451,18 @@ const MatchResults = () => {
   };
 
   const calculatePrize = (position, kills) => {
-    let prize = (kills || 0) * prizeConfig.perKill;
-    if (position == 1) prize += prizeConfig.first;
-    else if (position == 2) prize += prizeConfig.second;
-    else if (position == 3) prize += prizeConfig.third;
+    if (!selectedMatch) return 0;
+    let prize = (kills || 0) * (selectedMatch.perKill || 0);
+    if      (position == 1) prize += selectedMatch.prizes?.first  || 0;
+    else if (position == 2) prize += selectedMatch.prizes?.second || 0;
+    else if (position == 3) prize += selectedMatch.prizes?.third  || 0;
+    else if (position == 4) prize += selectedMatch.prizes?.fourth || 0;
     return Math.floor(prize);
   };
+
+  // ✅ duplicate check
+  const isAlreadyAdded = (userId, currentIndex) =>
+    results.some((r, i) => i !== currentIndex && r.userId === userId);
 
   // Update Room
   const updateRoom = async (id) => {
@@ -1459,34 +1477,41 @@ const MatchResults = () => {
     if (d.success) loadMatches();
   };
 
-  // Submit Full Result
+  // ✅ Submit Result — সঠিক route + method
   const submitResult = async () => {
-    if (!selectedMatch) return alert("Match সিলেক্ট করুন");
-    if (results.length === 0) return alert("কমপক্ষে ১ জন প্লেয়ার যোগ করুন");
+    if (!selectedMatch)       return alert("Match সিলেক্ট করুন");
+    if (results.length === 0) return alert("কমপক্ষে ১ জন প্লেয়ার যোগ করুন");
+
+    const hasEmpty = results.some((r) => !r.userId || !r.position);
+    if (hasEmpty) return alert("সব player এর position দিন");
+
+    const positions = results.map((r) => Number(r.position));
+    if (positions.length !== new Set(positions).size) {
+      return alert("একই position দুজনকে দেওয়া যাবে না");
+    }
 
     setLoading(true);
-
     try {
-      const payload = {
-        matchId: selectedMatch._id,
-        results: results.map(r => ({
-          ...r,
-          prize: calculatePrize(r.position, r.kills)
-        }))
-      };
-
-      const response = await api("/matches/result", {
-        method: "POST",
-        body: JSON.stringify(payload),
+      const response = await api(`/admin/matches/${selectedMatch._id}/result`, {
+        method: "PUT",   // ✅ POST → PUT
+        body: JSON.stringify({
+          results: results.map((r) => ({
+            userId:    r.userId,
+            inGameName: r.inGameName,
+            position:  Number(r.position),
+            kills:     Number(r.kills) || 0,
+          })),
+        }),
       });
 
       if (response.success) {
-        alert("✅ রেজাল্ট সাবমিট হয়েছে এবং প্রাইজ ডিস্ট্রিবিউট হয়েছে!");
+        alert("✅ রেজাল্ট সাবমিট হয়েছে এবং প্রাইজ ডিস্ট্রিবিউট হয়েছে!");
         setResults([]);
         setSelectedMatch(null);
+        setPlayers([]);
         loadMatches();
       } else {
-        alert(response.message || "Failed to submit");
+        alert("❌ " + (response.message || "Failed to submit"));
       }
     } catch (err) {
       console.error(err);
@@ -1507,22 +1532,15 @@ const MatchResults = () => {
           Select Match
         </label>
         <select
-          onChange={(e) => {
-            const match = matches.find(m => m._id === e.target.value);
-            setSelectedMatch(match);
-            setResults([]);
-          }}
-          style={{ 
-            width: "100%", 
-            maxWidth: 600, 
-            padding: 14, 
-            borderRadius: 8, 
-            border: "1px solid #ccc",
-            fontSize: 16 
+          onChange={(e) => handleMatchSelect(e.target.value)} // ✅ fix
+          value={selectedMatch?._id || ""}
+          style={{
+            width: "100%", maxWidth: 600, padding: 14,
+            borderRadius: 8, border: "1px solid #ccc", fontSize: 16,
           }}
         >
           <option value="">-- Select Match --</option>
-          {matches.map(m => (
+          {matches.map((m) => (
             <option key={m._id} value={m._id}>
               {m.title} • {m.status} • {m.joinedPlayers || 0}/{m.totalPlayers}
             </option>
@@ -1532,30 +1550,50 @@ const MatchResults = () => {
 
       {selectedMatch && (
         <div style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 14,
-          padding: 24,
+          background: "#fff", border: "1px solid #e5e7eb",
+          borderRadius: 14, padding: 24,
         }}>
           <h2 style={{ marginBottom: 20 }}>Match: {selectedMatch.title}</h2>
 
+          {/* ✅ Joined Players Preview */}
+          {players.length > 0 && (
+            <div style={{
+              background: "#f0fdf4", border: "1px solid #bbf7d0",
+              borderRadius: 10, padding: 16, marginBottom: 20,
+            }}>
+              <div style={{ fontWeight: 700, color: "#15803d", marginBottom: 10 }}>
+                📋 Joined Players ({players.length} জন)
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {players.map((p, i) => (
+                  <span key={i} style={{
+                    background: "#fff", border: "1px solid #86efac",
+                    borderRadius: 8, padding: "4px 10px",
+                    fontSize: 13, fontWeight: 600, color: "#166534",
+                  }}>
+                 {p.inGameName ? `${p.inGameName} — Slot #${p.slotNumber}` : `Slot #${p.slotNumber}`}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Room Update Section */}
           <div style={{
-            background: "#f0f9ff",
-            border: "1px solid #bae6fd",
-            borderRadius: 10,
-            padding: 16,
-            marginBottom: 20,
+            background: "#f0f9ff", border: "1px solid #bae6fd",
+            borderRadius: 10, padding: 16, marginBottom: 20,
           }}>
             <h3 style={{ marginBottom: 12, color: "#0369a1" }}>🔑 Room Details</h3>
-            
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 12, marginBottom: 4 }}>Room ID</div>
                 <input
                   placeholder="Room ID"
                   defaultValue={selectedMatch.roomId || ""}
-                  onChange={(e) => setRoomData(p => ({...p, [selectedMatch._id]: {...p[selectedMatch._id], roomId: e.target.value}}))}
+                  onChange={(e) => setRoomData((p) => ({
+                    ...p,
+                    [selectedMatch._id]: { ...p[selectedMatch._id], roomId: e.target.value },
+                  }))}
                   style={{ width: "100%", padding: 10, borderRadius: 6, border: "1px solid #bae6fd" }}
                 />
               </div>
@@ -1564,80 +1602,144 @@ const MatchResults = () => {
                 <input
                   placeholder="Room Password"
                   defaultValue={selectedMatch.roomPassword || ""}
-                  onChange={(e) => setRoomData(p => ({...p, [selectedMatch._id]: {...p[selectedMatch._id], roomPassword: e.target.value}}))}
+                  onChange={(e) => setRoomData((p) => ({
+                    ...p,
+                    [selectedMatch._id]: { ...p[selectedMatch._id], roomPassword: e.target.value },
+                  }))}
                   style={{ width: "100%", padding: 10, borderRadius: 6, border: "1px solid #bae6fd" }}
                 />
               </div>
             </div>
-
             <button
               onClick={() => updateRoom(selectedMatch._id)}
-              style={{ width: "100%", padding: 10, background: "#0284c7", color: "white", border: "none", borderRadius: 8 }}
+              style={{
+                width: "100%", padding: 10, background: "#0284c7",
+                color: "white", border: "none", borderRadius: 8,
+              }}
             >
               Update Room Details
             </button>
+            {message[selectedMatch._id] && (
+              <p style={{ marginTop: 8, color: "#0369a1", fontWeight: 600 }}>
+                {message[selectedMatch._id]}
+              </p>
+            )}
           </div>
 
           {/* Result Input Section */}
           <h3 style={{ marginBottom: 12 }}>🏆 Player Results</h3>
-          
-          <button 
+
+          <button
             onClick={addPlayerResult}
-            style={{ padding: "10px 20px", background: "#3b82f6", color: "white", border: "none", borderRadius: 8, marginBottom: 16 }}
+            disabled={results.length >= players.length && players.length > 0}
+            style={{
+              padding: "10px 20px", background: "#3b82f6", color: "white",
+              border: "none", borderRadius: 8, marginBottom: 16,
+              opacity: results.length >= players.length && players.length > 0 ? 0.5 : 1,
+            }}
           >
             + Add Player
           </button>
 
           {results.map((res, index) => (
             <div key={index} style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 120px 100px 110px 50px",
-              gap: 10,
-              background: "#f9fafb",
-              padding: 16,
-              borderRadius: 10,
-              marginBottom: 12,
-              alignItems: "center"
+              background: "#f9fafb", border: "1px solid #e5e7eb",
+              borderRadius: 10, padding: 16, marginBottom: 12,
             }}>
-              <input placeholder="Username" value={res.username} onChange={(e) => handleResultChange(index, 'username', e.target.value)} style={{ padding: 10, borderRadius: 6 }} />
-              <input placeholder="User ID" value={res.userId} onChange={(e) => handleResultChange(index, 'userId', e.target.value)} style={{ padding: 10, borderRadius: 6 }} />
-              <select value={res.position} onChange={(e) => handleResultChange(index, 'position', e.target.value)} style={{ padding: 10, borderRadius: 6 }}>
-                <option value="">Position</option>
-                <option value="1">1st</option>
-                <option value="2">2nd</option>
-                <option value="3">3rd</option>
-                <option value="4">4th</option>
-                <option value="5+">5+</option>
-              </select>
-              <input type="number" placeholder="Kills" value={res.kills} onChange={(e) => handleResultChange(index, 'kills', parseInt(e.target.value)||0)} style={{ padding: 10, borderRadius: 6 }} />
-              <div style={{ fontWeight: 700, color: "#16a34a", fontSize: 17 }}>৳{calculatePrize(res.position, res.kills)}</div>
-              <button onClick={() => removePlayer(index)} style={{ color: "red" }}>✕</button>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 120px 100px 110px 50px", gap: 10, alignItems: "center" }}>
+
+                {/* ✅ Player Dropdown — automatic inGameName + userId */}
+                <div>
+                  <div style={{ fontSize: 12, marginBottom: 4, color: "#6b7280" }}>Player</div>
+                  <select
+                    value={res.userId}
+                    onChange={(e) => handlePlayerSelect(index, e.target.value)}
+                    style={{ width: "100%", padding: 10, borderRadius: 6, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="">-- Select Player --</option>
+                    {players.map((p) => (
+                      <option
+                        key={p.userId}
+                        value={p.userId}
+                        disabled={isAlreadyAdded(p.userId, index)}
+                      >
+                        {p.inGameName || `Slot #${p.slotNumber}`}
+                        {isAlreadyAdded(p.userId, index) ? " ✓" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {/* ✅ selected inGameName confirm */}
+                  {res.inGameName && (
+                    <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600, marginTop: 4 }}>
+                      ✅ {res.inGameName}
+                    </div>
+                  )}
+                </div>
+
+                {/* Position */}
+                <div>
+                  <div style={{ fontSize: 12, marginBottom: 4, color: "#6b7280" }}>Position</div>
+                  <select
+                    value={res.position}
+                    onChange={(e) => handleResultChange(index, "position", e.target.value)}
+                    style={{ width: "100%", padding: 10, borderRadius: 6, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="">Pos</option>
+                    {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Kills */}
+                <div>
+                  <div style={{ fontSize: 12, marginBottom: 4, color: "#6b7280" }}>Kills</div>
+                  <input
+                    type="number" min="0"
+                    value={res.kills}
+                    onChange={(e) => handleResultChange(index, "kills", parseInt(e.target.value) || 0)}
+                    style={{ width: "100%", padding: 10, borderRadius: 6, border: "1px solid #d1d5db" }}
+                  />
+                </div>
+
+                {/* Prize Preview */}
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 12, marginBottom: 4, color: "#6b7280" }}>Prize</div>
+                  <div style={{ fontWeight: 700, color: "#16a34a", fontSize: 17 }}>
+                    ৳{calculatePrize(res.position, res.kills)}
+                  </div>
+                </div>
+
+                {/* Remove */}
+                <button
+                  onClick={() => removePlayer(index)}
+                  style={{
+                    background: "#fee2e2", border: "none", borderRadius: 6,
+                    color: "#dc2626", fontWeight: 700, padding: "8px 12px", cursor: "pointer",
+                  }}
+                >✕</button>
+              </div>
             </div>
           ))}
 
+          {/* Submit Button */}
           <button
             onClick={submitResult}
             disabled={loading || results.length === 0}
             style={{
-              marginTop: 20,
-              width: "100%",
-              padding: 16,
+              marginTop: 20, width: "100%", padding: 16,
               background: loading ? "#9ca3af" : "#22c55e",
-              color: "white",
-              border: "none",
-              borderRadius: 12,
-              fontSize: 16,
-              fontWeight: 600
+              color: "white", border: "none", borderRadius: 12,
+              fontSize: 16, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            {loading ? "Submitting..." : "Submit Result & Distribute Prize"}
+            {loading ? "Submitting..." : "✅ Submit Result & Distribute Prize"}
           </button>
         </div>
       )}
     </div>
   );
 };
-
 // ─── PAYMENT NUMBERS ──────────────────────────────────────────────────────────
 const PaymentNumbers = () => {
   const [list, setList] = useState([]);
