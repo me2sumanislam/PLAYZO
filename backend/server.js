@@ -11,6 +11,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
+const Match = require("./models/Match"); // ← যোগ হয়েছে
 
 // ================= APP CREATE =================
 const app = express();
@@ -37,7 +38,27 @@ const authLimiter = rateLimit({
 });
 
 // ================= DB =================
-connectDB();
+connectDB().then(() => {
+
+  // ──────────────────────────────────────
+  // AUTO DELETE — result submit এর পর
+  // deleteAt পার হলে match delete হবে
+  // ──────────────────────────────────────
+  setInterval(async () => {
+    try {
+      const deleted = await Match.deleteMany({
+        status: "completed",
+        deleteAt: { $lte: new Date() },
+      });
+      if (deleted.deletedCount > 0) {
+        console.log(`🗑️  ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white);
+      }
+    } catch (err) {
+      console.error("Auto delete error:", err.message);
+    }
+  }, 60 * 1000); // প্রতি ১ মিনিটে check
+
+});
 
 console.log(
   "MONGO_URI:",
@@ -54,7 +75,7 @@ app.use("/api/matches",               require("./routes/matchRoutes"));
 app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
 app.use("/api/admin",                 authLimiter, require("./routes/adminAuthRoutes"));
 app.use("/api/admin",                 require("./routes/admin"));
-app.use("/api/wallet",                require("./routes/walletRoutes")); // ✅ শুধু এটা
+app.use("/api/wallet",                require("./routes/walletRoutes"));
 app.use("/api/payment-numbers",       require("./routes/paymentNumbers"));
 app.use("/admin/payment-numbers",     require("./routes/paymentNumbers"));
 app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));

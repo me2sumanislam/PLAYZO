@@ -230,28 +230,92 @@ router.put("/users/:id/unban", authAdmin, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// MATCH RESULT
+ // ════════════════════════════════════════════════════════════
+// MATCH RESULT (UPDATED)
 // ════════════════════════════════════════════════════════════
 
 router.put("/matches/:id/result", authAdmin, async (req, res) => {
   try {
-    const { winner } = req.body;
+    const { results } = req.body;
+
     const match = await Match.findById(req.params.id);
-    if (!match) return res.json({ success: false, message: "Match not found" });
-    const user = await User.findOne({ $or: [{ _id: winner }, { name: winner }] });
-    if (!user) return res.json({ success: false, message: "Winner not found" });
-    match.status = "ended";
-    match.winner = user._id;
+    if (!match) {
+      return res.json({ success: false, message: "Match not found" });
+    }
+
+    // ✅ 🔥 RESULT DUPLICATE BLOCK (IMPORTANT)
+    if (match.results && match.results.length > 0) {
+      return res.json({ success: false, message: "Result already exists" });
+    }
+
+    // ✅ extra safety
+    if (match.status === "completed") {
+      return res.json({ success: false, message: "Result already submitted" });
+    }
+
+    const finalResults = [];
+
+    for (const r of results) {
+      // ✅ joined player check
+      const joinedPlayer = match.joinedUsers.find(
+        (p) => p.userId.toString() === r.userId
+      );
+
+      if (!joinedPlayer) continue;
+
+      // 🔥 kill prize
+      const killPrize = (r.kills || 0) * (match.perKill || 0);
+
+      // 🔥 position prize
+      let positionPrize = 0;
+
+      if (r.position === 1) positionPrize = match.prizes.first || match.winPrize;
+      else if (r.position === 2) positionPrize = match.prizes.second || 0;
+      else if (r.position === 3) positionPrize = match.prizes.third || 0;
+      else if (r.position === 4) positionPrize = match.prizes.fourth || 0;
+
+      const totalPrize = Math.floor(killPrize + positionPrize);
+
+      // ✅ wallet update
+      if (totalPrize > 0) {
+        await User.findByIdAndUpdate(r.userId, {
+          $inc: { balance: totalPrize },
+        });
+      }
+
+      // ✅ result save
+      finalResults.push({
+        userId: r.userId,
+        inGameName: joinedPlayer.inGameName,
+        position: r.position,
+        kills: r.kills,
+        prize: totalPrize,
+      });
+    }
+
+    // ✅ match update
+    match.results = finalResults;
+    match.status = "completed";
+    match.completedAt = new Date();
+
     await match.save();
-    await User.findByIdAndUpdate(user._id, { $inc: { balance: match.winPrize } });
-    log(req.admin.name, `set winner: ${user.name}, prize ৳${match.winPrize}`, match.title, "create");
-    res.json({ success: true, message: `Prize ৳${match.winPrize} sent to ${user.name}` });
+
+    log(
+      req.admin.name,
+      `submitted result for match: ${match.title}`,
+      match.title,
+      "create"
+    );
+
+    res.json({
+      success: true,
+      message: "Result submitted & balance updated ✅",
+      data: finalResults,
+    });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
-
 // ════════════════════════════════════════════════════════════
 // ACTIVITY LOG
 // ════════════════════════════════════════════════════════════

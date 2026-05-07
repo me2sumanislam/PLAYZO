@@ -143,13 +143,15 @@
  
  // ================= GET ALL MATCHES =================
  router.get("/", async (req, res) => {
-   try {
-     const matches = await Match.find().sort({ createdAt: -1 });
-     res.json({ success: true, data: matches });
-   } catch (err) {
-     res.status(500).json({ success: false, message: err.message });
-   }
- });
+  try {
+    const matches = await Match.find()
+      .populate("joinedUsers.userId", "name phone") // ← এই লাইন যোগ করুন
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
  
  // ================= GET SINGLE MATCH =================
  router.get("/:id", async (req, res) => {
