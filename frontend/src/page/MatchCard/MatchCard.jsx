@@ -82,9 +82,9 @@ const MatchCard = ({ match, onJoinSuccess }) => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId: user._id || user.id,
-          inGameName: inGameName.trim(),
-        }),
+  userId: user._id || user.id,
+  inGameName: inGameName.trim(),
+}),
       });
       const data = await res.json();
 
