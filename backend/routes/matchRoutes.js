@@ -185,66 +185,63 @@
  });
  
  // ================= JOIN MATCH =================
- router.put("/join/:id", async (req, res) => {
-   try {
-     const { userId } = req.body;
-     const match = await Match.findById(req.params.id);
- 
-     if (!match) return res.status(404).json({ success: false, message: "Match not found" });
- 
-     // Already joined check
-     const alreadyJoined = (match.joinedUsers || []).find(
-       (u) => u.userId.toString() === userId.toString()
-     );
-     if (alreadyJoined) {
-       return res.json({ success: false, message: "আপনি ইতোমধ্যে এই match-এ join করেছেন" });
-     }
- 
-     if (match.joinedPlayers >= match.totalPlayers) {
-       return res.json({ success: false, message: "Match is full" });
-     }
- 
-     const user = await User.findById(userId);
-     if (!user) return res.status(404).json({ success: false, message: "User not found" });
- 
-     if (user.balance < match.entryFee) {
-       return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
-     }
- 
-     // Slot number assign
-     const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
-     let slotNumber = 1;
-     while (usedSlots.includes(slotNumber)) slotNumber++;
- 
-     // Balance deduct
-     user.balance -= match.entryFee;
- 
-     if (!user.joinHistory) user.joinHistory = [];
-     user.joinHistory.push({
-       matchId: match._id,
-       matchTitle: match.title,
-       entryFee: match.entryFee,
-       joinedAt: new Date(),
-     });
- 
-     await user.save();
- 
-     if (!match.joinedUsers) match.joinedUsers = [];
-     match.joinedUsers.push({ userId, slotNumber });
-     match.joinedPlayers = match.joinedUsers.length;
-     await match.save();
- 
-     res.json({
-       success: true,
-       message: "Match-এ join সফল হয়েছে",
-       newBalance: user.balance,
-       slotNumber,
-       data: match,
-     });
-   } catch (err) {
-     res.status(500).json({ success: false, message: err.message });
-   }
- });
+  router.put("/join/:id", async (req, res) => {
+  try {
+    const { userId, inGameName } = req.body; // ← inGameName যোগ
+
+    const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+
+    const alreadyJoined = (match.joinedUsers || []).find(
+      (u) => u.userId.toString() === userId.toString()
+    );
+    if (alreadyJoined) {
+      return res.json({ success: false, message: "আপনি ইতোমধ্যে এই match-এ join করেছেন" });
+    }
+
+    if (match.joinedPlayers >= match.totalPlayers) {
+      return res.json({ success: false, message: "Match is full" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.balance < match.entryFee) {
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+    }
+
+    const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
+    let slotNumber = 1;
+    while (usedSlots.includes(slotNumber)) slotNumber++;
+
+    user.balance -= match.entryFee;
+
+    if (!user.joinHistory) user.joinHistory = [];
+    user.joinHistory.push({
+      matchId:    match._id,
+      matchTitle: match.title,
+      entryFee:   match.entryFee,
+      joinedAt:   new Date(),
+    });
+
+    await user.save();
+
+    if (!match.joinedUsers) match.joinedUsers = [];
+    match.joinedUsers.push({ userId, inGameName: inGameName || "", slotNumber }); // ← inGameName যোগ
+    match.joinedPlayers = match.joinedUsers.length;
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "Match-এ join সফল হয়েছে",
+      newBalance: user.balance,
+      slotNumber,
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
  
  // ================= DELETE ALL =================
  router.delete("/clear-all", protectAdmin, async (req, res) => {
