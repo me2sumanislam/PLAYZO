@@ -7,7 +7,7 @@ import Withdraw from "../../page/Withdraw/Withdraw";
 import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
-
+import Leaderboard from "../../page/Leaderboard/Leaderboard";
 
 // ─── Inline MatchResults Component ────────────────────────────────────────────
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
@@ -236,7 +236,7 @@ function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt
   );
 }
 
-// ─── Results List (all matches with results) ──────────────────────────────────
+// ─── Results List ─────────────────────────────────────────────────────────────
 function ResultsListPage({ onSelectResult, currentUserUid }) {
   const [matchResults, setMatchResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -252,7 +252,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
         const data = await res.json();
         setMatchResults(Array.isArray(data) ? data : data?.results || []);
       } catch (e) {
-        // fallback: empty
         setMatchResults([]);
       } finally {
         setLoading(false);
@@ -303,8 +302,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 </div>
                 <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">Published</span>
               </div>
-
-              {/* Top 3 preview */}
               <div className="flex gap-2 mb-3">
                 {(match.results || []).slice(0, 3).map((p, i) => (
                   <div key={i} className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1">
@@ -313,7 +310,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                   </div>
                 ))}
               </div>
-
               <div className="flex items-center justify-between">
                 {myEntry ? (
                   <div className={`flex items-center gap-2 text-xs ${myEntry.totalPrize > 0 ? "text-green-400" : "text-gray-500"}`}>
@@ -337,14 +333,14 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 
 // ─── Main AppDashboard ────────────────────────────────────────────────────────
 const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab] = useState("play");
-  const [screen, setScreen] = useState("home");
-  const [slide, setSlide] = useState(0);
+  const [tab, setTab]                   = useState("play");
+  const [screen, setScreen]             = useState("home");
+  const [slide, setSlide]               = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [matches, setMatches] = useState([]);
-  const [selectedResult, setSelectedResult] = useState(null); // for results detail view
+  const [matches, setMatches]           = useState([]);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [resultTab, setResultTab]       = useState("leaderboard"); // ✅ যোগ হয়েছে
 
-  // Get current user uid from localStorage
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
@@ -359,7 +355,6 @@ const AppDashboard = ({ onLogout }) => {
         else if (Array.isArray(data?.data)) safeData = data.data;
         setMatches(safeData);
       } catch (err) {
-        console.log("MATCH LOAD ERROR:", err);
         setMatches([]);
       }
     };
@@ -383,9 +378,7 @@ const AppDashboard = ({ onLogout }) => {
   ];
 
   const filteredMatches = matches.filter(
-    (m) =>
-      (m.category || "").toLowerCase().trim() ===
-      selectedCategory.toLowerCase().trim()
+    (m) => (m.category || "").toLowerCase().trim() === selectedCategory.toLowerCase().trim()
   );
 
   // --- PROFILE TAB ---
@@ -447,22 +440,20 @@ const AppDashboard = ({ onLogout }) => {
   }
 
   // --- MY MATCHES TAB ---
-   if (tab === "matches") {
-  return (
-    <div className="max-w-[450px] mx-auto min-h-screen">
-      <MyMatch />
-      <BottomMenu tab={tab} setTab={setTab} />
-    </div>
-  );
-}
+  if (tab === "matches") {
+    return (
+      <div className="max-w-[450px] mx-auto min-h-screen">
+        <MyMatch />
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
 
   // --- RESULTS TAB ---
   if (tab === "results") {
-    // Detail view
     if (selectedResult) {
       return (
         <div className="max-w-[450px] mx-auto min-h-screen">
-          {/* Back button */}
           <div className="bg-[#0a0e1a] px-4 pt-4">
             <button
               onClick={() => setSelectedResult(null)}
@@ -485,13 +476,48 @@ const AppDashboard = ({ onLogout }) => {
       );
     }
 
-    // List view
     return (
-      <div className="max-w-[450px] mx-auto min-h-screen">
-        <ResultsListPage
-          onSelectResult={(match) => setSelectedResult(match)}
-          currentUserUid={currentUserUid}
-        />
+      <div className="max-w-[450px] mx-auto min-h-screen bg-[#f7f2fb]">
+
+        {/* Inner Tab */}
+        <div style={{
+          display: "flex",
+          background: "#fff",
+          borderBottom: "2px solid #ede9fe",
+          position: "sticky", top: 0, zIndex: 40,
+        }}>
+          {[
+            { id: "leaderboard",  label: "🏆 Leaderboard" },
+            { id: "matchresults", label: "📊 Match Results" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setResultTab(t.id)}
+              style={{
+                flex: 1, padding: "13px 0",
+                border: "none", background: "transparent",
+                fontWeight: 700, fontSize: 13,
+                color: resultTab === t.id ? "#4f46e5" : "#9ca3af",
+                borderBottom: resultTab === t.id ? "2px solid #4f46e5" : "2px solid transparent",
+                cursor: "pointer", transition: "all 0.2s",
+                marginBottom: -2,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {resultTab === "leaderboard" ? (
+          <Leaderboard />
+        ) : (
+          <ResultsListPage
+            onSelectResult={(match) => setSelectedResult(match)}
+            currentUserUid={currentUserUid}
+          />
+        )}
+
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
@@ -562,7 +588,6 @@ const AppDashboard = ({ onLogout }) => {
             const count = matches.filter(
               (m) => (m.category || "").toLowerCase().trim() === c.key
             ).length;
-
             return (
               <div
                 key={c.key}
