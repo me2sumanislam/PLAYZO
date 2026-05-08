@@ -81,7 +81,7 @@ app.use("/admin/payment-numbers",     require("./routes/paymentNumbers"));
 app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
 app.use("/api/users",                 require("./routes/users"));
 app.use("/api/withdraw",              require("./routes/withdrawRoutes"));
-
+app.use("/api/leaderboard",           require("./routes/leaderboardRoutes"));
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
