@@ -527,10 +527,10 @@ const Dashboard = () => {
 };
 
 // ─── CREATE MATCH ─────────────────────────────────────────────────────────────
-const CreateMatch = () => {
+ const CreateMatch = () => {
   const [form, setForm] = useState({
     title: "",
-    category: "solo",
+    category: "br_match",
     entryFee: "",
     winPrize: "",
     totalPlayers: "",
@@ -573,7 +573,7 @@ const CreateMatch = () => {
     if (d.success)
       setForm({
         title: "",
-        category: "solo",
+        category: "br_match",
         entryFee: "",
         winPrize: "",
         totalPlayers: "",
@@ -609,72 +609,53 @@ const CreateMatch = () => {
 
   return (
     <div style={{ padding: 24, maxWidth: 540 }}>
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 14,
-          padding: 20,
-        }}
-      >
+      <div style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 14,
+        padding: 20,
+      }}>
         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>
           🎮 New Match Create
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
           {/* Title */}
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
               Match Title *
             </div>
-            <input placeholder="যেমন: Solo Time" {...f("title")} />
+            <input placeholder="যেমন: BR Match #1" {...f("title")} />
           </div>
 
           {/* Category */}
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
               Category
             </div>
             <select
               style={inp}
               value={form.category}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, category: e.target.value }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
             >
-              {["solo", "duo", "squad", "cs", "custom", "tournament"].map(
-                (c) => (
-                  <option key={c} value={c}>
-                    {c.toUpperCase()}
-                  </option>
-                ),
-              )}
+              {[
+                { key: "br_match",    label: "BR Match" },
+                { key: "br_survival", label: "BR Survival" },
+                { key: "clash_squad", label: "Clash Squad" },
+                { key: "cs_2vs2",     label: "CS 2vs2" },
+                { key: "lone_wolf",   label: "Lone Wolf" },
+                { key: "training",    label: "Training Match" },
+              ].map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Start Time */}
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
               Start Time *{" "}
               <span style={{ color: "#f59e0b" }}>
                 (এই সময়ের 20 মিনিট পরে match auto delete হবে)
@@ -685,134 +666,55 @@ const CreateMatch = () => {
 
           {/* Entry Fee + Win Prize */}
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 6,
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>
               Entry & Prize
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 10,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <input placeholder="Entry Fee (৳)" {...f("entryFee")} />
-              <input
-                placeholder="Win Prize / Prize Pool (৳)"
-                {...f("winPrize")}
-              />
+              <input placeholder="Win Prize / Prize Pool (৳)" {...f("winPrize")} />
             </div>
           </div>
 
           {/* Prize Breakdown */}
-          <div
-            style={{
-              background: "#fefce8",
-              border: "1px solid #fde68a",
-              borderRadius: 10,
-              padding: 14,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#92400e",
-                marginBottom: 10,
-              }}
-            >
+          <div style={{
+            background: "#fefce8",
+            border: "1px solid #fde68a",
+            borderRadius: 10,
+            padding: 14,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 10 }}>
               🏆 Prize Breakdown (optional)
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 10,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  🥇 1st Prize (৳)
-                </div>
-                <input
-                  placeholder="যেমন: 60"
-                  {...fp("first")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥇 1st Prize (৳)</div>
+                <input placeholder="যেমন: 60" {...fp("first")} style={{ ...inp, background: "#fff" }} />
               </div>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  🥈 2nd Prize (৳)
-                </div>
-                <input
-                  placeholder="যেমন: 40"
-                  {...fp("second")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥈 2nd Prize (৳)</div>
+                <input placeholder="যেমন: 40" {...fp("second")} style={{ ...inp, background: "#fff" }} />
               </div>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  🥉 3rd Prize (৳)
-                </div>
-                <input
-                  placeholder="যেমন: 20"
-                  {...fp("third")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥉 3rd Prize (৳)</div>
+                <input placeholder="যেমন: 20" {...fp("third")} style={{ ...inp, background: "#fff" }} />
               </div>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  4️⃣ 4th Prize (৳)
-                </div>
-                <input
-                  placeholder="যেমন: 10"
-                  {...fp("fourth")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>4️⃣ 4th Prize (৳)</div>
+                <input placeholder="যেমন: 10" {...fp("fourth")} style={{ ...inp, background: "#fff" }} />
               </div>
             </div>
           </div>
 
           {/* Total Players + Per Kill */}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
                 Total Players
               </div>
               <input placeholder="যেমন: 48" {...f("totalPlayers")} />
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
                 Per Kill (৳)
               </div>
               <input placeholder="যেমন: 5" {...f("perKill")} />
@@ -820,39 +722,32 @@ const CreateMatch = () => {
           </div>
 
           {/* Map + Device */}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
                 Map
               </div>
-              <input placeholder="Bermuda / Kalahari..." {...f("map")} />
+              <select
+                style={inp}
+                value={form.map}
+                onChange={(e) => setForm((p) => ({ ...p, map: e.target.value }))}
+              >
+                <option value="">Select Map</option>
+                <option value="Bermuda">Bermuda</option>
+                <option value="Kalahari">Kalahari</option>
+                <option value="Purgatory">Purgatory</option>
+                <option value="Alpine">Alpine</option>
+                <option value="Nexterra">Nexterra</option>
+              </select>
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
                 Device
               </div>
               <select
                 style={inp}
                 value={form.device}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, device: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, device: e.target.value }))}
               >
                 <option value="Mobile">Mobile</option>
                 <option value="Emulator">Emulator</option>
@@ -863,29 +758,20 @@ const CreateMatch = () => {
 
           {/* Image Upload */}
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
               Match Banner Image
             </div>
-            <label
-              style={{
-                display: "block",
-                padding: "12px",
-                border: "1.5px dashed #d1d5db",
-                borderRadius: 8,
-                textAlign: "center",
-                cursor: "pointer",
-                fontSize: 13,
-                color: "#6b7280",
-                background: "#f9fafb",
-              }}
-            >
+            <label style={{
+              display: "block",
+              padding: "12px",
+              border: "1.5px dashed #d1d5db",
+              borderRadius: 8,
+              textAlign: "center",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "#6b7280",
+              background: "#f9fafb",
+            }}>
               📷 Image Upload করুন
               <input
                 type="file"
@@ -899,26 +785,15 @@ const CreateMatch = () => {
                 <img
                   src={form.image}
                   alt=""
-                  style={{
-                    width: "100%",
-                    height: 120,
-                    objectFit: "cover",
-                    borderRadius: 8,
-                  }}
+                  style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }}
                 />
                 <button
                   onClick={() => setForm((p) => ({ ...p, image: "" }))}
                   style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    background: "#ef4444",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    padding: "2px 8px",
-                    fontSize: 11,
-                    cursor: "pointer",
+                    position: "absolute", top: 6, right: 6,
+                    background: "#ef4444", color: "#fff",
+                    border: "none", borderRadius: 6,
+                    padding: "2px 8px", fontSize: 11, cursor: "pointer",
                   }}
                 >
                   ✕ Remove
@@ -928,15 +803,11 @@ const CreateMatch = () => {
           </div>
 
           {msg && (
-            <div
-              style={{
-                fontSize: 12,
-                padding: "8px 10px",
-                borderRadius: 6,
-                background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2",
-                color: msg.startsWith("✅") ? "#065f46" : "#dc2626",
-              }}
-            >
+            <div style={{
+              fontSize: 12, padding: "8px 10px", borderRadius: 6,
+              background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2",
+              color: msg.startsWith("✅") ? "#065f46" : "#dc2626",
+            }}>
               {msg}
             </div>
           )}
@@ -944,18 +815,14 @@ const CreateMatch = () => {
           <button
             onClick={submit}
             style={{
-              padding: "12px",
-              background: "#111827",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
+              padding: "12px", background: "#111827",
+              color: "#fff", border: "none", borderRadius: 8,
+              fontSize: 14, fontWeight: 600, cursor: "pointer",
             }}
           >
             🎮 Create Match
           </button>
+
         </div>
       </div>
     </div>

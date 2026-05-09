@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import Profile from "../../page/Profile/profile";
@@ -494,7 +495,7 @@ const AppDashboard = ({ onLogout }) => {
   const [matches, setMatches] = useState([]);
   const [selectedResult, setSelectedResult] = useState(null);
   const [resultTab, setResultTab] = useState("leaderboard"); // ✅ যোগ হয়েছে
-
+const [refreshing, setRefreshing] = useState(false);
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const currentUserUid =
     currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
@@ -531,14 +532,13 @@ const AppDashboard = ({ onLogout }) => {
   }, []);
 
   const categories = [
-    { key: "solo", title: "SOLO", img: "/image/img-1.jpg" },
-    { key: "duo", title: "DUO", img: "/image/img-2.jpg" },
-    { key: "squad", title: "SQUAD", img: "/image/img-3.jpg" },
-    { key: "cs", title: "CS", img: "/image/img-1.jpg" },
-    { key: "custom", title: "CUSTOM", img: "/image/img-2.jpg" },
-    { key: "tournament", title: "TOURNAMENT", img: "/image/img-3.jpg" },
-  ];
-
+  { key: "br_match",      title: "BR Match",       img: "/image/img-1.jpg" },
+  { key: "br_survival",   title: "BR Survival",    img: "/image/img-2.jpg" },
+  { key: "clash_squad",   title: "Clash Squad",    img: "/image/img-3.jpg" },
+  { key: "cs_2vs2",       title: "CS 2vs2",        img: "/image/img-1.jpg" },
+  { key: "lone_wolf",     title: "Lone Wolf",      img: "/image/img-2.jpg" },
+  { key: "training",      title: "Training Match", img: "/image/img-3.jpg" },
+];
    
   // --- PROFILE TAB ---
   if (tab === "profile") {
@@ -765,14 +765,43 @@ const AppDashboard = ({ onLogout }) => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-6 px-1">
-          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
-            Free Fire <span className="text-orange-500">Arena</span>
-          </h2>
-          <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
-            LIVE NOW
-          </span>
-        </div>
+         <div className="flex items-center justify-between mt-6 px-1">
+  <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
+    Free Fire <span className="text-orange-500">Arena</span>
+  </h2>
+  <div className="flex items-center gap-2">
+    <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
+      LIVE NOW
+    </span>
+    {/* ✅ Refresh Button */}
+    <button
+  onClick={async () => {
+    setRefreshing(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/matches");
+      const data = await res.json();
+      let safeData = [];
+      if (Array.isArray(data)) safeData = data;
+      else if (Array.isArray(data?.matches)) safeData = data.matches;
+      else if (Array.isArray(data?.data)) safeData = data.data;
+      setMatches(safeData);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTimeout(() => setRefreshing(false), 800);
+    }
+  }}
+  disabled={refreshing}
+  className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
+>
+  <span
+    className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}
+  >
+    🔄
+  </span>
+</button>
+  </div>
+</div>
 
         <div className="grid grid-cols-2 gap-4 mt-4">
           {categories.map((c) => {
