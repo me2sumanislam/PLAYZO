@@ -1,4 +1,4 @@
- import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
@@ -13,13 +13,42 @@ import Leaderboard from "../../page/Leaderboard/Leaderboard";
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
 function getRankMeta(rank) {
-  if (rank === 1) return { icon: "🏆", text: "text-yellow-400", bg: "bg-yellow-500/20", border: "border-yellow-500/30", label: "BOOYAH!" };
-  if (rank === 2) return { icon: "🥈", text: "text-gray-300", bg: "bg-gray-500/20", border: "border-gray-400/30", label: "2nd Place" };
-  if (rank === 3) return { icon: "🥉", text: "text-orange-400", bg: "bg-orange-500/20", border: "border-orange-500/30", label: "3rd Place" };
+  if (rank === 1)
+    return {
+      icon: "🏆",
+      text: "text-yellow-400",
+      bg: "bg-yellow-500/20",
+      border: "border-yellow-500/30",
+      label: "BOOYAH!",
+    };
+  if (rank === 2)
+    return {
+      icon: "🥈",
+      text: "text-gray-300",
+      bg: "bg-gray-500/20",
+      border: "border-gray-400/30",
+      label: "2nd Place",
+    };
+  if (rank === 3)
+    return {
+      icon: "🥉",
+      text: "text-orange-400",
+      bg: "bg-orange-500/20",
+      border: "border-orange-500/30",
+      label: "3rd Place",
+    };
   return null;
 }
 
-function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt, mapName, currentUserUid }) {
+function MatchResultsPage({
+  matchId,
+  matchTitle,
+  killPrice,
+  results,
+  publishedAt,
+  mapName,
+  currentUserUid,
+}) {
   const [tab, setTab] = useState("leaderboard");
 
   const sorted = [...(results || [])].sort((a, b) => {
@@ -37,13 +66,27 @@ function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt
         <div className="px-4 pt-6 pb-4 relative z-10">
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">Result Live</span>
+            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">
+              Result Live
+            </span>
           </div>
-          <h1 className="text-white text-2xl font-extrabold">{matchTitle || "Match Result"}</h1>
+          <h1 className="text-white text-2xl font-extrabold">
+            {matchTitle || "Match Result"}
+          </h1>
           <div className="flex items-center gap-3 mt-1 text-gray-500 text-xs flex-wrap">
             {mapName && <span>🗺️ {mapName}</span>}
-            {killPrice && <><span>•</span><span>⚔️ Kill: ৳{killPrice}</span></>}
-            {publishedAt && <><span>•</span><span>{new Date(publishedAt).toLocaleDateString("en-BD")}</span></>}
+            {killPrice && (
+              <>
+                <span>•</span>
+                <span>⚔️ Kill: ৳{killPrice}</span>
+              </>
+            )}
+            {publishedAt && (
+              <>
+                <span>•</span>
+                <span>{new Date(publishedAt).toLocaleDateString("en-BD")}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -55,25 +98,43 @@ function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt
             {sorted[1] && (
               <div className="flex-1 bg-[#111827] border border-gray-400/20 rounded-2xl p-3 text-center pb-4">
                 <p className="text-2xl mb-1">🥈</p>
-                <p className="text-white text-xs font-bold truncate">{sorted[1].playerName}</p>
-                <p className="text-gray-400 text-[10px]">{sorted[1].kills} kills</p>
-                <p className="text-gray-200 text-sm font-black mt-1">৳{sorted[1].totalPrize}</p>
+                <p className="text-white text-xs font-bold truncate">
+                  {sorted[1].playerName}
+                </p>
+                <p className="text-gray-400 text-[10px]">
+                  {sorted[1].kills} kills
+                </p>
+                <p className="text-gray-200 text-sm font-black mt-1">
+                  ৳{sorted[1].totalPrize}
+                </p>
               </div>
             )}
             {sorted[0] && (
               <div className="flex-1 bg-[#111827] border border-yellow-500/30 rounded-2xl p-3 text-center pb-6 -mb-2 shadow-lg shadow-yellow-500/10">
                 <p className="text-3xl mb-1">🏆</p>
-                <p className="text-yellow-400 text-xs font-extrabold truncate">{sorted[0].playerName}</p>
-                <p className="text-gray-400 text-[10px]">{sorted[0].kills} kills</p>
-                <p className="text-yellow-400 text-base font-black mt-1">৳{sorted[0].totalPrize}</p>
+                <p className="text-yellow-400 text-xs font-extrabold truncate">
+                  {sorted[0].playerName}
+                </p>
+                <p className="text-gray-400 text-[10px]">
+                  {sorted[0].kills} kills
+                </p>
+                <p className="text-yellow-400 text-base font-black mt-1">
+                  ৳{sorted[0].totalPrize}
+                </p>
               </div>
             )}
             {sorted[2] && (
               <div className="flex-1 bg-[#111827] border border-orange-500/20 rounded-2xl p-3 text-center pb-4">
                 <p className="text-2xl mb-1">🥉</p>
-                <p className="text-white text-xs font-bold truncate">{sorted[2].playerName}</p>
-                <p className="text-gray-400 text-[10px]">{sorted[2].kills} kills</p>
-                <p className="text-orange-300 text-sm font-black mt-1">৳{sorted[2].totalPrize}</p>
+                <p className="text-white text-xs font-bold truncate">
+                  {sorted[2].playerName}
+                </p>
+                <p className="text-gray-400 text-[10px]">
+                  {sorted[2].kills} kills
+                </p>
+                <p className="text-orange-300 text-sm font-black mt-1">
+                  ৳{sorted[2].totalPrize}
+                </p>
               </div>
             )}
           </div>
@@ -83,7 +144,10 @@ function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt
       {/* Tabs */}
       <div className="px-4 mb-3">
         <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
-          {[{ key: "leaderboard", label: "Leaderboard" }, { key: "mine", label: "My Result" }].map((t) => (
+          {[
+            { key: "leaderboard", label: "Leaderboard" },
+            { key: "mine", label: "My Result" },
+          ].map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -111,15 +175,31 @@ function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt
                 className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
-                    idx === 0 ? "bg-yellow-500/20 text-yellow-400" :
-                    idx === 1 ? "bg-gray-500/20 text-gray-300" :
-                    idx === 2 ? "bg-orange-500/20 text-orange-400" : "bg-white/5 text-gray-500"
-                  }`}>{idx + 1}</div>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
+                      idx === 0
+                        ? "bg-yellow-500/20 text-yellow-400"
+                        : idx === 1
+                          ? "bg-gray-500/20 text-gray-300"
+                          : idx === 2
+                            ? "bg-orange-500/20 text-orange-400"
+                            : "bg-white/5 text-gray-500"
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}>{player.playerName}</p>
-                      {isMe && <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full shrink-0">YOU</span>}
+                      <p
+                        className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}
+                      >
+                        {player.playerName}
+                      </p>
+                      {isMe && (
+                        <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full shrink-0">
+                          YOU
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
                       {player.rank && <span>#{player.rank} Rank</span>}
@@ -127,19 +207,29 @@ function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}>
+                    <p
+                      className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}
+                    >
                       {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
                     </p>
-                    {player.totalPrize > 0 && <p className="text-[10px] text-gray-600 mt-0.5">credited</p>}
+                    {player.totalPrize > 0 && (
+                      <p className="text-[10px] text-gray-600 mt-0.5">
+                        credited
+                      </p>
+                    )}
                   </div>
                 </div>
                 {player.totalPrize > 0 && (
                   <div className="mt-3 flex gap-2 flex-wrap">
                     {player.rankPrize > 0 && (
-                      <span className="text-[11px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20">Rank ৳{player.rankPrize}</span>
+                      <span className="text-[11px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20">
+                        Rank ৳{player.rankPrize}
+                      </span>
                     )}
                     {player.killEarning > 0 && (
-                      <span className="text-[11px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">⚔️ {player.kills} kills ৳{player.killEarning}</span>
+                      <span className="text-[11px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
+                        ⚔️ {player.kills} kills ৳{player.killEarning}
+                      </span>
                     )}
                   </div>
                 )}
@@ -160,72 +250,109 @@ function MatchResultsPage({ matchId, matchTitle, killPrice, results, publishedAt
             <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
               <p className="text-3xl mb-3">😔</p>
               <p className="text-white font-bold mb-1">Not in Results</p>
-              <p className="text-gray-500 text-sm">Your UID was not found in this match result</p>
+              <p className="text-gray-500 text-sm">
+                Your UID was not found in this match result
+              </p>
             </div>
           ) : (
             <div>
-              <div className={`rounded-2xl p-5 border mb-4 ${
-                myResult.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" :
-                myResult.rank === 2 ? "bg-gray-500/10 border-gray-400/30" :
-                myResult.rank === 3 ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"
-              }`}>
+              <div
+                className={`rounded-2xl p-5 border mb-4 ${
+                  myResult.rank === 1
+                    ? "bg-yellow-500/10 border-yellow-500/30"
+                    : myResult.rank === 2
+                      ? "bg-gray-500/10 border-gray-400/30"
+                      : myResult.rank === 3
+                        ? "bg-orange-500/10 border-orange-500/30"
+                        : "bg-[#111827] border-white/5"
+                }`}
+              >
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-gray-400 text-xs">Your IGN</p>
-                    <p className="text-white text-xl font-black">{myResult.playerName}</p>
+                    <p className="text-white text-xl font-black">
+                      {myResult.playerName}
+                    </p>
                   </div>
                   {getRankMeta(myResult.rank) && (
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getRankMeta(myResult.rank).bg} ${getRankMeta(myResult.rank).text} ${getRankMeta(myResult.rank).border}`}>
+                    <span
+                      className={`text-xs font-bold px-3 py-1 rounded-full border ${getRankMeta(myResult.rank).bg} ${getRankMeta(myResult.rank).text} ${getRankMeta(myResult.rank).border}`}
+                    >
                       {getRankMeta(myResult.rank).icon} #{myResult.rank}
                     </span>
                   )}
                 </div>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-white font-black text-lg">#{myResult.rank || "—"}</p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
+                    <p className="text-white font-black text-lg">
+                      #{myResult.rank || "—"}
+                    </p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">
+                      Final Rank
+                    </p>
                   </div>
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-orange-400 font-black text-lg">{myResult.kills}</p>
+                    <p className="text-orange-400 font-black text-lg">
+                      {myResult.kills}
+                    </p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
                   </div>
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-green-400 font-black text-lg">৳{myResult.totalPrize}</p>
+                    <p className="text-green-400 font-black text-lg">
+                      ৳{myResult.totalPrize}
+                    </p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
                   </div>
                 </div>
                 {myResult.totalPrize > 0 ? (
                   <div className="bg-black/30 rounded-xl p-3">
-                    <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wider">Prize Breakdown</p>
+                    <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wider">
+                      Prize Breakdown
+                    </p>
                     <div className="space-y-1.5">
                       {myResult.rankPrize > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-400">Placement Prize</span>
-                          <span className="text-yellow-400 font-bold">+৳{myResult.rankPrize}</span>
+                          <span className="text-yellow-400 font-bold">
+                            +৳{myResult.rankPrize}
+                          </span>
                         </div>
                       )}
                       {myResult.killEarning > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">{myResult.kills} Kills × ৳{killPrice}</span>
-                          <span className="text-green-400 font-bold">+৳{myResult.killEarning}</span>
+                          <span className="text-gray-400">
+                            {myResult.kills} Kills × ৳{killPrice}
+                          </span>
+                          <span className="text-green-400 font-bold">
+                            +৳{myResult.killEarning}
+                          </span>
                         </div>
                       )}
                       <div className="border-t border-white/10 pt-1.5 flex justify-between">
-                        <span className="text-white font-bold text-sm">Total Credited</span>
-                        <span className="text-green-400 font-black text-base">৳{myResult.totalPrize}</span>
+                        <span className="text-white font-bold text-sm">
+                          Total Credited
+                        </span>
+                        <span className="text-green-400 font-black text-base">
+                          ৳{myResult.totalPrize}
+                        </span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="bg-black/30 rounded-xl p-4 text-center">
-                    <p className="text-gray-500 text-sm">No prize this match. Better luck next time! 💪</p>
+                    <p className="text-gray-500 text-sm">
+                      No prize this match. Better luck next time! 💪
+                    </p>
                   </div>
                 )}
               </div>
               {myResult.totalPrize > 0 && (
                 <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
                   <span className="text-green-400">✓</span>
-                  <p className="text-green-400 text-sm"><strong>৳{myResult.totalPrize}</strong> has been credited to your wallet</p>
+                  <p className="text-green-400 text-sm">
+                    <strong>৳{myResult.totalPrize}</strong> has been credited to
+                    your wallet
+                  </p>
                 </div>
               )}
             </div>
@@ -273,10 +400,14 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">📊 Match Results</span>
+          <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">
+            📊 Match Results
+          </span>
         </div>
         <h1 className="text-white text-2xl font-extrabold">Results</h1>
-        <p className="text-gray-500 text-xs mt-1">Tap a match to see full leaderboard</p>
+        <p className="text-gray-500 text-xs mt-1">
+          Tap a match to see full leaderboard
+        </p>
       </div>
 
       <div className="px-4 space-y-3">
@@ -284,7 +415,9 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-3xl mb-3">🎮</p>
             <p className="text-white font-bold mb-1">No Results Yet</p>
-            <p className="text-gray-500 text-sm">Results will appear here after matches end</p>
+            <p className="text-gray-500 text-sm">
+              Results will appear here after matches end
+            </p>
           </div>
         )}
         {matchResults.map((match) => {
@@ -297,31 +430,52 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm truncate">{match.matchTitle || `Match #${match.matchId}`}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">{match.mapName || "Free Fire"} • ৳{match.killPrice}/kill</p>
+                  <p className="text-white font-bold text-sm truncate">
+                    {match.matchTitle || `Match #${match.matchId}`}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-0.5">
+                    {match.mapName || "Free Fire"} • ৳{match.killPrice}/kill
+                  </p>
                 </div>
-                <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">Published</span>
+                <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
+                  Published
+                </span>
               </div>
               <div className="flex gap-2 mb-3">
                 {(match.results || []).slice(0, 3).map((p, i) => (
-                  <div key={i} className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1">
-                    <span className="text-sm">{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
-                    <span className="text-white text-[11px] font-bold truncate max-w-[60px]">{p.playerName}</span>
+                  <div
+                    key={i}
+                    className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1"
+                  >
+                    <span className="text-sm">
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
+                    </span>
+                    <span className="text-white text-[11px] font-bold truncate max-w-[60px]">
+                      {p.playerName}
+                    </span>
                   </div>
                 ))}
               </div>
               <div className="flex items-center justify-between">
                 {myEntry ? (
-                  <div className={`flex items-center gap-2 text-xs ${myEntry.totalPrize > 0 ? "text-green-400" : "text-gray-500"}`}>
+                  <div
+                    className={`flex items-center gap-2 text-xs ${myEntry.totalPrize > 0 ? "text-green-400" : "text-gray-500"}`}
+                  >
                     <span>You:</span>
                     <span className="font-bold">#{myEntry.rank || "—"}</span>
                     <span>⚔️ {myEntry.kills}</span>
-                    {myEntry.totalPrize > 0 && <span className="font-black">+৳{myEntry.totalPrize}</span>}
+                    {myEntry.totalPrize > 0 && (
+                      <span className="font-black">+৳{myEntry.totalPrize}</span>
+                    )}
                   </div>
                 ) : (
-                  <span className="text-gray-600 text-xs">You didn't participate</span>
+                  <span className="text-gray-600 text-xs">
+                    You didn't participate
+                  </span>
                 )}
-                <span className="text-orange-400 text-xs font-bold">View →</span>
+                <span className="text-orange-400 text-xs font-bold">
+                  View →
+                </span>
               </div>
             </div>
           );
@@ -333,33 +487,41 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 
 // ─── Main AppDashboard ────────────────────────────────────────────────────────
 const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab]                   = useState("play");
-  const [screen, setScreen]             = useState("home");
-  const [slide, setSlide]               = useState(0);
+  const [tab, setTab] = useState("play");
+  const [screen, setScreen] = useState("home");
+  const [slide, setSlide] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [matches, setMatches]           = useState([]);
+  const [matches, setMatches] = useState([]);
   const [selectedResult, setSelectedResult] = useState(null);
-  const [resultTab, setResultTab]       = useState("leaderboard"); // ✅ যোগ হয়েছে
+  const [resultTab, setResultTab] = useState("leaderboard"); // ✅ যোগ হয়েছে
 
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+  const currentUserUid =
+    currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
-  useEffect(() => {
-    const loadMatches = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/matches");
-        const data = await res.json();
-        let safeData = [];
-        if (Array.isArray(data)) safeData = data;
-        else if (Array.isArray(data?.matches)) safeData = data.matches;
-        else if (Array.isArray(data?.data)) safeData = data.data;
-        setMatches(safeData);
-      } catch (err) {
-        setMatches([]);
-      }
-    };
-    loadMatches();
-  }, []);
+   useEffect(() => {
+  const loadMatches = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/matches");
+      const data = await res.json();
+      let safeData = [];
+      if (Array.isArray(data)) safeData = data;
+      else if (Array.isArray(data?.matches)) safeData = data.matches;
+      else if (Array.isArray(data?.data)) safeData = data.data;
+      setMatches(safeData);
+    } catch (err) {
+      setMatches([]);
+    }
+  };
+
+  loadMatches(); // first load
+
+  // ✅ auto refresh — 30 সেকেন্ড
+  const interval = setInterval(loadMatches, 10 * 1000);
+  return () => clearInterval(interval); // cleanup
+}, []);
+    
+   
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -369,18 +531,15 @@ const AppDashboard = ({ onLogout }) => {
   }, []);
 
   const categories = [
-    { key: "solo",       title: "SOLO",       img: "/image/img-1.jpg" },
-    { key: "duo",        title: "DUO",        img: "/image/img-2.jpg" },
-    { key: "squad",      title: "SQUAD",      img: "/image/img-3.jpg" },
-    { key: "cs",         title: "CS",         img: "/image/img-1.jpg" },
-    { key: "custom",     title: "CUSTOM",     img: "/image/img-2.jpg" },
+    { key: "solo", title: "SOLO", img: "/image/img-1.jpg" },
+    { key: "duo", title: "DUO", img: "/image/img-2.jpg" },
+    { key: "squad", title: "SQUAD", img: "/image/img-3.jpg" },
+    { key: "cs", title: "CS", img: "/image/img-1.jpg" },
+    { key: "custom", title: "CUSTOM", img: "/image/img-2.jpg" },
     { key: "tournament", title: "TOURNAMENT", img: "/image/img-3.jpg" },
   ];
 
-  const filteredMatches = matches.filter(
-    (m) => (m.category || "").toLowerCase().trim() === selectedCategory.toLowerCase().trim()
-  );
-
+   
   // --- PROFILE TAB ---
   if (tab === "profile") {
     if (screen === "wallet") {
@@ -467,39 +626,57 @@ const AppDashboard = ({ onLogout }) => {
             matchTitle={selectedResult.matchTitle}
             killPrice={selectedResult.killPrice}
             results={selectedResult.results}
-            publishedAt={selectedResult.submittedAt || selectedResult.publishedAt}
+            publishedAt={
+              selectedResult.submittedAt || selectedResult.publishedAt
+            }
             mapName={selectedResult.mapName}
             currentUserUid={currentUserUid}
           />
-          <BottomMenu tab={tab} setTab={(t) => { setTab(t); setSelectedResult(null); }} />
+          <BottomMenu
+            tab={tab}
+            setTab={(t) => {
+              setTab(t);
+              setSelectedResult(null);
+            }}
+          />
         </div>
       );
     }
 
     return (
       <div className="max-w-[450px] mx-auto min-h-screen bg-[#f7f2fb]">
-
         {/* Inner Tab */}
-        <div style={{
-          display: "flex",
-          background: "#fff",
-          borderBottom: "2px solid #ede9fe",
-          position: "sticky", top: 0, zIndex: 40,
-        }}>
+        <div
+          style={{
+            display: "flex",
+            background: "#fff",
+            borderBottom: "2px solid #ede9fe",
+            position: "sticky",
+            top: 0,
+            zIndex: 40,
+          }}
+        >
           {[
-            { id: "leaderboard",  label: "🏆 Leaderboard" },
+            { id: "leaderboard", label: "🏆 Leaderboard" },
             { id: "matchresults", label: "📊 Match Results" },
           ].map((t) => (
             <button
               key={t.id}
               onClick={() => setResultTab(t.id)}
               style={{
-                flex: 1, padding: "13px 0",
-                border: "none", background: "transparent",
-                fontWeight: 700, fontSize: 13,
+                flex: 1,
+                padding: "13px 0",
+                border: "none",
+                background: "transparent",
+                fontWeight: 700,
+                fontSize: 13,
                 color: resultTab === t.id ? "#4f46e5" : "#9ca3af",
-                borderBottom: resultTab === t.id ? "2px solid #4f46e5" : "2px solid transparent",
-                cursor: "pointer", transition: "all 0.2s",
+                borderBottom:
+                  resultTab === t.id
+                    ? "2px solid #4f46e5"
+                    : "2px solid transparent",
+                cursor: "pointer",
+                transition: "all 0.2s",
                 marginBottom: -2,
               }}
             >
@@ -527,7 +704,7 @@ const AppDashboard = ({ onLogout }) => {
   if (screen === "category") {
     return (
       <div className="max-w-[450px] mx-auto min-h-screen bg-white">
-        <MatchList
+        {/* <MatchList
           matches={filteredMatches}
           title={selectedCategory}
           onBack={() => setScreen("home")}
@@ -542,7 +719,21 @@ const AppDashboard = ({ onLogout }) => {
               )
             );
           }}
+        /> */}
+
+        <MatchList
+          category={selectedCategory} // ← matches এর বদলে category
+          title={selectedCategory}
+          onBack={() => setScreen("home")}
+          onJoinSuccess={(matchId, newBalance) => {
+            const user = JSON.parse(localStorage.getItem("user") || "{}");
+            localStorage.setItem(
+              "user",
+              JSON.stringify({ ...user, balance: newBalance }),
+            );
+          }}
         />
+
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
@@ -586,7 +777,7 @@ const AppDashboard = ({ onLogout }) => {
         <div className="grid grid-cols-2 gap-4 mt-4">
           {categories.map((c) => {
             const count = matches.filter(
-              (m) => (m.category || "").toLowerCase().trim() === c.key
+              (m) => (m.category || "").toLowerCase().trim() === c.key,
             ).length;
             return (
               <div
@@ -613,7 +804,9 @@ const AppDashboard = ({ onLogout }) => {
                   <p className="text-xs font-black text-gray-800 uppercase tracking-wide">
                     {c.title}
                   </p>
-                  <p className="text-[10px] text-gray-400 font-medium">Join Tournament</p>
+                  <p className="text-[10px] text-gray-400 font-medium">
+                    Join Tournament
+                  </p>
                 </div>
               </div>
             );
