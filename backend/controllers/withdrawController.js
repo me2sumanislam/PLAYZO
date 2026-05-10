@@ -1,4 +1,4 @@
- const Withdraw = require("../models/Withdraw");
+ const Withdraw = require("../models/withdraw");
 const User = require("../models/User");
 const axios = require("axios");
 
