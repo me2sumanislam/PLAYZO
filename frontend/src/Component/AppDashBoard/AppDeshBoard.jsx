@@ -365,22 +365,19 @@ function MatchResultsPage({
 }
 
 // ─── Results List ─────────────────────────────────────────────────────────────
-function ResultsListPage({ onSelectResult, currentUserUid }) {
-  const [matchResults, setMatchResults] = useState([]);
+ function ResultsListPage({ onSelectResult, currentUserUid }) {
+  const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchResults = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/matches/results", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res  = await fetch("http://localhost:5000/api/matches/completed");
         const data = await res.json();
-        setMatchResults(Array.isArray(data) ? data : data?.results || []);
+        setMatches(Array.isArray(data?.data) ? data.data : []);
       } catch (e) {
-        setMatchResults([]);
+        setMatches([]);
       } finally {
         setLoading(false);
       }
@@ -399,10 +396,13 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
+
+      {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
           <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">
-            📊 Match Results
+            Match Results
           </span>
         </div>
         <h1 className="text-white text-2xl font-extrabold">Results</h1>
@@ -411,8 +411,9 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
         </p>
       </div>
 
+      {/* Match Cards */}
       <div className="px-4 space-y-3">
-        {matchResults.length === 0 && (
+        {matches.length === 0 ? (
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-3xl mb-3">🎮</p>
             <p className="text-white font-bold mb-1">No Results Yet</p>
@@ -420,67 +421,119 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
               Results will appear here after matches end
             </p>
           </div>
-        )}
-        {matchResults.map((match) => {
-          const myEntry = match.results?.find((r) => r.uid === currentUserUid);
-          return (
-            <div
-              key={match.matchId || match._id}
-              onClick={() => onSelectResult(match)}
-              className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm truncate">
-                    {match.matchTitle || `Match #${match.matchId}`}
-                  </p>
-                  <p className="text-gray-500 text-xs mt-0.5">
-                    {match.mapName || "Free Fire"} • ৳{match.killPrice}/kill
-                  </p>
-                </div>
-                <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
-                  Published
-                </span>
-              </div>
-              <div className="flex gap-2 mb-3">
-                {(match.results || []).slice(0, 3).map((p, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1"
-                  >
-                    <span className="text-sm">
-                      {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
-                    </span>
-                    <span className="text-white text-[11px] font-bold truncate max-w-[60px]">
-                      {p.playerName}
-                    </span>
+        ) : (
+          matches.map((match) => {
+            const top3 = (match.results || [])
+              .sort((a, b) => a.position - b.position)
+              .slice(0, 3);
+
+            const myResult = (match.results || []).find(
+              (r) => r.userId?.toString() === currentUserUid?.toString()
+            );
+
+            const categoryLabel = {
+              br_match:    "BR Match",
+              br_survival: "BR Survival",
+              clash_squad: "Clash Squad",
+              cs_2vs2:     "CS 2vs2",
+              lone_wolf:   "Lone Wolf",
+              training:    "Training Match",
+            }[match.category] || match.category;
+
+            const categoryColor = {
+              br_match:    { bg: "#7c3aed20", text: "#a78bfa" },
+              br_survival: { bg: "#dc262620", text: "#f87171" },
+              clash_squad: { bg: "#0284c720", text: "#38bdf8" },
+              cs_2vs2:     { bg: "#16a34a20", text: "#4ade80" },
+              lone_wolf:   { bg: "#d9770620", text: "#fb923c" },
+              training:    { bg: "#64748b20", text: "#94a3b8" },
+            }[match.category] || { bg: "#ffffff10", text: "#fff" };
+
+            return (
+              <div
+                key={match._id}
+                onClick={() => onSelectResult(match)}
+                className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
+              >
+                {/* Title + Category + Status */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {/* Category Badge */}
+                      <span style={{
+                        fontSize: 10, fontWeight: 700,
+                        padding: "2px 8px", borderRadius: 20,
+                        background: categoryColor.bg,
+                        color: categoryColor.text,
+                      }}>
+                        {categoryLabel}
+                      </span>
+                    </div>
+                    <p className="text-white font-bold text-sm truncate">
+                      {match.title}
+                    </p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {match.map || "Free Fire"} • ৳{match.perKill}/kill •{" "}
+                      {match.completedAt
+                        ? new Date(match.completedAt).toLocaleDateString("en-BD")
+                        : ""}
+                    </p>
                   </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-between">
-                {myEntry ? (
-                  <div
-                    className={`flex items-center gap-2 text-xs ${myEntry.totalPrize > 0 ? "text-green-400" : "text-gray-500"}`}
-                  >
-                    <span>You:</span>
-                    <span className="font-bold">#{myEntry.rank || "—"}</span>
-                    <span>⚔️ {myEntry.kills}</span>
-                    {myEntry.totalPrize > 0 && (
-                      <span className="font-black">+৳{myEntry.totalPrize}</span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-gray-600 text-xs">
-                    You didn't participate
+                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
+                    ✅ Completed
                   </span>
-                )}
-                <span className="text-orange-400 text-xs font-bold">
-                  View →
-                </span>
+                </div>
+
+                {/* Top 3 Preview */}
+                <div className="flex gap-2 mb-3">
+                  {top3.length > 0 ? (
+                    top3.map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1"
+                      >
+                        <span className="text-sm">
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-white text-[11px] font-bold truncate">
+                            {p.inGameName || "—"}
+                          </p>
+                          <p className="text-gray-500 text-[10px]">
+                            ৳{p.prize || 0}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-600 text-xs">No result data</p>
+                  )}
+                </div>
+
+                {/* My Result */}
+                <div className="flex items-center justify-between">
+                  {myResult ? (
+                    <div className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}>
+                      <span>You:</span>
+                      <span className="font-bold">#{myResult.position || "—"}</span>
+                      <span>⚔️ {myResult.kills} kills</span>
+                      {myResult.prize > 0 && (
+                        <span className="font-black">+৳{myResult.prize}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-gray-600 text-xs">
+                      You didn't participate
+                    </span>
+                  )}
+                  <span className="text-orange-400 text-xs font-bold">
+                    View →
+                  </span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
