@@ -1,5 +1,4 @@
-{
-<<<<<<< HEAD
+ {
   "name": "backend",
   "version": "1.0.0",
   "description": "",
@@ -26,9 +25,5 @@
     "mongodb": "^7.1.1",
     "mongoose": "^9.4.1",
     "nodemon": "^3.1.14"
-=======
-  "dependencies": {
-    "react-fast-marquee": "^1.6.5"
->>>>>>> 9976fd5758059068fdc6623519b84eea1a322b12
   }
 }
