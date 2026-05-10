@@ -75,7 +75,7 @@ app.use("/api/matches",               require("./routes/matchRoutes"));
 app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
 app.use("/api/admin",                 authLimiter, require("./routes/adminAuthRoutes"));
 app.use("/api/admin",                 require("./routes/admin"));
-app.use("/api/wallet",                require("./routes/walletRoutes"));
+app.use("/api/wallet",                require("./routes/WalletRoutes"));
 app.use("/api/payment-numbers",       require("./routes/paymentNumbers"));
 app.use("/admin/payment-numbers",     require("./routes/paymentNumbers"));
 app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
