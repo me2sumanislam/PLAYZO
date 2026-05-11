@@ -1,27 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 
-const API = "https://playzo-vn8e.onrender.com/api";
+  const API = "https://playzo-vn8e.onrender.com/api";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-const api = async (path, opts = {}) => {
-  try {
-    const token =
-      localStorage.getItem("adminToken") || localStorage.getItem("token");
-    const res = await fetch(`${API}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      ...opts,
-    });
-    if (!res.ok) return {};
-    return await res.json();
-  } catch {
-    return {};
-  }
-};
-
 const fmt = (n) => "৳" + Number(n || 0).toLocaleString("bn-BD");
+
 const timeAgo = (d) => {
   if (!d) return "";
   const s = Math.floor((Date.now() - new Date(d)) / 1000);
@@ -31,6 +14,39 @@ const timeAgo = (d) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
+// IMPROVED API
+const api = async (path, opts = {}) => {
+  const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
+
+  console.log(`📡 Calling: ${path} | Token: ${token ? "✅ Yes" : "❌ No"}`);
+
+  try {
+    const res = await fetch(`${API}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      ...opts,
+    });
+
+    if (res.status === 401) {
+      console.error("❌ 401 Unauthorized");
+      localStorage.clear();
+      window.location.reload();
+      return { success: false };
+    }
+
+    if (!res.ok) {
+      console.error(`❌ HTTP ${res.status} on ${path}`);
+      return { success: false, status: res.status };
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("Network error:", err);
+    return { success: false };
+  }
+};
 // ─── Badge ───────────────────────────────────────────────────────────────────
 const Badge = ({ color, children }) => {
   const map = {
@@ -2923,7 +2939,7 @@ const ManageAdmins = () => {
   );
 };
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
+ // ─── LOGIN ────────────────────────────────────────────────────────────────────
 const Login = ({ onLogin }) => {
   const [form, setForm] = useState({ phone: "", password: "" });
   const [err, setErr] = useState("");
@@ -2932,21 +2948,36 @@ const Login = ({ onLogin }) => {
   const submit = async () => {
     setLoading(true);
     setErr("");
+
     try {
       const res = await fetch(`${API}/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+
       const d = await res.json();
-      if (d.success || d.token) {
+
+      if (d.success && d.token) {
         localStorage.setItem("adminToken", d.token);
-        onLogin(d.admin || d.user || { name: "Admin", role: "admin" });
-      } else setErr(d.message || "Login failed");
-    } catch {
-      setErr("Server error");
+        
+        const adminData = d.admin || d.user || { 
+          name: form.phone || "Admin", 
+          role: "admin",
+          phone: form.phone 
+        };
+        
+        localStorage.setItem("adminInfo", JSON.stringify(adminData));
+        onLogin(adminData);
+      } else {
+        setErr(d.message || "লগইন ব্যর্থ হয়েছে");
+      }
+    } catch (e) {
+      console.error(e);
+      setErr("সার্ভারে সমস্যা হয়েছে");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -2977,6 +3008,7 @@ const Login = ({ onLogin }) => {
             Free Fire Tournament
           </div>
         </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
             placeholder="Phone number"
@@ -3010,6 +3042,7 @@ const Login = ({ onLogin }) => {
               outline: "none",
             }}
           />
+
           {err && (
             <div
               style={{
@@ -3023,18 +3056,19 @@ const Login = ({ onLogin }) => {
               {err}
             </div>
           )}
+
           <button
             onClick={submit}
             disabled={loading}
             style={{
               padding: "11px",
-              background: "#3b82f6",
+              background: loading ? "#64748b" : "#3b82f6",
               color: "#fff",
               border: "none",
               borderRadius: 8,
               fontSize: 13,
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               marginTop: 4,
             }}
           >
@@ -3045,8 +3079,7 @@ const Login = ({ onLogin }) => {
     </div>
   );
 };
-
-// ════════════════════════════════════════════════════════════════════════════
+ // ════════════════════════════════════════════════════════════════════════════
 // MAIN APP
 // ════════════════════════════════════════════════════════════════════════════
 const AdminPanel = () => {
@@ -3070,22 +3103,28 @@ const AdminPanel = () => {
       .catch(() => {});
   }, []);
 
+  // Token Check - Improved
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
-    const saved = localStorage.getItem("adminInfo");
-    if (token && saved) {
+    const savedAdmin = localStorage.getItem("adminInfo");
+
+    if (token && savedAdmin) {
       try {
-        setAdmin(JSON.parse(saved));
+        const adminData = JSON.parse(savedAdmin);
+        setAdmin(adminData);
         loadBadges();
-      } catch {
+      } catch (e) {
+        localStorage.removeItem("adminToken");
         localStorage.removeItem("adminInfo");
+        setAdmin(null);
       }
+    } else {
+      setAdmin(null);   // Important: No token = show login
     }
   }, [loadBadges]);
 
   const handleLogin = (a) => {
-    console.log("Admin login data:", a); // ← দেখুন কী আসছে
-    localStorage.setItem("adminInfo", JSON.stringify(a));
+    console.log("✅ Admin Logged In:", a);
     setAdmin(a);
     loadBadges();
   };
@@ -3094,22 +3133,21 @@ const AdminPanel = () => {
     localStorage.removeItem("adminToken");
     localStorage.removeItem("adminInfo");
     setAdmin(null);
+    setPage("dashboard");
   };
 
-  if (!admin) return <Login onLogin={handleLogin} />;
+  // যদি admin না থাকে তাহলে শুধু Login দেখাবে
+  if (!admin) {
+    return <Login onLogin={handleLogin} />;
+  }
 
+  // Titles
   const titles = {
     dashboard: ["Dashboard", "Overview of all activity"],
     "create-match": ["Create match", "Add a new tournament match"],
     "match-results": ["Match results", "Set Room ID/Password & Winner"],
-    "deposit-requests": [
-      "Deposit requests",
-      "Approve or reject incoming deposits",
-    ],
-    "withdraw-requests": [
-      "Withdraw requests",
-      "Process user withdrawal requests",
-    ],
+    "deposit-requests": ["Deposit requests", "Approve or reject incoming deposits"],
+    "withdraw-requests": ["Withdraw requests", "Process user withdrawal requests"],
     "money-overview": ["Money overview", "Full financial summary"],
     "deposit-history": ["Deposit history", "All deposit transactions"],
     "withdraw-history": ["Withdraw history", "All withdrawal transactions"],
@@ -3119,7 +3157,7 @@ const AdminPanel = () => {
     "payment-numbers": ["Payment Numbers", "Deposit number manage করুন"],
   };
 
-  const [title, sub] = titles[page] || ["Admin", ""];
+  const [title, sub] = titles[page] || ["Admin Panel", ""];
 
   return (
     <div
@@ -3141,26 +3179,17 @@ const AdminPanel = () => {
         <Topbar
           title={title}
           sub={sub}
-          onRefresh={() => {
-            window.location.reload(); // Full Refresh
-            // অথবা selective refresh (ভালো প্র্যাকটিস)
-            // loadBadges();
-          }}
+          onRefresh={() => window.location.reload()}
         />
+
         {page === "dashboard" && <Dashboard />}
         {page === "create-match" && <CreateMatch />}
         {page === "match-results" && <MatchResults />}
         {page === "deposit-requests" && (
-          <DepositRequests
-            adminName={admin.name || admin.phone}
-            refresh={loadBadges}
-          />
+          <DepositRequests adminName={admin.name || admin.phone} refresh={loadBadges} />
         )}
         {page === "withdraw-requests" && (
-          <WithdrawRequests
-            adminName={admin.name || admin.phone}
-            refresh={loadBadges}
-          />
+          <WithdrawRequests adminName={admin.name || admin.phone} refresh={loadBadges} />
         )}
         {page === "money-overview" && <MoneyOverview />}
         {page === "deposit-history" && <History type="deposit" />}
