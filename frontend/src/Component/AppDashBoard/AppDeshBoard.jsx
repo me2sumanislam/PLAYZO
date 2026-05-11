@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+ import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
@@ -366,6 +365,8 @@ function MatchResultsPage({
 
 // ─── Results List ─────────────────────────────────────────────────────────────
  function ResultsListPage({ onSelectResult, currentUserUid }) {
+  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -373,7 +374,7 @@ function MatchResultsPage({
     const fetchResults = async () => {
       setLoading(true);
       try {
-        const res  = await fetch("https://playzo-vn8e.onrender.com/api/matches/completed");
+        const res = await fetch(`${API_BASE}/matches/completed`);
         const data = await res.json();
         setMatches(Array.isArray(data?.data) ? data.data : []);
       } catch (e) {
@@ -383,7 +384,7 @@ function MatchResultsPage({
       }
     };
     fetchResults();
-  }, []);
+  }, [API_BASE]);
 
   if (loading) {
     return (
@@ -396,7 +397,6 @@ function MatchResultsPage({
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
-
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-2 mb-1">
@@ -426,29 +426,25 @@ function MatchResultsPage({
             const top3 = (match.results || [])
               .sort((a, b) => a.position - b.position)
               .slice(0, 3);
-
             const myResult = (match.results || []).find(
               (r) => r.userId?.toString() === currentUserUid?.toString()
             );
-
             const categoryLabel = {
-              br_match:    "BR Match",
+              br_match: "BR Match",
               br_survival: "BR Survival",
               clash_squad: "Clash Squad",
-              cs_2vs2:     "CS 2vs2",
-              lone_wolf:   "Lone Wolf",
-              training:    "Training Match",
+              cs_2vs2: "CS 2vs2",
+              lone_wolf: "Lone Wolf",
+              training: "Training Match",
             }[match.category] || match.category;
-
             const categoryColor = {
-              br_match:    { bg: "#7c3aed20", text: "#a78bfa" },
+              br_match: { bg: "#7c3aed20", text: "#a78bfa" },
               br_survival: { bg: "#dc262620", text: "#f87171" },
               clash_squad: { bg: "#0284c720", text: "#38bdf8" },
-              cs_2vs2:     { bg: "#16a34a20", text: "#4ade80" },
-              lone_wolf:   { bg: "#d9770620", text: "#fb923c" },
-              training:    { bg: "#64748b20", text: "#94a3b8" },
+              cs_2vs2: { bg: "#16a34a20", text: "#4ade80" },
+              lone_wolf: { bg: "#d9770620", text: "#fb923c" },
+              training: { bg: "#64748b20", text: "#94a3b8" },
             }[match.category] || { bg: "#ffffff10", text: "#fff" };
-
             return (
               <div
                 key={match._id}
@@ -459,7 +455,6 @@ function MatchResultsPage({
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      {/* Category Badge */}
                       <span style={{
                         fontSize: 10, fontWeight: 700,
                         padding: "2px 8px", borderRadius: 20,
@@ -483,7 +478,6 @@ function MatchResultsPage({
                     ✅ Completed
                   </span>
                 </div>
-
                 {/* Top 3 Preview */}
                 <div className="flex gap-2 mb-3">
                   {top3.length > 0 ? (
@@ -509,7 +503,6 @@ function MatchResultsPage({
                     <p className="text-gray-600 text-xs">No result data</p>
                   )}
                 </div>
-
                 {/* My Result */}
                 <div className="flex items-center justify-between">
                   {myResult ? (
@@ -547,16 +540,19 @@ const AppDashboard = ({ onLogout }) => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [matches, setMatches] = useState([]);
   const [selectedResult, setSelectedResult] = useState(null);
-  const [resultTab, setResultTab] = useState("leaderboard"); // ✅ যোগ হয়েছে
+  const [resultTab, setResultTab] = useState("leaderboard");
 const [refreshing, setRefreshing] = useState(false);
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const currentUserUid =
     currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
-   useEffect(() => {
+  // API Base Added Here
+  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+
+  useEffect(() => {
   const loadMatches = async () => {
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/matches");
+      const res = await fetch(`${API_BASE}/matches`);
       const data = await res.json();
       let safeData = [];
       if (Array.isArray(data)) safeData = data;
@@ -564,19 +560,17 @@ const [refreshing, setRefreshing] = useState(false);
       else if (Array.isArray(data?.data)) safeData = data.data;
       setMatches(safeData);
     } catch (err) {
+      console.error("Failed to load matches:", err);
       setMatches([]);
     }
   };
 
-  loadMatches(); // first load
-
-  // ✅ auto refresh — 30 সেকেন্ড
+  loadMatches();
   const interval = setInterval(loadMatches, 10 * 1000);
-  return () => clearInterval(interval); // cleanup
-}, []);
-    
+  return () => clearInterval(interval);
+}, [API_BASE]);
    
-
+  
   useEffect(() => {
     const timer = setInterval(() => {
       setSlide((p) => (p === 2 ? 0 : p + 1));
@@ -585,14 +579,14 @@ const [refreshing, setRefreshing] = useState(false);
   }, []);
 
   const categories = [
-  { key: "br_match",      title: "BR Match",       img: "/image/img-1.jpg" },
-  { key: "br_survival",   title: "BR Survival",    img: "/image/img-2.jpg" },
-  { key: "clash_squad",   title: "Clash Squad",    img: "/image/img-3.jpg" },
-  { key: "cs_2vs2",       title: "CS 2vs2",        img: "/image/img-1.jpg" },
-  { key: "lone_wolf",     title: "Lone Wolf",      img: "/image/img-2.jpg" },
-  { key: "training",      title: "Training Match", img: "/image/img-3.jpg" },
+  { key: "br_match", title: "BR Match", img: "/image/img-1.jpg" },
+  { key: "br_survival", title: "BR Survival", img: "/image/img-2.jpg" },
+  { key: "clash_squad", title: "Clash Squad", img: "/image/img-3.jpg" },
+  { key: "cs_2vs2", title: "CS 2vs2", img: "/image/img-1.jpg" },
+  { key: "lone_wolf", title: "Lone Wolf", img: "/image/img-2.jpg" },
+  { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
 ];
-   
+  
   // --- PROFILE TAB ---
   if (tab === "profile") {
     if (screen === "wallet") {
@@ -638,7 +632,6 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
-
   // --- SHOP TAB ---
   if (tab === "shop") {
     return (
@@ -650,7 +643,6 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
-
   // --- MY MATCHES TAB ---
   if (tab === "matches") {
     return (
@@ -660,7 +652,6 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
-
   // --- RESULTS TAB ---
   if (tab === "results") {
     if (selectedResult) {
@@ -695,10 +686,8 @@ const [refreshing, setRefreshing] = useState(false);
         </div>
       );
     }
-
     return (
       <div className="max-w-[450px] mx-auto min-h-screen bg-[#f7f2fb]">
-        {/* Inner Tab */}
         <div
           style={{
             display: "flex",
@@ -738,7 +727,6 @@ const [refreshing, setRefreshing] = useState(false);
           ))}
         </div>
 
-        {/* Content */}
         {resultTab === "leaderboard" ? (
           <Leaderboard />
         ) : (
@@ -747,35 +735,16 @@ const [refreshing, setRefreshing] = useState(false);
             currentUserUid={currentUserUid}
           />
         )}
-
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
-
   // --- CATEGORY SCREEN ---
   if (screen === "category") {
     return (
       <div className="max-w-[450px] mx-auto min-h-screen bg-white">
-        {/* <MatchList
-          matches={filteredMatches}
-          title={selectedCategory}
-          onBack={() => setScreen("home")}
-          onJoinSuccess={(matchId, newBalance) => {
-            const user = JSON.parse(localStorage.getItem("user") || "{}");
-            localStorage.setItem("user", JSON.stringify({ ...user, balance: newBalance }));
-            setMatches((prev) =>
-              prev.map((m) =>
-                m._id === matchId
-                  ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
-                  : m
-              )
-            );
-          }}
-        /> */}
-
         <MatchList
-          category={selectedCategory} // ← matches এর বদলে category
+          category={selectedCategory}
           title={selectedCategory}
           onBack={() => setScreen("home")}
           onJoinSuccess={(matchId, newBalance) => {
@@ -786,12 +755,10 @@ const [refreshing, setRefreshing] = useState(false);
             );
           }}
         />
-
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
-
   // --- HOME SCREEN ---
   return (
     <div className="bg-gray-50 min-h-screen max-w-[450px] mx-auto pb-24">
@@ -817,7 +784,6 @@ const [refreshing, setRefreshing] = useState(false);
             ))}
           </div>
         </div>
-
          <div className="flex items-center justify-between mt-6 px-1">
   <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
     Free Fire <span className="text-orange-500">Arena</span>
@@ -826,12 +792,11 @@ const [refreshing, setRefreshing] = useState(false);
     <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
       LIVE NOW
     </span>
-    {/* ✅ Refresh Button */}
     <button
   onClick={async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/matches");
+      const res = await fetch(`${API_BASE}/matches`);
       const data = await res.json();
       let safeData = [];
       if (Array.isArray(data)) safeData = data;
@@ -855,7 +820,6 @@ const [refreshing, setRefreshing] = useState(false);
 </button>
   </div>
 </div>
-
         <div className="grid grid-cols-2 gap-4 mt-4">
           {categories.map((c) => {
             const count = matches.filter(
@@ -895,7 +859,6 @@ const [refreshing, setRefreshing] = useState(false);
           })}
         </div>
       </div>
-
       <BottomMenu tab={tab} setTab={setTab} />
     </div>
   );
