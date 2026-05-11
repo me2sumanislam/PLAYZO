@@ -1,7 +1,7 @@
  import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
-import Withdraw from "../../page/Withdraw/withdraw";
+import Withdraw from "../../page/Withdraw/Withdraw";
 import BuildYourApp from "../../page/BuildYourApp/BuildYourApp";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
