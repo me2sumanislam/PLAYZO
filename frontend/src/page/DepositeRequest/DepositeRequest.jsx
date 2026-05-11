@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from "react";
 
-const API = "http://localhost:5000/api/wallet";
+const API = "https://playzo-vn8e.onrender.com/api/wallet";
 
 const DepositRequests = () => {
   const [requests, setRequests] = useState([]);

@@ -1,7 +1,7 @@
  import React, { useState, useEffect } from "react";
 import PaymentNumbers from "../../Component/PaymentNumberManager/paymentNumberManager";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
 // ✅ DepositRequests — API থেকে data নেয়
 const DepositRequests = () => {

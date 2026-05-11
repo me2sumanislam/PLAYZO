@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 
-const API = "http://localhost:5000/api";
+const API = "https://playzo-vn8e.onrender.com/api";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const api = async (path, opts = {}) => {

@@ -1,6 +1,6 @@
  import React, { useState, useEffect, useCallback } from "react";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://playzo-vn8e.onrender.com/api";
 
 const STATUS_COLORS = {
   pending: "bg-yellow-100 text-yellow-700",

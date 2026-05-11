@@ -373,7 +373,7 @@ function MatchResultsPage({
     const fetchResults = async () => {
       setLoading(true);
       try {
-        const res  = await fetch("http://localhost:5000/api/matches/completed");
+        const res  = await fetch("https://playzo-vn8e.onrender.com/api/matches/completed");
         const data = await res.json();
         setMatches(Array.isArray(data?.data) ? data.data : []);
       } catch (e) {
@@ -556,7 +556,7 @@ const [refreshing, setRefreshing] = useState(false);
    useEffect(() => {
   const loadMatches = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/matches");
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/matches");
       const data = await res.json();
       let safeData = [];
       if (Array.isArray(data)) safeData = data;
@@ -831,7 +831,7 @@ const [refreshing, setRefreshing] = useState(false);
   onClick={async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("http://localhost:5000/api/matches");
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/matches");
       const data = await res.json();
       let safeData = [];
       if (Array.isArray(data)) safeData = data;
