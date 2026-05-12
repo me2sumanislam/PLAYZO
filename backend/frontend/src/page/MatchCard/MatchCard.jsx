@@ -1,6 +1,6 @@
  import React, { useEffect, useState } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
 const MatchCard = ({ match, onJoinSuccess }) => {
   const [timeLeft, setTimeLeft]             = useState("");
