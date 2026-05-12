@@ -1,7 +1,7 @@
  import React, { useState, useEffect, useCallback } from "react";
 import MatchCard from "../MatchCard/MatchCard";
 
-const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
+const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
 const MatchList = ({ category, onBack, onJoinSuccess, title }) => {
   const [matches, setMatches]         = useState([]);
