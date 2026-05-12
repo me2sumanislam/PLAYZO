@@ -2,11 +2,11 @@
 import api from '../../utils/api';
 
 const MatchResultSubmit = () => {
-  const [matches, setMatches]           = useState([]);
+  const [matches, setMatches]             = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [players, setPlayers]           = useState([]);
-  const [results, setResults]           = useState([]);
-  const [loading, setLoading]           = useState(false);
+  const [players, setPlayers]             = useState([]);
+  const [results, setResults]             = useState([]);
+  const [loading, setLoading]             = useState(false);
 
   const loadMatches = useCallback(() => {
     api("/matches").then((d) => {
@@ -17,18 +17,28 @@ const MatchResultSubmit = () => {
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
-   const handleMatchSelect = (id) => {
+  const handleMatchSelect = (id) => {
     const match = matches.find((m) => m._id === id);
-    console.log("Selected match:", match);
-    console.log("joinedUsers:", match?.joinedUsers);
     setSelectedMatch(match || null);
-    setPlayers(
-      (match?.joinedUsers || []).map((p) => ({
-        ...p,
-        userId: p.userId?.toString() || p.userId,
-      }))
-    );
     setResults([]);
+
+    // ✅ userId populate হলে _id নাও, না হলে সরাসরি toString()
+    const joined = (match?.joinedUsers || []).map((p) => ({
+      ...p,
+      userId: p.userId?._id?.toString() || p.userId?.toString() || p.userId,
+    }));
+    setPlayers(joined);
+  };
+
+  // ✅ সব players একসাথে add
+  const addAllPlayers = () => {
+    const allResults = players.map((p) => ({
+      userId:     p.userId,
+      inGameName: p.inGameName,
+      position:   '',
+      kills:      0,
+    }));
+    setResults(allResults);
   };
 
   const addPlayerRow = () => {
@@ -36,10 +46,9 @@ const MatchResultSubmit = () => {
   };
 
   const handlePlayerSelect = (index, userId) => {
-    // ✅ এখন দুটোই string — নিশ্চিতভাবে match হবে
     const player = players.find((p) => p.userId === userId);
     const updated = [...results];
-    updated[index].userId    = userId;
+    updated[index].userId     = userId;
     updated[index].inGameName = player?.inGameName || "";
     setResults(updated);
   };
@@ -60,27 +69,31 @@ const MatchResultSubmit = () => {
     return Math.floor(prize);
   };
 
-  // ✅ duplicate userId check
-  const isUserAlreadyAdded = (userId, currentIndex) => {
-    return results.some((r, i) => i !== currentIndex && r.userId === userId);
-  };
+  const isUserAlreadyAdded = (userId, currentIndex) =>
+    results.some((r, i) => i !== currentIndex && r.userId === userId);
+
+  const totalPrize = results.reduce(
+    (sum, r) => sum + calcPrize(r.position, r.kills), 0
+  );
 
   const submitResult = async () => {
-    if (!selectedMatch)      return alert("Match select করুন");
+    if (!selectedMatch)       return alert("Match select করুন");
     if (results.length === 0) return alert("কমপক্ষে একজন player যোগ করুন");
 
-    const hasEmpty = results.some((r) => !r.userId || !r.position);
-    if (hasEmpty) return alert("সব player এর userId ও position দিন");
+    const hasEmpty = results.some((r) => !r.userId);
+    if (hasEmpty) return alert("সব player select করুন");
 
-    // ✅ duplicate position check
-    const positions = results.map((r) => Number(r.position));
-    const hasDupPos = positions.length !== new Set(positions).size;
-    if (hasDupPos) return alert("একই position দুজনকে দেওয়া যাবে না");
+    const positions = results
+      .map((r) => Number(r.position))
+      .filter((p) => p > 0);
+    if (positions.length !== new Set(positions).size) {
+      return alert("একই position দুজনকে দেওয়া যাবে না");
+    }
 
-    // ✅ duplicate userId check
     const userIds = results.map((r) => r.userId);
-    const hasDupUser = userIds.length !== new Set(userIds).size;
-    if (hasDupUser) return alert("একই player দুইবার যোগ করা যাবে না");
+    if (userIds.length !== new Set(userIds).size) {
+      return alert("একই player দুইবার যোগ করা যাবে না");
+    }
 
     setLoading(true);
     try {
@@ -88,10 +101,10 @@ const MatchResultSubmit = () => {
         method: "PUT",
         body: JSON.stringify({
           results: results.map((r) => ({
-            userId:    r.userId,
+            userId:     r.userId,
             inGameName: r.inGameName,
-            position:  Number(r.position),
-            kills:     Number(r.kills) || 0,
+            position:   Number(r.position) || 0,
+            kills:      Number(r.kills)    || 0,
           })),
         }),
       });
@@ -100,6 +113,7 @@ const MatchResultSubmit = () => {
         alert("✅ Result submit হয়েছে! Prize distribute হয়েছে।");
         setResults([]);
         setSelectedMatch(null);
+        setPlayers([]);
         loadMatches();
       } else {
         alert("❌ " + res.message);
@@ -156,7 +170,10 @@ const MatchResultSubmit = () => {
                 key={i}
                 className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700"
               >
-                #{p.slotNumber} {p.inGameName}
+                {p.inGameName
+                  ? `${p.inGameName} — Slot #${p.slotNumber}`
+                  : `Slot #${p.slotNumber}`
+                }
               </span>
             ))}
           </div>
@@ -166,6 +183,27 @@ const MatchResultSubmit = () => {
       {/* Players Result Input */}
       {selectedMatch && (
         <div className="space-y-3">
+
+          {/* Buttons */}
+          <div className="flex gap-2">
+            {/* ✅ সব players একসাথে */}
+            <button
+              onClick={addAllPlayers}
+              disabled={players.length === 0 || results.length === players.length}
+              className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-bold disabled:opacity-40"
+            >
+              ⚡ Add All {players.length} Players
+            </button>
+            {/* একজন একজন */}
+            <button
+              onClick={addPlayerRow}
+              disabled={results.length >= players.length && players.length > 0}
+              className="flex-1 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-bold disabled:opacity-40"
+            >
+              + Add Player
+            </button>
+          </div>
+
           {results.map((r, i) => (
             <div key={i} className="bg-white border rounded-xl p-3 shadow-sm">
               <div className="flex justify-between items-center mb-2">
@@ -179,8 +217,7 @@ const MatchResultSubmit = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-
-                {/* ✅ Player Dropdown — userId string হিসেবে */}
+                {/* Player Dropdown */}
                 <div className="col-span-2">
                   <label className="text-xs text-gray-500 mb-1 block">Player</label>
                   <select
@@ -192,15 +229,17 @@ const MatchResultSubmit = () => {
                     {players.map((p) => (
                       <option
                         key={p.userId}
-                        value={p.userId}  // ✅ এখন string
-                        disabled={isUserAlreadyAdded(p.userId, i)} // ✅ duplicate prevent
+                        value={p.userId}
+                        disabled={isUserAlreadyAdded(p.userId, i)}
                       >
-                        {p.inGameName} — Slot #{p.slotNumber}
-                        {isUserAlreadyAdded(p.userId, i) ? " ✓ Added" : ""}
+                        {p.inGameName
+                          ? `${p.inGameName} — Slot #${p.slotNumber}`
+                          : `Slot #${p.slotNumber}`
+                        }
+                        {isUserAlreadyAdded(p.userId, i) ? " ✓" : ""}
                       </option>
                     ))}
                   </select>
-                  {/* ✅ selected player এর inGameName confirm দেখাও */}
                   {r.inGameName && (
                     <p className="text-xs text-green-600 font-semibold mt-1">
                       ✅ {r.inGameName}
@@ -217,7 +256,7 @@ const MatchResultSubmit = () => {
                     className="w-full p-2 border rounded-lg text-sm focus:outline-none focus:border-orange-500"
                   >
                     <option value="">Select</option>
-                    {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                    {Array.from({ length: 48 }, (_, n) => n + 1).map((n) => (
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
@@ -246,14 +285,13 @@ const MatchResultSubmit = () => {
             </div>
           ))}
 
-          {/* Add Player Button */}
-          <button
-            onClick={addPlayerRow}
-            disabled={results.length >= players.length}
-            className="w-full py-3 border-2 border-dashed border-orange-300 text-orange-500 rounded-xl text-sm font-bold hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            + Player যোগ করুন
-          </button>
+          {/* Total Prize */}
+          {results.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex justify-between items-center">
+              <span className="text-sm font-bold text-green-700">Total Prize</span>
+              <span className="text-green-700 font-black text-lg">৳{totalPrize}</span>
+            </div>
+          )}
 
           {/* Submit Button */}
           {results.length > 0 && (
@@ -262,7 +300,7 @@ const MatchResultSubmit = () => {
               disabled={loading}
               className="w-full py-3 bg-green-700 text-white rounded-xl font-black text-sm disabled:opacity-50"
             >
-              {loading ? "Submitting..." : "✅ Result Submit করুন"}
+              {loading ? "Submitting..." : `✅ Result Submit করুন (${results.length} players)`}
             </button>
           )}
         </div>

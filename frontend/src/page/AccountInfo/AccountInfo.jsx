@@ -13,7 +13,7 @@ const AccountInfo = ({ onBack }) => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/users/me", {
+        const res = await fetch("https://playzo-vn8e.onrender.com/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -43,7 +43,7 @@ const AccountInfo = ({ onBack }) => {
     }
     setSaving(true);
     try {
-      const res = await fetch("http://localhost:5000/api/users/change-password", {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/users/change-password", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
