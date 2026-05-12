@@ -75,7 +75,7 @@ console.log(
 );
 
 app.get("/", (req, res) => {
-  res.json({ success: true, message: "🚀 Uthiyo Backend is running!" });
+  res.json({ success: true, message: "🚀 Playzo Backend is running!" });
 });
 
 app.get("/health", (req, res) => {
@@ -84,7 +84,6 @@ app.get("/health", (req, res) => {
 
 // ================= ROUTES =================
 app.use("/api/matches",               require("./routes/matchRoutes"));
-app.use("/api/api/matches",           require("./routes/matchRoutes")); // ✅ double api fix
 app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
 app.use("/api/admin",                 authLimiter, require("./routes/adminAuthRoutes"));
 app.use("/api/admin",                 require("./routes/admin"));
@@ -96,6 +95,18 @@ app.use("/api/users",                 require("./routes/users"));
 app.use("/api/withdraw",              require("./routes/withdrawRoutes"));
 app.use("/api/leaderboard",           require("./routes/leaderboardRoutes"));
 
+// ✅ Fix: double /api/api routes
+app.use("/api/api/matches",           require("./routes/matchRoutes"));
+app.use("/api/api/auth",              authLimiter, require("./routes/authRoutes"));
+app.use("/api/api/admin",             authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/api/admin",             require("./routes/admin"));
+app.use("/api/api/wallet",            require("./routes/walletRoutes"));
+app.use("/api/api/payment-numbers",   require("./routes/paymentNumbers"));
+app.use("/api/api/users",             require("./routes/users"));
+app.use("/api/api/withdraw",          require("./routes/withdrawRoutes"));
+app.use("/api/api/leaderboard",       require("./routes/leaderboardRoutes"));
+
+// ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
   res.status(500).json({ message: "Something went wrong!" });
