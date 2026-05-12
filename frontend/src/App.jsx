@@ -12,9 +12,23 @@ import AdminPanel from "./page/AdminPenal/AdminPanel";
 
 function App() {
   const [isAppMode, setIsAppMode] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(null);
+ const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
 
-  // ================= ADMIN ROUTE (Highest Priority) =================
+  
+   
+
+  // ================= PWA CHECK =================
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone;
+
+    if (isStandalone) {
+      setIsAppMode(true);
+    }
+  }, []);
+
+  // ================= ADMIN ROUTE =================
   if (window.location.pathname.startsWith("/admin")) {
     return (
       <div className="min-h-screen bg-gray-950">
@@ -28,27 +42,6 @@ function App() {
       </div>
     );
   }
-
-  // ================= INIT AUTH CHECK =================
-  useEffect(() => {
-    const userToken = localStorage.getItem("token");
-    if (userToken) {
-      setIsLoggedIn(true);
-    } else {
-      setIsLoggedIn(false);
-    }
-  }, []);
-
-  // ================= PWA CHECK =================
-  useEffect(() => {
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone;
-
-    if (isStandalone) {
-      setIsAppMode(true);
-    }
-  }, []);
 
   // ================= LOGIN SUCCESS =================
   const handleLoginSuccess = () => {
