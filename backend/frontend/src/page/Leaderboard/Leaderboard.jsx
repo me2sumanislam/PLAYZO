@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
 const Leaderboard = () => {
   const [tab, setTab]       = useState("weekly"); // weekly | alltime

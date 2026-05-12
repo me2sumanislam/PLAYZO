@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from "react";
 
-const API = "http://localhost:5000/api";
+const API = "https://playzo-vn8e.onrender.com/api";
 
 const AddMoneyModal = ({ isOpen, onClose }) => {
   const [form, setForm] = useState({ method: "bkash", amount: "", trxId: "" });
