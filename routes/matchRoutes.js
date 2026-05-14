@@ -3,6 +3,7 @@ const router = express.Router();
 const Match = require("../models/Match");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const pushRoutes = require("./pushRoutes");
 
 // ================= ADMIN MIDDLEWARE =================
 const protectAdmin = (req, res, next) => {
@@ -35,6 +36,7 @@ router.post("/create", protectAdmin, async (req, res) => {
     const expiresAt = startTime
       ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
       : new Date(Date.now() + 20 * 60 * 1000);
+
     const match = await Match.create({
       ...rest,
       startTime,
@@ -42,6 +44,10 @@ router.post("/create", protectAdmin, async (req, res) => {
       joinedPlayers: 0,
       status: "upcoming",
     });
+
+    // ✅ Match create হলে সব users কে notification পাঠাও
+    pushRoutes.sendMatchNotification(match);
+
     res.status(201).json({
       success: true,
       message: "Match created successfully",
