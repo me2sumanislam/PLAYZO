@@ -1,110 +1,64 @@
  import React, { useState, useEffect } from "react";
 import "./App.css";
 
+// ওয়েবসাইট সেকশন (Landing Page)
 import Footer from "./Component/Footer/Footer";
 import Hero from "./Component/HeroSection/HeroSection";
 import Navbar from "./Component/Navbar/Navbar";
 import HomeCard from "./page/HomeCard/HomeCard";
 
+// অ্যাপ সেকশন (App UI & Logic)
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
-import Auth from "./page/Auth/Auth";
-import AdminPanel from "./page/AdminPenal/AdminPanel";
+import Login from "./Component/Login/Login";
 
 function App() {
+  // ইউজার অ্যাপ মোডে আছে কিনা তা চেক করার স্টেট
   const [isAppMode, setIsAppMode] = useState(false);
- const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+  // ইউজার লগইন করা আছে কিনা তার স্টেট
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  
-   
-
-  // ================= PWA CHECK =================
   useEffect(() => {
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone;
-
+    // চেক করা হচ্ছে ইউজার কি ইন্সটল করা অ্যাপ (Standalone) থেকে ওপেন করেছে কি না
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    
     if (isStandalone) {
       setIsAppMode(true);
     }
   }, []);
 
-  // ================= ADMIN ROUTE =================
-  if (window.location.pathname.startsWith("/admin")) {
-    return (
-      <div className="min-h-screen bg-gray-950">
-        <AdminPanel
-          onLogout={() => {
-            localStorage.removeItem("adminToken");
-            localStorage.removeItem("adminInfo");
-            window.location.href = "/";
-          }}
-        />
-      </div>
-    );
-  }
-
-  // ================= LOGIN SUCCESS =================
-  const handleLoginSuccess = () => {
-    const userToken = localStorage.getItem("token");
-    setIsLoggedIn(!!userToken);
-  };
-
-  // ================= LOGOUT =================
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isAdmin");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminInfo");
-    localStorage.removeItem("user_balance");
-    setIsLoggedIn(false);
-  };
-
-  // ================= LOADING =================
-  if (isLoggedIn === null) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
-      </div>
-    );
-  }
-
-  // ================= APP MODE (PWA) =================
+  /**
+   * লজিক ১: অ্যাপ মোড (যখন ইউজার মোবাইল অ্যাপ বা আইকন থেকে ঢুকবে)
+   */
   if (isAppMode) {
     return (
-      <div className="app-container bg-[#fcfaff] min-h-screen">
+      <div className="app-container">
         {isLoggedIn ? (
-          <AppDashboard onLogout={handleLogout} />
+          // লগইন করা থাকলে সরাসরি ড্যাশবোর্ড (ইমেজের মতো ভিউ)
+          <AppDashboard onLogout={() => setIsLoggedIn(false)} />
         ) : (
-          <Auth onLoginSuccess={handleLoginSuccess} />
+          // লগইন না থাকলে প্রথমে লগইন পেজ
+          <Login onLoginSuccess={() => setIsLoggedIn(true)} />
         )}
       </div>
     );
   }
 
-  // ================= WEBSITE MODE =================
+  /**
+   * লজিক ২: ওয়েবসাইট মোড (ব্রাউজারে uthiyo.com এ সাধারণ ভিজিট)
+   */
   return (
     <div className="website-layout">
       <Navbar />
       <Hero />
       <HomeCard />
       <Footer />
-
-      <button
-        onClick={() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          localStorage.removeItem("isAdmin");
-          localStorage.removeItem("adminToken");
-          localStorage.removeItem("adminInfo");
-          localStorage.removeItem("user_balance");
-
-          setIsLoggedIn(false);
-          setIsAppMode(true);
-        }}
-        className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
+      
+      {/* ডেভেলপমেন্ট এবং টেস্ট করার জন্য নিচের বাটনটি খুব কাজের */}
+      <button 
+        onClick={() => setIsAppMode(true)}
+        className="fixed bottom-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-full text-[10px] font-bold z-[9999] shadow-lg transition-all active:scale-95"
       >
-        📱 Open Playzo App
+        Preview App Interface
       </button>
     </div>
   );

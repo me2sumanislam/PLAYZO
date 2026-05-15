@@ -1,128 +1,96 @@
- import React, { useState, useEffect, useCallback } from "react";
-import MatchCard from "../MatchCard/MatchCard";
-const API = "https://playzo-vn8e.onrender.com/api";
-const MatchList = ({ category, onBack, onJoinSuccess, title }) => {
-  const [matches, setMatches]         = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [refreshing, setRefreshing]   = useState(false);
+ import React from 'react';
 
-  const fetchMatches = useCallback(async (isManual = false) => {
-    if (isManual) setRefreshing(true);
-    try {
-      const res  = await fetch(`${API}/api/matches`);
-      const data = await res.json();
-      let all = Array.isArray(data) ? data : data?.data || [];
-
-      if (category) {
-        all = all.filter(
-          (m) => (m.category || "").toLowerCase().trim() === category.toLowerCase().trim()
-        );
-      }
-
-      setMatches(all);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error("Match fetch error:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [category]);
-
-  // first load
-  useEffect(() => {
-    fetchMatches();
-  }, [fetchMatches]);
-
-  // auto refresh — 10 সেকেন্ড
-  useEffect(() => {
-    const interval = setInterval(() => fetchMatches(), 10 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchMatches]);
-
-  const handleJoinSuccess = (matchId, newBalance) => {
-    setMatches((prev) =>
-      prev.map((m) =>
-        m._id === matchId
-          ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
-          : m
-      )
-    );
-    if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
-  };
-
+const MatchList = ({ matches, onBack }) => {
   return (
-    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
-
-      {/* HEADER */}
-      <div className="bg-white p-4 flex items-center justify-between shadow">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="text-lg font-bold">←</button>
-          <h2 className="font-bold uppercase">{title}</h2>
-        </div>
-
-        {/* Manual Refresh */}
-        <button
-          onClick={() => fetchMatches(true)}
-          disabled={refreshing}
-          className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 active:scale-95 transition-all disabled:opacity-50"
-        >
-          {refreshing ? (
-            <span className="inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          ) : "🔄"}
-          {refreshing ? "Updating..." : "Refresh"}
-        </button>
+    <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-10">
+      {/* Header */}
+      <div className="flex items-center px-4 py-4 bg-white sticky top-0 z-10 shadow-sm">
+        <button onClick={onBack} className="text-2xl mr-4">❮</button>
+        <h2 className="text-lg font-black uppercase tracking-tight">BR MATCHES</h2>
+        <button className="ml-auto text-blue-500 text-xl">🔄</button>
       </div>
 
-      {/* COUNT + LAST UPDATED */}
-      <div className="px-3 py-2 flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          Total: <b>{matches.length}</b> matches
-        </p>
-        {lastUpdated && (
-          <p className="text-[10px] text-gray-400">
-            {lastUpdated.toLocaleTimeString("en-BD", {
-              hour: "2-digit", minute: "2-digit", second: "2-digit"
-            })}
-          </p>
-        )}
-      </div>
+      {/* Match Cards Container */}
+      <div className="px-3 py-4 space-y-5">
+        {matches.map((match) => (
+          <div key={match.id} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+            {/* Title & Banner */}
+            <div className="flex gap-3 p-3">
+              <div className="w-24 h-16 bg-indigo-900 rounded-lg flex items-center justify-center overflow-hidden">
+                <img src="https://via.placeholder.com/100x60/1e1b4b/ffffff?text=FREE+FIRE" alt="banner" className="object-cover" />
+              </div>
+              <div>
+                <h3 className="font-black text-sm text-slate-800 leading-tight">
+                  {match.title} | {match.version} | {match.type}
+                </h3>
+                <p className="text-[10px] text-red-500 font-bold mt-1">{match.time}</p>
+              </div>
+            </div>
 
-      {/* Auto refresh indicator */}
-      <div className="px-3 mb-2">
-        <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-[10px] text-gray-400">Auto refresh every 10 seconds</span>
-        </div>
-      </div>
+            {/* Info Grid */}
+            <div className="grid grid-cols-3 gap-y-4 px-4 py-2 border-t border-gray-50 text-center">
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Win Prize</p>
+                <p className="text-xs font-black">{match.winPrize} TK</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Entry Type</p>
+                <p className="text-xs font-black">{match.entryType}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Entry Fee</p>
+                <p className="text-xs font-black">{match.entryFee} TK</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Per Kill</p>
+                <p className="text-xs font-black">{match.perKill} TK</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Map</p>
+                <p className="text-xs font-black">{match.mapName}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Version</p>
+                <p className="text-xs font-black">{match.version}</p>
+              </div>
+            </div>
 
-      {/* LIST */}
-      <div className="p-3 space-y-3">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-400">Loading matches...</p>
+            {/* Progress Bar & Join Button */}
+            <div className="px-4 py-3 flex items-center gap-4 border-t border-gray-50">
+              <div className="flex-1">
+                <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-green-500 h-full rounded-full" 
+                    style={{ width: `${(match.joined / match.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <p className="text-[9px] text-gray-400 font-bold">Only {match.total - match.joined} spots left</p>
+                  <p className="text-[9px] text-gray-600 font-black">{match.joined}/{match.total}</p>
+                </div>
+              </div>
+              <button className={`px-4 py-2 rounded-lg border-2 font-black text-xs ${match.joined >= match.total ? 'border-gray-200 text-gray-400' : 'border-indigo-600 text-indigo-600 active:bg-indigo-50'}`}>
+                {match.joined >= match.total ? 'Match Full' : 'Join Now'}
+              </button>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="grid grid-cols-2 gap-2 px-3 py-3 bg-gray-50">
+               <button className="bg-white border border-indigo-200 text-indigo-700 py-1.5 rounded-md text-[10px] font-black uppercase flex items-center justify-center gap-1">
+                 🔑 Room Details <span>▼</span>
+               </button>
+               <button className="bg-white border border-indigo-200 text-indigo-700 py-1.5 rounded-md text-[10px] font-black uppercase flex items-center justify-center gap-1">
+                 🏆 Total Prize Details <span>▼</span>
+               </button>
+            </div>
+
+            {/* Starts In Timer */}
+            <div className="bg-green-600 text-white text-center py-2 text-xs font-bold flex items-center justify-center gap-2">
+              🕒 STARTS IN - <span className="text-sm font-black">{match.startsIn}</span>
+            </div>
           </div>
-        ) : matches.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-4xl mb-3">🎮</p>
-            <p className="text-gray-400 font-bold">No Match Available</p>
-            <p className="text-gray-300 text-xs mt-1">Check back later</p>
-          </div>
-        ) : (
-          matches.map((match) => (
-            <MatchCard
-              key={match._id || match.id}
-              match={match}
-              onJoinSuccess={(newBalance) =>
-                handleJoinSuccess(match._id || match.id, newBalance)
-              }
-            />
-          ))
-        )}
+        ))}
       </div>
-
     </div>
   );
 };
