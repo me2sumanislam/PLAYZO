@@ -1,30 +1,29 @@
- import React, { useEffect, useState } from 'react';
+ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      window.deferredPrompt = e;
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
- const handleDownload = async () => {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
+  const handleDownload = async () => {
+    if (window.deferredPrompt) {
+      window.deferredPrompt.prompt();
+      const { outcome } = await window.deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        window.deferredPrompt = null;
+      }
+    } else {
+      alert("📱 ডাউনলোড করতে:\n\n✅ Chrome: ⋮ মেনু → 'Add to Home Screen'\n✅ Samsung Browser: ⋮ মেনু → 'Add page to' → 'Home Screen'\n✅ iPhone: Share বাটন → 'Add to Home Screen'");
     }
-  } else {
-    alert("📱 ডাউনলোড করতে:\n\n✅ Chrome: উপরের ⋮ মেনু → 'Add to Home Screen'\n✅ Samsung Browser: ⋮ মেনু → 'Add page to' → 'Home Screen'\n✅ iPhone: Share বাটন → 'Add to Home Screen'");
-  }
-};
+  };
 
   return (
     <section id="home" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] pt-10 pb-20 px-6 overflow-hidden relative">
