@@ -1,4 +1,5 @@
  import React, { useState, useEffect } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./App.css";
 
 import Footer from "./Component/Footer/Footer";
@@ -11,36 +12,18 @@ import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
 
 function App() {
-  const [isAppMode, setIsAppMode] = useState(() => {
-    return (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true
-    );
-  });
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAppMode = location.pathname === "/app" || location.pathname.startsWith("/app");
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
 
   useEffect(() => {
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone;
-    if (isStandalone) {
-      setIsAppMode(true);
+    if (isStandalone && location.pathname === "/") {
+      navigate("/app");
     }
   }, []);
-
-  if (window.location.pathname.startsWith("/admin")) {
-    return (
-      <div className="min-h-screen bg-gray-950">
-        <AdminPanel
-          onLogout={() => {
-            localStorage.removeItem("adminToken");
-            localStorage.removeItem("adminInfo");
-            window.location.href = "/";
-          }}
-        />
-      </div>
-    );
-  }
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(!!localStorage.getItem("token"));
@@ -54,37 +37,49 @@ function App() {
     localStorage.removeItem("adminInfo");
     localStorage.removeItem("user_balance");
     setIsLoggedIn(false);
-    setIsAppMode(false);
+    navigate("/");
   };
 
-  if (isAppMode) {
-    return (
-      <div className="app-container bg-[#fcfaff] min-h-screen">
-        {isLoggedIn ? (
-          <AppDashboard onLogout={handleLogout} />
-        ) : (
-          <Auth onLoginSuccess={handleLoginSuccess} />
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="website-layout">
-      <Navbar />
-      <Hero />
-      <HomeCard />
-      <Footer />
+    <Routes>
+      {/* Website Mode */}
+      <Route path="/" element={
+        <div className="website-layout">
+          <Navbar />
+          <Hero />
+          <HomeCard />
+          <Footer />
+          <button
+            onClick={() => navigate("/app")}
+            className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
+          >
+            📱 Open Playzo App
+          </button>
+        </div>
+      } />
 
-      <button
-        onClick={() => {
-          setIsAppMode(true);
-        }}
-        className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
-      >
-        📱 Open Playzo App
-      </button>
-    </div>
+      {/* App Mode */}
+      <Route path="/app" element={
+        <div className="app-container bg-[#fcfaff] min-h-screen">
+          {isLoggedIn ? (
+            <AppDashboard onLogout={handleLogout} />
+          ) : (
+            <Auth onLoginSuccess={handleLoginSuccess} />
+          )}
+        </div>
+      } />
+
+      {/* Admin */}
+      <Route path="/admin/*" element={
+        <div className="min-h-screen bg-gray-950">
+          <AdminPanel onLogout={() => {
+            localStorage.removeItem("adminToken");
+            localStorage.removeItem("adminInfo");
+            navigate("/");
+          }} />
+        </div>
+      } />
+    </Routes>
   );
 }
 
