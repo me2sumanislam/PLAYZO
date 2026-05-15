@@ -14,18 +14,17 @@ const Hero = () => {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const handleDownload = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
-    } else {
-      // iOS বা already installed হলে সরাসরি app এ নিয়ে যাও
-      navigate('/app');
+ const handleDownload = async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
     }
-  };
+  } else {
+    alert("📱 ডাউনলোড করতে:\n\n✅ Chrome: উপরের ⋮ মেনু → 'Add to Home Screen'\n✅ Samsung Browser: ⋮ মেনু → 'Add page to' → 'Home Screen'\n✅ iPhone: Share বাটন → 'Add to Home Screen'");
+  }
+};
 
   return (
     <section id="home" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] pt-10 pb-20 px-6 overflow-hidden relative">
