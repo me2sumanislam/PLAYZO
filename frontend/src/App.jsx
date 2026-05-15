@@ -49,12 +49,7 @@ function App() {
           <Hero />
           <HomeCard />
           <Footer />
-          <button
-            onClick={() => navigate("/app")}
-            className="fixed bottom-4 right-4 bg-orange-500 text-white px-6 py-3 rounded-full text-xs font-black z-[9999] shadow-2xl active:scale-95 transition-transform uppercase tracking-wider"
-          >
-            📱 Open Playzo App
-          </button>
+          
         </div>
       } />
 
