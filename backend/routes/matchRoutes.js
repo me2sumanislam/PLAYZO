@@ -3,7 +3,7 @@ const router = express.Router();
 const Match = require("../models/Match");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
-const pushRoutes = require("./pushRoutes");
+const pushRoutes = require("./PushRoutes");
 
 // ================= ADMIN MIDDLEWARE =================
 const protectAdmin = (req, res, next) => {
