@@ -106,7 +106,7 @@ app.use("/api/api/payment-numbers",   require("./routes/paymentNumbers"));
 app.use("/api/api/users",             require("./routes/users"));
 app.use("/api/api/withdraw",          require("./routes/withdrawRoutes"));
 app.use("/api/api/leaderboard",       require("./routes/leaderboardRoutes"));
-app.use("/api/api/push",              require("./routes/pushRoutes")); // ✅ নতুন
+ 
 
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
