@@ -1,195 +1,98 @@
- import React, { useState, useEffect } from 'react';
-import Profile from '../../page/BottomManu/BottomMenu';
-import AdminDashboard from '../../page/Admin/AdminDashboard/AdminDashboard';
+ import React from 'react';
 
-
-// --- Countdown Timer ---
-const CountdownTimer = ({ startMinutes }) => {
-  const [seconds, setSeconds] = useState(parseInt(startMinutes) * 60 || 0);
-
-  useEffect(() => {
-    if (seconds <= 0) return;
-    const interval = setInterval(() => setSeconds((s) => s - 1), 1000);
-    return () => clearInterval(interval);
-  }, [seconds]);
-
-  if (seconds <= 0) return <span>00m:00s</span>;
-
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-
-  return (
-    <span>
-      {m < 10 ? "0" + m : m}m:{s < 10 ? "0" + s : s}s
-    </span>
-  );
-};
-
-// --- Prize Modal ---
-const PrizeModal = ({ isOpen, onClose, match }) => {
-  if (!isOpen) return null;
-
-  const list = [
-    { i: '👑', l: 'Winner', v: match.prize1 },
-    { i: '🥈', l: '2nd Position', v: match.prize2 },
-    { i: '🥉', l: '3rd Position', v: match.prize3 },
-    { i: '🏅', l: '4th Position', v: match.prize4 },
-    { i: '🏅', l: '5th Position', v: match.prize5 },
-    { i: '🔥', l: 'Per Kill', v: match.perKill },
-    { i: '🏆', l: 'Total Prize Pool', v: match.winPrize },
+const AppDashboard = () => {
+  // টুর্নামেন্ট ডাটা (ভবিষ্যতে আপনি এটি MongoDB থেকে fetch করবেন)
+  const games = [
+    { id: 1, title: 'BR MATCH', matches: '21 matches found', img: 'https://via.placeholder.com/300x150/222/fff?text=BR+Match' },
+    { id: 2, title: 'BR SURVIVAL', matches: '13 matches found', img: 'https://via.placeholder.com/300x150/444/fff?text=Survival' },
+    { id: 3, title: 'Clash Squad', matches: '24 matches found', img: 'https://via.placeholder.com/300x150/666/fff?text=Clash+Squad' },
+    { id: 4, title: 'CS 2 VS 2', matches: '29 matches found', img: 'https://via.placeholder.com/300x150/888/fff?text=2vs2' },
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60" onClick={onClose}>
-      <div className="relative w-full max-w-[320px]" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full font-bold shadow z-50">
-          ✕
+    <div className="bg-[#f3f4f6] min-h-screen max-w-[450px] mx-auto border-x border-gray-200 relative pb-24 shadow-2xl overflow-y-auto">
+      
+      {/* --- Top Banner Section (As per your image) --- */}
+      <div className="bg-black p-5 relative overflow-hidden h-44 flex items-center justify-between rounded-b-[2.5rem]">
+        <div className="z-10">
+          <h2 className="text-[#a3ff00] font-black text-2xl italic leading-tight">DAILY</h2>
+          <h2 className="text-white font-black text-2xl leading-tight">WITHDRAW</h2>
+          <h2 className="text-cyan-400 font-black text-2xl leading-tight">PROOF</h2>
+        </div>
+        
+        <div className="bg-white p-2 rounded-xl z-10 w-20 h-20 flex flex-col items-center justify-center shadow-lg">
+          <span className="text-[10px] font-black text-black border-b border-black leading-none">KHELO</span>
+          <span className="text-[8px] font-bold text-gray-500">BANGLADESH</span>
+          <span className="text-[10px] font-black text-green-600">OFFICIAL</span>
+        </div>
+
+        {/* Orange Curve Background Element */}
+        <div className="absolute right-0 top-0 h-full w-1/3 bg-orange-500 rounded-l-full translate-x-8 opacity-90"></div>
+      </div>
+
+      {/* --- Notice / Withdraw Bar --- */}
+      <div className="bg-white py-2 px-4 flex justify-between items-center shadow-sm border-b border-gray-100">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <span className="text-orange-500 text-[11px] font-bold whitespace-nowrap animate-pulse">
+            📢 পরে পেয়ে যাবে সবাই। আমাদের সাথেই থাকুন।
+          </span>
+        </div>
+        <button className="text-orange-600 text-xs font-black uppercase italic whitespace-nowrap ml-2">
+          Withdraw +
         </button>
-
-        <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
-          <div className="bg-yellow-300 py-5 text-center">
-            <h2 className="font-black text-slate-800 text-lg">Total Win Prize</h2>
-            <p className="text-[10px] font-bold">{match.title}</p>
-          </div>
-
-          <div className="p-5 space-y-3">
-            {list.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-sm font-bold border-b pb-2">
-                <span>{item.i} {item.l}</span>
-                <span>{item.v || 0} TK</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
-    </div>
-  );
-};
 
-// --- Main Dashboard ---
-const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab] = useState('play');
-  const [view, setView] = useState('home');
-  const [slide, setSlide] = useState(0);
-  const [selMatch, setSelMatch] = useState(null);
+      {/* --- Game Category Title --- */}
+      <div className="text-center my-5">
+        <h3 className="text-gray-500 font-black tracking-[0.4em] text-sm uppercase">FREE FIRE</h3>
+      </div>
 
-  const [matches, setMatches] = useState(() => {
-    const saved = localStorage.getItem('local_matches');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [defaultBR] = useState([
-    { id: 1, title: "BR Classic Match", time: "Today 7:00 PM", imageUrl: "/image/img-1.jpg", winPrize: 5000, matchCount: 12 },
-    { id: 2, title: "BR Squad Battle", time: "Today 8:00 PM", imageUrl: "/image/img-2.jpg", winPrize: 8000, matchCount: 20 },
-    { id: 3, title: "BR Fast Fight", time: "Tomorrow 5:00 PM", imageUrl: "/image/img-3.jpg", winPrize: 3000, matchCount: 8 },
-    { id: 4, title: "BR Pro League", time: "Tomorrow 6:00 PM", imageUrl: "/image/img-1.jpg", winPrize: 10000, matchCount: 25 },
-    { id: 5, title: "BR Rookie Cup", time: "Today 9:00 PM", imageUrl: "/image/img-2.jpg", winPrize: 2000, matchCount: 5 },
-    { id: 6, title: "BR Elite Zone", time: "Tonight 10:00 PM", imageUrl: "/image/img-3.jpg", winPrize: 15000, matchCount: 30 },
-  ]);
-
-  useEffect(() => {
-    localStorage.setItem('local_matches', JSON.stringify(matches));
-  }, [matches]);
-
-  const imgs = ["/image/img-1.jpg", "/image/img-2.jpg", "/image/img-3.jpg"];
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setSlide((p) => (p === 9 ? 0 : p + 1)); // 10 SLIDES
-    }, 3000);
-
-    return () => clearInterval(t);
-  }, []);
-
-  if (view === 'admin_dashboard') {
-    return <AdminDashboard onBack={() => setView('home')} />;
-  }
-
-  if (view === 'br_list') {
-    return (
-      <div className="bg-[#fcfaff] min-h-screen max-w-[450px] mx-auto pb-24">
-        <PrizeModal
-          isOpen={!!selMatch}
-          onClose={() => setSelMatch(null)}
-          match={selMatch || {}}
-        />
-
-        <div className="p-4 bg-white flex justify-between items-center sticky top-0 z-50 shadow-sm">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setView('home')}>❮</button>
-            <h2 className="font-black text-sm">BR MATCHES</h2>
-          </div>
-        </div>
-
-        <div className="p-3 space-y-5">
-          {matches.map((m) => (
-            <div key={m.id} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-              <div className="p-4">
-                <h3 className="font-black text-xs">{m.title}</h3>
+      {/* --- Tournament Grid (2 Columns) --- */}
+      <div className="grid grid-cols-2 gap-4 px-4">
+        {games.map((game) => (
+          <div key={game.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 active:scale-95 transition-all">
+            <div className="h-28 relative">
+              <img src={game.img} alt={game.title} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                <span className="text-white font-black text-[10px] italic text-center px-1 uppercase leading-tight drop-shadow-md">
+                  {game.title}
+                </span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24 relative">
-
-      <div className="p-4 mt-4">
-
-        {/* ⭐ SLIDER (10 IMAGES) */}
-        <div className="rounded-3xl overflow-hidden shadow">
-          <div className="relative w-full h-44">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <img
-                key={i}
-                src={`/image/img-${(i % 3) + 1}.jpg`}
-                className="absolute w-full h-full object-cover transition-opacity duration-1000"
-                style={{ opacity: slide === i ? 1 : 0 }}
-                alt=""
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ⭐ MARQUEE */}
-        <div className="mt-3 bg-white py-2 rounded-xl shadow overflow-hidden">
-          <marquee className="text-xs font-bold text-red-500">
-            🔥 Welcome to Battle Arena • Play Free Fire • Win Rewards • Join Now 🔥
-          </marquee>
-        </div>
-
-        {/* ⭐ FREE FIRE TEXT */}
-        <div className="mt-3 text-center">
-          <h2 className="text-lg font-black text-orange-500 tracking-widest">
-            FREE FIRE
-          </h2>
-        </div>
-        {/* 2 COLUMN CARDS (UNCHANGED) */}
-        <div className="mt-4 grid grid-cols-2 gap-3 px-2">
-          {defaultBR.map((m) => (
-            <div
-              key={m.id}
-              onClick={() => setView('br_list')}
-              className="bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer"
-            >
-              <img src={m.imageUrl} className="w-full h-24 object-cover" alt="" />
-
-              <div className="p-2">
-                <h4 className="font-bold text-xs">{m.title}</h4>
-
-                <div className="flex justify-between text-[10px] mt-2 font-bold">
-                  <span>Match: {m.matchCount}</span>
-                  <span>৳{m.winPrize}</span>
-                </div>
-              </div>
+            <div className="p-3 bg-white">
+              <h4 className="font-bold text-xs text-slate-800 truncate">{game.title}</h4>
+              <p className="text-[9px] text-gray-400 font-semibold">{game.matches}</p>
             </div>
-          ))}
-        </div>
-
+          </div>
+        ))}
       </div>
+
+      {/* --- Bottom Navigation Menu --- */}
+      <div className="fixed bottom-0 w-full max-w-[450px] bg-white border-t border-gray-100 flex justify-around py-3 px-2 z-50 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col items-center gap-1 text-cyan-500 cursor-pointer">
+          <span className="text-xl">🏪</span>
+          <span className="text-[9px] font-bold">Shop</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 text-indigo-700 cursor-pointer scale-110">
+          <div className="bg-indigo-50 p-1 px-3 rounded-xl border border-indigo-100">
+            <span className="text-xl">🎮</span>
+          </div>
+          <span className="text-[9px] font-black">Play</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 text-gray-400 cursor-pointer">
+          <span className="text-xl">📋</span>
+          <span className="text-[9px] font-bold">My Matches</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 text-green-500 cursor-pointer">
+          <span className="text-xl">📈</span>
+          <span className="text-[9px] font-bold">Results</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 text-purple-500 cursor-pointer">
+          <span className="text-xl">👤</span>
+          <span className="text-[9px] font-bold">Profile</span>
+        </div>
+      </div>
+
     </div>
   );
 };
