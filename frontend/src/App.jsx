@@ -11,7 +11,6 @@ import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
 
-// ✅ ADD THIS
 import { subscribeUserToPush } from "./utils/pushNotification";
 
 function App() {
@@ -42,17 +41,17 @@ function App() {
     window.navigator.standalone;
 
   useEffect(() => {
-    // PWA তে শুধু root "/" থেকে "/app" এ নিয়ে যাবে
-    // কিন্তু clear করবে না — login থাকলে থাকবে
     if (isStandalone && location.pathname === "/") {
       navigate("/app");
     }
   }, [isStandalone, location.pathname, navigate]);
 
-  // ✅ ADD THIS
+  // ✅ শুধু logged in হলেই push subscribe করো
   useEffect(() => {
-    subscribeUserToPush();
-  }, []);
+    if (isLoggedIn) {
+      subscribeUserToPush();
+    }
+  }, [isLoggedIn]);
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(!!localStorage.getItem("token"));
