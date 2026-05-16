@@ -10,14 +10,12 @@ import HomeCard from "./page/HomeCard/HomeCard";
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
-import InstallButton from "./Component/InstallButton/InstallButton";   // ← Import করো
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAppMode = location.pathname === "/app" || location.pathname.startsWith("/app");
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
 
   useEffect(() => {
@@ -42,53 +40,41 @@ function App() {
   };
 
   return (
-    <>
-      <Routes>
-        {/* Website Mode */}
-        <Route
-          path="/"
-          element={
-            <div className="website-layout">
-              <Navbar />
-              <Hero />
-              <HomeCard />
-              <Footer />
- 
-            </div>
-          }
-        />
+    <Routes>
+      {/* Website Mode */}
+      <Route path="/" element={
+        <div className="website-layout">
+          <Navbar />
+          <Hero />
+          <HomeCard />
+          <Footer />
+        </div>
+      } />
 
-        {/* App Mode */}
-        <Route
-          path="/app"
-          element={
-            <div className="app-container bg-[#fcfaff] min-h-screen">
-              {isLoggedIn ? (
-                <AppDashboard onLogout={handleLogout} />
-              ) : (
-                <Auth onLoginSuccess={handleLoginSuccess} />
-              )}
-            </div>
-          }
-        />
+      {/* App Mode */}
+      <Route path="/app" element={
+        <div className="app-container bg-[#fcfaff] min-h-screen">
+          {isLoggedIn ? (
+            <AppDashboard onLogout={handleLogout} />
+          ) : (
+            <Auth onLoginSuccess={handleLoginSuccess} />
+          )}
+        </div>
+      } />
 
-        {/* Admin Panel */}
-        <Route
-          path="/admin/*"
-          element={
-            <div className="min-h-screen bg-gray-950">
-              <AdminPanel
-                onLogout={() => {
-                  localStorage.removeItem("adminToken");
-                  localStorage.removeItem("adminInfo");
-                  navigate("/");
-                }}
-              />
-            </div>
-          }
-        />
-      </Routes>
-    </>
+      {/* Admin Panel */}
+      <Route path="/admin/*" element={
+        <div className="min-h-screen bg-gray-950">
+          <AdminPanel
+            onLogout={() => {
+              localStorage.removeItem("adminToken");
+              localStorage.removeItem("adminInfo");
+              navigate("/");
+            }}
+          />
+        </div>
+      } />
+    </Routes>
   );
 }
 
