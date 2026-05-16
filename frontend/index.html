@@ -1,15 +1,50 @@
-<!doctype html>
-<html lang="en" data-theme="light">
+ <!doctype html>
+<html lang="bn" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Uthiyo</title>
-  </head>
-  <body> 
     
+    <title>uthiYO</title>
+    <meta name="description" content="বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ" />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#ff8a00" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- PWA Install Script -->
+    <script>
+      let deferredPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        console.log("🔥 beforeinstallprompt EVENT FIRED!");
+        e.preventDefault();
+        deferredPrompt = e;
+      });
+
+      // Global Install Function
+      window.installApp = async () => {
+        console.log("📌 Install Button Clicked");
+
+        if (!deferredPrompt) {
+          alert("⚠️ Install Prompt এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১৫-২০ সেকেন্ড অপেক্ষা করুন।");
+          return;
+        }
+
+        console.log("🚀 Showing Install Prompt...");
+        deferredPrompt.prompt();
+
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log("User Choice:", outcome);
+
+        deferredPrompt = null;
+      };
+
+      console.log("✅ PWA Install Script Loaded");
+    </script>
   </body>
 </html>
- 
