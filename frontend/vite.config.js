@@ -9,8 +9,8 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      strategies: 'generateSW',     // ← এটা চেঞ্জ করলাম
-      
+      strategies: 'generateSW',
+
       manifest: {
         name: "uthiYO",
         short_name: "uthiYO",
@@ -39,7 +39,9 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        cleanupOutdatedCaches: true
+        cleanupOutdatedCaches: true,
+        // ✅ push handler টা আলাদা sw file এ inject করবো
+        importScripts: ['/sw-push.js'],
       },
 
       devOptions: { enabled: true }

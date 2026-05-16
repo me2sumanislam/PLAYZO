@@ -1,48 +1,50 @@
- // public/sw.js
+ import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
-self.addEventListener("push", (event) => {
-  let data = {};
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'public',
+      filename: 'sw.js',
 
-  try {
-    data = event.data.json();
-  } catch {
-    data = {
-      title: "New Notification",
-      body: "Something happened",
-    };
-  }
-
-  const options = {
-    body: data.body,
-    icon: data.icon || "/icons/icon-192x192.png",
-    badge: data.badge || "/icons/icon-72x72.png",
-    data: {
-      url: data.url || "/",
-    },
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-
-  const url = event.notification.data.url || "/";
-
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true })
-      .then((windowClients) => {
-        for (const client of windowClients) {
-          if (client.url.includes(url) && "focus" in client) {
-            return client.focus();
+      manifest: {
+        name: "uthiYO",
+        short_name: "uthiYO",
+        description: "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#0f172a",
+        theme_color: "#ff8a00",
+        lang: "bn",
+        icons: [
+          {
+            src: "/image/icon/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any maskable"
+          },
+          {
+            src: "/image/icon/icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable"
           }
-        }
+        ]
+      },
 
-        if (clients.openWindow) {
-          return clients.openWindow(url);
-        }
-      })
-  );
-});
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true
+      },
+
+      devOptions: { enabled: true }
+    }),
+  ],
+})
