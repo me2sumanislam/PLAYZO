@@ -786,14 +786,12 @@ const [refreshing, setRefreshing] = useState(false);
         </div>
          
 {/* Live Marquee */}
-<div className="mt-4 overflow-hidden rounded-xl bg-gradient-to-r from-orange-500 to-red-500 shadow-md">
+ <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
   <marquee
-    behavior="scroll"
-    direction="left"
-    scrollamount="5"
-    className="py-2 px-3 text-white text-xs font-bold uppercase tracking-wide"
+    scrollamount="6"
+    className="py-2 text-orange-400 text-sm font-extrabold"
   >
-    🔥 Welcome To Playzo Arena • Daily Free Fire Tournament • Instant Prize • Custom Room • Booyah Rewards • Join Now 🔥
+    🎮 PLAYZO ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
   </marquee>
 </div>
 
