@@ -795,7 +795,7 @@ const [refreshing, setRefreshing] = useState(false);
   </marquee>
 </div>
 
-
+{/* kichu na  */}
 
 
 
