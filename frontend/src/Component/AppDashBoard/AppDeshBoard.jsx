@@ -791,7 +791,7 @@ const [refreshing, setRefreshing] = useState(false);
     scrollamount="6"
     className="py-2 text-orange-400 text-sm font-extrabold"
   >
-    🎮 PLAYZO ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
+    🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
   </marquee>
 </div>
 
