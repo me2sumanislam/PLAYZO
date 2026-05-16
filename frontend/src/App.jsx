@@ -53,9 +53,7 @@ function App() {
               <Hero />
               <HomeCard />
               <Footer />
-
-              {/* PWA Install Button - শুধু ওয়েবসাইট মোডে দেখাবে */}
-              <InstallButton />
+ 
             </div>
           }
         />

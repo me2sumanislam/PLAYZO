@@ -1,4 +1,4 @@
- import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 const Hero = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -21,7 +21,9 @@ const Hero = () => {
     console.log("📌 Download Button Clicked");
 
     if (!deferredPrompt) {
-      alert("⚠️ ইনস্টল প্রম্পট এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১০-২০ সেকেন্ড অপেক্ষা করুন।");
+      alert(
+        "⚠️ ইনস্টল প্রম্পট এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১০-২০ সেকেন্ড অপেক্ষা করুন।",
+      );
       return;
     }
 
@@ -93,8 +95,19 @@ const Hero = () => {
               style={{ animationDelay: "1.2s" }}
             >
               <span className="bg-white/5 border border-white/10 text-gray-200 text-xs md:text-sm px-4 py-2 rounded-full flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#ff8a00]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-[#ff8a00]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="3"
+                    d="M12 4v16m8-8H4"
+                  />
                 </svg>
                 <span className="italic font-medium">আরও অনেক গেম</span>
               </span>
@@ -102,17 +115,20 @@ const Hero = () => {
           </div>
 
           <p className="mt-8 text-indigo-50 font-medium text-base md:text-lg max-w-xl mx-auto md:mx-0 opacity-90 leading-relaxed">
-            প্রতিদিন নতুন টুর্নামেন্ট, বিশাল পুরস্কার এবং অসাধারণ গেমিং অভিজ্ঞতা।
+            প্রতিদিন নতুন টুর্নামেন্ট, বিশাল পুরস্কার এবং অসাধারণ গেমিং
+            অভিজ্ঞতা।
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row gap-5 justify-center md:justify-start">
             <button
               onClick={handleDownload}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-10 rounded-xl text-lg transition-all active:scale-95 shadow-lg"
+              className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 
+             text-white font-bold py-4 px-12 rounded-2xl text-lg 
+             shadow-xl transition-all active:scale-95 flex items-center gap-2"
             >
-              📲 এখনই ডাউনলোড করুন
+              📲 এখনই uthiYO ডাউনলোড করুন
             </button>
-            
+
             <button className="bg-white/10 hover:bg-white/20 border-2 border-white/20 px-10 py-4 rounded-2xl font-bold text-white backdrop-blur-sm transition-all active:scale-95">
               ভিডিও দেখুন
             </button>
@@ -120,7 +136,9 @@ const Hero = () => {
 
           {/* Status */}
           <p className="mt-4 text-xs text-indigo-200">
-            {isReady ? "✅ Install Prompt Ready" : "⏳ Waiting for install prompt..."}
+            {isReady
+              ? "✅ Install Prompt Ready"
+              : "⏳ Waiting for install prompt..."}
           </p>
         </div>
 
@@ -133,7 +151,9 @@ const Hero = () => {
               <div className="h-full w-full bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-24 h-24 bg-gradient-to-tr from-[#ff3d00] to-[#ff8a00] rounded-[2rem] flex items-center justify-center shadow-2xl mb-6">
                   <span className="text-white font-black text-base leading-tight uppercase tracking-tighter">
-                    uthi<br />YO
+                    uthi
+                    <br />
+                    YO
                   </span>
                 </div>
                 <div className="w-full h-4 bg-gray-200 rounded-full mb-3"></div>
