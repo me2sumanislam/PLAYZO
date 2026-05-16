@@ -32,14 +32,14 @@ const InstallButton = () => {
   if (!show) return null;
 
   return (
-    <button
-      onClick={handleClick}
-      className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] 
-                 bg-orange-600 hover:bg-orange-700 text-white 
-                 font-bold text-lg py-4 px-10 rounded-2xl shadow-2xl"
-    >
-      📲 এখনই uthiYO অ্যাপ ইনস্টল করুন
-    </button>
+    // <button
+    //   onClick={handleClick}
+    //   className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] 
+    //              bg-orange-600 hover:bg-orange-700 text-white 
+    //              font-bold text-lg py-4 px-10 rounded-2xl shadow-2xl"
+    // >
+    //   📲 এখনই uthiYO অ্যাপ ইনস্টল করুন
+    // </button>
   );
 };
 
