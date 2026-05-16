@@ -12,48 +12,37 @@ import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    if (!token || !user) return false;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.exp * 1000 < Date.now()) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        return false;
+      }
+      return true;
+    } catch {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return false;
+    }
+  });
+
   const navigate = useNavigate();
   const location = useLocation();
 
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
 
-  // PWA open হলে সবসময় fresh start
   useEffect(() => {
+    // PWA তে শুধু root "/" থেকে "/app" এ নিয়ে যাবে
+    // কিন্তু clear করবে না — login থাকলে থাকবে
     if (isStandalone && location.pathname === "/") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("user_balance");
-      setIsLoggedIn(false);
       navigate("/app");
     }
-  }, [isStandalone]);
-
-  // Normal browser mode এ token check
-  useEffect(() => {
-    if (!isStandalone) {
-      const token = localStorage.getItem("token");
-      const user = localStorage.getItem("user");
-      if (!token || !user) {
-        setIsLoggedIn(false);
-        return;
-      }
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.exp * 1000 < Date.now()) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          setIsLoggedIn(false);
-        } else {
-          setIsLoggedIn(true);
-        }
-      } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setIsLoggedIn(false);
-      }
-    }
-  }, [isStandalone]);
+  }, [isStandalone, location.pathname, navigate]);
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(!!localStorage.getItem("token"));
@@ -85,7 +74,7 @@ function App() {
       {/* App Mode */}
       <Route path="/app" element={
         <div className="app-container bg-[#fcfaff] min-h-screen">
-          {isLoggedIn && localStorage.getItem("token") ? (
+          {isLoggedIn ? (
             <AppDashboard onLogout={handleLogout} />
           ) : (
             <Auth onLoginSuccess={handleLoginSuccess} />
