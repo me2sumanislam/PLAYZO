@@ -248,5 +248,5 @@ router.delete("/clear-all", protectAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-
+//  pore delte kore dibo
 module.exports = router;
