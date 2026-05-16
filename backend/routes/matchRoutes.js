@@ -3,7 +3,7 @@ const router = express.Router();
 const Match = require("../models/Match");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
-// const pushRoutes = require("./pushRoutes");
+const notificationRouter = require("./notifications"); // ✅ ADD
 
 // ================= ADMIN MIDDLEWARE =================
 const protectAdmin = (req, res, next) => {
@@ -46,7 +46,7 @@ router.post("/create", protectAdmin, async (req, res) => {
     });
 
     // ✅ Match create হলে সব users কে notification পাঠাও
-    // pushRoutes.sendMatchNotification(match);
+    notificationRouter.sendMatchNotification(match);
 
     res.status(201).json({
       success: true,
