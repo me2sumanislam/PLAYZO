@@ -12,14 +12,15 @@ export const subscribeUserToPush = async () => {
     if (!("PushManager" in window)) return;
 
     const permission = await Notification.requestPermission();
-
     if (permission !== "granted") {
       console.log("❌ Notification denied");
       return;
     }
 
-    const registration = await navigator.serviceWorker.register("/sw.js");
-    console.log("SW Registered");
+    // ✅ SW fully ready হওয়ার পর subscribe করো
+    await navigator.serviceWorker.register("/sw.js");
+    const registration = await navigator.serviceWorker.ready;
+    console.log("✅ SW Registered & Ready");
 
     if (!VAPID_PUBLIC_KEY) {
       console.error("❌ VAPID key missing in .env");
@@ -27,9 +28,16 @@ export const subscribeUserToPush = async () => {
     }
 
     const applicationServerKey = convertVapidKey(VAPID_PUBLIC_KEY);
-
     if (!applicationServerKey) {
       console.error("❌ Invalid VAPID key");
+      return;
+    }
+
+    // ✅ Already subscribed থাকলে আবার করবে না
+    const existingSubscription =
+      await registration.pushManager.getSubscription();
+    if (existingSubscription) {
+      console.log("✅ Already subscribed");
       return;
     }
 
@@ -38,22 +46,20 @@ export const subscribeUserToPush = async () => {
       applicationServerKey,
     });
 
-    console.log("Push subscribed");
+    console.log("✅ Push subscribed");
 
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
     await fetch(`${API_BASE}/notifications/subscribe`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         subscription,
         userId: user?._id || null,
       }),
     });
 
-    console.log("Subscription saved");
+    console.log("✅ Subscription saved");
   } catch (err) {
     console.error("❌ Push subscribe error:", err);
   }

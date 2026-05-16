@@ -1,10 +1,5 @@
- // FILE: frontend/src/utils/convertVapidKey.js
-
-export function convertVapidKey(base64String = "") {
-  if (!base64String || typeof base64String !== "string") {
-    console.error("❌ Invalid VAPID key");
-    return null;
-  }
+ export function convertVapidKey(base64String = "") {
+  if (!base64String) return null;
 
   try {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -16,7 +11,7 @@ export function convertVapidKey(base64String = "") {
 
     return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
   } catch (err) {
-    console.error("❌ VAPID convert failed:", err);
+    console.error("VAPID convert error:", err);
     return null;
   }
 }
