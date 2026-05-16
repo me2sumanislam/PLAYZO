@@ -784,6 +784,23 @@ const [refreshing, setRefreshing] = useState(false);
             ))}
           </div>
         </div>
+         
+{/* Live Marquee */}
+<div className="mt-4 overflow-hidden rounded-xl bg-gradient-to-r from-orange-500 to-red-500 shadow-md">
+  <marquee
+    behavior="scroll"
+    direction="left"
+    scrollamount="5"
+    className="py-2 px-3 text-white text-xs font-bold uppercase tracking-wide"
+  >
+    🔥 Welcome To Playzo Arena • Daily Free Fire Tournament • Instant Prize • Custom Room • Booyah Rewards • Join Now 🔥
+  </marquee>
+</div>
+
+
+
+
+
          <div className="flex items-center justify-between mt-6 px-1">
   <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
     Free Fire <span className="text-orange-500">Arena</span>
