@@ -10,6 +10,7 @@ import HomeCard from "./page/HomeCard/HomeCard";
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
+import InstallButton from "./Component/InstallButton/InstallButton";   // ← Import করো
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
@@ -23,7 +24,7 @@ function App() {
     if (isStandalone && location.pathname === "/") {
       navigate("/app");
     }
-  }, []);
+  }, [isStandalone, location.pathname, navigate]);
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(!!localStorage.getItem("token"));
@@ -41,40 +42,55 @@ function App() {
   };
 
   return (
-    <Routes>
-      {/* Website Mode */}
-      <Route path="/" element={
-        <div className="website-layout">
-          <Navbar />
-          <Hero />
-          <HomeCard />
-          <Footer />
-          
-        </div>
-      } />
+    <>
+      <Routes>
+        {/* Website Mode */}
+        <Route
+          path="/"
+          element={
+            <div className="website-layout">
+              <Navbar />
+              <Hero />
+              <HomeCard />
+              <Footer />
 
-      {/* App Mode */}
-      <Route path="/app" element={
-        <div className="app-container bg-[#fcfaff] min-h-screen">
-          {isLoggedIn ? (
-            <AppDashboard onLogout={handleLogout} />
-          ) : (
-            <Auth onLoginSuccess={handleLoginSuccess} />
-          )}
-        </div>
-      } />
+              {/* PWA Install Button - শুধু ওয়েবসাইট মোডে দেখাবে */}
+              <InstallButton />
+            </div>
+          }
+        />
 
-      {/* Admin */}
-      <Route path="/admin/*" element={
-        <div className="min-h-screen bg-gray-950">
-          <AdminPanel onLogout={() => {
-            localStorage.removeItem("adminToken");
-            localStorage.removeItem("adminInfo");
-            navigate("/");
-          }} />
-        </div>
-      } />
-    </Routes>
+        {/* App Mode */}
+        <Route
+          path="/app"
+          element={
+            <div className="app-container bg-[#fcfaff] min-h-screen">
+              {isLoggedIn ? (
+                <AppDashboard onLogout={handleLogout} />
+              ) : (
+                <Auth onLoginSuccess={handleLoginSuccess} />
+              )}
+            </div>
+          }
+        />
+
+        {/* Admin Panel */}
+        <Route
+          path="/admin/*"
+          element={
+            <div className="min-h-screen bg-gray-950">
+              <AdminPanel
+                onLogout={() => {
+                  localStorage.removeItem("adminToken");
+                  localStorage.removeItem("adminInfo");
+                  navigate("/");
+                }}
+              />
+            </div>
+          }
+        />
+      </Routes>
+    </>
   );
 }
 

@@ -1,54 +1,44 @@
-import { useState, useEffect } from "react";
+ import { useState, useEffect } from "react";
 
 const InstallButton = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showButton, setShowButton]         = useState(false);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
-    window.addEventListener("beforeinstallprompt", (e) => {
+    console.log("Install Button Mounted");
+
+    const timer = setTimeout(() => {
+      setShow(true);   // Force দেখানোর জন্য (টেস্টের জন্য)
+    }, 3000);
+
+    const handler = (e) => {
+      console.log("🔥 beforeinstallprompt FIRED!");
       e.preventDefault();
-      setDeferredPrompt(e);
-      setShowButton(true);
-    });
+      setShow(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
   }, []);
 
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setShowButton(false);
-    }
-    setDeferredPrompt(null);
+  const handleClick = () => {
+    alert("📲 Install Prompt চেক করা হচ্ছে...\n\nConsole খুলে দেখো কী আসছে");
+    console.log("Install Button Clicked");
   };
 
-  if (!showButton) return null;
+  if (!show) return null;
 
   return (
     <button
-      onClick={handleInstall}
-      style={{
-        position: "fixed",
-        bottom: 80,
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "linear-gradient(135deg, #f97316, #ea580c)",
-        color: "#fff",
-        border: "none",
-        borderRadius: 50,
-        padding: "12px 28px",
-        fontWeight: 800,
-        fontSize: 14,
-        cursor: "pointer",
-        zIndex: 9999,
-        boxShadow: "0 4px 20px rgba(249,115,22,0.4)",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        whiteSpace: "nowrap",
-      }}
+      onClick={handleClick}
+      className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] 
+                 bg-orange-600 hover:bg-orange-700 text-white 
+                 font-bold text-lg py-4 px-10 rounded-2xl shadow-2xl"
     >
-      📱 Playzo App Install করুন
+      📲 এখনই uthiYO অ্যাপ ইনস্টল করুন
     </button>
   );
 };

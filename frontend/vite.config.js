@@ -9,22 +9,40 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      strategies: 'injectManifest',
-      srcDir: 'public',
-      filename: 'sw.js',
+      strategies: 'generateSW',     // ← এটা চেঞ্জ করলাম
+      
       manifest: {
-        name: 'Playzo - Free Fire Arena',
-        short_name: 'Playzo',
-        description: 'Free Fire Custom Match Platform',
-        start_url: '/',
-        display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#f97316',
+        name: "uthiYO",
+        short_name: "uthiYO",
+        description: "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#0f172a",
+        theme_color: "#ff8a00",
+        lang: "bn",
         icons: [
-          { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
-        ],
+          {
+            src: "/image/icon/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any maskable"
+          },
+          {
+            src: "/image/icon/icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable"
+          }
+        ]
       },
+
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true
+      },
+
+      devOptions: { enabled: true }
     }),
   ],
 })
