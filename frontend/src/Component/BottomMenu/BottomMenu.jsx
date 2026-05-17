@@ -1,5 +1,5 @@
  import React from "react";
-import { Store, Gamepad2, ClipboardList, BarChart3, Cat } from "lucide-react";
+import { Store, Gamepad2, ClipboardList, BarChart3, Cat, Users } from "lucide-react";
 
 const BottomMenu = ({ tab, setTab }) => {
   const menus = [
@@ -22,6 +22,11 @@ const BottomMenu = ({ tab, setTab }) => {
       id: "results",
       label: "Results",
       icon: <BarChart3 size={24} className="text-green-400" strokeWidth={2.2} />,
+    },
+    {
+      id: "referral",
+      label: "Refer",
+      icon: <Users size={24} className="text-pink-500" strokeWidth={2.2} />,
     },
     {
       id: "profile",
