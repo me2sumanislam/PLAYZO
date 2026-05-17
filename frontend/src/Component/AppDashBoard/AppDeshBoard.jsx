@@ -8,7 +8,7 @@ import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
-import Referral from "../../page/Referral/Referral";
+ 
 
 
 // ─── Inline MatchResults Component ────────────────────────────────────────────
@@ -591,17 +591,6 @@ const [refreshing, setRefreshing] = useState(false);
   { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
 ];
   
-// ==================== REFERRAL TAB ====================
-  if (tab === "referral") {
-    return (
-      <div className="max-w-[450px] mx-auto min-h-screen">
-        <Referral />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-
 
   // --- PROFILE TAB ---
   if (tab === "profile") {
