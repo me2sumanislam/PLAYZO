@@ -14,6 +14,22 @@ const userSchema = new mongoose.Schema(
     isBlocked:          { type: Boolean, default: false },
     lastLogin:          { type: Date },
 
+    // ✅ Referral System
+    referralCode:       { type: String, unique: true },
+    referredBy:         { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    referralPoints:     { type: Number, default: 0 },
+    referralCount:      { type: Number, default: 0 },
+    referralHistory: [
+      {
+        userId:      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        name:        { type: String },
+        phone:       { type: String },
+        deposited:   { type: Boolean, default: false },
+        pointGiven:  { type: Boolean, default: false },
+        joinedAt:    { type: Date, default: Date.now },
+      }
+    ],
+
     // ✅ Join History
     joinHistory: [
       {
