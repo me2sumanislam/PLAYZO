@@ -32,7 +32,10 @@ const Auth = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
 
   const [loginData, setLoginData] = useState({ phone: "", password: "" });
-  const [regData, setRegData] = useState({ name: "", phone: "", password: "", confirm: "" });
+  const [regData, setRegData] = useState({
+    name: "", phone: "", password: "", confirm: "",
+    referralCode: "" // ✅ NEW
+  });
   const [forgotPhone, setForgotPhone] = useState("");
   const [newPass, setNewPass] = useState("");
   const [forgotStep, setForgotStep] = useState(1);
@@ -66,23 +69,25 @@ const Auth = ({ onLoginSuccess }) => {
     e.preventDefault();
     setError("");
     if (!regData.name || !regData.phone || !regData.password) {
-      setError("সব তথ্য পূরণ করুন!");
-      return;
+      setError("সব তথ্য পূরণ করুন!"); return;
     }
     if (regData.password !== regData.confirm) {
-      setError("পাসওয়ার্ড মিলছে না!");
-      return;
+      setError("পাসওয়ার্ড মিলছে না!"); return;
     }
     if (regData.password.length < 6) {
-      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!");
-      return;
+      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return;
     }
     setLoading(true);
     try {
       const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: regData.name, phone: regData.phone, password: regData.password }),
+        body: JSON.stringify({
+          name: regData.name,
+          phone: regData.phone,
+          password: regData.password,
+          referralCode: regData.referralCode.trim().toUpperCase() || null, // ✅ NEW
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -150,7 +155,6 @@ const Auth = ({ onLoginSuccess }) => {
   };
 
   const inputClass = "w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-medium";
-
   const switchScreen = (s) => { setScreen(s); setError(""); setSuccess(""); setForgotStep(1); };
 
   return (
@@ -267,6 +271,19 @@ const Auth = ({ onLoginSuccess }) => {
             autoComplete="new-password"
             required
           />
+
+          {/* ✅ REFERRAL CODE INPUT */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="রেফারেল কোড (optional)"
+              className={inputClass}
+              value={regData.referralCode}
+              onChange={(e) => setRegData({ ...regData, referralCode: e.target.value })}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🎁</span>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
