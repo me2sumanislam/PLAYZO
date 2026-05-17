@@ -8,8 +8,12 @@ import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
+import Referral from "../../page/Referral/Referral";
+
 
 // ─── Inline MatchResults Component ────────────────────────────────────────────
+
+
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
 function getRankMeta(rank) {
@@ -587,6 +591,18 @@ const [refreshing, setRefreshing] = useState(false);
   { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
 ];
   
+// ==================== REFERRAL TAB ====================
+  if (tab === "referral") {
+    return (
+      <div className="max-w-[450px] mx-auto min-h-screen">
+        <Referral />
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+
+
   // --- PROFILE TAB ---
   if (tab === "profile") {
     if (screen === "wallet") {
@@ -652,6 +668,19 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
+
+
+  // ==================== REFERRAL TAB ====================
+  if (tab === "referral") {
+    return (
+      <div className="max-w-[450px] mx-auto min-h-screen">
+        <Referral />
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+
   // --- RESULTS TAB ---
   if (tab === "results") {
     if (selectedResult) {
