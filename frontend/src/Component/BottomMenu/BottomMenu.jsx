@@ -23,11 +23,7 @@ const BottomMenu = ({ tab, setTab }) => {
       label: "Results",
       icon: <BarChart3 size={24} className="text-green-400" strokeWidth={2.2} />,
     },
-    {
-      id: "referral",
-      label: "Refer",
-      icon: <Users size={24} className="text-pink-500" strokeWidth={2.2} />,
-    },
+  
     {
       id: "profile",
       label: "Profile",
