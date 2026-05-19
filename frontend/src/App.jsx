@@ -10,7 +10,7 @@ import HomeCard from "./page/HomeCard/HomeCard";
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
-import Referral from "./pages/Referral";        // ← নতুন Import
+ import Referral from "./page/Referral/Referral";
 
 import { subscribeUserToPush } from "./utils/pushNotification";
 
@@ -97,7 +97,7 @@ function App() {
         }
       />
 
-      {/* Referral Page (Standalone) */}
+      {/* Referral Page */}
       <Route
         path="/referral"
         element={
