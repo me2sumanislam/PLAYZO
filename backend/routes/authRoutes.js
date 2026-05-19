@@ -7,7 +7,7 @@ const User = require("../models/User");
 // ================= REFERRAL CODE GENERATOR =================
 function generateReferralCode(name) {
   const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `${clean}${rand}`;
 }
 
@@ -35,10 +35,13 @@ router.post("/register", async (req, res) => {
     // ✅ Unique referral code generate
     let newReferralCode;
     let isUnique = false;
-    while (!isUnique) {
+    let attempts = 0;
+
+    while (!isUnique && attempts < 15) {
       newReferralCode = generateReferralCode(name);
       const existing = await User.findOne({ referralCode: newReferralCode });
       if (!existing) isUnique = true;
+      attempts++;
     }
 
     // ✅ Referrer খোঁজো
@@ -55,6 +58,9 @@ router.post("/register", async (req, res) => {
       password: hashedPassword,
       referralCode: newReferralCode,
       referredBy: referrer ? referrer._id : null,
+      referralCount: 0,
+      referralPoints: 0,
+      referralHistory: [],
     });
 
     // ✅ Referrer এর history তে add করো
@@ -65,14 +71,20 @@ router.post("/register", async (req, res) => {
         phone:      user.phone,
         deposited:  false,
         pointGiven: false,
+        date: new Date()
       });
       referrer.referralCount += 1;
       await referrer.save();
     }
 
-    res.json({ success: true, message: "রেজিস্ট্রেশন সফল হয়েছে!", data: user });
+    res.json({ 
+      success: true, 
+      message: "রেজিস্ট্রেশন সফল হয়েছে!", 
+      referralCode: newReferralCode 
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error("Register Error:", err);
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
   }
 });
 
@@ -124,7 +136,8 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error("Login Error:", err);
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
   }
 });
 
