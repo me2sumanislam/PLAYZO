@@ -8,7 +8,7 @@ import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
-import Referral from "../../pages/Referral";   // ← Referral Component Import
+ import Referral from "../../page/Referral/Referral";
 
 // ─── Inline MatchResults Component ────────────────────────────────────────────
 

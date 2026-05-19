@@ -3,7 +3,7 @@ import axios from "axios";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
 import Withdraw from "../../page/Withdraw/Withdraw";
 import BuildYourApp from "../../page/BuildYourApp/BuildYourApp";
-import Referral from "../../pages/Referral";   // ← Referral Component Import
+ import Referral from "../Referral/Referral";
 
 const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
