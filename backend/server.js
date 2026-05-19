@@ -82,6 +82,9 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// ================= NEW REFERRAL ROUTE ADDED =================
+app.use("/api/referral", require("./routes/referralRoutes"));
+
 // ================= ROUTES =================
 app.use("/api/matches",               require("./routes/matchRoutes"));
 app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
@@ -94,7 +97,7 @@ app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
 app.use("/api/users",                 require("./routes/users"));
 app.use("/api/withdraw",              require("./routes/withdrawRoutes"));
 app.use("/api/leaderboard",           require("./routes/leaderboardRoutes"));
-app.use("/api/notifications",         require("./routes/notifications")); // ✅ NEW
+app.use("/api/notifications",         require("./routes/notifications"));
 
 // ✅ Fix: double /api/api routes
 app.use("/api/api/matches",           require("./routes/matchRoutes"));
@@ -106,7 +109,7 @@ app.use("/api/api/payment-numbers",   require("./routes/paymentNumbers"));
 app.use("/api/api/users",             require("./routes/users"));
 app.use("/api/api/withdraw",          require("./routes/withdrawRoutes"));
 app.use("/api/api/leaderboard",       require("./routes/leaderboardRoutes"));
-app.use("/api/api/notifications",     require("./routes/notifications")); // ✅ NEW
+app.use("/api/api/notifications",     require("./routes/notifications"));
 
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
