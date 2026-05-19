@@ -8,8 +8,7 @@ import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
- 
-
+import Referral from "../../pages/Referral";   // ← Referral Component Import
 
 // ─── Inline MatchResults Component ────────────────────────────────────────────
 
@@ -659,16 +658,19 @@ const [refreshing, setRefreshing] = useState(false);
   }
 
 
-  // ==================== REFERRAL TAB ====================
+ // ==================== REFERRAL TAB ====================
   if (tab === "referral") {
     return (
-      <div className="max-w-[450px] mx-auto min-h-screen">
-        <Referral />
+      <div className="max-w-[450px] mx-auto min-h-screen bg-white">
+        <Referral 
+          onBack={() => setTab("profile")} 
+          user={currentUser} 
+          token={localStorage.getItem("token")} 
+        />
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
     );
   }
-
 
   // --- RESULTS TAB ---
   if (tab === "results") {

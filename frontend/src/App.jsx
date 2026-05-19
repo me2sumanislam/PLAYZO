@@ -10,6 +10,7 @@ import HomeCard from "./page/HomeCard/HomeCard";
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
+import Referral from "./pages/Referral";        // ← নতুন Import
 
 import { subscribeUserToPush } from "./utils/pushNotification";
 
@@ -46,7 +47,6 @@ function App() {
     }
   }, [isStandalone, location.pathname, navigate]);
 
-  // ✅ শুধু logged in হলেই push subscribe করো
   useEffect(() => {
     if (isLoggedIn) {
       subscribeUserToPush();
@@ -94,6 +94,18 @@ function App() {
               <Auth onLoginSuccess={handleLoginSuccess} />
             )}
           </div>
+        }
+      />
+
+      {/* Referral Page (Standalone) */}
+      <Route
+        path="/referral"
+        element={
+          isLoggedIn ? (
+            <Referral onBack={() => navigate("/app")} />
+          ) : (
+            <Auth onLoginSuccess={handleLoginSuccess} />
+          )
         }
       />
 
