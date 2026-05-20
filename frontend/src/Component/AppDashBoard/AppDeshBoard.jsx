@@ -8,8 +8,7 @@ import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
- import Referral from "../../page/Referral/Referral";
-
+  
 // ─── Inline MatchResults Component ────────────────────────────────────────────
 
 
@@ -592,6 +591,7 @@ const [refreshing, setRefreshing] = useState(false);
   
 
   // --- PROFILE TAB ---
+   // --- PROFILE TAB ---
   if (tab === "profile") {
     if (screen === "wallet") {
       return (
@@ -623,6 +623,18 @@ const [refreshing, setRefreshing] = useState(false);
         </div>
       );
     }
+    if (screen === "referral") {
+      return (
+        <div className="bg-white min-h-screen mx-auto">
+          <Referral
+            onBack={() => setScreen("home")}
+            user={currentUser}
+            token={localStorage.getItem("token")}
+          />
+          <BottomMenu tab={tab} setTab={setTab} />
+        </div>
+      );
+    }
     return (
       <div className="bg-white min-h-screen mx-auto pb-24">
         <Profile
@@ -631,6 +643,7 @@ const [refreshing, setRefreshing] = useState(false);
           onWithdraw={() => setScreen("withdraw")}
           onAllRules={() => setScreen("all_rules")}
           onMyProfile={() => setScreen("my_profile")}
+          onReferral={() => setScreen("referral")}
         />
         <BottomMenu tab={tab} setTab={setTab} />
       </div>
@@ -658,20 +671,7 @@ const [refreshing, setRefreshing] = useState(false);
   }
 
 
- // ==================== REFERRAL TAB ====================
-  if (tab === "referral") {
-    return (
-      <div className="max-w-[450px] mx-auto min-h-screen bg-white">
-        <Referral 
-          onBack={() => setTab("profile")} 
-          user={currentUser} 
-          token={localStorage.getItem("token")} 
-        />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
+ 
   // --- RESULTS TAB ---
   if (tab === "results") {
     if (selectedResult) {
@@ -899,4 +899,4 @@ const [refreshing, setRefreshing] = useState(false);
   );
 };
 
-export default AppDashboard;
+export default AppDashboard; 

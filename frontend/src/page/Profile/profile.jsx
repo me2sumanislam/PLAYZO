@@ -3,22 +3,18 @@ import axios from "axios";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
 import Withdraw from "../../page/Withdraw/Withdraw";
 import BuildYourApp from "../../page/BuildYourApp/BuildYourApp";
- import Referral from "../Referral/Referral";
-
+import Referral from "../../page/Referral/Referral";
 const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
-const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
+const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showBuildApp, setShowBuildApp] = useState(false);
-  const [showReferral, setShowReferral] = useState(false);
-
   const [balance, setBalance] = useState(0);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
 
-  // Fetch Balance
   const fetchBalance = async () => {
     try {
       const res = await axios.get(`${API}/api/users/balance`, {
@@ -52,21 +48,9 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
     if (id === "all_rules") onAllRules();
     if (id === "my_profile") onMyProfile();
     if (id === "dev_profile") setShowBuildApp(true);
-    if (id === "referral") setShowReferral(true);
+    if (id === "referral") onReferral();
   };
 
-  // Show Referral Page
-  if (showReferral) {
-    return (
-      <Referral
-        onBack={() => setShowReferral(false)}
-        user={user}
-        token={token}
-      />
-    );
-  }
-
-  // Show Build App Page
   if (showBuildApp) {
     return <BuildYourApp onBack={() => setShowBuildApp(false)} />;
   }
