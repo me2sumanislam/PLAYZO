@@ -1,5 +1,5 @@
  import React from "react";
-import { Gamepad2, ClipboardList, BarChart3, Cat } from "lucide-react";
+import { Gamepad2, ClipboardList, BarChart3, User } from "lucide-react";
 
 const BottomMenu = ({ tab, setTab }) => {
   const menus = [
@@ -21,7 +21,7 @@ const BottomMenu = ({ tab, setTab }) => {
     {
       id: "profile",
       label: "Profile",
-      icon: <Cat size={24} strokeWidth={2.2} />,
+      icon: <User size={24} strokeWidth={2.2} />,
     },
   ];
 
@@ -34,11 +34,14 @@ const BottomMenu = ({ tab, setTab }) => {
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
-              className={`flex flex-col items-center justify-center py-2 px-3 transition-all flex-1 ${
-                isActive ? "text-orange-500 scale-110" : "text-gray-500"
+              className={`flex flex-col items-center justify-center py-3 px-4 rounded-xl transition-all flex-1 active:scale-95 ${
+                isActive 
+                  ? "text-orange-500" 
+                  : "text-gray-500 hover:text-gray-700"
               }`}
+              aria-label={item.label}
             >
-              <div className={`transition-all ${isActive ? "scale-110" : ""}`}>
+              <div className={`transition-all duration-200 ${isActive ? "scale-110 -translate-y-0.5" : ""}`}>
                 {item.icon}
               </div>
               <span className="text-[10px] mt-1 font-medium">{item.label}</span>
