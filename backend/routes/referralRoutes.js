@@ -1,10 +1,10 @@
  const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
-const auth = require("../middleware/auth");
+const { protect } = require("../middleware/auth");
 
 // GET /api/referral/:userId
-router.get("/:userId", auth, async (req, res) => {
+router.get("/:userId", protect, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) return res.json({ success: false, message: "User not found" });
@@ -24,7 +24,7 @@ router.get("/:userId", auth, async (req, res) => {
 });
 
 // POST /api/referral/convert
-router.post("/convert", auth, async (req, res) => {
+router.post("/convert", protect, async (req, res) => {
   try {
     const { userId } = req.body;
     const user = await User.findById(userId);
