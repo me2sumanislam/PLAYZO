@@ -54,34 +54,37 @@ function App() {
   }, [isLoggedIn]);
 
   // 🔴 PWA মোবাইলের হোম স্ক্রিন আইকনে নোটিফিকেশন ব্যাজ (Badge API) দেখানোর লজিক
+   // App.jsx - শুধু badge update useEffect টা replace করুন
+
+  // 🔴 PWA মোবাইলের হোম স্ক্রিন আইকনে নোটিফিকেশন ব্যাজ (Badge API) দেখানোর লজিক
   useEffect(() => {
     const updateAppIconBadge = async () => {
-      if ("setAppBadge" in navigator && isLoggedIn) {
-        try {
-          const res = await fetch("/api/notifications/list");
-          const data = await res.json();
-          
-          if (data.success && data.unreadCount > 0) {
-            await navigator.setAppBadge(data.unreadCount);
-          } else {
-            await navigator.clearAppBadge();
-          }
-        } catch (err) {
-          console.error("Failed to update mobile app icon badge:", err);
+      if (!("setAppBadge" in navigator) || !isLoggedIn) return;
+      
+      try {
+        // ✅ FIX: সঠিক API endpoint ব্যবহার
+        const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+        const res = await fetch(`${API_BASE}/notifications?isRead=false&limit=1`);
+        const data = await res.json();
+        
+        const count = data.unreadCount || 0;
+        if (count > 0) {
+          await navigator.setAppBadge(count);
+        } else {
+          await navigator.clearAppBadge();
         }
+      } catch (err) {
+        console.error("Badge update failed:", err);
       }
     };
 
     updateAppIconBadge();
 
-    // প্রতি ১ মিনিট পর পর ব্যাকগ্রাউন্ডে নোটিফিকেশন সংখ্যা আপডেট করবে
-    const badgeInterval = setInterval(updateAppIconBadge, 60000);
+    // প্রতি ৩০ সেকেন্ড পর পর badge update
+    const badgeInterval = setInterval(updateAppIconBadge, 30000);
 
     return () => {
       clearInterval(badgeInterval);
-      if ("clearAppBadge" in navigator) {
-        navigator.clearAppBadge().catch((e) => console.error(e));
-      }
     };
   }, [isLoggedIn]);
 
@@ -98,8 +101,9 @@ function App() {
     localStorage.removeItem("user_balance");
     setIsLoggedIn(false);
     
+    // ✅ FIX: Logout এ badge clear
     if ("clearAppBadge" in navigator) {
-      navigator.clearAppBadge().catch((e) => console.error(e));
+      navigator.clearAppBadge().catch(() => {});
     }
 
     navigate("/");

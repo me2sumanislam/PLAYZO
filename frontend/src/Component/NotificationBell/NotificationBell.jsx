@@ -1,17 +1,34 @@
  // components/NotificationBell/NotificationBell.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
 export default function NotificationBell({ onOpen }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // unread count fetch করা
+  // ✅ FIX: Badge update function যোগ করা হয়েছে
+  const updateAppBadge = useCallback((count) => {
+    try {
+      if ("setAppBadge" in navigator) {
+        if (count > 0) {
+          navigator.setAppBadge(count).catch(() => {});
+        } else {
+          navigator.clearAppBadge().catch(() => {});
+        }
+      }
+    } catch (e) {
+      // silent fail
+    }
+  }, []);
+
+  // ✅ FIX: fetchUnread এর পর badge update হবে
   const fetchUnread = async () => {
     try {
       const res = await fetch(`${API_BASE}/notifications?isRead=false&limit=1`);
       const data = await res.json();
-      setUnreadCount(data.unreadCount || 0);
+      const count = data.unreadCount || 0;
+      setUnreadCount(count);
+      updateAppBadge(count); // ✅ এই লাইনটা ছিল না
     } catch {
       // silent fail
     }
@@ -19,36 +36,38 @@ export default function NotificationBell({ onOpen }) {
 
   useEffect(() => {
     fetchUnread();
-    // প্রতি ৩০ সেকেন্ডে refresh
     const interval = setInterval(fetchUnread, 30_000);
     return () => clearInterval(interval);
   }, []);
 
-  // Service Worker থেকে নতুন notification এলে count বাড়াও
+  // ✅ FIX: Service Worker থেকে message এলে badge update
   useEffect(() => {
     if (!navigator.serviceWorker) return;
 
     const handler = (event) => {
       if (event.data?.type === "NOTIFICATION_CLICK") {
-        // notification click হলে count refresh করো
-        fetchUnread();
+        fetchUnread(); // ✅ এটা fetchUnread কল করবে, যার ভেতরে updateAppBadge আছে
+      }
+      // ✅ FIX: Push notification এলে badge update
+      if (event.data?.type === "PUSH_RECEIVED") {
+        const count = event.data.count || unreadCount + 1;
+        setUnreadCount(count);
+        updateAppBadge(count);
       }
     };
 
     navigator.serviceWorker.addEventListener("message", handler);
     return () => navigator.serviceWorker.removeEventListener("message", handler);
-  }, []);
+  }, [fetchUnread, unreadCount, updateAppBadge]);
 
   const handleOpen = async () => {
-    // বেল আইকন চাপলে সব notification read mark করো
     if (unreadCount > 0) {
       try {
         await fetch(`${API_BASE}/notifications/read-all`, { method: "PATCH" });
         setUnreadCount(0);
-
-        // App badge ও clear করো
+        updateAppBadge(0); // ✅ FIX: Badge clear করো
         if ("clearAppBadge" in navigator) {
-          navigator.clearAppBadge().catch(console.error);
+          navigator.clearAppBadge().catch(() => {});
         }
       } catch {
         // silent fail
