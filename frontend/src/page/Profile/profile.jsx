@@ -6,10 +6,11 @@ import BuildYourApp from "../../page/BuildYourApp/BuildYourApp";
 import Referral from "../../page/Referral/Referral";
 const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
-const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
+const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showBuildApp, setShowBuildApp] = useState(false);
+  const [showReferralPage, setShowReferralPage] = useState(false); // রেফারের জন্য নতুন স্টেট
   const [balance, setBalance] = useState(0);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -48,11 +49,17 @@ const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
     if (id === "all_rules") onAllRules();
     if (id === "my_profile") onMyProfile();
     if (id === "dev_profile") setShowBuildApp(true);
-    if (id === "referral") onReferral();
+    if (id === "referral") setShowReferralPage(true); // ক্লিক করলে রেফারেল পেজ শো করবে
   };
 
+  // যদি Build Your App ওপেন থাকে
   if (showBuildApp) {
     return <BuildYourApp onBack={() => setShowBuildApp(false)} />;
+  }
+
+  // যদি Refer & Earn ওপেন থাকে
+  if (showReferralPage) {
+    return <Referral onBack={() => setShowReferralPage(false)} />;
   }
 
   return (
