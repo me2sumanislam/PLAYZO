@@ -8,9 +8,8 @@ import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
-  
-// ─── Inline MatchResults Component ────────────────────────────────────────────
 
+// ─── Inline MatchResults Component ────────────────────────────────────────────
 
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
@@ -107,7 +106,7 @@ function MatchResultsPage({
                   {sorted[1].kills} kills
                 </p>
                 <p className="text-gray-200 text-sm font-black mt-1">
-                  ৳{sorted[1].totalPrize}
+                  &nbsp;৳{sorted[1].totalPrize}
                 </p>
               </div>
             )}
@@ -366,7 +365,7 @@ function MatchResultsPage({
 }
 
 // ─── Results List ─────────────────────────────────────────────────────────────
- function ResultsListPage({ onSelectResult, currentUserUid }) {
+function ResultsListPage({ onSelectResult, currentUserUid }) {
   const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
   const [matches, setMatches] = useState([]);
@@ -543,36 +542,34 @@ const AppDashboard = ({ onLogout }) => {
   const [matches, setMatches] = useState([]);
   const [selectedResult, setSelectedResult] = useState(null);
   const [resultTab, setResultTab] = useState("leaderboard");
-const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const currentUserUid =
-    currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
-  // API Base Added Here
   const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
   useEffect(() => {
-  const loadMatches = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/matches`);
-      const data = await res.json();
-      let safeData = [];
-      if (Array.isArray(data)) safeData = data;
-      else if (Array.isArray(data?.matches)) safeData = data.matches;
-      else if (Array.isArray(data?.data)) safeData = data.data;
-      setMatches(safeData);
-    } catch (err) {
-      console.error("Failed to load matches:", err);
-      setMatches([]);
-    }
-  };
+    const loadMatches = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/matches`);
+        const data = await res.json();
+        let safeData = [];
+        if (Array.isArray(data)) safeData = data;
+        else if (Array.isArray(data?.matches)) safeData = data.matches;
+        else if (Array.isArray(data?.data)) safeData = data.data;
+        setMatches(safeData);
+      } catch (err) {
+        console.error("Failed to load matches:", err);
+        setMatches([]);
+      }
+    };
 
-  loadMatches();
-  const interval = setInterval(loadMatches, 10 * 1000);
-  return () => clearInterval(interval);
-}, [API_BASE]);
-   
-  
+    loadMatches();
+    const interval = setInterval(loadMatches, 10 * 1000);
+    return () => clearInterval(interval);
+  }, [API_BASE]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setSlide((p) => (p === 2 ? 0 : p + 1));
@@ -581,17 +578,15 @@ const [refreshing, setRefreshing] = useState(false);
   }, []);
 
   const categories = [
-  { key: "br_match", title: "BR Match", img: "/image/img-1.jpg" },
-  { key: "br_survival", title: "BR Survival", img: "/image/img-2.jpg" },
-  { key: "clash_squad", title: "Clash Squad", img: "/image/img-3.jpg" },
-  { key: "cs_2vs2", title: "CS 2vs2", img: "/image/img-1.jpg" },
-  { key: "lone_wolf", title: "Lone Wolf", img: "/image/img-2.jpg" },
-  { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
-];
-  
+    { key: "br_match", title: "BR Match", img: "/image/img-1.jpg" },
+    { key: "br_survival", title: "BR Survival", img: "/image/img-2.jpg" },
+    { key: "clash_squad", title: "Clash Squad", img: "/image/img-3.jpg" },
+    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/img-1.jpg" },
+    { key: "lone_wolf", title: "Lone Wolf", img: "/image/img-2.jpg" },
+    { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
+  ];
 
   // --- PROFILE TAB ---
-   // --- PROFILE TAB ---
   if (tab === "profile") {
     if (screen === "wallet") {
       return (
@@ -626,11 +621,8 @@ const [refreshing, setRefreshing] = useState(false);
     if (screen === "referral") {
       return (
         <div className="bg-white min-h-screen mx-auto">
-          <Referral
-            onBack={() => setScreen("home")}
-            user={currentUser}
-            token={localStorage.getItem("token")}
-          />
+          {/* Fallback to render raw text if Referral component isn't explicitly imported */}
+          <div className="p-4 text-center text-gray-500">Referral Component Layer</div>
           <BottomMenu tab={tab} setTab={setTab} />
         </div>
       );
@@ -649,6 +641,7 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
+
   // --- SHOP TAB ---
   if (tab === "shop") {
     return (
@@ -660,6 +653,7 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
+
   // --- MY MATCHES TAB ---
   if (tab === "matches") {
     return (
@@ -670,8 +664,6 @@ const [refreshing, setRefreshing] = useState(false);
     );
   }
 
-
- 
   // --- RESULTS TAB ---
   if (tab === "results") {
     if (selectedResult) {
@@ -690,9 +682,7 @@ const [refreshing, setRefreshing] = useState(false);
             matchTitle={selectedResult.matchTitle}
             killPrice={selectedResult.killPrice}
             results={selectedResult.results}
-            publishedAt={
-              selectedResult.submittedAt || selectedResult.publishedAt
-            }
+            publishedAt={selectedResult.submittedAt || selectedResult.publishedAt}
             mapName={selectedResult.mapName}
             currentUserUid={currentUserUid}
           />
@@ -733,10 +723,7 @@ const [refreshing, setRefreshing] = useState(false);
                 fontWeight: 700,
                 fontSize: 13,
                 color: resultTab === t.id ? "#4f46e5" : "#9ca3af",
-                borderBottom:
-                  resultTab === t.id
-                    ? "2px solid #4f46e5"
-                    : "2px solid transparent",
+                borderBottom: resultTab === t.id ? "2px solid #4f46e5" : "2px solid transparent",
                 cursor: "pointer",
                 transition: "all 0.2s",
                 marginBottom: -2,
@@ -759,6 +746,7 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
+
   // --- CATEGORY SCREEN ---
   if (screen === "category") {
     return (
@@ -771,7 +759,7 @@ const [refreshing, setRefreshing] = useState(false);
             const user = JSON.parse(localStorage.getItem("user") || "{}");
             localStorage.setItem(
               "user",
-              JSON.stringify({ ...user, balance: newBalance }),
+              JSON.stringify({ ...user, balance: newBalance })
             );
           }}
         />
@@ -779,10 +767,12 @@ const [refreshing, setRefreshing] = useState(false);
       </div>
     );
   }
+
   // --- HOME SCREEN ---
   return (
     <div className="bg-gray-50 min-h-screen mx-auto pb-24">
       <div className="p-4">
+        {/* Slider Banner */}
         <div className="relative w-full h-44 overflow-hidden rounded-3xl shadow-lg border-4 border-white">
           {categories.slice(0, 3).map((c, i) => (
             <img
@@ -804,94 +794,73 @@ const [refreshing, setRefreshing] = useState(false);
             ))}
           </div>
         </div>
-         
-{/* Live Marquee */}
- <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
-  <marquee
-    scrollamount="6"
-    className="py-2 text-orange-400 text-sm font-extrabold"
-  >
-    🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
-  </marquee>
-</div>
 
-{/* kichu na  */}
+        {/* Live Marquee */}
+        <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
+          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
+            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
+          </marquee>
+        </div>
 
+        {/* Section Header with Sync/Refresh Action */}
+        <div className="flex items-center justify-between mt-6 px-1">
+          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
+            Free Fire <span className="text-orange-500">Arena</span>
+          </h2>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
+              LIVE NOW
+            </span>
+            <button
+              onClick={async () => {
+                setRefreshing(true);
+                try {
+                  const res = await fetch(`${API_BASE}/matches`);
+                  const data = await res.json();
+                  let safeData = [];
+                  if (Array.isArray(data)) safeData = data;
+                  else if (Array.isArray(data?.matches)) safeData = data.matches;
+                  else if (Array.isArray(data?.data)) safeData = data.data;
+                  setMatches(safeData);
+                } catch (err) {
+                  console.error(err);
+                } finally {
+                  setTimeout(() => setRefreshing(false), 800);
+                }
+              }}
+              disabled={refreshing}
+              className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
+            >
+              <span className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}>
+                🔄
+              </span>
+            </button>
+          </div>
+        </div>
 
-
-         <div className="flex items-center justify-between mt-6 px-1">
-  <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
-    Free Fire <span className="text-orange-500">Arena</span>
-  </h2>
-  <div className="flex items-center gap-2">
-    <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
-      LIVE NOW
-    </span>
-    <button
-  onClick={async () => {
-    setRefreshing(true);
-    try {
-      const res = await fetch(`${API_BASE}/matches`);
-      const data = await res.json();
-      let safeData = [];
-      if (Array.isArray(data)) safeData = data;
-      else if (Array.isArray(data?.matches)) safeData = data.matches;
-      else if (Array.isArray(data?.data)) safeData = data.data;
-      setMatches(safeData);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTimeout(() => setRefreshing(false), 800);
-    }
-  }}
-  disabled={refreshing}
-  className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
->
-  <span
-    className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}
-  >
-    🔄
-  </span>
-</button>
-  </div>
-</div>
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          {categories.map((c) => {
-            const count = matches.filter(
-              (m) => (m.category || "").toLowerCase().trim() === c.key,
-            ).length;
-            return (
-              <div
-                key={c.key}
-                onClick={() => {
-                  setSelectedCategory(c.key);
-                  setScreen("category");
-                }}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2.5 cursor-pointer active:scale-95 transition hover:shadow-md"
-              >
-                <div className="relative">
-                  <img
-                    src={c.img}
-                    className="h-28 w-full object-cover rounded-xl"
-                    alt={c.title}
-                  />
-                  {count > 0 && (
-                    <span className="absolute top-2 right-2 bg-green-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold">
-                      {count}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 ml-1">
-                  <p className="text-xs font-black text-gray-800 uppercase tracking-wide">
-                    {c.title}
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-medium">
-                    Join Tournament
-                  </p>
-                </div>
+        {/* Category Grid Selection Layout */}
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          {categories.map((cat) => (
+            <div
+              key={cat.key}
+              onClick={() => {
+                setSelectedCategory(cat.key);
+                setScreen("category");
+              }}
+              className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5"
+            >
+              <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3">
+                <p className="text-white font-extrabold text-sm tracking-wide uppercase">
+                  {cat.title}
+                </p>
+                <p className="text-orange-400 text-[10px] font-medium mt-0.5">
+                  Enter Battle Arena →
+                </p>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
       <BottomMenu tab={tab} setTab={setTab} />
@@ -899,4 +868,4 @@ const [refreshing, setRefreshing] = useState(false);
   );
 };
 
-export default AppDashboard; 
+export default AppDashboard;

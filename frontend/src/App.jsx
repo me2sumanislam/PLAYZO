@@ -53,22 +53,17 @@ function App() {
     }
   }, [isLoggedIn]);
 
-  // -------------------------------------------------------------------------
   // 🔴 PWA মোবাইলের হোম স্ক্রিন আইকনে নোটিফিকেশন ব্যাজ (Badge API) দেখানোর লজিক
-  // -------------------------------------------------------------------------
   useEffect(() => {
     const updateAppIconBadge = async () => {
-      // ব্রাউজার বা মোবাইল এই Badging API সাপোর্ট করে কিনা এবং ইউজার লগইন আছে কিনা চেক
       if ("setAppBadge" in navigator && isLoggedIn) {
         try {
           const res = await fetch("/api/notifications/list");
           const data = await res.json();
           
           if (data.success && data.unreadCount > 0) {
-            // মোবাইলের স্ক্রিনে থাকা অ্যাপের আইকনে ৩ বা ৪টি নোটিফিকেশনের সংখ্যা দেখাবে
             await navigator.setAppBadge(data.unreadCount);
           } else {
-            // কোনো নোটিফিকেশন না থাকলে বা রিড হয়ে গেলে ব্যাজ ক্লিয়ার করবে
             await navigator.clearAppBadge();
           }
         } catch (err) {
@@ -77,20 +72,18 @@ function App() {
       }
     };
 
-    // অ্যাপ ওপেন হওয়ার সাথে সাথে একবার রান হবে
     updateAppIconBadge();
 
-    // প্রতি ১ মিনিট (৬০,০০০ মিলি-সেকেন্ড) পর পর ব্যাকগ্রাউন্ডে নোটিফিকেশন সংখ্যা আপডেট করবে
+    // প্রতি ১ মিনিট পর পর ব্যাকগ্রাউন্ডে নোটিফিকেশন সংখ্যা আপডেট করবে
     const badgeInterval = setInterval(updateAppIconBadge, 60000);
 
-    // ইউজার লগআউট করলে বা অ্যাপের এই অংশ মেমোরি থেকে রিলিজ হলে ব্যাজ ও ইন্টারভাল ক্লিয়ার করবে
     return () => {
       clearInterval(badgeInterval);
       if ("clearAppBadge" in navigator) {
         navigator.clearAppBadge().catch((e) => console.error(e));
       }
     };
-  }, [isLoggedIn]); // ইউজার লগইন বা লগআউট স্টেটের উপর নজর রাখবে
+  }, [isLoggedIn]);
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(!!localStorage.getItem("token"));
@@ -105,7 +98,6 @@ function App() {
     localStorage.removeItem("user_balance");
     setIsLoggedIn(false);
     
-    // লগআউট করার সাথে সাথে মোবাইলের হোম স্ক্রিনের লাল ব্যাজ মুছে ফেলা
     if ("clearAppBadge" in navigator) {
       navigator.clearAppBadge().catch((e) => console.error(e));
     }
@@ -146,7 +138,7 @@ function App() {
       <Route
         path="/referral"
         element={
-          <isLoggedIn ? (
+          isLoggedIn ? ( // ← এখানে ভুল ট্যাগটি ঠিক করে ব্র্যাকেট `{}` দেওয়া হয়েছে
             <Referral onBack={() => navigate("/app")} />
           ) : (
             <Auth onLoginSuccess={handleLoginSuccess} />
