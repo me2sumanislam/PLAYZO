@@ -1,7 +1,266 @@
- // components/AppDashboard/AppDashboard.jsx
-import React, { useState, useEffect } from "react";
+  const mongoose = require("mongoose");
+
+const pushSubscriptionSchema = new mongoose.Schema({
+  endpoint: { type: String, required: true, unique: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  subscription: { type: Object, required: true },
+  updatedAt: { type: Date, default: Date.now },
+});
+
+module.exports = mongoose.model("PushSubscription", pushSubscriptionSchema);  // models/Notification.js
+
+const mongoose = require("mongoose");
+
+const notificationSchema = new mongoose.Schema(
+  {
+    title: { 
+      type: String, 
+      required: true 
+    },
+    message: { 
+      type: String, 
+      required: true 
+    },
+    isRead: { 
+      type: Boolean, 
+      default: false 
+    }, // ইউজার বেল আইকন ওপেন করে দেখেছে কিনা
+    matchId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Match", 
+      default: null 
+    } // কোন ম্যাচের নোটিফিকেশন সেটির আইডি
+  },
+  { timestamps: true } // এটি নোটিফিকেশন তৈরির সময় (createdAt) অটোমেটিক সেভ রাখবে
+);
+
+module.exports = mongoose.model("Notification", notificationSchema);   const express = require("express");
+const router = express.Router();
+const webpush = require("web-push");
+const PushSubscription = require("../models/PushSubscription");
+const Notification = require("../models/Notification"); // ← ডাটাবেজ নোটিফিকেশন মডেল ইমপোর্ট করা হলো
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
+
+// ================= SUBSCRIBE =================
+router.post("/subscribe", async (req, res) => {
+  try {
+    const { subscription, userId } = req.body;
+    if (!subscription?.endpoint) {
+      return res.status(400).json({ success: false, message: "Invalid subscription" });
+    }
+
+    await PushSubscription.findOneAndUpdate(
+      { endpoint: subscription.endpoint },
+      { subscription, userId: userId || null, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, message: "Subscribed!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= SEND NOTIFICATION =================
+router.sendMatchNotification = async (match) => {
+  try {
+    // -------------------------------------------------------------
+    // ১. একই সাথে অ্যাপের ভেতরের বেল আইকনের ডাটাবেজে সেভ করুন
+    // -------------------------------------------------------------
+    try {
+      await Notification.create({
+        title: "🎮 নতুন Match তৈরি হয়েছে!",
+        message: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
+        matchId: match._id,
+        isRead: false
+      });
+      console.log("💾 In-App Notification saved to database");
+    } catch (dbErr) {
+      console.error("Failed to save notification to database:", dbErr.message);
+    }
+
+    // -------------------------------------------------------------
+    // ২. আপনার এক্সিস্টিং ব্রাউজার/PWA পুশ নোটিফিকেশন লজিক
+    // -------------------------------------------------------------
+    const subs = await PushSubscription.find({});
+    if (subs.length === 0) return;
+
+    const payload = JSON.stringify({
+      title: "🎮 নতুন Match তৈরি হয়েছে!",
+      body: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
+      icon: "/image/icon/icon-192x192.png",
+      badge: "/image/icon/icon-72x72.png",
+      url: "/app",
+    });
+
+    const results = await Promise.allSettled(
+      subs.map((s) => webpush.sendNotification(s.subscription, payload))
+    );
+
+    const expired = [];
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        const code = r.reason?.statusCode;
+        if (code === 404 || code === 410) expired.push(subs[i]._id);
+      }
+    });
+
+    if (expired.length > 0) {
+      await PushSubscription.deleteMany({ _id: { $in: expired } });
+      console.log(`🗑️ ${expired.length} expired subscription(s) removed`);
+    }
+
+    console.log(`📨 Notification sent to ${subs.length} subscribers`);
+  } catch (err) {
+    console.error("Push notification error:", err.message);
+  }
+};
+
+module.exports = router; const express = require("express");
+const router = express.Router();
+const webpush = require("web-push");
+const PushSubscription = require("../models/PushSubscription");
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
+
+// ================= SUBSCRIBE =================
+router.post("/subscribe", async (req, res) => {
+  try {
+    const { subscription, userId } = req.body;
+    if (!subscription?.endpoint) {
+      return res.status(400).json({ success: false, message: "Invalid subscription" });
+    }
+
+    await PushSubscription.findOneAndUpdate(
+      { endpoint: subscription.endpoint },
+      { subscription, userId: userId || null, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, message: "Subscribed!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= SEND NOTIFICATION (internal function) =================
+router.sendMatchNotification = async (match) => {
+  try {
+    const subs = await PushSubscription.find({});
+    if (subs.length === 0) return;
+
+    const payload = JSON.stringify({
+      title: "🎮 নতুন Match তৈরি হয়েছে!",
+      body: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-72x72.png",
+      url: "/matches",
+    });
+
+    const results = await Promise.allSettled(
+      subs.map((s) => webpush.sendNotification(s.subscription, payload))
+    );
+
+    // মেয়াদ শেষ subscription গুলো delete করা
+    const expired = [];
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        const code = r.reason?.statusCode;
+        if (code === 404 || code === 410) expired.push(subs[i]._id);
+      }
+    });
+
+    if (expired.length > 0) {
+      await PushSubscription.deleteMany({ _id: { $in: expired } });
+      console.log(`🗑️ ${expired.length} expired subscription(s) removed`);
+    }
+
+    console.log(`📨 Notification sent to ${subs.length} subscribers`);
+  } catch (err) {
+    console.error("Push notification error:", err.message);
+  }
+};
+
+module.exports = router; const express = require("express");
+const router = express.Router();
+const webpush = require("web-push");
+const PushSubscription = require("../models/PushSubscription");
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
+
+// ================= SUBSCRIBE =================
+router.post("/subscribe", async (req, res) => {
+  try {
+    const { subscription, userId } = req.body;
+    if (!subscription?.endpoint) {
+      return res.status(400).json({ success: false, message: "Invalid subscription" });
+    }
+
+    await PushSubscription.findOneAndUpdate(
+      { endpoint: subscription.endpoint },
+      { subscription, userId: userId || null, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, message: "Subscribed!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= SEND NOTIFICATION (internal function) =================
+router.sendMatchNotification = async (match) => {
+  try {
+    const subs = await PushSubscription.find({});
+    if (subs.length === 0) return;
+
+    const payload = JSON.stringify({
+      title: "🎮 নতুন Match তৈরি হয়েছে!",
+      body: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-72x72.png",
+      url: "/matches",
+    });
+
+    const results = await Promise.allSettled(
+      subs.map((s) => webpush.sendNotification(s.subscription, payload))
+    );
+
+    // মেয়াদ শেষ subscription গুলো delete করা
+    const expired = [];
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        const code = r.reason?.statusCode;
+        if (code === 404 || code === 410) expired.push(subs[i]._id);
+      }
+    });
+
+    if (expired.length > 0) {
+      await PushSubscription.deleteMany({ _id: { $in: expired } });
+      console.log(`🗑️ ${expired.length} expired subscription(s) removed`);
+    }
+
+    console.log(`📨 Notification sent to ${subs.length} subscribers`);
+  } catch (err) {
+    console.error("Push notification error:", err.message);
+  }
+};
+
+module.exports = router;   import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
-import NotificationBell from "../NotificationBell/NotificationBell";
 import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
@@ -535,104 +794,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
   );
 }
 
-// ─── Notifications Page ───────────────────────────────────────────────────────
-function NotificationsPage({ onBack }) {
-  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/notifications`);
-        const data = await res.json();
-        setNotifications(Array.isArray(data?.data) ? data.data : Array.isArray(data?.notifications) ? data.notifications : []);
-      } catch {
-        setNotifications([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotifications();
-  }, [API_BASE]);
-
-  return (
-    <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5">
-        <div className="px-4 py-4 flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/10 active:scale-95 transition-all"
-          >
-            <span className="text-white text-lg">←</span>
-          </button>
-          <div className="flex-1">
-            <h1 className="text-white text-xl font-extrabold">Notifications</h1>
-            <p className="text-gray-500 text-xs">All your alerts in one place</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-4 pt-4">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500 text-sm">Loading notifications...</p>
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
-            <p className="text-4xl mb-3">🔔</p>
-            <p className="text-white font-bold mb-1">No Notifications</p>
-            <p className="text-gray-500 text-sm">
-              You're all caught up! Check back later
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {notifications.map((n, idx) => (
-              <div
-                key={n._id || idx}
-                className={`rounded-2xl p-4 border ${
-                  n.isRead
-                    ? "bg-[#111827] border-white/5"
-                    : "bg-orange-500/10 border-orange-500/30"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-lg">{n.icon || "🔔"}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-white font-bold text-sm">
-                        {n.title || "Notification"}
-                      </p>
-                      {!n.isRead && (
-                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
-                      )}
-                    </div>
-                    <p className="text-gray-400 text-xs mt-1">
-                      {n.body || n.message}
-                    </p>
-                    {n.createdAt && (
-                      <p className="text-gray-600 text-[10px] mt-2">
-                        {new Date(n.createdAt).toLocaleString("en-BD")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main AppDashboard ────────────────────────────────────────────────────────
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
@@ -643,8 +804,7 @@ const AppDashboard = ({ onLogout }) => {
   const [selectedResult, setSelectedResult] = useState(null);
   const [resultTab, setResultTab] = useState("leaderboard");
   const [refreshing, setRefreshing] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-
+  
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
@@ -686,16 +846,6 @@ const AppDashboard = ({ onLogout }) => {
     { key: "lone_wolf", title: "Lone Wolf", img: "/image/img-2.jpg" },
     { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
   ];
-
-  // --- NOTIFICATIONS SCREEN (Global Overlay) ---
-  if (showNotifications) {
-    return (
-      <div className="mx-auto min-h-screen">
-        <NotificationsPage onBack={() => setShowNotifications(false)} />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
 
   // --- PROFILE TAB ---
   if (tab === "profile") {
@@ -882,34 +1032,6 @@ const AppDashboard = ({ onLogout }) => {
   // --- HOME SCREEN ---
   return (
     <div className="bg-gray-50 min-h-screen mx-auto pb-24">
-      {/* Top Header with Notification Bell */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-white font-black text-lg">
-                {(currentUser?.name || "P")[0].toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <p className="text-white/80 text-[11px] font-medium">Welcome back</p>
-              <p className="text-white font-extrabold text-sm truncate max-w-[150px]">
-                {currentUser?.name || "Player"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
-              <span className="text-yellow-300 text-xs">💰</span>
-              <span className="text-white font-black text-xs">
-                ৳{currentUser?.balance || 0}
-              </span>
-            </div>
-            <NotificationBell onOpen={() => setShowNotifications(true)} />
-          </div>
-        </div>
-      </div>
-
       <div className="p-4">
         {/* Slider Banner */}
         <div className="relative w-full h-44 overflow-hidden rounded-3xl shadow-lg border-4 border-white">
