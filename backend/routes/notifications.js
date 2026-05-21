@@ -2,6 +2,7 @@
 const router = express.Router();
 const webpush = require("web-push");
 const PushSubscription = require("../models/PushSubscription");
+const Notification = require("../models/Notification"); // ← ডাটাবেজ নোটিফিকেশন মডেল ইমপোর্ট করা হলো
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL,
@@ -32,6 +33,24 @@ router.post("/subscribe", async (req, res) => {
 // ================= SEND NOTIFICATION =================
 router.sendMatchNotification = async (match) => {
   try {
+    // -------------------------------------------------------------
+    // ১. একই সাথে অ্যাপের ভেতরের বেল আইকনের ডাটাবেজে সেভ করুন
+    // -------------------------------------------------------------
+    try {
+      await Notification.create({
+        title: "🎮 নতুন Match তৈরি হয়েছে!",
+        message: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
+        matchId: match._id,
+        isRead: false
+      });
+      console.log("💾 In-App Notification saved to database");
+    } catch (dbErr) {
+      console.error("Failed to save notification to database:", dbErr.message);
+    }
+
+    // -------------------------------------------------------------
+    // ২. আপনার এক্সিস্টিং ব্রাউজার/PWA পুশ নোটিফিকেশন লজিক
+    // -------------------------------------------------------------
     const subs = await PushSubscription.find({});
     if (subs.length === 0) return;
 
