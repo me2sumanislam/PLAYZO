@@ -454,7 +454,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 onClick={() => onSelectResult(match)}
                 className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
               >
-                {/* Title + Category + Status */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -481,7 +480,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                     ✅ Completed
                   </span>
                 </div>
-                {/* Top 3 Preview */}
                 <div className="flex gap-2 mb-3">
                   {top3.length > 0 ? (
                     top3.map((p, i) => (
@@ -506,7 +504,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                     <p className="text-gray-600 text-xs">No result data</p>
                   )}
                 </div>
-                {/* My Result */}
                 <div className="flex items-center justify-between">
                   {myResult ? (
                     <div className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}>
@@ -559,7 +556,6 @@ function NotificationsPage({ onBack }) {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
       <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5">
         <div className="px-4 py-4 flex items-center gap-3">
           <button
@@ -575,7 +571,6 @@ function NotificationsPage({ onBack }) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="px-4 pt-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -650,7 +645,7 @@ const AppDashboard = ({ onLogout }) => {
 
   const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
-  // ==================== 🆕 Match Count Helper ====================
+  // Match Count Helper
   const getMatchCount = (categoryKey) =>
     matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
 
@@ -691,7 +686,7 @@ const AppDashboard = ({ onLogout }) => {
     { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
   ];
 
-  // --- NOTIFICATIONS SCREEN (Global Overlay) ---
+  // --- NOTIFICATIONS SCREEN ---
   if (showNotifications) {
     return (
       <div className="mx-auto min-h-screen">
@@ -736,7 +731,7 @@ const AppDashboard = ({ onLogout }) => {
     if (screen === "referral") {
       return (
         <div className="bg-white min-h-screen mx-auto">
-          <div className="p-4 text-center text-gray-500">Referral Component Layer</div>
+          <div className="p-4 text-center text-gray-500">Referral Component</div>
           <BottomMenu tab={tab} setTab={setTab} />
         </div>
       );
@@ -885,7 +880,7 @@ const AppDashboard = ({ onLogout }) => {
   // --- HOME SCREEN ---
   return (
     <div className="bg-gray-50 min-h-screen mx-auto pb-24">
-      {/* Top Header with Notification Bell */}
+      {/* Top Header */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -944,7 +939,7 @@ const AppDashboard = ({ onLogout }) => {
           </marquee>
         </div>
 
-        {/* Section Header with Sync/Refresh Action */}
+        {/* Section Header */}
         <div className="flex items-center justify-between mt-6 px-1">
           <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
             Free Fire <span className="text-orange-500">Arena</span>
@@ -980,7 +975,7 @@ const AppDashboard = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* ==================== 🆕 Category Grid with Live Match Count Badge ==================== */}
+        {/* Category Grid with Badge */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           {categories.map((cat) => {
             const count = getMatchCount(cat.key);
