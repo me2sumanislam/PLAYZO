@@ -650,6 +650,10 @@ const AppDashboard = ({ onLogout }) => {
 
   const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
+  // ==================== 🆕 Match Count Helper ====================
+  const getMatchCount = (categoryKey) =>
+    matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
+
   useEffect(() => {
     const loadMatches = async () => {
       try {
@@ -732,7 +736,6 @@ const AppDashboard = ({ onLogout }) => {
     if (screen === "referral") {
       return (
         <div className="bg-white min-h-screen mx-auto">
-          {/* Fallback to render raw text if Referral component isn't explicitly imported */}
           <div className="p-4 text-center text-gray-500">Referral Component Layer</div>
           <BottomMenu tab={tab} setTab={setTab} />
         </div>
@@ -977,31 +980,43 @@ const AppDashboard = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* Category Grid Selection Layout */}
+        {/* ==================== 🆕 Category Grid with Live Match Count Badge ==================== */}
         <div className="grid grid-cols-2 gap-3 mt-4">
-          {categories.map((cat) => (
-            <div
-              key={cat.key}
-              onClick={() => {
-                setSelectedCategory(cat.key);
-                setScreen("category");
-              }}
-              className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5"
-            >
-              <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-              <div className="absolute bottom-3 left-3 right-3">
-                <p className="text-white font-extrabold text-sm tracking-wide uppercase">
-                  {cat.title}
-                </p>
-                <p className="text-orange-400 text-[10px] font-medium mt-0.5">
-                  Enter Battle Arena →
-                </p>
+          {categories.map((cat) => {
+            const count = getMatchCount(cat.key);
+            return (
+              <div
+                key={cat.key}
+                onClick={() => {
+                  setSelectedCategory(cat.key);
+                  setScreen("category");
+                }}
+                className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5"
+              >
+                <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                
+                <div className="absolute bottom-3 left-3 right-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-extrabold text-sm tracking-wide uppercase">
+                      {cat.title}
+                    </p>
+                    {count > 0 && (
+                      <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                        {count} Matches
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-orange-400 text-[10px] font-medium mt-0.5">
+                    Enter Battle Arena →
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+
       <BottomMenu tab={tab} setTab={setTab} />
     </div>
   );
