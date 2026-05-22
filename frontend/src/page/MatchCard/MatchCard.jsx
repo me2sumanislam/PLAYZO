@@ -111,11 +111,39 @@ const MatchCard = ({ match, onJoinSuccess }) => {
   // ────────────────────────────────────────
   return (
     <>
-      <div style={{
-        background: "#fff", borderRadius: 16,
+     <div style={{
+        background: "#fff", 
+        borderRadius: 16,
         boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-        overflow: "hidden", marginBottom: 16,
+        overflow: "hidden", 
+        marginBottom: 16,
+        position: "relative"     // ← শুধু এটা যোগ করা হয়েছে
       }}>
+
+{/* ===== GREEN BADGE WITH PULSE ===== */}
+        {totalMatches > 0 && (
+          <div style={{
+            position: "absolute",
+            top: -8,
+            right: -8,
+            background: "#22c55e",
+            color: "white",
+            fontSize: "14px",
+            fontWeight: "700",
+            minWidth: "28px",
+            height: "28px",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 0 3px rgba(34, 197, 94, 0.3)",
+            zIndex: 10,
+            animation: "pulse 2s infinite",
+          }}>
+            {totalMatches}
+          </div>
+        )}
+
 
         {/* TOP */}
         <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
@@ -517,10 +545,11 @@ const MatchCard = ({ match, onJoinSuccess }) => {
         </div>
       )}
 
-      <style>{`
-        @keyframes slideUp {
-          from { transform: translateY(60px); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
+        <style>{`
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
       `}</style>
     </>
