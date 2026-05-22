@@ -2,6 +2,7 @@
 import MatchCard from "../MatchCard/MatchCard";
 import BottomMenu from "../../Component/BottomMenu/BottomMenu";
 
+// ✅ FIX: API_BASE properly define করুন
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
 const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
@@ -9,23 +10,28 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // ✅ Error state add
 
   const fetchMatches = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
-    setError(null);
+    setError(null); // ✅ Reset error
 
     try {
-      // ✅ FIX: API URL ঠিক করা হয়েছে
+      console.log("🔥 Fetching matches for category:", category); // ✅ Debug log
+      console.log("🔥 API URL:", `${API_BASE}/matches`); // ✅ Debug log
+
       const res = await fetch(`${API_BASE}/matches`);
       
+      console.log("🔥 Response status:", res.status); // ✅ Debug log
+
       if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
       const data = await res.json();
-      
-      // ✅ FIX: Multiple data structure support
+      console.log("🔥 Raw data:", data); // ✅ Debug log
+
+      // ✅ Handle multiple response formats
       let allMatches = [];
       if (Array.isArray(data)) {
         allMatches = data;
@@ -33,27 +39,37 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         allMatches = data.data;
       } else if (Array.isArray(data?.matches)) {
         allMatches = data.matches;
+      } else {
+        console.error("❌ Unexpected data format:", data);
+        throw new Error("Invalid data format received");
       }
 
-      // ✅ FIX: Category filter improved
+      console.log("🔥 Total matches before filter:", allMatches.length); // ✅ Debug log
+
+      // ✅ Filter by category
       let filteredMatches = allMatches;
       if (category) {
         filteredMatches = allMatches.filter((m) => {
-          const matchCategory = (m.category || "").toLowerCase().trim();
-          const filterCategory = category.toLowerCase().trim();
-          return matchCategory === filterCategory;
+          const matchCat = (m.category || "").toLowerCase().trim();
+          const filterCat = category.toLowerCase().trim();
+          console.log(`🔥 Comparing: "${matchCat}" === "${filterCat}"`); // ✅ Debug log
+          return matchCat === filterCat;
         });
       }
 
-      // ✅ Only show non-completed matches
+      console.log("🔥 Filtered matches:", filteredMatches.length); // ✅ Debug log
+
+      // ✅ Filter out completed matches
       filteredMatches = filteredMatches.filter(
         (m) => m.status !== "completed" && m.status !== "cancelled"
       );
 
+      console.log("🔥 Final matches:", filteredMatches.length); // ✅ Debug log
+
       setMatches(filteredMatches);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error("Match fetch error:", err);
+      console.error("❌ Match fetch error:", err);
       setError(err.message || "Failed to load matches");
     } finally {
       setLoading(false);
@@ -88,14 +104,14 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         <div className="flex items-center gap-3">
           <button 
             onClick={onBack} 
-            className="text-lg font-bold text-gray-700 active:scale-95 transition-all"
+            className="text-2xl font-bold text-gray-700 active:scale-95 transition-all"
           >
             ←
           </button>
           <div>
             <h2 className="font-bold uppercase text-gray-800">{title}</h2>
             <p className="text-xs text-gray-500">
-              {category ? category.replace(/_/g, ' ').toUpperCase() : 'All Matches'}
+              Category: {category || 'All'}
             </p>
           </div>
         </div>
@@ -114,6 +130,15 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         </button>
       </div>
 
+      {/* ✅ DEBUG INFO (Remove after testing) */}
+      <div className="bg-blue-50 p-3 m-3 rounded-lg text-xs space-y-1">
+        <p><strong>Category:</strong> {category}</p>
+        <p><strong>API URL:</strong> {API_BASE}/matches</p>
+        <p><strong>Loading:</strong> {loading ? "Yes" : "No"}</p>
+        <p><strong>Error:</strong> {error || "None"}</p>
+        <p><strong>Matches Found:</strong> {matches.length}</p>
+      </div>
+
       {/* COUNT + LAST UPDATED */}
       <div className="px-3 py-2 flex items-center justify-between bg-white border-b">
         <p className="text-sm text-gray-600">
@@ -121,7 +146,7 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         </p>
         {lastUpdated && (
           <p className="text-[10px] text-gray-400">
-            Updated: {lastUpdated.toLocaleTimeString("en-BD", {
+            {lastUpdated.toLocaleTimeString("en-BD", {
               hour: "2-digit",
               minute: "2-digit",
               second: "2-digit",
@@ -140,38 +165,38 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         </div>
       </div>
 
-      {/* ERROR STATE */}
+      {/* ✅ ERROR STATE */}
       {error && (
-        <div className="m-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-red-600 font-bold text-sm">⚠️ Error Loading Matches</p>
-          <p className="text-red-500 text-xs mt-1">{error}</p>
+        <div className="m-3 bg-red-50 border-2 border-red-200 rounded-xl p-4">
+          <p className="text-red-700 font-bold text-sm mb-2">⚠️ Error Loading Matches</p>
+          <p className="text-red-600 text-xs mb-3 font-mono">{error}</p>
           <button
             onClick={() => fetchMatches(true)}
-            className="mt-2 text-xs bg-red-500 text-white px-3 py-1 rounded-lg font-bold"
+            className="w-full bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm active:scale-95 transition-all"
           >
-            Try Again
+            🔄 Try Again
           </button>
         </div>
       )}
 
-      {/* LOADING STATE */}
+      {/* ✅ LOADING STATE */}
       {loading && !error ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-10 h-10 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-500 font-medium">Loading matches...</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-600 font-bold">Loading matches...</p>
           <p className="text-xs text-gray-400">Please wait</p>
         </div>
-      ) : (
-        /* MATCH LIST */
+      ) : !error ? (
+        /* ✅ MATCH LIST */
         <div className="p-3 space-y-3">
-          {matches.length === 0 && !loading && !error ? (
+          {matches.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
               <p className="text-5xl mb-3">🎮</p>
               <p className="text-gray-700 font-bold text-lg">No Match Available</p>
               <p className="text-gray-400 text-sm mt-2">
                 {category 
-                  ? `No ${category.replace(/_/g, ' ')} matches right now`
-                  : 'No matches available at the moment'
+                  ? `No ${category.replace(/_/g, ' ')} matches found`
+                  : 'No matches available'
                 }
               </p>
               <p className="text-gray-300 text-xs mt-1">Check back later</p>
@@ -179,7 +204,7 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
                 onClick={() => fetchMatches(true)}
                 className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg text-sm font-bold active:scale-95 transition-all"
               >
-                Refresh Now
+                🔄 Refresh Now
               </button>
             </div>
           ) : (
@@ -194,7 +219,7 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
             ))
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Bottom Menu */}
       {tab && setTab && <BottomMenu tab={tab} setTab={setTab} />}
