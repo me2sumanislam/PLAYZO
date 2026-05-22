@@ -856,26 +856,32 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
+ 
   // --- CATEGORY SCREEN ---
-  if (screen === "category") {
-    return (
-      <div className="mx-auto min-h-screen bg-white">
-        <MatchList
-          category={selectedCategory}
-          title={selectedCategory}
-          onBack={() => setScreen("home")}
-          onJoinSuccess={(matchId, newBalance) => {
-            const user = JSON.parse(localStorage.getItem("user") || "{}");
-            localStorage.setItem(
-              "user",
-              JSON.stringify({ ...user, balance: newBalance })
-            );
-          }}
-        />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
+if (screen === "category") {
+  return (
+    <div className="mx-auto min-h-screen bg-white">
+      <MatchList
+        category={selectedCategory}
+        title={categories.find(c => c.key === selectedCategory)?.title || selectedCategory}
+        onBack={() => {
+          setScreen("home");           // ✅ শুধু back button এ কাজ করবে
+          setSelectedCategory("");      // ✅ category reset
+        }}
+        onJoinSuccess={(matchId, newBalance) => {
+          const user = JSON.parse(localStorage.getItem("user") || "{}");
+          localStorage.setItem(
+            "user",
+            JSON.stringify({ ...user, balance: newBalance })
+          );
+        }}
+        // ✅ নিচের দুইটা prop pass করুন যাতে BottomMenu কাজ করে
+        tab={tab}
+        setTab={setTab}
+      />
+    </div>
+  );
+}
 
   // --- HOME SCREEN ---
   return (
