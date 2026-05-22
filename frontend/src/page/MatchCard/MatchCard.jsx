@@ -2,7 +2,7 @@
 
 const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
-const MatchCard = ({ match, onJoinSuccess }) => {
+const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
   const [timeLeft, setTimeLeft]             = useState("");
   const [isStarted, setIsStarted]           = useState(false);
   const [showPrizeModal, setShowPrizeModal] = useState(false);
@@ -82,9 +82,9 @@ const MatchCard = ({ match, onJoinSuccess }) => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-  userId: user._id || user.id,
-  inGameName: inGameName.trim(),
-}),
+          userId: user._id || user.id,
+          inGameName: inGameName.trim(),
+        }),
       });
       const data = await res.json();
 
@@ -111,16 +111,16 @@ const MatchCard = ({ match, onJoinSuccess }) => {
   // ────────────────────────────────────────
   return (
     <>
-     <div style={{
-        background: "#fff", 
+      <div style={{
+        background: "#fff",
         borderRadius: 16,
         boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-        overflow: "hidden", 
+        overflow: "visible",
         marginBottom: 16,
-        position: "relative"     // ← শুধু এটা যোগ করা হয়েছে
+        position: "relative",
       }}>
 
-{/* ===== GREEN BADGE WITH PULSE ===== */}
+        {/* ===== GREEN BADGE WITH PULSE ===== */}
         {totalMatches > 0 && (
           <div style={{
             position: "absolute",
@@ -143,7 +143,6 @@ const MatchCard = ({ match, onJoinSuccess }) => {
             {totalMatches}
           </div>
         )}
-
 
         {/* TOP */}
         <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
@@ -314,8 +313,6 @@ const MatchCard = ({ match, onJoinSuccess }) => {
 
             {/* Body */}
             <div style={{ padding: "20px" }}>
-
-              {/* Entry fee notice */}
               <div style={{
                 background: "#fef3c7", border: "1px solid #fde68a",
                 borderRadius: 10, padding: "10px 14px", marginBottom: 16,
@@ -324,7 +321,6 @@ const MatchCard = ({ match, onJoinSuccess }) => {
                 ৳{match.entryFee} আপনার wallet থেকে কাটা হবে
               </div>
 
-              {/* inGameName input */}
               <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
                 Free Fire Username
               </label>
@@ -344,7 +340,6 @@ const MatchCard = ({ match, onJoinSuccess }) => {
                 onKeyDown={(e) => e.key === "Enter" && inGameName.trim() && handleJoin()}
               />
 
-              {/* Buttons */}
               <div style={{ display: "flex", gap: 10 }}>
                 <button
                   onClick={() => { setShowJoinModal(false); setInGameName(""); }}
@@ -545,11 +540,15 @@ const MatchCard = ({ match, onJoinSuccess }) => {
         </div>
       )}
 
-        <style>{`
+      <style>{`
         @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+          0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+          70%  { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
           100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(40px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
         }
       `}</style>
     </>
