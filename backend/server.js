@@ -12,7 +12,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const Match = require("./models/Match");
-
+const ludoMatchRoutes = require("./routes/ludoMatchRoutes");
 const app = express();
 
 app.use(helmet());
@@ -110,7 +110,7 @@ app.use("/api/api/users",             require("./routes/users"));
 app.use("/api/api/withdraw",          require("./routes/withdrawRoutes"));
 app.use("/api/api/leaderboard",       require("./routes/leaderboardRoutes"));
 app.use("/api/api/notifications",     require("./routes/notifications"));
-
+app.use("/api/ludo-matches", ludoMatchRoutes);
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
