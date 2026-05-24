@@ -12,7 +12,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const Match = require("./models/Match");
-const ludoMatchRoutes = require("./routes/ludoMatchRoutes");
+ const ludoTournamentRoutes = require("./routes/ludoTournamentRoutes");
 const app = express();
 
 app.use(helmet());
@@ -98,7 +98,7 @@ app.use("/api/users",                 require("./routes/users"));
 app.use("/api/withdraw",              require("./routes/withdrawRoutes"));
 app.use("/api/leaderboard",           require("./routes/leaderboardRoutes"));
 app.use("/api/notifications",         require("./routes/notifications"));
-
+app.use("/api/ludo-tournament", ludoTournamentRoutes);
 // ✅ Fix: double /api/api routes
 app.use("/api/api/matches",           require("./routes/matchRoutes"));
 app.use("/api/api/auth",              authLimiter, require("./routes/authRoutes"));
