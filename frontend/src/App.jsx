@@ -6,7 +6,7 @@ import Footer from "./Component/Footer/Footer";
 import Hero from "./Component/HeroSection/HeroSection";
 import Navbar from "./Component/Navbar/Navbar";
 import HomeCard from "./page/HomeCard/HomeCard";
-
+import LudoTournamentSection from "../Component/Ludo/LudoTournamentSection";
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
@@ -53,16 +53,12 @@ function App() {
     }
   }, [isLoggedIn]);
 
-  // 🔴 PWA মোবাইলের হোম স্ক্রিন আইকনে নোটিফিকেশন ব্যাজ (Badge API) দেখানোর লজিক
-   // App.jsx - শুধু badge update useEffect টা replace করুন
-
-  // 🔴 PWA মোবাইলের হোম স্ক্রিন আইকনে নোটিফিকেশন ব্যাজ (Badge API) দেখানোর লজিক
+  // PWA Badge Logic
   useEffect(() => {
     const updateAppIconBadge = async () => {
       if (!("setAppBadge" in navigator) || !isLoggedIn) return;
       
       try {
-        // ✅ FIX: সঠিক API endpoint ব্যবহার
         const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
         const res = await fetch(`${API_BASE}/notifications?isRead=false&limit=1`);
         const data = await res.json();
@@ -80,7 +76,6 @@ function App() {
 
     updateAppIconBadge();
 
-    // প্রতি ৩০ সেকেন্ড পর পর badge update
     const badgeInterval = setInterval(updateAppIconBadge, 30000);
 
     return () => {
@@ -101,7 +96,6 @@ function App() {
     localStorage.removeItem("user_balance");
     setIsLoggedIn(false);
     
-    // ✅ FIX: Logout এ badge clear
     if ("clearAppBadge" in navigator) {
       navigator.clearAppBadge().catch(() => {});
     }
@@ -142,7 +136,7 @@ function App() {
       <Route
         path="/referral"
         element={
-          isLoggedIn ? ( // ← এখানে ভুল ট্যাগটি ঠিক করে ব্র্যাকেট `{}` দেওয়া হয়েছে
+          isLoggedIn ? (
             <Referral onBack={() => navigate("/app")} />
           ) : (
             <Auth onLoginSuccess={handleLoginSuccess} />
