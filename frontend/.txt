@@ -1,13 +1,1003 @@
-  const mongoose = require("mongoose");
+  /db.js file start 
+ const mongoose = require("mongoose");
 
-const pushSubscriptionSchema = new mongoose.Schema({
-  endpoint: { type: String, required: true, unique: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-  subscription: { type: Object, required: true },
-  updatedAt: { type: Date, default: Date.now },
+const connectDB = async () => {
+  try {
+    console.log("🔄 Connecting to MongoDB...");
+
+    await mongoose.connect(process.env.MONGO_URI);
+
+    console.log("✔ MongoDB Connected Successfully");
+  } catch (error) {
+    console.error("❌ MongoDB Connection Failed:");
+    console.error(error.message);
+
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+
+ /db.js file end 
+
+
+ /matchController.js file start 
+ const Match = require("../models/matchModel");
+
+
+// ================= CREATE MATCH =================
+const createMatch = async (req, res) => {
+  try {
+    const {
+      title,
+      category,
+      entryFee,
+      winPrize,
+      totalPlayers,
+      roomId,
+      roomPassword,
+    } = req.body;
+
+    const newMatch = await Match.create({
+      title,
+      category,
+      entryFee,
+      winPrize,
+      totalPlayers,
+      roomId,
+      roomPassword,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Match created successfully",
+      data: newMatch,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// ================= GET ALL MATCHES =================
+const getMatches = async (req, res) => {
+  try {
+    const matches = await Match.find().sort({ createdAt: -1 });
+
+    res.json(matches);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+module.exports = {
+  createMatch,
+  getMatches,
+};
+
+ /matchController.js.js file end 
+  
+  // Match Result Controll start 
+   const Match = require('../models/Match');
+const User = require('../models/User');
+
+// @desc    Submit Match Result & Distribute Prize
+// @route   POST /api/admin/match-result
+// @access  Admin
+const submitMatchResult = async (req, res) => {
+  try {
+    const { matchId, results } = req.body;
+
+    if (!matchId || !results || results.length === 0) {
+      return res.status(400).json({ message: "Match ID and results are required" });
+    }
+
+    // Find match
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    // Update match with results
+    match.results = results;
+    match.status = 'completed';
+    match.completedAt = new Date();
+
+    await match.save();
+
+    // Distribute Prize to Users
+    for (const player of results) {
+      if (player.userId && player.prize > 0) {
+        await User.findByIdAndUpdate(
+          player.userId,
+          { 
+            $inc: { balance: player.prize },
+            $push: { 
+              transactions: {
+                type: 'match_prize',
+                amount: player.prize,
+                matchId: match._id,
+                description: `${match.title} - Prize`
+              }
+            }
+          }
+        );
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Match result submitted and prizes distributed successfully",
+      match
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+// @desc    Get User's Joined Matches
+// @route   GET /api/user/my-matches
+const getMyMatches = async (req, res) => {
+  try {
+    const userId = req.user.id; // from auth middleware
+
+    const matches = await Match.find({
+      "participants.user": userId
+    })
+    .select('title prizePool status roomId password results createdAt')
+    .sort({ createdAt: -1 });
+
+    res.json(matches);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// @desc    Get Single Match Result (for user)
+const getMatchResult = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.user.id;
+
+    const match = await Match.findById(matchId)
+      .select('title prizePool status roomId password results');
+
+    if (!match) return res.status(404).json({ message: "Match not found" });
+
+    // Check if user joined this match
+    const isParticipant = match.participants?.some(p => p.user.toString() === userId);
+    if (!isParticipant) {
+      return res.status(403).json({ message: "You did not join this match" });
+    }
+
+    res.json(match);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+module.exports = {
+  submitMatchResult,
+  getMyMatches,
+  getMatchResult
+};
+  // Match Result Controll end 
+
+
+  //withdrawController.js start 
+   const Withdraw = require("../models/withdraw");
+const User = require("../models/User");
+const axios = require("axios");
+
+// ─── SMS helper ───────────────────────────────────────────────────────────
+const sendSMS = async (phone, message) => {
+  try {
+    const apiKey = process.env.SMS_API_KEY;
+    const sender = process.env.SMS_SENDER_ID || "YourApp";
+    if (!apiKey) return;
+
+    await axios.get("https://api.greenweb.com.bd/api.php", {
+      params: { token: apiKey, to: phone, message, sender },
+    });
+  } catch (err) {
+    console.error("SMS failed:", err.message);
+  }
+};
+
+// ─── USER: submit request ─────────────────────────────────────────────────
+exports.createWithdraw = async (req, res) => {
+  try {
+    const { amount, method, accountNo } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (amount < 100)
+      return res.status(400).json({ message: "Minimum ৳100" });
+
+    if (user.balance < amount)
+      return res.status(400).json({ message: "Insufficient balance" });
+
+    const pending = await Withdraw.findOne({ user: user._id, status: "pending" });
+    if (pending)
+      return res.status(400).json({ message: "You already have a pending request" });
+
+    // ✅ Balance কাটো
+    user.balance -= amount;
+    await user.save();
+
+    const withdraw = await Withdraw.create({
+      user: user._id,
+      amount,
+      method,
+      accountNo,
+    });
+
+    res.json({ message: "Request submitted", withdraw });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── USER: my history ─────────────────────────────────────────────────────
+exports.myWithdraw = async (req, res) => {
+  try {
+    const data = await Withdraw.find({ user: req.user.id }).sort({ createdAt: -1 });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── ADMIN: all requests ──────────────────────────────────────────────────
+exports.getAllWithdraw = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = status ? { status } : {};
+
+    const data = await Withdraw.find(filter)
+      .populate("user", "phone name balance")
+      .sort({ createdAt: -1 });
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── ADMIN: approve ───────────────────────────────────────────────────────
+exports.approveWithdraw = async (req, res) => {
+  try {
+    const { trxId, note, adminName } = req.body;
+
+    const withdraw = await Withdraw.findById(req.params.id).populate("user", "phone name balance");
+    if (!withdraw) return res.status(404).json({ message: "Not found" });
+    if (withdraw.status !== "pending")
+      return res.status(400).json({ message: "Already processed" });
+
+    // ✅ Balance আগেই কাটা হয়েছে, এখন শুধু status update
+    withdraw.status     = "approved";
+    withdraw.trxId      = trxId || "";
+    withdraw.note       = note  || "Payment sent";
+    withdraw.approvedBy = adminName;
+    await withdraw.save();
+
+    const smsText = `আপনার ৳${withdraw.amount} উইথড্র রিকোয়েস্ট অনুমোদিত হয়েছে। ${withdraw.method}: ${withdraw.accountNo}${trxId ? `. TrxID: ${trxId}` : ""}`;
+    await sendSMS(withdraw.user.phone, smsText);
+
+    res.json({ message: "Approved", withdraw });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ─── ADMIN: reject ────────────────────────────────────────────────────────
+exports.rejectWithdraw = async (req, res) => {
+  try {
+    const { note, adminName } = req.body;
+
+    const withdraw = await Withdraw.findById(req.params.id).populate("user", "phone name balance");
+    if (!withdraw) return res.status(404).json({ message: "Not found" });
+    if (withdraw.status !== "pending")
+      return res.status(400).json({ message: "Already processed" });
+
+    // ✅ Reject হলে balance ফেরত দাও
+    const user = await User.findById(withdraw.user._id);
+    if (user) {
+      user.balance += withdraw.amount;
+      await user.save();
+    }
+
+    withdraw.status     = "rejected";
+    withdraw.note       = note || "Rejected by admin";
+    withdraw.rejectedBy = adminName;
+    await withdraw.save();
+
+    const smsText = `আপনার ৳${withdraw.amount} উইথড্র রিকোয়েস্ট বাতিল হয়েছে। কারণ: ${note || "Admin কর্তৃক বাতিল"}`;
+    await sendSMS(withdraw.user.phone, smsText);
+
+    res.json({ message: "Rejected", withdraw });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+  //withdrawController.js end 
+
+  //auth.js file start 
+   const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
+
+// ================= PROTECT =================
+const protect = async (req, res, next) => {
+  let token;
+
+  try {
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || "secretkey"
+      );
+
+      const user = await User.findById(decoded.id).select("-password");
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      req.user = user;
+      next();
+    } else {
+      return res.status(401).json({ message: "No token provided" });
+    }
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
+
+// ================= ADMIN ONLY =================
+const adminOnly = (req, res, next) => {
+  if (req.user && ADMIN_ROLES.includes(req.user.role)) {
+    next();
+  } else {
+    return res.status(403).json({ message: "Admin only access" });
+  }
+};
+
+module.exports = { protect, adminOnly };
+
+  //auth.js file end 
+
+  //authMiddkeware.js  file start 
+
+   const jwt = require("jsonwebtoken");
+
+const protect = (req, res, next) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res.json({ success: false, message: "No token" });
+  }
+
+  try {
+    const decoded = jwt.verify(token.split(" ")[1], process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.json({ success: false, message: "Invalid token" });
+  }
+};
+
+// 🔥 ADMIN ONLY
+const adminOnly = (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return res.json({ success: false, message: "Admin only access" });
+  }
+  next();
+};
+
+module.exports = { protect, adminOnly };
+  //authMiddkeware.js  file end 
+
+
+  //ActivitiLog.js start 
+   const mongoose = require("mongoose");
+const ActivityLogSchema = new mongoose.Schema({
+  adminName: String,
+  action: String,
+  target: String,
+  type: { type: String, enum: ["approve","reject","create","ban","login"] },
+}, { timestamps: true });
+module.exports = mongoose.model("ActivityLog", ActivityLogSchema);
+
+  //ActivitiLog.js end 
+
+  //admin.js start 
+
+ // ============================================================
+ // routes/admin.js  — Express Router
+ // ============================================================
+ // npm install express mongoose bcryptjs jsonwebtoken
+ // ============================================================
+ 
+ const express = require("express");
+ const router = express.Router();
+ const bcrypt = require("bcryptjs");
+ const jwt = require("jsonwebtoken");
+ 
+ const Admin = require("../models/Admin");
+ const User = require("../models/User");
+ const Deposit = require("../models/Deposit");
+const Withdraw = require("./withdraw")
+ const Match = require("../models/Match");
+ const ActivityLog = require("../models/ActivityLog");
+ const PaymentNumber = require("./PaymentNumber"); // ✅ নতুন
+ 
+ const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
+ 
+ // ─── AUTH MIDDLEWARE ─────────────────────────────────────────
+ const authAdmin = async (req, res, next) => {
+   try {
+     const token = req.headers.authorization?.split(" ")[1];
+     if (!token) return res.status(401).json({ success: false, message: "No token" });
+     const decoded = jwt.verify(token, JWT_SECRET);
+     req.admin = await Admin.findById(decoded.id);
+     if (!req.admin) return res.status(401).json({ success: false, message: "Admin not found" });
+     next();
+   } catch {
+     res.status(401).json({ success: false, message: "Invalid token" });
+   }
+ };
+ 
+ // ─── LOG HELPER ──────────────────────────────────────────────
+ const log = (adminName, action, target, type) =>
+   ActivityLog.create({ adminName, action, target, type }).catch(() => {});
+ 
+ // ════════════════════════════════════════════════════════════
+ // AUTH
+ // ════════════════════════════════════════════════════════════
+ 
+ // POST /api/admin/login
+ router.post("/login", async (req, res) => {
+   try {
+     const { phone, password } = req.body;
+     const admin = await Admin.findOne({ phone });
+     if (!admin) return res.json({ success: false, message: "Admin not found" });
+     const ok = await bcrypt.compare(password, admin.password);
+     if (!ok) return res.json({ success: false, message: "Wrong password" });
+     const token = jwt.sign({ id: admin._id }, JWT_SECRET, { expiresIn: "7d" });
+     log(admin.name, "logged in", "", "login");
+     res.json({ success: true, token, admin: { name: admin.name, role: admin.role, _id: admin._id } });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // STATS (Dashboard + Money overview)
+ // ════════════════════════════════════════════════════════════
+ 
+ // GET /api/admin/stats
+ router.get("/stats", authAdmin, async (req, res) => {
+   try {
+     const [
+       totalDeposit,
+       totalWithdraw,
+       pendingDepositAmount,
+       pendingWithdrawAmount,
+       pendingDeposit,
+       pendingWithdraw,
+       totalUsers,
+       totalMatches,
+     ] = await Promise.all([
+       Deposit.aggregate([{ $match: { status: "approved" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+       Withdraw.aggregate([{ $match: { status: "approved" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+       Deposit.aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+       Withdraw.aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+       Deposit.countDocuments({ status: "pending" }),
+       Withdraw.countDocuments({ status: "pending" }),
+       User.countDocuments(),
+       Match.countDocuments(),
+     ]);
+ 
+     res.json({
+       success: true,
+       data: {
+         totalDeposit: totalDeposit[0]?.sum || 0,
+         totalWithdraw: totalWithdraw[0]?.sum || 0,
+         pendingDepositAmount: pendingDepositAmount[0]?.sum || 0,
+         pendingWithdrawAmount: pendingWithdrawAmount[0]?.sum || 0,
+         pendingDeposit,
+         pendingWithdraw,
+         totalUsers,
+         totalMatches,
+       },
+     });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // DEPOSITS
+ // ════════════════════════════════════════════════════════════
+ 
+ // GET /api/admin/deposits?status=pending&limit=50
+ router.get("/deposits", authAdmin, async (req, res) => {
+   try {
+     const { status, limit = 50 } = req.query;
+     const query = status && status !== "all" ? { status } : {};
+     const data = await Deposit.find(query)
+       .populate("user", "name phone")
+       .sort({ createdAt: -1 })
+       .limit(Number(limit));
+     res.json({ success: true, data });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // PUT /api/admin/deposits/:id/approve
+ router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
+   try {
+     const dep = await Deposit.findById(req.params.id).populate("user");
+     if (!dep) return res.json({ success: false, message: "Not found" });
+     if (dep.status !== "pending") return res.json({ success: false, message: "Already processed" });
+ 
+     dep.status = "approved";
+     dep.approvedBy = req.admin.name;
+     dep.updatedAt = new Date();
+     await dep.save();
+ 
+     // Add balance to user
+     await User.findByIdAndUpdate(dep.user._id, {
+       $inc: { balance: dep.amount, totalDeposit: dep.amount },
+     });
+ 
+     log(req.admin.name, `approved deposit of ৳${dep.amount}`, dep.user.name, "approve");
+     res.json({ success: true, message: "Deposit approved" });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // PUT /api/admin/deposits/:id/reject
+ router.put("/deposits/:id/reject", authAdmin, async (req, res) => {
+   try {
+     const dep = await Deposit.findByIdAndUpdate(
+       req.params.id,
+       { status: "rejected", rejectedBy: req.admin.name, updatedAt: new Date() },
+       { new: true }
+     ).populate("user");
+     log(req.admin.name, `rejected deposit of ৳${dep.amount}`, dep.user.name, "reject");
+     res.json({ success: true, message: "Deposit rejected" });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // WITHDRAWALS
+ // ════════════════════════════════════════════════════════════
+ 
+ // GET /api/admin/withdraws?status=pending&limit=50
+ router.get("/withdraws", authAdmin, async (req, res) => {
+   try {
+     const { status, limit = 50 } = req.query;
+     const query = status && status !== "all" ? { status } : {};
+     const data = await Withdraw.find(query)
+       .populate("user", "name phone")
+       .sort({ createdAt: -1 })
+       .limit(Number(limit));
+     res.json({ success: true, data });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // PUT /api/admin/withdraws/:id/approve
+ router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
+   try {
+     const wit = await Withdraw.findById(req.params.id).populate("user");
+     if (!wit) return res.json({ success: false, message: "Not found" });
+     if (wit.status !== "pending") return res.json({ success: false, message: "Already processed" });
+ 
+     // Check user balance
+     const user = await User.findById(wit.user._id);
+     if (user.balance < wit.amount) return res.json({ success: false, message: "User has insufficient balance" });
+ 
+     wit.status = "approved";
+     wit.approvedBy = req.admin.name;
+     wit.updatedAt = new Date();
+     await wit.save();
+ 
+     await User.findByIdAndUpdate(wit.user._id, {
+       $inc: { balance: -wit.amount, totalWithdraw: wit.amount },
+     });
+ 
+     log(req.admin.name, `approved withdraw of ৳${wit.amount}`, wit.user.name, "approve");
+     res.json({ success: true, message: "Withdraw approved & balance deducted" });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // PUT /api/admin/withdraws/:id/reject
+ router.put("/withdraws/:id/reject", authAdmin, async (req, res) => {
+   try {
+     const wit = await Withdraw.findByIdAndUpdate(
+       req.params.id,
+       { status: "rejected", rejectedBy: req.admin.name, updatedAt: new Date() },
+       { new: true }
+     ).populate("user");
+     log(req.admin.name, `rejected withdraw of ৳${wit.amount}`, wit.user.name, "reject");
+     res.json({ success: true, message: "Withdraw rejected" });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // USERS
+ // ════════════════════════════════════════════════════════════
+ 
+ // GET /api/admin/users
+ router.get("/users", authAdmin, async (req, res) => {
+   try {
+     const data = await User.find({}, "name phone balance totalDeposit totalWithdraw banned").sort({ createdAt: -1 });
+     res.json({ success: true, data });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // PUT /api/admin/users/:id/ban
+ router.put("/users/:id/ban", authAdmin, async (req, res) => {
+   try {
+     const user = await User.findByIdAndUpdate(req.params.id, { banned: true }, { new: true });
+     log(req.admin.name, "banned user", user.name, "ban");
+     res.json({ success: true });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // PUT /api/admin/users/:id/unban
+ router.put("/users/:id/unban", authAdmin, async (req, res) => {
+   try {
+     const user = await User.findByIdAndUpdate(req.params.id, { banned: false }, { new: true });
+     log(req.admin.name, "unbanned user", user.name, "ban");
+     res.json({ success: true });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // MATCH RESULT
+ // ════════════════════════════════════════════════════════════
+ 
+ // PUT /api/admin/matches/:id/result
+ router.put("/matches/:id/result", authAdmin, async (req, res) => {
+   try {
+     const { winner } = req.body;
+     const match = await Match.findById(req.params.id);
+     if (!match) return res.json({ success: false, message: "Match not found" });
+ 
+     const user = await User.findOne({ $or: [{ _id: winner }, { name: winner }] });
+     if (!user) return res.json({ success: false, message: "Winner user not found" });
+ 
+     match.status = "ended";
+     match.winner = user._id;
+     await match.save();
+ 
+     await User.findByIdAndUpdate(user._id, { $inc: { balance: match.winPrize } });
+ 
+     log(req.admin.name, `set match result, winner: ${user.name}, prize ৳${match.winPrize}`, match.title, "create");
+     res.json({ success: true, message: `Prize ৳${match.winPrize} sent to ${user.name}` });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // ACTIVITY LOG
+ // ════════════════════════════════════════════════════════════
+ 
+ // GET /api/admin/logs
+ router.get("/logs", authAdmin, async (req, res) => {
+   try {
+     const data = await ActivityLog.find().sort({ createdAt: -1 }).limit(100);
+     res.json({ success: true, data });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // ADMIN MANAGEMENT
+ // ════════════════════════════════════════════════════════════
+ 
+ // GET /api/admin/admins
+ router.get("/admins", authAdmin, async (req, res) => {
+   try {
+     const data = await Admin.find({}, "name phone role createdAt").sort({ createdAt: -1 });
+     res.json({ success: true, data });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // POST /api/admin/admins/create
+ router.post("/admins/create", authAdmin, async (req, res) => {
+   try {
+     if (req.admin.role !== "super-admin") return res.json({ success: false, message: "Only super admin can create admins" });
+     const { name, phone, password, role } = req.body;
+     const exists = await Admin.findOne({ phone });
+     if (exists) return res.json({ success: false, message: "Phone already registered" });
+     const hash = await bcrypt.hash(password, 10);
+     const admin = await Admin.create({ name, phone, password: hash, role });
+     log(req.admin.name, `created new admin: ${name}`, phone, "create");
+     res.json({ success: true, admin: { name: admin.name, phone: admin.phone, role: admin.role } });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // ════════════════════════════════════════════════════════════
+ // PAYMENT NUMBERS  ✅ নতুন section
+ // ════════════════════════════════════════════════════════════
+ 
+ // GET /api/admin/payment-numbers  — admin সব দেখবে (active + inactive)
+ router.get("/payment-numbers", authAdmin, async (req, res) => {
+   try {
+     const data = await PaymentNumber.find().sort({ createdAt: -1 });
+     res.json({ success: true, data });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // POST /api/admin/payment-numbers  — নতুন নম্বর যোগ করো
+ router.post("/payment-numbers", authAdmin, async (req, res) => {
+   try {
+     const { method, number, limit, active } = req.body;
+     if (!method || !number) return res.json({ success: false, message: "method ও number দিন" });
+     const entry = await PaymentNumber.create({ method, number, limit: limit || null, active: active !== false });
+     log(req.admin.name, `added payment number ${number}`, method, "create");
+     res.json({ success: true, data: entry });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // PUT /api/admin/payment-numbers/:id  — update (active toggle বা edit)
+ router.put("/payment-numbers/:id", authAdmin, async (req, res) => {
+   try {
+     const updated = await PaymentNumber.findByIdAndUpdate(
+       req.params.id,
+       { ...req.body },
+       { new: true }
+     );
+     if (!updated) return res.json({ success: false, message: "Not found" });
+     log(req.admin.name, `updated payment number ${updated.number}`, updated.method, "create");
+     res.json({ success: true, data: updated });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ // DELETE /api/admin/payment-numbers/:id  — মুছে ফেলো
+ router.delete("/payment-numbers/:id", authAdmin, async (req, res) => {
+   try {
+     const deleted = await PaymentNumber.findByIdAndDelete(req.params.id);
+     if (!deleted) return res.json({ success: false, message: "Not found" });
+     log(req.admin.name, `deleted payment number ${deleted.number}`, deleted.method, "reject");
+     res.json({ success: true });
+   } catch (e) {
+     res.status(500).json({ success: false, message: e.message });
+   }
+ });
+ 
+ module.exports = router;
+ 
+
+  //admin.js end 
+
+  //Deposite.js start 
+
+ const mongoose = require("mongoose");
+
+const depositSchema = new mongoose.Schema({
+  method: {
+    type: String,
+    enum: ["bkash", "nagad", "rocket"], // ✅ fixed
+    required: true,
+  },
+  amount: {
+    type: Number,
+    required: true,
+    min: 1,
+  },
+  trxId: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  paymentNumber: {
+    type: String,
+    default: null,
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-module.exports = mongoose.model("PushSubscription", pushSubscriptionSchema);  // models/Notification.js
+module.exports = mongoose.model("Deposit", depositSchema);
+
+  //Deposite.js end  
+
+  // Matach.js start 
+ const mongoose = require("mongoose");
+
+const matchSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    category: { type: String, required: true },
+
+    entryFee: { type: Number, required: true, default: 0 },
+    winPrize: { type: Number, required: true, default: 0 },
+
+    prizes: {
+      first:  { type: Number, default: 0 },
+      second: { type: Number, default: 0 },
+      third:  { type: Number, default: 0 },
+      fourth: { type: Number, default: 0 },
+    },
+
+    perKill: { type: Number, default: 0 },
+
+    map:    { type: String, default: "Bermuda" },
+    device: { type: String, default: "Mobile" },
+    image:  { type: String, default: "" },
+
+    startTime: { type: Date },
+
+    totalPlayers:  { type: Number, default: 48 },
+    joinedPlayers: { type: Number, default: 0 },
+
+    // ───────── Joined Players List ─────────
+    joinedUsers: [
+      {
+        userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        inGameName: { type: String, default: "" },
+        slotNumber: { type: Number },
+        joinedAt:   { type: Date, default: Date.now },
+      },
+    ],
+
+    // ───────── Room Info ─────────
+    roomId:       { type: String, default: "" },
+    roomPassword: { type: String, default: "" },
+    isRoomOpen:   { type: Boolean, default: false },
+
+    // ───────── Result System ─────────
+    results: [
+      {
+        userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        inGameName: { type: String },
+        position:   { type: Number },
+        kills:      { type: Number },
+        prize:      { type: Number },
+      },
+    ],
+
+    completedAt: { type: Date },
+    deleteAt:    { type: Date }, // ← result submit এর পর auto delete time
+
+    // ───────── Status ─────────
+    status: { type: String, default: "upcoming" },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Match", matchSchema);
+
+  // Matach.js end 
+
+  //match Model.js start 
+   const mongoose = require("mongoose");
+
+const matchSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+    },
+
+    category: {
+      type: String,
+      required: true,
+    },
+
+    entryFee: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    winPrize: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    totalPlayers: {
+      type: Number,
+      default: 48,
+    },
+
+    joinedPlayers: {
+      type: Number,
+      default: 0,
+    },
+
+    roomId: {
+      type: String,
+      default: "",
+    },
+
+    roomPassword: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      default: "upcoming",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Match", matchSchema);
+
+  //match Model.js end 
+
+  //Notification.js start 
+
+// models/Notification.js
 
 const mongoose = require("mongoose");
 
@@ -34,11 +1024,1075 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true } // এটি নোটিফিকেশন তৈরির সময় (createdAt) অটোমেটিক সেভ রাখবে
 );
 
-module.exports = mongoose.model("Notification", notificationSchema);   const express = require("express");
+module.exports = mongoose.model("Notification", notificationSchema);
+
+  //Notification.js end 
+
+
+  //PaymentNumer.js start 
+ const mongoose = require("mongoose");
+
+const paymentNumberSchema = new mongoose.Schema(
+  {
+    method: {
+      type: String,
+      enum: ["bkash", "nagad", "rocket"],
+      required: true,
+    },
+    number: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    limit: {
+      type: Number,
+      default: null,
+    },
+    active: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("PaymentNumber", paymentNumberSchema);
+  //PaymentNumer.js end 
+
+  // pushSubscription.js start 
+
+   const mongoose = require("mongoose");
+
+const pushSubscriptionSchema = new mongoose.Schema({
+  endpoint: { type: String, required: true, unique: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  subscription: { type: Object, required: true },
+  updatedAt: { type: Date, default: Date.now },
+});
+
+module.exports = mongoose.model("PushSubscription", pushSubscriptionSchema);
+  // pushSubscription.js end 
+
+// user.js start
+ const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema(
+  {
+    name:               { type: String, trim: true, default: "" },
+    inGameName:         { type: String, trim: true, default: "" },
+    email:              { type: String, trim: true, default: "" },
+    phone:              { type: String, required: true, unique: true, trim: true },
+    password:           { type: String, required: true },
+    role:               { type: String, enum: ["user", "admin", "super-admin", "finance"], default: "user" },
+    balance:            { type: Number, default: 0 },
+    totalMatchesPlayed: { type: Number, default: 0 },
+    totalWins:          { type: Number, default: 0 },
+    isBlocked:          { type: Boolean, default: false },
+    lastLogin:          { type: Date },
+
+    // ✅ Referral System
+    referralCode:       { type: String, unique: true },
+    referredBy:         { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    referralPoints:     { type: Number, default: 0 },
+    referralCount:      { type: Number, default: 0 },
+    referralHistory: [
+      {
+        userId:      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        name:        { type: String },
+        phone:       { type: String },
+        deposited:   { type: Boolean, default: false },
+        pointGiven:  { type: Boolean, default: false },
+        joinedAt:    { type: Date, default: Date.now },
+      }
+    ],
+
+    // ✅ Join History
+    joinHistory: [
+      {
+        matchId:    { type: mongoose.Schema.Types.ObjectId, ref: "Match" },
+        matchTitle: { type: String },
+        entryFee:   { type: Number },
+        joinedAt:   { type: Date, default: Date.now },
+      }
+    ],
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("User", userSchema);
+// user.js end 
+
+//withdraw.js start 
+
+const mongoose = require("mongoose");
+
+const WithdrawSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  amount: { type: Number, required: true },
+  method: { type: String, enum: ["bKash", "Nagad", "Rocket"], required: true },
+  accountNo: { type: String, required: true },
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  },
+  trxId: String,
+  note: String,
+  approvedBy: String,
+  rejectedBy: String,
+}, { timestamps: true });
+
+module.exports = mongoose.model("Withdraw", WithdrawSchema);
+
+
+//withdraw.js end  
+
+
+// Routes all file start 
+
+//admin.js start 
+
+ const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const User = require("../models/User");
+const Deposit = require("../models/Deposit");
+const Withdraw = require("../models/withdraw");
+const Match = require("../models/Match");
+const ActivityLog = require("../models/ActivityLog");
+const PaymentNumber = require("../models/PaymentNumber");
+
+const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
+
+const authAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ success: false, message: "No token" });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user || !ADMIN_ROLES.includes(user.role)) {
+      return res.status(401).json({ success: false, message: "Admin not found" });
+    }
+    req.admin = user;
+    next();
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+};
+
+const log = (adminName, action, target, type) =>
+  ActivityLog.create({ adminName, action, target, type }).catch(() => {});
+
+// STATS
+router.get("/stats", authAdmin, async (req, res) => {
+  try {
+    const [
+      totalDeposit, totalWithdraw,
+      pendingDepositAmount, pendingWithdrawAmount,
+      pendingDeposit, pendingWithdraw,
+      totalUsers, totalMatches,
+    ] = await Promise.all([
+      Deposit.aggregate([{ $match: { status: "approved" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+      Withdraw.aggregate([{ $match: { status: "approved" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+      Deposit.aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+      Withdraw.aggregate([{ $match: { status: "pending" } }, { $group: { _id: null, sum: { $sum: "$amount" } } }]),
+      Deposit.countDocuments({ status: "pending" }),
+      Withdraw.countDocuments({ status: "pending" }),
+      User.countDocuments(),
+      Match.countDocuments(),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalDeposit: totalDeposit[0]?.sum || 0,
+        totalWithdraw: totalWithdraw[0]?.sum || 0,
+        pendingDepositAmount: pendingDepositAmount[0]?.sum || 0,
+        pendingWithdrawAmount: pendingWithdrawAmount[0]?.sum || 0,
+        pendingDeposit,
+        pendingWithdraw,
+        totalUsers,
+        totalMatches,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// DEPOSITS
+router.get("/deposits", authAdmin, async (req, res) => {
+  try {
+    const { status, limit = 50 } = req.query;
+    const query = status && status !== "all" ? { status } : {};
+    const data = await Deposit.find(query)
+      .populate("userId", "name phone")
+      .sort({ createdAt: -1 })
+      .limit(Number(limit));
+
+    // frontend এ user field expect করে তাই map করি
+    const mapped = data.map(d => ({
+      ...d.toObject(),
+      user: d.userId,
+    }));
+
+    res.json({ success: true, data: mapped });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
+  try {
+    const dep = await Deposit.findById(req.params.id).populate("userId");
+    if (!dep) return res.json({ success: false, message: "Not found" });
+    if (dep.status !== "pending") return res.json({ success: false, message: "Already processed" });
+
+    dep.status = "approved";
+    dep.approvedBy = req.admin.name;
+    await dep.save();
+
+    await User.findByIdAndUpdate(dep.userId._id || dep.userId, {
+      $inc: { balance: dep.amount, totalDeposit: dep.amount },
+    });
+
+    log(req.admin.name, `approved deposit of ৳${dep.amount}`, dep.userId?.name || "user", "approve");
+    res.json({ success: true, message: "Deposit approved" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/deposits/:id/reject", authAdmin, async (req, res) => {
+  try {
+    const dep = await Deposit.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected", rejectedBy: req.admin.name },
+      { new: true }
+    ).populate("userId");
+    log(req.admin.name, `rejected deposit of ৳${dep.amount}`, dep.userId?.name || "user", "reject");
+    res.json({ success: true, message: "Deposit rejected" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// WITHDRAWALS
+router.get("/withdraws", authAdmin, async (req, res) => {
+  try {
+    const { status, limit = 50 } = req.query;
+    const query = status && status !== "all" ? { status } : {};
+    const data = await Withdraw.find(query)
+      .populate("user", "name phone")
+      .sort({ createdAt: -1 })
+      .limit(Number(limit));
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
+  try {
+    const wit = await Withdraw.findById(req.params.id).populate("user");
+    if (!wit) return res.json({ success: false, message: "Not found" });
+    if (wit.status !== "pending") return res.json({ success: false, message: "Already processed" });
+
+    const user = await User.findById(wit.user._id);
+    if (user.balance < wit.amount) return res.json({ success: false, message: "User has insufficient balance" });
+
+    wit.status = "approved";
+    wit.approvedBy = req.admin.name;
+    await wit.save();
+
+    await User.findByIdAndUpdate(wit.user._id, {
+      $inc: { balance: -wit.amount, totalWithdraw: wit.amount },
+    });
+
+    log(req.admin.name, `approved withdraw of ৳${wit.amount}`, wit.user.name, "approve");
+    res.json({ success: true, message: "Withdraw approved & balance deducted" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/withdraws/:id/reject", authAdmin, async (req, res) => {
+  try {
+    const wit = await Withdraw.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected", rejectedBy: req.admin.name },
+      { new: true }
+    ).populate("user");
+    log(req.admin.name, `rejected withdraw of ৳${wit.amount}`, wit.user.name, "reject");
+    res.json({ success: true, message: "Withdraw rejected" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// USERS
+router.get("/users", authAdmin, async (req, res) => {
+  try {
+    const data = await User.find({}, "name phone balance totalDeposit totalWithdraw banned").sort({ createdAt: -1 });
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/users/:id/ban", authAdmin, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, { banned: true }, { new: true });
+    log(req.admin.name, "banned user", user.name, "ban");
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/users/:id/unban", authAdmin, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, { banned: false }, { new: true });
+    log(req.admin.name, "unbanned user", user.name, "ban");
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// PAYMENT NUMBERS
+router.get("/payment-numbers", authAdmin, async (req, res) => {
+  try {
+    const data = await PaymentNumber.find().sort({ createdAt: -1 });
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.post("/payment-numbers", authAdmin, async (req, res) => {
+  try {
+    const { method, number, limit, active } = req.body;
+    if (!method || !number) return res.json({ success: false, message: "method ও number দিন" });
+    const entry = await PaymentNumber.create({ method, number, limit: limit || null, active: active !== false });
+    log(req.admin.name, `added payment number ${number}`, method, "create");
+    res.json({ success: true, data: entry });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/payment-numbers/:id", authAdmin, async (req, res) => {
+  try {
+    const updated = await PaymentNumber.findByIdAndUpdate(
+      req.params.id, { ...req.body }, { new: true }
+    );
+    if (!updated) return res.json({ success: false, message: "Not found" });
+    log(req.admin.name, `updated payment number ${updated.number}`, updated.method, "create");
+    res.json({ success: true, data: updated });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.delete("/payment-numbers/:id", authAdmin, async (req, res) => {
+  try {
+    const deleted = await PaymentNumber.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.json({ success: false, message: "Not found" });
+    log(req.admin.name, `deleted payment number ${deleted.number}`, deleted.method, "reject");
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ACTIVITY LOG
+router.get("/logs", authAdmin, async (req, res) => {
+  try {
+    const data = await ActivityLog.find().sort({ createdAt: -1 }).limit(100);
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+module.exports = router;
+
+//admin.js end 
+
+//adminAuthRoutes.js start 
+
+ const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
+
+// ================= ADMIN LOGIN =================
+router.post("/login", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    const user = await User.findOne({ phone });
+
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    if (!ADMIN_ROLES.includes(user.role)) {
+      return res.json({ success: false, message: "Not an admin account" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.json({ success: false, message: "Wrong password" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      admin: {
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        _id: user._id,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
+
+//adminAuthRoutes.js end 
+
+//authRoutes.js start 
+
+ const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+
+// ================= REFERRAL CODE GENERATOR =================
+function generateReferralCode(name) {
+  const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `${clean}${rand}`;
+}
+
+// ================= REGISTER =================
+router.post("/register", async (req, res) => {
+  try {
+    const { name, inGameName, email, phone, password, referralCode } = req.body;
+
+    // Phone unique check
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return res.json({ success: false, message: "এই ফোন নম্বর দিয়ে আগেই একাউন্ট আছে" });
+    }
+
+    // Name unique check
+    if (name && name.trim()) {
+      const existingName = await User.findOne({ name: name.trim() });
+      if (existingName) {
+        return res.json({ success: false, message: "এই নামটি ইতিমধ্যে ব্যবহৃত, অন্য নাম দিন" });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ Unique referral code generate
+    let newReferralCode;
+    let isUnique = false;
+    let attempts = 0;
+
+    while (!isUnique && attempts < 15) {
+      newReferralCode = generateReferralCode(name);
+      const existing = await User.findOne({ referralCode: newReferralCode });
+      if (!existing) isUnique = true;
+      attempts++;
+    }
+
+    // ✅ Referrer খোঁজো
+    let referrer = null;
+    if (referralCode && referralCode.trim()) {
+      referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
+    }
+
+    const user = await User.create({
+      name: name?.trim(),
+      inGameName: inGameName?.trim(),
+      email: email?.trim(),
+      phone,
+      password: hashedPassword,
+      referralCode: newReferralCode,
+      referredBy: referrer ? referrer._id : null,
+      referralCount: 0,
+      referralPoints: 0,
+      referralHistory: [],
+    });
+
+    // ✅ Referrer এর history তে add করো
+    if (referrer) {
+      referrer.referralHistory.push({
+        userId:     user._id,
+        name:       user.name,
+        phone:      user.phone,
+        deposited:  false,
+        pointGiven: false,
+        date: new Date()
+      });
+      referrer.referralCount += 1;
+      await referrer.save();
+    }
+
+    res.json({ 
+      success: true, 
+      message: "রেজিস্ট্রেশন সফল হয়েছে!", 
+      referralCode: newReferralCode 
+    });
+  } catch (err) {
+    console.error("Register Error:", err);
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+  }
+});
+
+// ================= LOGIN =================
+router.post("/login", async (req, res) => {
+  try {
+    const { phone, password, deviceType } = req.body;
+
+    if (deviceType && deviceType !== "mobile") {
+      return res.json({ success: false, message: "Only mobile devices allowed 🎮" });
+    }
+
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.json({ success: false, message: "ফোন নম্বর বা পাসওয়ার্ড ভুল" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.json({ success: false, message: "ফোন নম্বর বা পাসওয়ার্ড ভুল" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, phone: user.phone },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "7d" }
+    );
+
+    user.lastLogin = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Login success",
+      token,
+      user: {
+        id:                 user._id,
+        name:               user.name,
+        inGameName:         user.inGameName,
+        email:              user.email,
+        phone:              user.phone,
+        role:               user.role,
+        balance:            user.balance,
+        totalMatchesPlayed: user.totalMatchesPlayed,
+        totalWins:          user.totalWins,
+        referralCode:       user.referralCode,
+        referralPoints:     user.referralPoints,
+        referralCount:      user.referralCount,
+      },
+    });
+  } catch (err) {
+    console.error("Login Error:", err);
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+  }
+});
+
+module.exports = router;
+
+//authRoutes.js end 
+
+//deposite.js start 
+ // routes/deposit.js
+const express = require("express");
+const router = express.Router();
+const Deposit = require("../models/Deposit");
+const User = require("../models/User");   // ← এটা import করো
+
+// POST /deposit (আগেরটা ঠিক আছে)
+
+// GET /deposits (আগেরটা ঠিক আছে)
+
+// PATCH /deposit/:id
+router.patch("/deposit/:id", async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status" });
+    }
+
+    const deposit = await Deposit.findById(req.params.id).populate("userId");
+
+    if (!deposit) {
+      return res.status(404).json({ success: false, message: "Deposit not found" });
+    }
+
+    if (deposit.status !== "pending") {
+      return res.status(400).json({ success: false, message: "Already processed" });
+    }
+
+    // ==================== APPROVE লজিক ====================
+    if (status === "approved") {
+      if (!deposit.userId) {
+        return res.status(400).json({ success: false, message: "User not found in deposit" });
+      }
+
+      // User এর ব্যালেন্স আপডেট
+      await User.findByIdAndUpdate(
+        deposit.userId._id || deposit.userId,
+        { $inc: { balance: deposit.amount } }
+      );
+
+      // Deposit এর status আপডেট
+      deposit.status = "approved";
+      await deposit.save();
+
+      return res.json({
+        success: true,
+        message: "Deposit approved and balance updated successfully!",
+        data: deposit
+      });
+    } 
+    // ==================== REJECT লজিক ====================
+    else {
+      deposit.status = "rejected";
+      await deposit.save();
+
+      return res.json({
+        success: true,
+        message: "Deposit rejected",
+        data: deposit
+      });
+    }
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
+
+
+//deposite.js end 
+
+
+//leaderboardRoutes.js start 
+ const express = require("express");
+const router  = express.Router();
+const Match   = require("../models/Match");
+
+// ═══════════════════════════════════════════
+// HELPER — সপ্তাহের শুরু (সোমবার) বের করো
+// ═══════════════════════════════════════════
+const getWeekStart = () => {
+  const now  = new Date();
+  const day  = now.getDay(); // 0=Sun, 1=Mon...
+  const diff = (day === 0 ? -6 : 1 - day); // সোমবার থেকে শুরু
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+};
+
+// ═══════════════════════════════════════════
+// WEEKLY LEADERBOARD
+// ═══════════════════════════════════════════
+router.get("/weekly", async (req, res) => {
+  try {
+    const weekStart = getWeekStart();
+
+    // এই সপ্তাহের completed matches
+    const matches = await Match.find({
+      status:      "completed",
+      completedAt: { $gte: weekStart },
+    });
+
+    const playerMap = {}; // userId → stats
+
+    for (const match of matches) {
+      for (const r of match.results || []) {
+        const uid = r.userId?.toString();
+        if (!uid) continue;
+
+        if (!playerMap[uid]) {
+          playerMap[uid] = {
+            userId:     uid,
+            inGameName: r.inGameName || "—",
+            totalPrize: 0,
+            totalKills: 0,
+            totalMatches: 0,
+          };
+        }
+
+        playerMap[uid].totalPrize   += r.prize  || 0;
+        playerMap[uid].totalKills   += r.kills  || 0;
+        playerMap[uid].totalMatches += 1;
+      }
+    }
+
+    const players = Object.values(playerMap);
+
+    // ৩টা আলাদা leaderboard
+    const byPrize   = [...players].sort((a, b) => b.totalPrize   - a.totalPrize).slice(0, 10);
+    const byKills   = [...players].sort((a, b) => b.totalKills   - a.totalKills).slice(0, 10);
+    const byMatches = [...players].sort((a, b) => b.totalMatches - a.totalMatches).slice(0, 10);
+
+    res.json({
+      success: true,
+      weekStart,
+      data: { byPrize, byKills, byMatches },
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════
+// ALL TIME LEADERBOARD
+// ═══════════════════════════════════════════
+router.get("/alltime", async (req, res) => {
+  try {
+    // সব completed matches
+    const matches = await Match.find({ status: "completed" });
+
+    const playerMap = {};
+
+    for (const match of matches) {
+      for (const r of match.results || []) {
+        const uid = r.userId?.toString();
+        if (!uid) continue;
+
+        if (!playerMap[uid]) {
+          playerMap[uid] = {
+            userId:       uid,
+            inGameName:   r.inGameName || "—",
+            totalPrize:   0,
+            totalKills:   0,
+            totalMatches: 0,
+          };
+        }
+
+        playerMap[uid].totalPrize   += r.prize  || 0;
+        playerMap[uid].totalKills   += r.kills  || 0;
+        playerMap[uid].totalMatches += 1;
+      }
+    }
+
+    const players = Object.values(playerMap);
+
+    const byPrize   = [...players].sort((a, b) => b.totalPrize   - a.totalPrize).slice(0, 10);
+    const byKills   = [...players].sort((a, b) => b.totalKills   - a.totalKills).slice(0, 10);
+    const byMatches = [...players].sort((a, b) => b.totalMatches - a.totalMatches).slice(0, 10);
+
+    res.json({
+      success: true,
+      data: { byPrize, byKills, byMatches },
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+module.exports = router;
+
+
+// leaderboardRoutes.js end 
+
+
+//matchRoutes.js start 
+ const express = require("express");
+const router = express.Router();
+const Match = require("../models/Match");
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+const notificationRouter = require("./notifications"); // ✅ ADD
+
+// ================= ADMIN MIDDLEWARE =================
+const protectAdmin = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.json({ success: false, message: "No token found" });
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "admin" && decoded.role !== "super-admin") {
+      return res.json({ success: false, message: "Admin only access" });
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.json({ success: false, message: "Invalid token: " + err.message });
+  }
+};
+
+// ================= TEST ROUTE =================
+router.get("/test", (req, res) => {
+  res.json({ success: true, message: "Match Routes Working ✅" });
+});
+
+// ================= CREATE MATCH =================
+router.post("/create", protectAdmin, async (req, res) => {
+  try {
+    const { startTime, ...rest } = req.body;
+    const expiresAt = startTime
+      ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
+      : new Date(Date.now() + 20 * 60 * 1000);
+
+    const match = await Match.create({
+      ...rest,
+      startTime,
+      expiresAt,
+      joinedPlayers: 0,
+      status: "upcoming",
+    });
+
+    // ✅ Match create হলে সব users কে notification পাঠাও
+    notificationRouter.sendMatchNotification(match);
+
+    res.status(201).json({
+      success: true,
+      message: "Match created successfully",
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= SUBMIT MATCH RESULT + PRIZE =================
+router.post("/result", protectAdmin, async (req, res) => {
+  console.log("🔥 Result API Hit!", req.body);
+  try {
+    const { matchId, results } = req.body;
+    if (!matchId || !results || results.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "matchId and results are required",
+      });
+    }
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ success: false, message: "Match not found" });
+    }
+    const finalResults = results.map((player) => {
+      let prize = (player.kills || 0) * (match.perKill || 5);
+      if (player.position == 1)      prize += match.prizes?.first  || 60;
+      else if (player.position == 2) prize += match.prizes?.second || 40;
+      else if (player.position == 3) prize += match.prizes?.third  || 20;
+      return { ...player, prize: Math.floor(prize) };
+    });
+    match.results     = finalResults;
+    match.status      = "completed";
+    match.completedAt = new Date();
+    await match.save();
+    for (const player of finalResults) {
+      if (player.userId && player.prize > 0) {
+        await User.findByIdAndUpdate(player.userId, {
+          $inc: { balance: player.prize },
+          $push: {
+            transactions: {
+              type: "match_prize",
+              amount: player.prize,
+              matchId: match._id,
+              matchTitle: match.title,
+              date: new Date(),
+            },
+          },
+        });
+      }
+    }
+    res.json({
+      success: true,
+      message: "Result submitted & prizes distributed successfully",
+      data: match,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= GET COMPLETED MATCHES (Results) =================
+router.get("/completed", async (req, res) => {
+  try {
+    const matches = await Match.find({ status: "completed" })
+      .sort({ completedAt: -1 })
+      .limit(20);
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= MY MATCHES (USER) =================
+router.get("/my-matches", async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "userId is required" });
+    }
+    const matches = await Match.find({
+      "joinedUsers.userId": userId,
+    }).sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= GET ALL MATCHES =================
+router.get("/", async (req, res) => {
+  try {
+    const matches = await Match.find()
+      .populate("joinedUsers.userId", "name phone")
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= GET SINGLE MATCH =================
+router.get("/:id", async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+    res.json({ success: true, data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= UPDATE ROOM =================
+router.put("/update-room/:id", protectAdmin, async (req, res) => {
+  try {
+    const { roomId, roomPassword } = req.body;
+    const match = await Match.findByIdAndUpdate(
+      req.params.id,
+      { roomId, roomPassword, status: "live", isRoomOpen: true },
+      { returnDocument: "after" }
+    );
+    res.json({
+      success: true,
+      message: "Room updated successfully",
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= JOIN MATCH =================
+router.put("/join/:id", async (req, res) => {
+  try {
+    const { userId, inGameName } = req.body;
+    const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+
+    const alreadyJoined = (match.joinedUsers || []).find(
+      (u) => u.userId.toString() === userId.toString()
+    );
+    if (alreadyJoined) {
+      return res.json({ success: false, message: "আপনি ইতোমধ্যে এই match-এ join করেছেন" });
+    }
+
+    if (match.joinedPlayers >= match.totalPlayers) {
+      return res.json({ success: false, message: "Match is full" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.balance < match.entryFee) {
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+    }
+
+    const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
+    let slotNumber = 1;
+    while (usedSlots.includes(slotNumber)) slotNumber++;
+
+    user.balance -= match.entryFee;
+    if (!user.joinHistory) user.joinHistory = [];
+    user.joinHistory.push({
+      matchId:    match._id,
+      matchTitle: match.title,
+      entryFee:   match.entryFee,
+      joinedAt:   new Date(),
+    });
+    await user.save();
+
+    if (!match.joinedUsers) match.joinedUsers = [];
+    match.joinedUsers.push({ userId, inGameName: inGameName || "", slotNumber });
+    match.joinedPlayers = match.joinedUsers.length;
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "Match-এ join সফল হয়েছে",
+      newBalance: user.balance,
+      slotNumber,
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= DELETE ALL =================
+router.delete("/clear-all", protectAdmin, async (req, res) => {
+  try {
+    const result = await Match.deleteMany({});
+    res.json({
+      success: true,
+      message: `${result.deletedCount} টা match delete হয়েছে`,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+//  pore delte kore dibo
+module.exports = router;
+
+
+//matchRoutes.js end 
+
+
+//notifications.js start 
+
+ // routes/notification.js
+const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
 const PushSubscription = require("../models/PushSubscription");
-const Notification = require("../models/Notification"); // ← ডাটাবেজ নোটিফিকেশন মডেল ইমপোর্ট করা হলো
+const Notification = require("../models/Notification");
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL,
@@ -53,40 +2107,68 @@ router.post("/subscribe", async (req, res) => {
     if (!subscription?.endpoint) {
       return res.status(400).json({ success: false, message: "Invalid subscription" });
     }
-
     await PushSubscription.findOneAndUpdate(
       { endpoint: subscription.endpoint },
       { subscription, userId: userId || null, updatedAt: new Date() },
       { upsert: true, new: true }
     );
-
     res.json({ success: true, message: "Subscribed!" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ================= SEND NOTIFICATION =================
+// ================= GET NOTIFICATIONS (Bell icon badge এর জন্য) =================
+router.get("/", async (req, res) => {
+  try {
+    const { isRead, limit = 20 } = req.query;
+    const filter = {};
+    if (isRead === "false") filter.isRead = false;
+    if (isRead === "true") filter.isRead = true;
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit));
+
+    const unreadCount = await Notification.countDocuments({ isRead: false });
+
+    res.json({
+      success: true,
+      notifications,
+      unreadCount,
+      count: notifications.length,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= MARK AS READ =================
+router.patch("/read-all", async (req, res) => {
+  try {
+    await Notification.updateMany({ isRead: false }, { isRead: true });
+    res.json({ success: true, message: "All marked as read" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= SEND MATCH NOTIFICATION =================
 router.sendMatchNotification = async (match) => {
   try {
-    // -------------------------------------------------------------
-    // ১. একই সাথে অ্যাপের ভেতরের বেল আইকনের ডাটাবেজে সেভ করুন
-    // -------------------------------------------------------------
-    try {
-      await Notification.create({
-        title: "🎮 নতুন Match তৈরি হয়েছে!",
-        message: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
-        matchId: match._id,
-        isRead: false
-      });
-      console.log("💾 In-App Notification saved to database");
-    } catch (dbErr) {
-      console.error("Failed to save notification to database:", dbErr.message);
-    }
+    // ১. DB তে save করো
+    const unreadCount = await Notification.countDocuments({ isRead: false });
 
-    // -------------------------------------------------------------
-    // ২. আপনার এক্সিস্টিং ব্রাউজার/PWA পুশ নোটিফিকেশন লজিক
-    // -------------------------------------------------------------
+    await Notification.create({
+      title: "🎮 নতুন Match তৈরি হয়েছে!",
+      message: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
+      matchId: match._id,
+      isRead: false,
+    });
+
+    const newUnreadCount = unreadCount + 1;
+
+    // ২. Push notification পাঠাও — 🔑 KEY FIX: matchId এবং unreadCount payload-এ
     const subs = await PushSubscription.find({});
     if (subs.length === 0) return;
 
@@ -95,7 +2177,9 @@ router.sendMatchNotification = async (match) => {
       body: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
       icon: "/image/icon/icon-192x192.png",
       badge: "/image/icon/icon-72x72.png",
-      url: "/app",
+      matchId: match._id.toString(),           // ← এটা sw.js এ URL বানাতে ব্যবহার হবে
+      url: `/app?tab=results&matchId=${match._id}`, // ← fallback URL
+      unreadCount: newUnreadCount,             // ← app icon badge count
     });
 
     const results = await Promise.allSettled(
@@ -121,7 +2205,72 @@ router.sendMatchNotification = async (match) => {
   }
 };
 
-module.exports = router; const express = require("express");
+module.exports = router;
+
+// notifications.js end 
+
+
+//paymentNumber.js start 
+
+ const express = require("express");
+const router = express.Router();
+const PaymentNumber = require("../models/PaymentNumber");
+
+// GET all
+
+router.get("/", async (req, res) => {
+  try {
+    const { activeOnly } = req.query;
+    const filter = activeOnly === "true" ? { active: true } : {};
+    const data = await PaymentNumber.find(filter).sort({ createdAt: -1 });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST create
+router.post("/", async (req, res) => {
+  try {
+    const item = await PaymentNumber.create(req.body);
+    res.json({ success: true, data: item });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT update
+router.put("/:id", async (req, res) => {
+  try {
+    const item = await PaymentNumber.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json({ success: true, data: item });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE
+router.delete("/:id", async (req, res) => {
+  try {
+    await PaymentNumber.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
+
+// paymentNumber.js end 
+
+
+//PushRoutes.js start 
+
+ const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
 const PushSubscription = require("../models/PushSubscription");
@@ -190,943 +2339,1167 @@ router.sendMatchNotification = async (match) => {
   }
 };
 
-module.exports = router; const express = require("express");
+module.exports = router;
+
+//PushRoutes.js end 
+
+//referralRoutes.js  start 
+
+ const express = require("express");
 const router = express.Router();
-const webpush = require("web-push");
-const PushSubscription = require("../models/PushSubscription");
+const User = require("../models/User");
+const { protect } = require("../middleware/auth");
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL,
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
-
-// ================= SUBSCRIBE =================
-router.post("/subscribe", async (req, res) => {
+// GET /api/referral/:userId
+router.get("/:userId", protect, async (req, res) => {
   try {
-    const { subscription, userId } = req.body;
-    if (!subscription?.endpoint) {
-      return res.status(400).json({ success: false, message: "Invalid subscription" });
-    }
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.json({ success: false, message: "User not found" });
 
-    await PushSubscription.findOneAndUpdate(
-      { endpoint: subscription.endpoint },
-      { subscription, userId: userId || null, updatedAt: new Date() },
-      { upsert: true, new: true }
-    );
-
-    res.json({ success: true, message: "Subscribed!" });
+    res.json({
+      success: true,
+      data: {
+        referralCode: user.referralCode,
+        referralPoints: user.referralPoints || 0,
+        referralCount: user.referrals?.length || 0,
+        referralHistory: user.referrals || [],
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ================= SEND NOTIFICATION (internal function) =================
-router.sendMatchNotification = async (match) => {
+// POST /api/referral/convert
+router.post("/convert", protect, async (req, res) => {
   try {
-    const subs = await PushSubscription.find({});
-    if (subs.length === 0) return;
+    const { userId } = req.body;
+    const user = await User.findById(userId);
+    if (!user) return res.json({ success: false, message: "User not found" });
 
-    const payload = JSON.stringify({
-      title: "🎮 নতুন Match তৈরি হয়েছে!",
-      body: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
-      icon: "/icons/icon-192x192.png",
-      badge: "/icons/icon-72x72.png",
-      url: "/matches",
-    });
-
-    const results = await Promise.allSettled(
-      subs.map((s) => webpush.sendNotification(s.subscription, payload))
-    );
-
-    // মেয়াদ শেষ subscription গুলো delete করা
-    const expired = [];
-    results.forEach((r, i) => {
-      if (r.status === "rejected") {
-        const code = r.reason?.statusCode;
-        if (code === 404 || code === 410) expired.push(subs[i]._id);
-      }
-    });
-
-    if (expired.length > 0) {
-      await PushSubscription.deleteMany({ _id: { $in: expired } });
-      console.log(`🗑️ ${expired.length} expired subscription(s) removed`);
+    if ((user.referralPoints || 0) < 100) {
+      return res.json({ success: false, message: "কমপক্ষে ১০০ পয়েন্ট লাগবে!" });
     }
 
-    console.log(`📨 Notification sent to ${subs.length} subscribers`);
+    const convertAmount = Math.floor(user.referralPoints / 100) * 100;
+    user.referralPoints -= convertAmount;
+    user.balance = (user.balance || 0) + convertAmount;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `✅ ${convertAmount} পয়েন্ট → ৳${convertAmount} balance-এ যোগ হয়েছে!`,
+    });
   } catch (err) {
-    console.error("Push notification error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
-};
+});
 
-module.exports = router;   import React, { useState, useEffect } from "react";
-import BottomMenu from "../BottomMenu/BottomMenu";
-import Profile from "../../page/Profile/profile";
-import Wallet from "../../page/Wallet/Wallet";
-import MatchList from "../../page/MatchList/MatchList";
-import Withdraw from "../../page/Withdraw/Withdraw";
-import AllRulesPage from "../AllRulesPage/AllRulesPage";
-import AccountInfo from "../../page/AccountInfo/AccountInfo";
-import MyMatch from "../../page/MyMatch/MyMatch";
-import Leaderboard from "../../page/Leaderboard/Leaderboard";
+module.exports = router;
 
-// ─── Inline MatchResults Component ────────────────────────────────────────────
+//referralRoutes.js  end 
 
-const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
-function getRankMeta(rank) {
-  if (rank === 1)
-    return {
-      icon: "🏆",
-      text: "text-yellow-400",
-      bg: "bg-yellow-500/20",
-      border: "border-yellow-500/30",
-      label: "BOOYAH!",
-    };
-  if (rank === 2)
-    return {
-      icon: "🥈",
-      text: "text-gray-300",
-      bg: "bg-gray-500/20",
-      border: "border-gray-400/30",
-      label: "2nd Place",
-    };
-  if (rank === 3)
-    return {
-      icon: "🥉",
-      text: "text-orange-400",
-      bg: "bg-orange-500/20",
-      border: "border-orange-500/30",
-      label: "3rd Place",
-    };
-  return null;
-}
+//users.js start 
 
-function MatchResultsPage({
-  matchId,
-  matchTitle,
-  killPrice,
-  results,
-  publishedAt,
-  mapName,
-  currentUserUid,
-}) {
-  const [tab, setTab] = useState("leaderboard");
 
-  const sorted = [...(results || [])].sort((a, b) => {
-    if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
-    return (a.rank || 999) - (b.rank || 999);
-  });
+const express = require("express");
+const router = express.Router();
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const { protect } = require("../middleware/auth");
 
-  const myResult = results?.find((r) => r.uid === currentUserUid);
+// GET balance
+router.get("/balance", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id || req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    res.json({ success: true, balance: user.balance });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
-  return (
-    <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/10 to-transparent pointer-events-none" />
-        <div className="px-4 pt-6 pb-4 relative z-10">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">
-              Result Live
-            </span>
-          </div>
-          <h1 className="text-white text-2xl font-extrabold">
-            {matchTitle || "Match Result"}
-          </h1>
-          <div className="flex items-center gap-3 mt-1 text-gray-500 text-xs flex-wrap">
-            {mapName && <span>🗺️ {mapName}</span>}
-            {killPrice && (
-              <>
-                <span>•</span>
-                <span>⚔️ Kill: ৳{killPrice}</span>
-              </>
-            )}
-            {publishedAt && (
-              <>
-                <span>•</span>
-                <span>{new Date(publishedAt).toLocaleDateString("en-BD")}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+// GET my profile
+router.get("/me", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id || req.user._id).select("-password");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
-      {/* Top 3 Podium */}
-      {sorted.length >= 1 && (
-        <div className="px-4 mb-4">
-          <div className="flex items-end justify-center gap-2">
-            {sorted[1] && (
-              <div className="flex-1 bg-[#111827] border border-gray-400/20 rounded-2xl p-3 text-center pb-4">
-                <p className="text-2xl mb-1">🥈</p>
-                <p className="text-white text-xs font-bold truncate">
-                  {sorted[1].playerName}
-                </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[1].kills} kills
-                </p>
-                <p className="text-gray-200 text-sm font-black mt-1">
-                  &nbsp;৳{sorted[1].totalPrize}
-                </p>
-              </div>
-            )}
-            {sorted[0] && (
-              <div className="flex-1 bg-[#111827] border border-yellow-500/30 rounded-2xl p-3 text-center pb-6 -mb-2 shadow-lg shadow-yellow-500/10">
-                <p className="text-3xl mb-1">🏆</p>
-                <p className="text-yellow-400 text-xs font-extrabold truncate">
-                  {sorted[0].playerName}
-                </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[0].kills} kills
-                </p>
-                <p className="text-yellow-400 text-base font-black mt-1">
-                  ৳{sorted[0].totalPrize}
-                </p>
-              </div>
-            )}
-            {sorted[2] && (
-              <div className="flex-1 bg-[#111827] border border-orange-500/20 rounded-2xl p-3 text-center pb-4">
-                <p className="text-2xl mb-1">🥉</p>
-                <p className="text-white text-xs font-bold truncate">
-                  {sorted[2].playerName}
-                </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[2].kills} kills
-                </p>
-                <p className="text-orange-300 text-sm font-black mt-1">
-                  ৳{sorted[2].totalPrize}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+// UPDATE profile (name, email) — unique name check
+router.put("/me", protect, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const userId = req.user.id || req.user._id;
 
-      {/* Tabs */}
-      <div className="px-4 mb-3">
-        <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
-          {[
-            { key: "leaderboard", label: "Leaderboard" },
-            { key: "mine", label: "My Result" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Leaderboard */}
-      {tab === "leaderboard" && (
-        <div className="px-4 space-y-2">
-          {sorted.length === 0 && (
-            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
-              <p className="text-gray-500 text-sm">No results yet</p>
-            </div>
-          )}
-          {sorted.map((player, idx) => {
-            const isMe = player.uid === currentUserUid;
-            return (
-              <div
-                key={player.uid + idx}
-                className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
-                      idx === 0
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : idx === 1
-                          ? "bg-gray-500/20 text-gray-300"
-                          : idx === 2
-                            ? "bg-orange-500/20 text-orange-400"
-                            : "bg-white/5 text-gray-500"
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p
-                        className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}
-                      >
-                        {player.playerName}
-                      </p>
-                      {isMe && (
-                        <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full shrink-0">
-                          YOU
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
-                      {player.rank && <span>#{player.rank} Rank</span>}
-                      <span>⚔️ {player.kills} kills</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p
-                      className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}
-                    >
-                      {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
-                    </p>
-                    {player.totalPrize > 0 && (
-                      <p className="text-[10px] text-gray-600 mt-0.5">
-                        credited
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {player.totalPrize > 0 && (
-                  <div className="mt-3 flex gap-2 flex-wrap">
-                    {player.rankPrize > 0 && (
-                      <span className="text-[11px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20">
-                        Rank ৳{player.rankPrize}
-                      </span>
-                    )}
-                    {player.killEarning > 0 && (
-                      <span className="text-[11px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
-                        ⚔️ {player.kills} kills ৳{player.killEarning}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* My Result */}
-      {tab === "mine" && (
-        <div className="px-4">
-          {!currentUserUid ? (
-            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
-              <p className="text-gray-500 text-sm">Login to see your result</p>
-            </div>
-          ) : !myResult ? (
-            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
-              <p className="text-3xl mb-3">😔</p>
-              <p className="text-white font-bold mb-1">Not in Results</p>
-              <p className="text-gray-500 text-sm">
-                Your UID was not found in this match result
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div
-                className={`rounded-2xl p-5 border mb-4 ${
-                  myResult.rank === 1
-                    ? "bg-yellow-500/10 border-yellow-500/30"
-                    : myResult.rank === 2
-                      ? "bg-gray-500/10 border-gray-400/30"
-                      : myResult.rank === 3
-                        ? "bg-orange-500/10 border-orange-500/30"
-                        : "bg-[#111827] border-white/5"
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-gray-400 text-xs">Your IGN</p>
-                    <p className="text-white text-xl font-black">
-                      {myResult.playerName}
-                    </p>
-                  </div>
-                  {getRankMeta(myResult.rank) && (
-                    <span
-                      className={`text-xs font-bold px-3 py-1 rounded-full border ${getRankMeta(myResult.rank).bg} ${getRankMeta(myResult.rank).text} ${getRankMeta(myResult.rank).border}`}
-                    >
-                      {getRankMeta(myResult.rank).icon} #{myResult.rank}
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-white font-black text-lg">
-                      #{myResult.rank || "—"}
-                    </p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">
-                      Final Rank
-                    </p>
-                  </div>
-                  <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-orange-400 font-black text-lg">
-                      {myResult.kills}
-                    </p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
-                  </div>
-                  <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-green-400 font-black text-lg">
-                      ৳{myResult.totalPrize}
-                    </p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
-                  </div>
-                </div>
-                {myResult.totalPrize > 0 ? (
-                  <div className="bg-black/30 rounded-xl p-3">
-                    <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wider">
-                      Prize Breakdown
-                    </p>
-                    <div className="space-y-1.5">
-                      {myResult.rankPrize > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Placement Prize</span>
-                          <span className="text-yellow-400 font-bold">
-                            +৳{myResult.rankPrize}
-                          </span>
-                        </div>
-                      )}
-                      {myResult.killEarning > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">
-                            {myResult.kills} Kills × ৳{killPrice}
-                          </span>
-                          <span className="text-green-400 font-bold">
-                            +৳{myResult.killEarning}
-                          </span>
-                        </div>
-                      )}
-                      <div className="border-t border-white/10 pt-1.5 flex justify-between">
-                        <span className="text-white font-bold text-sm">
-                          Total Credited
-                        </span>
-                        <span className="text-green-400 font-black text-base">
-                          ৳{myResult.totalPrize}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-black/30 rounded-xl p-4 text-center">
-                    <p className="text-gray-500 text-sm">
-                      No prize this match. Better luck next time! 💪
-                    </p>
-                  </div>
-                )}
-              </div>
-              {myResult.totalPrize > 0 && (
-                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
-                  <span className="text-green-400">✓</span>
-                  <p className="text-green-400 text-sm">
-                    <strong>৳{myResult.totalPrize}</strong> has been credited to
-                    your wallet
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Results List ─────────────────────────────────────────────────────────────
-function ResultsListPage({ onSelectResult, currentUserUid }) {
-  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
-
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchResults = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/matches/completed`);
-        const data = await res.json();
-        setMatches(Array.isArray(data?.data) ? data.data : []);
-      } catch (e) {
-        setMatches([]);
-      } finally {
-        setLoading(false);
+    if (name && name.trim()) {
+      const existing = await User.findOne({
+        name: name.trim(),
+        _id: { $ne: userId },
+      });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: "এই নামটি ইতিমধ্যে ব্যবহৃত হচ্ছে, অন্য নাম দিন।",
+        });
       }
-    };
-    fetchResults();
-  }, [API_BASE]);
+    }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0e1a] flex flex-col items-center justify-center gap-4">
-        <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Loading results...</p>
-      </div>
-    );
+    const updated = await User.findByIdAndUpdate(
+      userId,
+      { name: name?.trim(), email: email?.trim() },
+      { new: true }
+    ).select("-password");
+
+    res.json({ success: true, user: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
+});
 
-  return (
-    <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
-      <div className="px-4 pt-6 pb-4">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-          <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">
-            Match Results
-          </span>
-        </div>
-        <h1 className="text-white text-2xl font-extrabold">Results</h1>
-        <p className="text-gray-500 text-xs mt-1">
-          Tap a match to see full leaderboard
-        </p>
-      </div>
+// CHANGE password
+router.put("/change-password", protect, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id || req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-      {/* Match Cards */}
-      <div className="px-4 space-y-3">
-        {matches.length === 0 ? (
-          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
-            <p className="text-3xl mb-3">🎮</p>
-            <p className="text-white font-bold mb-1">No Results Yet</p>
-            <p className="text-gray-500 text-sm">
-              Results will appear here after matches end
-            </p>
-          </div>
-        ) : (
-          matches.map((match) => {
-            const top3 = (match.results || [])
-              .sort((a, b) => a.position - b.position)
-              .slice(0, 3);
-            const myResult = (match.results || []).find(
-              (r) => r.userId?.toString() === currentUserUid?.toString()
-            );
-            const categoryLabel = {
-              br_match: "BR Match",
-              br_survival: "BR Survival",
-              clash_squad: "Clash Squad",
-              cs_2vs2: "CS 2vs2",
-              lone_wolf: "Lone Wolf",
-              training: "Training Match",
-            }[match.category] || match.category;
-            const categoryColor = {
-              br_match: { bg: "#7c3aed20", text: "#a78bfa" },
-              br_survival: { bg: "#dc262620", text: "#f87171" },
-              clash_squad: { bg: "#0284c720", text: "#38bdf8" },
-              cs_2vs2: { bg: "#16a34a20", text: "#4ade80" },
-              lone_wolf: { bg: "#d9770620", text: "#fb923c" },
-              training: { bg: "#64748b20", text: "#94a3b8" },
-            }[match.category] || { bg: "#ffffff10", text: "#fff" };
-            return (
-              <div
-                key={match._id}
-                onClick={() => onSelectResult(match)}
-                className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
-              >
-                {/* Title + Category + Status */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span style={{
-                        fontSize: 10, fontWeight: 700,
-                        padding: "2px 8px", borderRadius: 20,
-                        background: categoryColor.bg,
-                        color: categoryColor.text,
-                      }}>
-                        {categoryLabel}
-                      </span>
-                    </div>
-                    <p className="text-white font-bold text-sm truncate">
-                      {match.title}
-                    </p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {match.map || "Free Fire"} • ৳{match.perKill}/kill •{" "}
-                      {match.completedAt
-                        ? new Date(match.completedAt).toLocaleDateString("en-BD")
-                        : ""}
-                    </p>
-                  </div>
-                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
-                    ✅ Completed
-                  </span>
-                </div>
-                {/* Top 3 Preview */}
-                <div className="flex gap-2 mb-3">
-                  {top3.length > 0 ? (
-                    top3.map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1"
-                      >
-                        <span className="text-sm">
-                          {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-white text-[11px] font-bold truncate">
-                            {p.inGameName || "—"}
-                          </p>
-                          <p className="text-gray-500 text-[10px]">
-                            ৳{p.prize || 0}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-600 text-xs">No result data</p>
-                  )}
-                </div>
-                {/* My Result */}
-                <div className="flex items-center justify-between">
-                  {myResult ? (
-                    <div className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}>
-                      <span>You:</span>
-                      <span className="font-bold">#{myResult.position || "—"}</span>
-                      <span>⚔️ {myResult.kills} kills</span>
-                      {myResult.prize > 0 && (
-                        <span className="font-black">+৳{myResult.prize}</span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-gray-600 text-xs">
-                      You didn't participate
-                    </span>
-                  )}
-                  <span className="text-orange-400 text-xs font-bold">
-                    View →
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: "পুরনো পাসওয়ার্ড সঠিক নয়" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ success: true, message: "পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET user by id
+router.get("/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
+    res.json({ success: true, ...user.toObject() });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
+//users.js end 
+
+
+
+//walletRoutes.js start 
+  const express = require("express");
+const router  = express.Router();
+const Deposit = require("../models/Deposit");
+const User    = require("../models/User");
+
+const REFERRAL_DEPOSIT_MIN  = 50;   // ৳50 deposit করতে হবে
+const POINTS_PER_REFERRAL   = 5;    // প্রতি refer = 5 points
+const POINTS_TO_CONVERT     = 100;  // minimum 100 points লাগবে
+const TAKA_PER_100_POINTS   = 100;  // 100 points = ৳100
+
+router.post("/deposit", async (req, res) => {
+  try {
+    const { method, amount, trxId, userId, paymentNumber } = req.body;
+
+    if (!method || !amount || !trxId) {
+      return res.status(400).json({
+        success: false,
+        message: "method, amount এবং trxId দিন",
+      });
+    }
+
+    const deposit = await Deposit.create({
+      method,
+      amount: Number(amount),
+      trxId,
+      paymentNumber: paymentNumber || null,
+      userId: userId || null,
+      status: "pending",
+    });
+
+    res.json({ success: true, deposit });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get("/deposits", async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = status && status !== "all" ? { status } : {};
+    const deposits = await Deposit.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("userId", "name phone");
+    res.json(deposits);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.patch("/deposit/:id", async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "status হবে 'approved' অথবা 'rejected'",
+      });
+    }
+
+    const deposit = await Deposit.findById(req.params.id);
+    if (!deposit) {
+      return res.status(404).json({
+        success: false,
+        message: "Deposit পাওয়া যায়নি",
+      });
+    }
+
+    if (deposit.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "এই request আগেই process হয়ে গেছে",
+      });
+    }
+
+    deposit.status = status;
+    await deposit.save();
+
+    if (status === "approved" && deposit.userId) {
+      const user = await User.findByIdAndUpdate(
+        deposit.userId,
+        { $inc: { balance: deposit.amount } },
+        { new: true }
+      );
+
+      // ✅ Referral point check
+      if (deposit.amount >= REFERRAL_DEPOSIT_MIN && user.referredBy) {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          // এই user কি আগে point দিয়েছে?
+          const refEntry = referrer.referralHistory.find(
+            (r) => r.userId.toString() === user._id.toString()
+          );
+          if (refEntry && !refEntry.pointGiven) {
+            refEntry.deposited  = true;
+            refEntry.pointGiven = true;
+            referrer.referralPoints += POINTS_PER_REFERRAL;
+            await referrer.save();
+            console.log(`🎯 ${referrer.name} got ${POINTS_PER_REFERRAL} referral points`);
+          }
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `✅ Approved! ৳${deposit.amount} user এর balance এ যোগ হয়েছে`,
+        deposit,
+        newBalance: user?.balance,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: status === "approved" ? "✅ Approved!" : "❌ Rejected",
+      deposit,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= REFERRAL POINTS → BALANCE CONVERT =================
+router.post("/referral/convert", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
+    }
+
+    if (user.referralPoints < POINTS_TO_CONVERT) {
+      return res.json({
+        success: false,
+        message: `Minimum ${POINTS_TO_CONVERT} points লাগবে। আপনার আছে ${user.referralPoints} points`,
+      });
+    }
+
+    // ✅ 100 points = ৳100
+    const convertablePoints = Math.floor(user.referralPoints / POINTS_TO_CONVERT) * POINTS_TO_CONVERT;
+    const taka = (convertablePoints / POINTS_TO_CONVERT) * TAKA_PER_100_POINTS;
+
+    user.referralPoints -= convertablePoints;
+    user.balance        += taka;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `✅ ${convertablePoints} points → ৳${taka} balance এ convert হয়েছে!`,
+      newBalance: user.balance,
+      remainingPoints: user.referralPoints,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= REFERRAL INFO =================
+router.get("/referral/:userId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .populate("referralHistory.userId", "name phone");
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        referralCode:    user.referralCode,
+        referralPoints:  user.referralPoints,
+        referralCount:   user.referralCount,
+        referralHistory: user.referralHistory,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
+
+
+//walletRoutes.js end 
+
+
+//withdrawRoutes.js start 
+
+ const express = require("express");
+const router = express.Router();
+const rateLimit = require("express-rate-limit");
+const {
+  createWithdraw,
+  myWithdraw,
+  getAllWithdraw,
+  approveWithdraw,
+  rejectWithdraw,
+} = require("../controllers/withdrawController");
+const { protect, adminOnly } = require("../middleware/auth");
+
+// শুধু withdraw submit এ limit — ১ ঘণ্টায় ১০ বার
+const withdrawLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { message: "অনেক বেশি withdraw request। ১ ঘণ্টা পর আবার চেষ্টা করুন।" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// USER
+router.post("/request", protect, withdrawLimiter, createWithdraw);
+router.get("/my",       protect, myWithdraw);
+
+// ADMIN — কোনো limit নেই
+router.get("/admin/all",          protect, adminOnly, getAllWithdraw);
+router.put("/admin/approve/:id",  protect, adminOnly, approveWithdraw);
+router.put("/admin/reject/:id",   protect, adminOnly, rejectWithdraw);
+
+module.exports = router;
+
+//withdrawRoutes.js end 
+
+
+// createAdmins.js start 
+ const dns = require("node:dns/promises");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
+const dotenv = require("dotenv");
+dotenv.config();
+
+require("colors");
+
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const connectDB = require("./config/db");
+const Match = require("./models/Match");
+
+const app = express();
+
+app.use(helmet());
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:4173",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS blocked: " + origin));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    message: "অনেকবার চেষ্টা করেছেন। ১৫ মিনিট পর আবার চেষ্টা করুন।",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+connectDB().then(() => {
+  setInterval(async () => {
+    try {
+      const deleted = await Match.deleteMany({
+        status: "completed",
+        deleteAt: { $lte: new Date() },
+      });
+      if (deleted.deletedCount > 0) {
+        console.log(
+          `🗑️  ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white
+        );
+      }
+    } catch (err) {
+      console.error("Auto delete error:", err.message);
+    }
+  }, 60 * 1000);
+});
+
+console.log(
+  "MONGO_URI:",
+  process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
+);
+
+app.get("/", (req, res) => {
+  res.json({ success: true, message: "🚀 Playzo Backend is running!" });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// ================= NEW REFERRAL ROUTE ADDED =================
+app.use("/api/referral", require("./routes/referralRoutes"));
+
+// ================= ROUTES =================
+app.use("/api/matches",               require("./routes/matchRoutes"));
+app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
+app.use("/api/admin",                 authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/admin",                 require("./routes/admin"));
+app.use("/api/wallet",                require("./routes/walletRoutes"));
+app.use("/api/payment-numbers",       require("./routes/paymentNumbers"));
+app.use("/admin/payment-numbers",     require("./routes/paymentNumbers"));
+app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
+app.use("/api/users",                 require("./routes/users"));
+app.use("/api/withdraw",              require("./routes/withdrawRoutes"));
+app.use("/api/leaderboard",           require("./routes/leaderboardRoutes"));
+app.use("/api/notifications",         require("./routes/notifications"));
+
+// ✅ Fix: double /api/api routes
+app.use("/api/api/matches",           require("./routes/matchRoutes"));
+app.use("/api/api/auth",              authLimiter, require("./routes/authRoutes"));
+app.use("/api/api/admin",             authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/api/admin",             require("./routes/admin"));
+app.use("/api/api/wallet",            require("./routes/walletRoutes"));
+app.use("/api/api/payment-numbers",   require("./routes/paymentNumbers"));
+app.use("/api/api/users",             require("./routes/users"));
+app.use("/api/api/withdraw",          require("./routes/withdrawRoutes"));
+app.use("/api/api/leaderboard",       require("./routes/leaderboardRoutes"));
+app.use("/api/api/notifications",     require("./routes/notifications"));
+
+// ================= ERROR HANDLER =================
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err);
+  res.status(500).json({ message: "Something went wrong!" });
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
+});
+
+// createAdmins.js end 
+
+
+//server.js file start 
+
+ const dns = require("node:dns/promises");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
+
+const dotenv = require("dotenv");
+dotenv.config();
+
+require("colors");
+
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const connectDB = require("./config/db");
+const Match = require("./models/Match");
+
+const app = express();
+
+app.use(helmet());
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:4173",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS blocked: " + origin));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    message: "অনেকবার চেষ্টা করেছেন। ১৫ মিনিট পর আবার চেষ্টা করুন।",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+connectDB().then(() => {
+  setInterval(async () => {
+    try {
+      const deleted = await Match.deleteMany({
+        status: "completed",
+        deleteAt: { $lte: new Date() },
+      });
+      if (deleted.deletedCount > 0) {
+        console.log(
+          `🗑️  ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white
+        );
+      }
+    } catch (err) {
+      console.error("Auto delete error:", err.message);
+    }
+  }, 60 * 1000);
+});
+
+console.log(
+  "MONGO_URI:",
+  process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
+);
+
+app.get("/", (req, res) => {
+  res.json({ success: true, message: "🚀 Playzo Backend is running!" });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// ================= NEW REFERRAL ROUTE ADDED =================
+app.use("/api/referral", require("./routes/referralRoutes"));
+
+// ================= ROUTES =================
+app.use("/api/matches",               require("./routes/matchRoutes"));
+app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
+app.use("/api/admin",                 authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/admin",                 require("./routes/admin"));
+app.use("/api/wallet",                require("./routes/walletRoutes"));
+app.use("/api/payment-numbers",       require("./routes/paymentNumbers"));
+app.use("/admin/payment-numbers",     require("./routes/paymentNumbers"));
+app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
+app.use("/api/users",                 require("./routes/users"));
+app.use("/api/withdraw",              require("./routes/withdrawRoutes"));
+app.use("/api/leaderboard",           require("./routes/leaderboardRoutes"));
+app.use("/api/notifications",         require("./routes/notifications"));
+
+// ✅ Fix: double /api/api routes
+app.use("/api/api/matches",           require("./routes/matchRoutes"));
+app.use("/api/api/auth",              authLimiter, require("./routes/authRoutes"));
+app.use("/api/api/admin",             authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/api/admin",             require("./routes/admin"));
+app.use("/api/api/wallet",            require("./routes/walletRoutes"));
+app.use("/api/api/payment-numbers",   require("./routes/paymentNumbers"));
+app.use("/api/api/users",             require("./routes/users"));
+app.use("/api/api/withdraw",          require("./routes/withdrawRoutes"));
+app.use("/api/api/leaderboard",       require("./routes/leaderboardRoutes"));
+app.use("/api/api/notifications",     require("./routes/notifications"));
+
+// ================= ERROR HANDLER =================
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err);
+  res.status(500).json({ message: "Something went wrong!" });
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
+});
+//server.js file end 
+
+--------------Frontend Code ------------------------------------
+
+
+//manifest.json start 
+{
+  "name": "uthiYO",
+  "short_name": "uthiYO",
+  "description": "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#ff8a00",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/image/icon/icon-72x72.png", "sizes": "72x72", "type": "image/png" },
+    { "src": "/image/icon/icon-96x96.png", "sizes": "96x96", "type": "image/png" },
+    { "src": "/image/icon/icon-128x128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/image/icon/icon-144x144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/image/icon/icon-152x152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "/image/icon/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/image/icon/icon-384x384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "/image/icon/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
 }
 
-// ─── Main AppDashboard ────────────────────────────────────────────────────────
-const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab] = useState("play");
-  const [screen, setScreen] = useState("home");
-  const [slide, setSlide] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [matches, setMatches] = useState([]);
-  const [selectedResult, setSelectedResult] = useState(null);
-  const [resultTab, setResultTab] = useState("leaderboard");
-  const [refreshing, setRefreshing] = useState(false);
-  
-  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+//manifest.json end 
 
-  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+//sw-push.js start 
+ // public/sw-push.js
 
-  useEffect(() => {
-    const loadMatches = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/matches`);
-        const data = await res.json();
-        let safeData = [];
-        if (Array.isArray(data)) safeData = data;
-        else if (Array.isArray(data?.matches)) safeData = data.matches;
-        else if (Array.isArray(data?.data)) safeData = data.data;
-        setMatches(safeData);
-      } catch (err) {
-        console.error("Failed to load matches:", err);
-        setMatches([]);
-      }
+// ================= পুশ নোটিফিকেশন রিসিভ করার লজিক =================
+self.addEventListener("push", (event) => {
+  let data = {};
+
+  try {
+    data = event.data.json();
+  } catch {
+    data = {
+      title: "New Notification",
+      body: "Something happened",
     };
+  }
 
-    loadMatches();
-    const interval = setInterval(loadMatches, 10 * 1000);
-    return () => clearInterval(interval);
-  }, [API_BASE]);
+  const options = {
+    body: data.body,
+    icon: data.icon || "/image/icon/icon-192x192.png",
+    badge: data.badge || "/image/icon/icon-72x72.png",
+    
+    // 🔴 মোবাইল স্ক্রিনের ওপর পপ-আপ (Heads-Up) করানোর জন্য সেটিংস
+    vibrate: data.vibrate || [200, 100, 200],
+    tag: data.tag || "playzo-match-alert",
+    renotify: data.renotify || true,
+    
+    data: {
+      url: data.url || "/",
+    },
+  };
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSlide((p) => (p === 2 ? 0 : p + 1));
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const categories = [
-    { key: "br_match", title: "BR Match", img: "/image/img-1.jpg" },
-    { key: "br_survival", title: "BR Survival", img: "/image/img-2.jpg" },
-    { key: "clash_squad", title: "Clash Squad", img: "/image/img-3.jpg" },
-    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/img-1.jpg" },
-    { key: "lone_wolf", title: "Lone Wolf", img: "/image/img-2.jpg" },
-    { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
-  ];
-
-  // --- PROFILE TAB ---
-  if (tab === "profile") {
-    if (screen === "wallet") {
-      return (
-        <div className="bg-white min-h-screen mx-auto pb-24">
-          <Wallet onBack={() => setScreen("home")} />
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    if (screen === "withdraw") {
-      return (
-        <div className="bg-white min-h-screen mx-auto pb-24 shadow-xl">
-          <Withdraw onBack={() => setScreen("home")} />
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    if (screen === "all_rules") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <AllRulesPage onBack={() => setScreen("home")} />
-        </div>
-      );
-    }
-    if (screen === "my_profile") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <AccountInfo onBack={() => setScreen("home")} />
-        </div>
-      );
-    }
-    if (screen === "referral") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          {/* Fallback to render raw text if Referral component isn't explicitly imported */}
-          <div className="p-4 text-center text-gray-500">Referral Component Layer</div>
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    return (
-      <div className="bg-white min-h-screen mx-auto pb-24">
-        <Profile
-          onLogout={onLogout}
-          onWallet={() => setScreen("wallet")}
-          onWithdraw={() => setScreen("withdraw")}
-          onAllRules={() => setScreen("all_rules")}
-          onMyProfile={() => setScreen("my_profile")}
-          onReferral={() => setScreen("referral")}
-        />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
+  // 🔢 মোবাইল স্ক্রিনের অ্যাপ আইকনে সংখ্যা (Badge) বসানোর লজিক
+  if ("setAppBadge" in self.navigator) {
+    // ব্যাকএন্ড থেকে পাঠানো unreadCount থাকলে সেটা বসবে, না থাকলে অন্তত ১টি কাউন্ট দেখাবে
+    const badgeCount = data.unreadCount || 1;
+    self.navigator.setAppBadge(badgeCount).catch((err) => 
+      console.error("Failed to set app badge from background:", err)
     );
   }
 
-  // --- SHOP TAB ---
-  if (tab === "shop") {
-    return (
-      <div className="bg-white min-h-screen mx-auto pb-24">
-        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
-          🛒 Shop Coming Soon...
-        </div>
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// ================= নোটিফিকেশনে ক্লিক করার লজিক =================
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close(); // ক্লিক করার সাথে সাথে প্যানেল থেকে নোটিফিকেশনটি মুছে যাবে
+
+  const url = event.notification.data.url || "/";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        // ১. যদি অ্যাপ অলরেডি ব্যাকগ্রাউন্ডে বা কোনো ট্যাবে ওপেন থাকে
+        for (const client of windowClients) {
+          // আমাদের অ্যাপের মেইন রুট বা ড্যাশবোর্ড ওপেন আছে কিনা চেক করছি
+          if (client.url.includes("/app") && "focus" in client) {
+            // এক্সিস্টিং ওপেন থাকা উইন্ডোটিকে নতুন ম্যাচের ইউআরএল-এ রিডাইরেক্ট করবে
+            return client.navigate(url).then((focusedClient) => focusedClient.focus());
+          }
+        }
+        
+        // ২. যদি অ্যাপ একদম পুরোপুরি বন্ধ থাকে, তবে নতুন করে ওপেন করবে
+        if (clients.openWindow) {
+          return clients.openWindow(url);
+        }
+      })
+  );
+});
+
+//sw-push.js end 
+
+
+//sw.js start 
+ // =========================================================
+// public/sw.js — PWA Service Worker with Badge Support
+// =========================================================
+import { precacheAndRoute } from 'workbox-precaching';
+
+// Workbox-এর precache manifest inject করবে এখানে
+precacheAndRoute(self.__WB_MANIFEST || []);
+
+// ================= PUSH NOTIFICATION RECEIVE =================
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch {
+    data = { 
+      title: "uthiYO", 
+      body: "You have a new notification",
+      unreadCount: 1
+    };
   }
 
-  // --- MY MATCHES TAB ---
-  if (tab === "matches") {
-    return (
-      <div className="mx-auto min-h-screen">
-        <MyMatch />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
+  const targetUrl = data.matchId
+    ? `/app?tab=results&matchId=${data.matchId}`
+    : data.url || "/app";
 
-  // --- RESULTS TAB ---
-  if (tab === "results") {
-    if (selectedResult) {
-      return (
-        <div className="mx-auto min-h-screen">
-          <div className="bg-[#0a0e1a] px-4 pt-4">
-            <button
-              onClick={() => setSelectedResult(null)}
-              className="flex items-center gap-2 text-orange-400 text-sm font-bold mb-2"
-            >
-              ← Back to Results
-            </button>
-          </div>
-          <MatchResultsPage
-            matchId={selectedResult.matchId || selectedResult._id}
-            matchTitle={selectedResult.matchTitle}
-            killPrice={selectedResult.killPrice}
-            results={selectedResult.results}
-            publishedAt={selectedResult.submittedAt || selectedResult.publishedAt}
-            mapName={selectedResult.mapName}
-            currentUserUid={currentUserUid}
-          />
-          <BottomMenu
-            tab={tab}
-            setTab={(t) => {
-              setTab(t);
-              setSelectedResult(null);
-            }}
-          />
-        </div>
-      );
-    }
-    return (
-      <div className="mx-auto min-h-screen bg-[#f7f2fb]">
-        <div
-          style={{
-            display: "flex",
-            background: "#fff",
-            borderBottom: "2px solid #ede9fe",
-            position: "sticky",
-            top: 0,
-            zIndex: 40,
-          }}
-        >
-          {[
-            { id: "leaderboard", label: "🏆 Leaderboard" },
-            { id: "matchresults", label: "📊 Match Results" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setResultTab(t.id)}
-              style={{
-                flex: 1,
-                padding: "13px 0",
-                border: "none",
-                background: "transparent",
-                fontWeight: 700,
-                fontSize: 13,
-                color: resultTab === t.id ? "#4f46e5" : "#9ca3af",
-                borderBottom: resultTab === t.id ? "2px solid #4f46e5" : "2px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                marginBottom: -2,
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+  const options = {
+    body: data.body || data.message || "New notification",
+    icon: data.icon || "/image/icon/icon-192x192.png",
+    badge: data.badge || "/image/icon/icon-72x72.png",
+    vibrate: [200, 100, 200, 100, 200],
+    tag: `notification-${data.notificationId || Date.now()}`,
+    renotify: true,
+    data: {
+      url: targetUrl,
+      matchId: data.matchId || null,
+      notificationId: data.notificationId || null,
+    },
+    actions: [
+      {
+        action: "open",
+        title: "Open App",
+        icon: "/image/icon/icon-192x192.png"
+      },
+      {
+        action: "close",
+        title: "Close",
+        icon: "/image/icon/icon-72x72.png"
+      }
+    ]
+  };
 
-        {resultTab === "leaderboard" ? (
-          <Leaderboard />
-        ) : (
-          <ResultsListPage
-            onSelectResult={(match) => setSelectedResult(match)}
-            currentUserUid={currentUserUid}
-          />
-        )}
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
+  // একই notification duplicate আসবে না
+  event.waitUntil(
+    self.registration.getNotifications().then(notifications => {
+      // আগের একই tag notification close করো
+      notifications.forEach(notification => {
+        if (notification.tag === options.tag) {
+          notification.close();
+        }
+      });
+      
+      // নতুন notification দেখাও
+      return self.registration.showNotification(data.title || "uthiYO", options);
+    })
+  );
 
-  // --- CATEGORY SCREEN ---
-  if (screen === "category") {
-    return (
-      <div className="mx-auto min-h-screen bg-white">
-        <MatchList
-          category={selectedCategory}
-          title={selectedCategory}
-          onBack={() => setScreen("home")}
-          onJoinSuccess={(matchId, newBalance) => {
-            const user = JSON.parse(localStorage.getItem("user") || "{}");
-            localStorage.setItem(
-              "user",
-              JSON.stringify({ ...user, balance: newBalance })
-            );
-          }}
-        />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // --- HOME SCREEN ---
-  return (
-    <div className="bg-gray-50 min-h-screen mx-auto pb-24">
-      <div className="p-4">
-        {/* Slider Banner */}
-        <div className="relative w-full h-44 overflow-hidden rounded-3xl shadow-lg border-4 border-white">
-          {categories.slice(0, 3).map((c, i) => (
-            <img
-              key={i}
-              src={c.img}
-              className="absolute w-full h-full object-cover transition-opacity duration-1000"
-              style={{ opacity: slide === i ? 1 : 0 }}
-              alt="Slider"
-            />
-          ))}
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className={`h-1.5 rounded-full transition-all ${
-                  slide === i ? "w-6 bg-white" : "w-1.5 bg-white/50"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Live Marquee */}
-        <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
-          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
-            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
-          </marquee>
-        </div>
-
-        {/* Section Header with Sync/Refresh Action */}
-        <div className="flex items-center justify-between mt-6 px-1">
-          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
-            Free Fire <span className="text-orange-500">Arena</span>
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
-              LIVE NOW
-            </span>
-            <button
-              onClick={async () => {
-                setRefreshing(true);
-                try {
-                  const res = await fetch(`${API_BASE}/matches`);
-                  const data = await res.json();
-                  let safeData = [];
-                  if (Array.isArray(data)) safeData = data;
-                  else if (Array.isArray(data?.matches)) safeData = data.matches;
-                  else if (Array.isArray(data?.data)) safeData = data.data;
-                  setMatches(safeData);
-                } catch (err) {
-                  console.error(err);
-                } finally {
-                  setTimeout(() => setRefreshing(false), 800);
+  // 🔴 App Icon Badge Update (লাল সংখ্যা দেখাবে)
+  event.waitUntil(
+    Promise.all([
+      // 1. Service Worker দিয়ে badge set করো
+      self.navigator.setAppBadge ? 
+        self.navigator.setAppBadge(data.unreadCount || 1)
+          .catch(err => console.warn("SW Badge set failed:", err)) 
+        : Promise.resolve(),
+      
+      // 2. React App কে message পাঠাও (NotificationBell আপডেট হবে)
+      self.clients.matchAll({ type: "window", includeUncontrolled: true })
+        .then(clients => {
+          clients.forEach(client => {
+            if (client.url.includes("/app")) {
+              client.postMessage({
+                type: "PUSH_RECEIVED",
+                count: data.unreadCount || 1,
+                notification: {
+                  title: data.title,
+                  body: data.body,
+                  id: data.notificationId
                 }
-              }}
-              disabled={refreshing}
-              className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
-            >
-              <span className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}>
-                🔄
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Category Grid Selection Layout */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          {categories.map((cat) => (
-            <div
-              key={cat.key}
-              onClick={() => {
-                setSelectedCategory(cat.key);
-                setScreen("category");
-              }}
-              className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5"
-            >
-              <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-              <div className="absolute bottom-3 left-3 right-3">
-                <p className="text-white font-extrabold text-sm tracking-wide uppercase">
-                  {cat.title}
-                </p>
-                <p className="text-orange-400 text-[10px] font-medium mt-0.5">
-                  Enter Battle Arena →
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <BottomMenu tab={tab} setTab={setTab} />
-    </div>
+              });
+            }
+          });
+        }),
+      
+      // 3. Background Sync (যদি offline থাকে)
+      self.registration.sync ? 
+        self.registration.sync.register('sync-notifications')
+          .catch(() => {}) 
+        : Promise.resolve()
+    ])
   );
-};
+});
 
-export default AppDashboard;
+// ================= NOTIFICATION CLICK =================
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const notifData = event.notification.data || {};
+  const targetUrl = notifData.url || "/app";
+  const matchId = notifData.matchId || null;
+  const notificationId = notifData.notificationId || null;
+  
+  // Notification action handling
+  if (event.action === "close") {
+    // User clicked "Close" - just close, do nothing else
+    return;
+  }
+  
+  // Default action or "Open App" action
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        // Check if app is already open
+        for (const client of windowClients) {
+          if (client.url.includes("/app") && "focus" in client) {
+            // অ্যাপ ইতিমধ্যে খোলা আছে
+            client.postMessage({
+              type: "NOTIFICATION_CLICK",
+              matchId: matchId,
+              notificationId: notificationId,
+              url: targetUrl,
+            });
+            return client.focus();
+          }
+        }
+
+        // অ্যাপ বন্ধ থাকলে নতুন window খোলো
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
+  );
+
+  // 🔴 Notification পড়া হলে badge update করো
+  event.waitUntil(
+    // API থেকে নতুন unread count নিয়ে আসো
+    fetch("https://playzo-vn8e.onrender.com/api/notifications?isRead=false&limit=1", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${self.__token || ""}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const count = data.unreadCount || 0;
+        
+        // Service Worker দিয়ে badge update করো
+        if ("setAppBadge" in self.navigator) {
+          if (count > 0) {
+            self.navigator.setAppBadge(count)
+              .catch(err => console.warn("Badge update failed:", err));
+          } else {
+            self.navigator.clearAppBadge()
+              .catch(err => console.warn("Badge clear failed:", err));
+          }
+        }
+        
+        // React App কেও জানাও
+        return self.clients.matchAll({ type: "window", includeUncontrolled: true })
+          .then(clients => {
+            clients.forEach(client => {
+              if (client.url.includes("/app")) {
+                client.postMessage({
+                  type: "BADGE_UPDATE",
+                  count: count,
+                  notificationId: notificationId
+                });
+              }
+            });
+          });
+      })
+      .catch(err => {
+        console.error("Failed to update badge after notification click:", err);
+      })
+  );
+});
+
+// ================= BACKGROUND SYNC (Offline Support) =================
+self.addEventListener("sync", (event) => {
+  if (event.tag === 'sync-notifications') {
+    event.waitUntil(syncNotifications());
+  }
+});
+
+async function syncNotifications() {
+  try {
+    // Offline থাকলে notifications sync করো
+    const db = await openDB();
+    const offlineNotifications = await getOfflineNotifications(db);
+    
+    for (const notification of offlineNotifications) {
+      try {
+        // Online হলে পাঠাও
+        await self.registration.showNotification(
+          notification.title,
+          notification.options
+        );
+      } catch (err) {
+        console.error("Failed to show offline notification:", err);
+      }
+    }
+    
+    // Clear synced notifications
+    await clearOfflineNotifications(db);
+  } catch (err) {
+    console.error("Sync failed:", err);
+  }
+}
+
+// ================= MESSAGE HANDLER =================
+self.addEventListener("message", (event) => {
+  // ✅ Badge Clear (অ্যাপ খুললে বা লগআউট করলে)
+  if (event.data?.type === "CLEAR_BADGE") {
+    if ("clearAppBadge" in self.navigator) {
+      self.navigator.clearAppBadge().catch(console.error);
+    }
+    
+    // App কে confirm করো
+    event.source?.postMessage({
+      type: "BADGE_CLEARED",
+      success: true
+    });
+  }
+  
+  // ✅ Badge Update (App থেকে manually update)
+  if (event.data?.type === "UPDATE_BADGE") {
+    const count = event.data.count || 0;
+    
+    if ("setAppBadge" in self.navigator) {
+      if (count > 0) {
+        self.navigator.setAppBadge(count)
+          .catch(err => console.warn("Badge update from app failed:", err));
+      } else {
+        self.navigator.clearAppBadge()
+          .catch(err => console.warn("Badge clear from app failed:", err));
+      }
+    }
+    
+    // App কে confirm করো
+    event.source?.postMessage({
+      type: "BADGE_UPDATED",
+      count: count,
+      success: true
+    });
+  }
+  
+  // ✅ Store Token for API calls
+  if (event.data?.type === "STORE_TOKEN") {
+    self.__token = event.data.token || "";
+  }
+  
+  // ✅ Skip Waiting (New version এলে)
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+  
+  // ✅ Cache Clear
+  if (event.data?.type === "CLEAR_CACHE") {
+    event.waitUntil(
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            return caches.delete(cacheName);
+          })
+        );
+      })
+    );
+  }
+});
+
+// ================= INSTALL EVENT =================
+self.addEventListener("install", (event) => {
+  // Skip waiting for new version
+  self.skipWaiting();
+  
+  // Cache important assets
+  event.waitUntil(
+    caches.open("uthiyo-v1").then(cache => {
+      return cache.addAll([
+        "/",
+        "/app",
+        "/index.html",
+        "/manifest.json",
+        "/image/icon/icon-192x192.png",
+        "/image/icon/icon-72x72.png"
+      ]);
+    })
+  );
+});
+
+// ================= ACTIVATE EVENT =================
+self.addEventListener("activate", (event) => {
+  // Clean old caches
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== "uthiyo-v1") {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  
+  // Take control of all pages
+  event.waitUntil(self.clients.claim());
+});
+
+// ================= FETCH EVENT (Offline Support) =================
+self.addEventListener("fetch", (event) => {
+  // Network first, fallback to cache
+  event.respondWith(
+    fetch(event.request)
+      .catch(() => caches.match(event.request))
+  );
+});
+
+// ================= HELPER FUNCTIONS =================
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("uthiyo-notifications", 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("offline-notifications")) {
+        db.createObjectStore("offline-notifications", { keyPath: "id" });
+      }
+    };
+  });
+}
+
+async function getOfflineNotifications(db) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["offline-notifications"], "readonly");
+    const store = transaction.objectStore("offline-notifications");
+    const request = store.getAll();
+    
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function clearOfflineNotifications(db) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["offline-notifications"], "readwrite");
+    const store = transaction.objectStore("offline-notifications");
+    const request = store.clear();
+    
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+//sw.js end 
+
+
+//addminDashboard.jsx start 
+
+//addminDashboard.jsx end 
+
+//addmoney.jsx  start 
+
+
+//addmoney.jsx end 
+
+//addMoneyRequest.jsx start 
+
+//addMoneyRequest.jsx end 
+
+// allRulesPage.jsx start 
+
+//allRulesPage.jsx end 
+
+//appCore .jsx start 
+
+//appCore .jsx end 
+
+//AppDeashboard .jsx start 
+
+//AppDeashboard .jsx end
+
+//AppRoute.jsx start 
+
+//AppRoute.jsx end 
+
+//BottomMenu.jsx start 
+
+//BottomMenu.jsx end 
+
+//Footer.jsx start 
+
+//Footer.jsx end 
+
+//HeroSection.jsx start 
+//HeroSection.jsx end 
+
+
+//installButton.jsx start 
+
+//installButton.jsx end 
+
+
+// login.jsx start 
+
+// login.jsx end 
