@@ -109,23 +109,35 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         </button>
       </div>
 
-      {/* COUNT + LAST UPDATED */}
-      <div className="px-3 py-2 flex items-center justify-between bg-white border-b">
-        <p className="text-sm text-gray-600">
-          Total: <b className="text-orange-500">{matches.length}</b> matches
-        </p>
-        {lastUpdated && (
-          <p className="text-[10px] text-gray-400">
-            {lastUpdated.toLocaleTimeString("en-BD", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </p>
-        )}
-      </div>
+ 
+
+     {/* COUNT + LAST UPDATED BAR */}
+{/* <div className="px-4 py-3 bg-white border-b flex items-center justify-between">
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-gray-600">Total Matches:</span>
+    <span className="bg-orange-100 text-orange-600 text-sm font-bold px-3 py-1 rounded-2xl">
+      {matches.length}
+    </span>
+  </div>
+
+  {lastUpdated && (
+    <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+      <span className="text-green-500">●</span>
+      Updated: 
+      <span className="font-medium text-gray-500">
+        {lastUpdated.toLocaleTimeString("en-BD", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </span>
+    </div>
+  )}
+</div> */}
 
       {/* Auto refresh indicator */}
+
+
+
       <div className="px-3 py-2 bg-green-50 border-b border-green-100">
         <div className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -157,7 +169,13 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
           <p className="text-xs text-gray-400">Please wait</p>
         </div>
       ) : !error ? (
+
+
+
+
         /* MATCH LIST */
+
+
         <div className="p-3 space-y-3">
           {matches.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
