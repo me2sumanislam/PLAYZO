@@ -1,5 +1,5 @@
- // components/AppDashboard/AppDashboard.jsx
-import React, { useState, useEffect } from "react";
+
+ import React, { useState, useEffect, useCallback } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import NotificationBell from "../NotificationBell/NotificationBell";
 import Profile from "../../page/Profile/profile";
