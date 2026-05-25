@@ -6,7 +6,6 @@ import Footer from "./Component/Footer/Footer";
 import Hero from "./Component/HeroSection/HeroSection";
 import Navbar from "./Component/Navbar/Navbar";
 import HomeCard from "./page/HomeCard/HomeCard";
-import LudoTournamentSection from "../Component/Ludo/LudoTournamentSection";
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
