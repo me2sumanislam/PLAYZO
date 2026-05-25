@@ -12,7 +12,10 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const Match = require("./models/Match");
- const ludoMatchRoutes = require("./routes/ludoMatchRoutes");
+
+// ================= LUDO ROUTES =================
+const ludoMatchRoutes = require("./routes/ludoMatchRoutes");
+
 const app = express();
 
 app.use(helmet());
@@ -51,7 +54,10 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// ================= DATABASE CONNECTION + AUTO DELETE =================
 connectDB().then(() => {
+  console.log("✅ MongoDB Connected Successfully".bgGreen.black);
+
   setInterval(async () => {
     try {
       const deleted = await Match.deleteMany({
@@ -59,9 +65,7 @@ connectDB().then(() => {
         deleteAt: { $lte: new Date() },
       });
       if (deleted.deletedCount > 0) {
-        console.log(
-          `🗑️  ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white
-        );
+        console.log(`🗑️ ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white);
       }
     } catch (err) {
       console.error("Auto delete error:", err.message);
@@ -74,6 +78,7 @@ console.log(
   process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
 );
 
+// ================= ROUTES =================
 app.get("/", (req, res) => {
   res.json({ success: true, message: "🚀 Playzo Backend is running!" });
 });
@@ -82,35 +87,25 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// ================= NEW REFERRAL ROUTE ADDED =================
+// Main Routes
 app.use("/api/referral", require("./routes/referralRoutes"));
-
-// ================= ROUTES =================
-app.use("/api/matches",               require("./routes/matchRoutes"));
-app.use("/api/auth",                  authLimiter, require("./routes/authRoutes"));
-app.use("/api/admin",                 authLimiter, require("./routes/adminAuthRoutes"));
-app.use("/api/admin",                 require("./routes/admin"));
-app.use("/api/wallet",                require("./routes/walletRoutes"));
-app.use("/api/payment-numbers",       require("./routes/paymentNumbers"));
-app.use("/admin/payment-numbers",     require("./routes/paymentNumbers"));
+app.use("/api/matches", require("./routes/matchRoutes"));
+app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
+app.use("/api/admin", authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/admin", require("./routes/admin"));
+app.use("/api/wallet", require("./routes/walletRoutes"));
+app.use("/api/payment-numbers", require("./routes/paymentNumbers"));
+app.use("/admin/payment-numbers", require("./routes/paymentNumbers"));
 app.use("/api/admin/payment-numbers", require("./routes/paymentNumbers"));
-app.use("/api/users",                 require("./routes/users"));
-app.use("/api/withdraw",              require("./routes/withdrawRoutes"));
-app.use("/api/leaderboard",           require("./routes/leaderboardRoutes"));
-app.use("/api/notifications",         require("./routes/notifications"));
-app.use("/api/ludo-tournament", ludoTournamentRoutes);
-// ✅ Fix: double /api/api routes
-app.use("/api/api/matches",           require("./routes/matchRoutes"));
-app.use("/api/api/auth",              authLimiter, require("./routes/authRoutes"));
-app.use("/api/api/admin",             authLimiter, require("./routes/adminAuthRoutes"));
-app.use("/api/api/admin",             require("./routes/admin"));
-app.use("/api/api/wallet",            require("./routes/walletRoutes"));
-app.use("/api/api/payment-numbers",   require("./routes/paymentNumbers"));
-app.use("/api/api/users",             require("./routes/users"));
-app.use("/api/api/withdraw",          require("./routes/withdrawRoutes"));
-app.use("/api/api/leaderboard",       require("./routes/leaderboardRoutes"));
-app.use("/api/api/notifications",     require("./routes/notifications"));
+app.use("/api/users", require("./routes/users"));
+app.use("/api/withdraw", require("./routes/withdrawRoutes"));
+app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
+app.use("/api/notifications", require("./routes/notifications"));
+
+// Ludo Routes
 app.use("/api/ludo-matches", ludoMatchRoutes);
+app.use("/api/ludo-tournament", ludoMatchRoutes);   // যদি ফ্রন্টএন্ড এই রুট ব্যবহার করে
+
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
