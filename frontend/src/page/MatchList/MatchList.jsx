@@ -4,21 +4,12 @@ import BottomMenu from "../../Component/BottomMenu/BottomMenu";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
-const MatchList = ({ category: initialCategory, onBack, onJoinSuccess, title, tab, setTab }) => {
+const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [activeCategory, setActiveCategory] = useState(initialCategory || "all");
-
-  const categories = [
-    { key: "all", label: "All Matches", emoji: "🎮" },
-    { key: "classic", label: "Classic", emoji: "🏟️" },
-    { key: "tdm", label: "TDM", emoji: "⚔️" },
-    { key: "ranked", label: "Ranked", emoji: "🏆" },
-    { key: "custom", label: "Custom", emoji: "🔧" },
-    { key: "ludo", label: "Ludo", emoji: "🎲" },
-  ];
 
   const fetchMatches = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -26,124 +17,181 @@ const MatchList = ({ category: initialCategory, onBack, onJoinSuccess, title, ta
 
     try {
       const res = await fetch(`${API_BASE}/matches`);
-      const data = await res.json();
-      let allMatches = Array.isArray(data) ? data : data?.data || [];
 
-      let filtered = allMatches;
-      if (activeCategory !== "all") {
-        filtered = allMatches.filter(m => 
-          (m.category || "").toLowerCase() === activeCategory.toLowerCase()
-        );
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      filtered = filtered.filter(m => 
-        m.status !== "completed" && m.status !== "cancelled"
+      const data = await res.json();
+
+      let allMatches = [];
+      if (Array.isArray(data)) {
+        allMatches = data;
+      } else if (Array.isArray(data?.data)) {
+        allMatches = data.data;
+      } else if (Array.isArray(data?.matches)) {
+        allMatches = data.matches;
+      } else {
+        throw new Error("Invalid data format received");
+      }
+
+      let filteredMatches = allMatches;
+      if (category) {
+        filteredMatches = allMatches.filter((m) => {
+          const matchCat  = (m.category || "").toLowerCase().trim();
+          const filterCat = category.toLowerCase().trim();
+          return matchCat === filterCat;
+        });
+      }
+
+      filteredMatches = filteredMatches.filter(
+        (m) => m.status !== "completed" && m.status !== "cancelled"
       );
 
-      setMatches(filtered);
+      setMatches(filteredMatches);
+      setLastUpdated(new Date());
     } catch (err) {
-      setError("Failed to load matches");
+      setError(err.message || "Failed to load matches");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeCategory]);
+  }, [category]);
 
-  useEffect(() => { fetchMatches(); }, [fetchMatches]);
   useEffect(() => {
-    const interval = setInterval(() => fetchMatches(), 10000);
+    fetchMatches();
+  }, [fetchMatches]);
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchMatches(), 10 * 1000);
     return () => clearInterval(interval);
   }, [fetchMatches]);
 
-  // Get count for each category (এখানে সব ম্যাচ থেকে কাউন্ট করা হচ্ছে)
-  const categoryCounts = React.useMemo(() => {
-    const counts = { all: matches.length };
-    categories.forEach(cat => {
-      if (cat.key !== "all") {
-        counts[cat.key] = matches.filter(m => 
-          (m.category || "").toLowerCase() === cat.key
-        ).length;
-      }
-    });
-    return counts;
-  }, [matches]);
+  const handleJoinSuccess = (matchId, newBalance) => {
+    setMatches((prev) =>
+      prev.map((m) =>
+        m._id === matchId
+          ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
+          : m
+      )
+    );
+    if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
+  };
 
   return (
     <div className="bg-gray-100 min-h-screen pb-24">
-      {/* ==================== CATEGORY CARDS ==================== */}
-      <div className="grid grid-cols-3 gap-3 p-4">
-        {categories.map((cat) => {
-          const count = categoryCounts[cat.key] || 0;
-          return (
-            <div
-              key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={`relative bg-white rounded-3xl p-4 shadow-md border-2 transition-all active:scale-[0.97] cursor-pointer overflow-hidden ${
-                activeCategory === cat.key 
-                  ? "border-orange-500 shadow-orange-100" 
-                  : "border-gray-100"
-              }`}
-            >
-              {/* Improved Badge */}
-              <div className="absolute -top-1.5 -right-1.5 bg-gradient-to-br from-orange-500 to-red-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-2xl shadow-md min-w-[22px] text-center flex items-center justify-center">
-                {count}
-              </div>
-
-              <div className="flex flex-col items-center text-center pt-1">
-                <div className="text-4xl mb-3">{cat.emoji}</div>
-                <p className="font-bold text-sm text-gray-800 leading-tight tracking-tight">
-                  {cat.label}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ==================== HEADER ==================== */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow">
+      {/* HEADER */}
+      <div className="bg-white p-4 flex items-center justify-between shadow sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="text-2xl font-bold text-gray-700">←</button>
+          <button
+            onClick={onBack}
+            className="text-2xl font-bold text-gray-700 active:scale-95 transition-all"
+          >
+            ←
+          </button>
           <div>
-            <h2 className="font-bold text-lg text-gray-800">
-              {activeCategory === "all" ? title : activeCategory.toUpperCase()}
-            </h2>
-            <p className="text-xs text-gray-500">{matches.length} Matches</p>
+            <h2 className="font-bold uppercase text-gray-800">{title}</h2>
+            <p className="text-xs text-gray-500">Category: {category || "All"}</p>
           </div>
         </div>
 
         <button
           onClick={() => fetchMatches(true)}
           disabled={refreshing}
-          className="flex items-center gap-1.5 text-xs font-bold text-orange-600 bg-orange-50 px-4 py-2 rounded-2xl border border-orange-200 active:scale-95 disabled:opacity-60"
+          className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 active:scale-95 transition-all disabled:opacity-50"
         >
-          {refreshing ? "⏳" : "🔄"} Refresh
+          {refreshing ? (
+            <span className="inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <span>🔄</span>
+          )}
+          {refreshing ? "Updating..." : "Refresh"}
         </button>
       </div>
 
-      {/* MATCH LIST */}
-      <div className="p-3 space-y-3">
-        {loading ? (
-          <div className="flex flex-col items-center py-20">
-            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
-        ) : matches.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl">
-            <p className="text-5xl mb-3">🎮</p>
-            <p className="font-bold">No matches available</p>
-          </div>
-        ) : (
-          matches.map((match) => (
-            <MatchCard
-              key={match._id}
-              match={match}
-              onJoinSuccess={(newBalance) => handleJoinSuccess(match._id, newBalance)}
-            />
-          ))
+      {/* COUNT + LAST UPDATED */}
+      <div className="px-3 py-2 flex items-center justify-between bg-white border-b">
+        <p className="text-sm text-gray-600">
+          Total: <b className="text-orange-500">{matches.length}</b> matches
+        </p>
+        {lastUpdated && (
+          <p className="text-[10px] text-gray-400">
+            {lastUpdated.toLocaleTimeString("en-BD", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+          </p>
         )}
       </div>
 
+      {/* Auto refresh indicator */}
+      <div className="px-3 py-2 bg-green-50 border-b border-green-100">
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-[10px] text-green-600 font-medium">
+            Auto refresh every 10 seconds
+          </span>
+        </div>
+      </div>
+
+      {/* ERROR STATE */}
+      {error && (
+        <div className="m-3 bg-red-50 border-2 border-red-200 rounded-xl p-4">
+          <p className="text-red-700 font-bold text-sm mb-2">⚠️ Error Loading Matches</p>
+          <p className="text-red-600 text-xs mb-3 font-mono">{error}</p>
+          <button
+            onClick={() => fetchMatches(true)}
+            className="w-full bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm active:scale-95 transition-all"
+          >
+            🔄 Try Again
+          </button>
+        </div>
+      )}
+
+      {/* LOADING STATE */}
+      {loading && !error ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-600 font-bold">Loading matches...</p>
+          <p className="text-xs text-gray-400">Please wait</p>
+        </div>
+      ) : !error ? (
+        /* MATCH LIST */
+        <div className="p-3 space-y-3">
+          {matches.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+              <p className="text-5xl mb-3">🎮</p>
+              <p className="text-gray-700 font-bold text-lg">No Match Available</p>
+              <p className="text-gray-400 text-sm mt-2">
+                {category
+                  ? `No ${category.replace(/_/g, " ")} matches found`
+                  : "No matches available"}
+              </p>
+              <p className="text-gray-300 text-xs mt-1">Check back later</p>
+              <button
+                onClick={() => fetchMatches(true)}
+                className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg text-sm font-bold active:scale-95 transition-all"
+              >
+                🔄 Refresh Now
+              </button>
+            </div>
+          ) : (
+            matches.map((match) => (
+              <MatchCard
+                key={match._id || match.id}
+                match={match}
+                totalMatches={matches.length}
+                onJoinSuccess={(newBalance) =>
+                  handleJoinSuccess(match._id || match.id, newBalance)
+                }
+              />
+            ))
+          )}
+        </div>
+      ) : null}
+
+      {/* Bottom Menu */}
       {tab && setTab && <BottomMenu tab={tab} setTab={setTab} />}
     </div>
   );
