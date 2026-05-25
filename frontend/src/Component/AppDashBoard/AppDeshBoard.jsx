@@ -628,286 +628,311 @@ function NotificationsPage({ onBack }) {
   );
 }
 
-// ─── Main AppDashboard ────────────────────────────────────────────────────────
-const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab] = useState("play");
-  const [screen, setScreen] = useState("home");
-  const [slide, setSlide] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [matches, setMatches] = useState([]);
-  const [selectedResult, setSelectedResult] = useState(null);
-  const [resultTab, setResultTab] = useState("leaderboard");
-  const [refreshing, setRefreshing] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
 
-  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
-
-  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
-
-  // Match Count Helper
-  const getMatchCount = (categoryKey) =>
-    matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
-
+// ─── Ludo Tournament Section ──────────────────────────────────────────────────
+const API_LUDO = (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com").replace("/api", "");
+ 
+const LudoTimeLeft = ({ startTime }) => {
+  const [time, setTime] = useState("");
   useEffect(() => {
-    const loadMatches = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/matches`);
-        const data = await res.json();
-        let safeData = [];
-        if (Array.isArray(data)) safeData = data;
-        else if (Array.isArray(data?.matches)) safeData = data.matches;
-        else if (Array.isArray(data?.data)) safeData = data.data;
-        setMatches(safeData);
-      } catch (err) {
-        console.error("Failed to load matches:", err);
-        setMatches([]);
-      }
+    const calc = () => {
+      const diff = new Date(startTime).getTime() - Date.now();
+      if (diff <= 0) { setTime("শুরু হয়েছে"); return; }
+      const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+      setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
     };
-
-    loadMatches();
-    const interval = setInterval(loadMatches, 10 * 1000);
-    return () => clearInterval(interval);
-  }, [API_BASE]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSlide((p) => (p === 2 ? 0 : p + 1));
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const categories = [
-    { key: "br_match", title: "BR Match", img: "/image/img-1.jpg" },
-    { key: "br_survival", title: "BR Survival", img: "/image/img-2.jpg" },
-    { key: "clash_squad", title: "Clash Squad", img: "/image/img-3.jpg" },
-    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/img-1.jpg" },
-    { key: "lone_wolf", title: "Lone Wolf", img: "/image/img-2.jpg" },
-    { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
-  ];
-
-  // --- NOTIFICATIONS SCREEN ---
-  if (showNotifications) {
-    return (
-      <div className="mx-auto min-h-screen">
-        <NotificationsPage onBack={() => setShowNotifications(false)} />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // --- PROFILE TAB ---
-  if (tab === "profile") {
-    if (screen === "wallet") {
-      return (
-        <div className="bg-white min-h-screen mx-auto pb-24">
-          <Wallet onBack={() => setScreen("home")} />
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    if (screen === "withdraw") {
-      return (
-        <div className="bg-white min-h-screen mx-auto pb-24 shadow-xl">
-          <Withdraw onBack={() => setScreen("home")} />
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    if (screen === "all_rules") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <AllRulesPage onBack={() => setScreen("home")} />
-        </div>
-      );
-    }
-    if (screen === "my_profile") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <AccountInfo onBack={() => setScreen("home")} />
-        </div>
-      );
-    }
-    if (screen === "referral") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <div className="p-4 text-center text-gray-500">Referral Component</div>
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    return (
-      <div className="bg-white min-h-screen mx-auto pb-24">
-        <Profile
-          onLogout={onLogout}
-          onWallet={() => setScreen("wallet")}
-          onWithdraw={() => setScreen("withdraw")}
-          onAllRules={() => setScreen("all_rules")}
-          onMyProfile={() => setScreen("my_profile")}
-          onReferral={() => setScreen("referral")}
-        />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // --- SHOP TAB ---
-  if (tab === "shop") {
-    return (
-      <div className="bg-white min-h-screen mx-auto pb-24">
-        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
-          🛒 Shop Coming Soon...
-        </div>
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // --- MY MATCHES TAB ---
-  if (tab === "matches") {
-    return (
-      <div className="mx-auto min-h-screen">
-        <MyMatch />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // --- RESULTS TAB ---
-  if (tab === "results") {
-    if (selectedResult) {
-      return (
-        <div className="mx-auto min-h-screen">
-          <div className="bg-[#0a0e1a] px-4 pt-4">
-            <button
-              onClick={() => setSelectedResult(null)}
-              className="flex items-center gap-2 text-orange-400 text-sm font-bold mb-2"
-            >
-              ← Back to Results
-            </button>
+    calc(); const t = setInterval(calc, 1000); return () => clearInterval(t);
+  }, [startTime]);
+  return <span>{time}</span>;
+};
+ 
+const LudoCard = ({ match, userId, onJoin, joining }) => {
+  const [showRoom, setShowRoom] = useState(false);
+  const fmtL   = (n) => "৳" + Number(n || 0).toLocaleString();
+  const joined = Number(match.joinedPlayers || 0);
+  const total  = Number(match.totalSlots || match.totalPlayers || 4);
+  const fill   = total > 0 ? (joined / total) * 100 : 0;
+  const isMine = (match.joinedUsers || []).some((u) => u.userId?.toString?.() === userId?.toString?.() || u.userId === userId);
+  const isFull = joined >= total;
+  const canJoin = !isMine && !isFull && !["completed","cancelled"].includes(match.status);
+  const mySlot  = isMine ? (match.joinedUsers || []).find((u) => u.userId?.toString?.() === userId?.toString?.() || u.userId === userId)?.slotNumber : null;
+  const modeLabel = { "1v1": "⚔️ 1 vs 1", "2v2": "👥 2 vs 2", "4player": "🎮 4 Player" }[match.mode] || "🎮 Ludo";
+  const statusBg  = { upcoming: "#dbeafe", live: "#fee2e2", completed: "#f3f4f6", cancelled: "#fef9c3" }[match.status] || "#dbeafe";
+  const statusClr = { upcoming: "#1e40af", live: "#991b1b", completed: "#374151", cancelled: "#713f12" }[match.status] || "#1e40af";
+  const statusLbl = { upcoming: "🕐 Upcoming", live: "🔴 Live", completed: "✅ Ended", cancelled: "❌ Cancelled" }[match.status] || "🕐 Upcoming";
+ 
+  return (
+    <div style={{ background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 3px 14px rgba(0,0,0,0.07)", marginBottom: 14, border: isMine ? "2px solid #10b981" : "1px solid #f3f4f6" }}>
+      <div style={{ height: 4, background: "linear-gradient(90deg,#f59e0b,#ef4444,#8b5cf6,#10b981)" }} />
+      {match.image && <img src={match.image} alt="" style={{ width: "100%", height: 110, objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />}
+      <div style={{ padding: "12px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 4 }}>🎲 {match.title}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 800 }}>{modeLabel}</span>
+              <span style={{ background: statusBg, color: statusClr, fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 700 }}>{statusLbl}</span>
+              {isMine && <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 700 }}>✅ Joined #{mySlot}</span>}
+            </div>
           </div>
-          <MatchResultsPage
-            matchId={selectedResult.matchId || selectedResult._id}
-            matchTitle={selectedResult.matchTitle}
-            killPrice={selectedResult.killPrice}
-            results={selectedResult.results}
-            publishedAt={selectedResult.submittedAt || selectedResult.publishedAt}
-            mapName={selectedResult.mapName}
-            currentUserUid={currentUserUid}
-          />
-          <BottomMenu
-            tab={tab}
-            setTab={(t) => {
-              setTab(t);
-              setSelectedResult(null);
-            }}
-          />
+          <div style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)", borderRadius: 12, padding: "6px 12px", textAlign: "center", border: "1px solid #fcd34d" }}>
+            <div style={{ fontSize: 9, color: "#92400e", fontWeight: 700, marginBottom: 1 }}>WIN PRIZE</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#b45309" }}>{fmtL(match.winPrize)}</div>
+          </div>
         </div>
-      );
-    }
-    return (
-      <div className="mx-auto min-h-screen bg-[#f7f2fb]">
-        <div
-          style={{
-            display: "flex",
-            background: "#fff",
-            borderBottom: "2px solid #ede9fe",
-            position: "sticky",
-            top: 0,
-            zIndex: 40,
-          }}
-        >
-          {[
-            { id: "leaderboard", label: "🏆 Leaderboard" },
-            { id: "matchresults", label: "📊 Match Results" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setResultTab(t.id)}
-              style={{
-                flex: 1,
-                padding: "13px 0",
-                border: "none",
-                background: "transparent",
-                fontWeight: 700,
-                fontSize: 13,
-                color: resultTab === t.id ? "#4f46e5" : "#9ca3af",
-                borderBottom: resultTab === t.id ? "2px solid #4f46e5" : "2px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                marginBottom: -2,
-              }}
-            >
-              {t.label}
-            </button>
+ 
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: "#f9fafb", borderRadius: 10, padding: "10px 0", marginBottom: 10 }}>
+          {[{ label: "Entry Fee", value: fmtL(match.entryFee) }, { label: "Players", value: `${joined}/${total}` }, { label: "Map", value: match.map || "Classic" }].map((s, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>{s.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{s.value}</div>
+            </div>
           ))}
         </div>
-
-        {resultTab === "leaderboard" ? (
-          <Leaderboard />
-        ) : (
-          <ResultsListPage
-            onSelectResult={(match) => setSelectedResult(match)}
-            currentUserUid={currentUserUid}
-          />
-        )}
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
  
-  // --- CATEGORY SCREEN ---
-if (screen === "category") {
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 600 }}>Slots</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: isFull ? "#ef4444" : "#059669" }}>{isFull ? "Full 🔒" : `${total - joined} বাকি`}</span>
+          </div>
+          <div style={{ height: 6, background: "#e5e7eb", borderRadius: 999 }}>
+            <div style={{ height: "100%", width: `${fill}%`, background: fill >= 100 ? "#ef4444" : fill >= 75 ? "#f59e0b" : "#10b981", borderRadius: 999, transition: "width 0.4s" }} />
+          </div>
+        </div>
+ 
+        {match.startTime && (
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}>
+            ⏰ {match.status === "upcoming" ? <><LudoTimeLeft startTime={match.startTime} /> বাকি</> : new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: true })}
+          </div>
+        )}
+ 
+        {match.prizes?.first > 0 && (
+          <div style={{ background: "#fefce8", borderRadius: 10, padding: "8px 10px", marginBottom: 10, border: "1px solid #fde68a" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#92400e", marginBottom: 5 }}>🏆 Prize Breakdown</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {[{ r: "🥇 1st", v: match.prizes.first }, { r: "🥈 2nd", v: match.prizes.second }, { r: "🥉 3rd", v: match.prizes.third }, match.mode === "4player" && { r: "4️⃣ 4th", v: match.prizes.fourth }].filter(Boolean).map((p, i) => p.v > 0 && (
+                <div key={i} style={{ background: "#fff", borderRadius: 8, padding: "4px 8px", fontSize: 11, fontWeight: 700, color: "#b45309", border: "1px solid #fde68a" }}>{p.r} {fmtL(p.v)}</div>
+              ))}
+            </div>
+          </div>
+        )}
+ 
+        {isMine && match.status === "live" && match.roomCode && (
+          <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "10px 12px", marginBottom: 10, border: "1px solid #86efac" }}>
+            <div style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginBottom: 4 }}>🎲 Room Code</div>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 4, color: "#15803d", textAlign: "center" }}>{showRoom ? match.roomCode : "••••••"}</div>
+            <button onClick={() => setShowRoom(!showRoom)} style={{ marginTop: 6, width: "100%", background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "6px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{showRoom ? "🙈 লুকান" : "👁️ Room Code দেখুন"}</button>
+          </div>
+        )}
+ 
+        {canJoin && (
+          <button onClick={() => onJoin(match._id, match.entryFee, match.title)} disabled={joining === match._id}
+            style={{ width: "100%", background: joining === match._id ? "#9ca3af" : "linear-gradient(135deg,#f59e0b,#d97706)", color: "#fff", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 14, fontWeight: 800, cursor: joining === match._id ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(245,158,11,0.35)" }}>
+            {joining === match._id ? "⏳ Join হচ্ছে..." : `🎲 Join করুন — ${fmtL(match.entryFee)}`}
+          </button>
+        )}
+        {isMine && match.status === "upcoming" && <div style={{ background: "#d1fae5", borderRadius: 10, padding: 10, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#065f46" }}>✅ আপনি join করেছেন! Match শুরু হলে Room Code দেখতে পাবেন।</div>}
+        {isFull && !isMine && <div style={{ background: "#fee2e2", borderRadius: 10, padding: 10, textAlign: "center", fontSize: 12, fontWeight: 700, color: "#991b1b" }}>🔒 Match ফুল হয়ে গেছে</div>}
+      </div>
+    </div>
+  );
+};
+ 
+function LudoTournamentSection() {
+  const [activeMode, setActiveMode] = useState("all");
+  const [matches, setMatches]       = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [joining, setJoining]       = useState(null);
+  const [toast, setToast]           = useState({ text: "", type: "" });
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const userId = currentUser?.id || currentUser?._id;
+  const token  = localStorage.getItem("token");
+ 
+  const showToast = (text, type = "success") => { setToast({ text, type }); setTimeout(() => setToast({ text: "", type: "" }), 3500); };
+ 
+  const loadMatches = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q   = activeMode !== "all" ? `?mode=${activeMode}` : "";
+      const res = await fetch(`${API_LUDO}/api/ludo-tournament${q}`);
+      const d   = await res.json();
+      setMatches(Array.isArray(d?.data) ? d.data : []);
+    } catch { setMatches([]); }
+    setLoading(false);
+  }, [activeMode]);
+ 
+  useEffect(() => { loadMatches(); }, [loadMatches]);
+ 
+  const handleJoin = async (matchId, entryFee, matchTitle) => {
+    if (!userId) return showToast("আগে Login করুন", "error");
+    if (!window.confirm(`"${matchTitle}" তে Join করবেন?\nEntry Fee: ৳${entryFee}`)) return;
+    setJoining(matchId);
+    try {
+      const res = await fetch(`${API_LUDO}/api/ludo-tournament/join/${matchId}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ userId }) });
+      const d   = await res.json();
+      if (d.success) {
+        showToast(`✅ Join সফল! Slot #${d.slotNumber}. নতুন Balance: ৳${d.newBalance}`);
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        localStorage.setItem("user", JSON.stringify({ ...u, balance: d.newBalance }));
+        loadMatches();
+      } else { showToast(d.message || "Join হয়নি", "error"); }
+    } catch { showToast("নেটওয়ার্ক সমস্যা", "error"); }
+    setJoining(null);
+  };
+ 
+  const filtered = activeMode === "all" ? matches : matches.filter((m) => m.mode === activeMode);
+ 
   return (
-    <div className="mx-auto min-h-screen bg-white">
-      <MatchList
-        category={selectedCategory}
-        title={categories.find(c => c.key === selectedCategory)?.title || selectedCategory}
-        onBack={() => {
-          setScreen("home");           // ✅ শুধু back button এ কাজ করবে
-          setSelectedCategory("");      // ✅ category reset
-        }}
-        onJoinSuccess={(matchId, newBalance) => {
-          const user = JSON.parse(localStorage.getItem("user") || "{}");
-          localStorage.setItem(
-            "user",
-            JSON.stringify({ ...user, balance: newBalance })
-          );
-        }}
-        // ✅ নিচের দুইটা prop pass করুন যাতে BottomMenu কাজ করে
-        tab={tab}
-        setTab={setTab}
-      />
+    <div style={{ background: "#f3f4f6", minHeight: "100%" }}>
+      <div style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", padding: "14px 16px 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div>
+            <div style={{ color: "#c4b5fd", fontSize: 11, fontWeight: 600, marginBottom: 2 }}>TOURNAMENT</div>
+            <div style={{ color: "#fff", fontSize: 18, fontWeight: 900 }}>🎲 Ludo Arena</div>
+          </div>
+          <button onClick={loadMatches} disabled={loading} style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "none", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{loading ? "⏳" : "🔄"}</button>
+        </div>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+          {[{ id: "all", label: "🎲 সব" }, { id: "1v1", label: "⚔️ 1v1" }, { id: "2v2", label: "👥 2v2" }, { id: "4player", label: "🎮 4P" }].map((m) => (
+            <button key={m.id} onClick={() => setActiveMode(m.id)} style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer", background: activeMode === m.id ? "#fff" : "rgba(255,255,255,0.15)", color: activeMode === m.id ? "#4f46e5" : "#e0d7ff", fontWeight: 700, fontSize: 12, transition: "all 0.2s" }}>{m.label}</button>
+          ))}
+        </div>
+      </div>
+ 
+      {toast.text && <div style={{ margin: "10px 12px 0", background: toast.type === "error" ? "#fee2e2" : "#d1fae5", color: toast.type === "error" ? "#991b1b" : "#065f46", padding: "10px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600, border: `1px solid ${toast.type === "error" ? "#fca5a5" : "#6ee7b7"}` }}>{toast.text}</div>}
+ 
+      <div style={{ padding: "12px 12px 0" }}>
+        {loading && filtered.length === 0 && <div style={{ textAlign: "center", padding: 50, color: "#9ca3af" }}><div style={{ fontSize: 40 }}>🎲</div><p style={{ marginTop: 8, fontSize: 13 }}>লোড হচ্ছে...</p></div>}
+        {!loading && filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "50px 20px", background: "#fff", borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+            <div style={{ fontSize: 52, marginBottom: 10 }}>🎲</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#374151", marginBottom: 6 }}>কোনো match নেই</div>
+            <div style={{ fontSize: 13, color: "#9ca3af" }}>এই mode-এ এখন কোনো tournament নেই।</div>
+          </div>
+        )}
+        {filtered.map((m) => <LudoCard key={m._id} match={m} userId={userId} onJoin={handleJoin} joining={joining} />)}
+      </div>
     </div>
   );
 }
 
-  // --- HOME SCREEN ---
+
+ 
+// ─── Main AppDashboard ────────────────────────────────────────────────────────
+const AppDashboard = ({ onLogout }) => {
+  const [tab, setTab]               = useState("play");
+  const [screen, setScreen]         = useState("home");
+  const [slide, setSlide]           = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [matches, setMatches]       = useState([]);
+  const [selectedResult, setSelectedResult]     = useState(null);
+  const [resultTab, setResultTab]   = useState("leaderboard");
+  const [refreshing, setRefreshing] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  // 🆕 Game switcher
+  const [activeGame, setActiveGame] = useState("freefire");
+
+  const currentUser    = JSON.parse(localStorage.getItem("user") || "{}");
+  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+  const API_BASE       = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+
+  const getMatchCount = (k) => matches.filter((m) => m.category === k && m.status !== "completed").length;
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/matches`);
+        const data = await res.json();
+        let s = [];
+        if (Array.isArray(data)) s = data;
+        else if (Array.isArray(data?.matches)) s = data.matches;
+        else if (Array.isArray(data?.data)) s = data.data;
+        setMatches(s);
+      } catch { setMatches([]); }
+    };
+    load();
+    const iv = setInterval(load, 10000);
+    return () => clearInterval(iv);
+  }, [API_BASE]);
+
+  useEffect(() => {
+    const t = setInterval(() => setSlide((p) => (p === 2 ? 0 : p + 1)), 3000);
+    return () => clearInterval(t);
+  }, []);
+
+  const categories = [
+    { key: "br_match",    title: "BR Match",       img: "/image/img-1.jpg" },
+    { key: "br_survival", title: "BR Survival",    img: "/image/img-2.jpg" },
+    { key: "clash_squad", title: "Clash Squad",    img: "/image/img-3.jpg" },
+    { key: "cs_2vs2",     title: "CS 2vs2",        img: "/image/img-1.jpg" },
+    { key: "lone_wolf",   title: "Lone Wolf",      img: "/image/img-2.jpg" },
+    { key: "training",    title: "Training Match", img: "/image/img-3.jpg" },
+  ];
+
+  if (showNotifications) return <div className="mx-auto min-h-screen"><NotificationsPage onBack={() => setShowNotifications(false)} /><BottomMenu tab={tab} setTab={setTab} /></div>;
+
+  if (tab === "profile") {
+    if (screen === "wallet")     return <div className="bg-white min-h-screen mx-auto pb-24"><Wallet onBack={() => setScreen("home")} /><BottomMenu tab={tab} setTab={setTab} /></div>;
+    if (screen === "withdraw")   return <div className="bg-white min-h-screen mx-auto pb-24 shadow-xl"><Withdraw onBack={() => setScreen("home")} /><BottomMenu tab={tab} setTab={setTab} /></div>;
+    if (screen === "all_rules")  return <div className="bg-white min-h-screen mx-auto"><AllRulesPage onBack={() => setScreen("home")} /></div>;
+    if (screen === "my_profile") return <div className="bg-white min-h-screen mx-auto"><AccountInfo onBack={() => setScreen("home")} /></div>;
+    if (screen === "referral")   return <div className="bg-white min-h-screen mx-auto"><div className="p-4 text-center text-gray-500">Referral Component</div><BottomMenu tab={tab} setTab={setTab} /></div>;
+    return <div className="bg-white min-h-screen mx-auto pb-24"><Profile onLogout={onLogout} onWallet={() => setScreen("wallet")} onWithdraw={() => setScreen("withdraw")} onAllRules={() => setScreen("all_rules")} onMyProfile={() => setScreen("my_profile")} onReferral={() => setScreen("referral")} /><BottomMenu tab={tab} setTab={setTab} /></div>;
+  }
+
+  if (tab === "shop") return <div className="bg-white min-h-screen mx-auto pb-24"><div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">🛒 Shop Coming Soon...</div><BottomMenu tab={tab} setTab={setTab} /></div>;
+
+  if (tab === "matches") return <div className="mx-auto min-h-screen"><MyMatch /><BottomMenu tab={tab} setTab={setTab} /></div>;
+
+  if (tab === "results") {
+    if (selectedResult) return (
+      <div className="mx-auto min-h-screen">
+        <div className="bg-[#0a0e1a] px-4 pt-4"><button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-orange-400 text-sm font-bold mb-2">← Back to Results</button></div>
+        <MatchResultsPage matchId={selectedResult.matchId || selectedResult._id} matchTitle={selectedResult.matchTitle} killPrice={selectedResult.killPrice} results={selectedResult.results} publishedAt={selectedResult.submittedAt || selectedResult.publishedAt} mapName={selectedResult.mapName} currentUserUid={currentUserUid} />
+        <BottomMenu tab={tab} setTab={(t) => { setTab(t); setSelectedResult(null); }} />
+      </div>
+    );
+    return (
+      <div className="mx-auto min-h-screen bg-[#f7f2fb]">
+        <div style={{ display: "flex", background: "#fff", borderBottom: "2px solid #ede9fe", position: "sticky", top: 0, zIndex: 40 }}>
+          {[{ id: "leaderboard", label: "🏆 Leaderboard" }, { id: "matchresults", label: "📊 Match Results" }].map((t) => (
+            <button key={t.id} onClick={() => setResultTab(t.id)} style={{ flex: 1, padding: "13px 0", border: "none", background: "transparent", fontWeight: 700, fontSize: 13, color: resultTab === t.id ? "#4f46e5" : "#9ca3af", borderBottom: resultTab === t.id ? "2px solid #4f46e5" : "2px solid transparent", cursor: "pointer", transition: "all 0.2s", marginBottom: -2 }}>{t.label}</button>
+          ))}
+        </div>
+        {resultTab === "leaderboard" ? <Leaderboard /> : <ResultsListPage onSelectResult={setSelectedResult} currentUserUid={currentUserUid} />}
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+  if (screen === "category") return (
+    <div className="mx-auto min-h-screen bg-white">
+      <MatchList category={selectedCategory} title={categories.find((c) => c.key === selectedCategory)?.title || selectedCategory}
+        onBack={() => { setScreen("home"); setSelectedCategory(""); }}
+        onJoinSuccess={(matchId, newBalance) => { const u = JSON.parse(localStorage.getItem("user") || "{}"); localStorage.setItem("user", JSON.stringify({ ...u, balance: newBalance })); }}
+        tab={tab} setTab={setTab} />
+    </div>
+  );
+
+  // ── HOME SCREEN ──
   return (
     <div className="bg-gray-50 min-h-screen mx-auto pb-24">
-      {/* Top Header */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-white font-black text-lg">
-                {(currentUser?.name || "P")[0].toUpperCase()}
-              </span>
+              <span className="text-white font-black text-lg">{(currentUser?.name || "P")[0].toUpperCase()}</span>
             </div>
             <div>
               <p className="text-white/80 text-[11px] font-medium">Welcome back</p>
-              <p className="text-white font-extrabold text-sm truncate max-w-[150px]">
-                {currentUser?.name || "Player"}
-              </p>
+              <p className="text-white font-extrabold text-sm truncate max-w-[150px]">{currentUser?.name || "Player"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <span className="text-yellow-300 text-xs">💰</span>
-              <span className="text-white font-black text-xs">
-                ৳{currentUser?.balance || 0}
-              </span>
+              <span className="text-white font-black text-xs">৳{currentUser?.balance || 0}</span>
             </div>
             <NotificationBell onOpen={() => setShowNotifications(true)} />
           </div>
@@ -915,107 +940,76 @@ if (screen === "category") {
       </div>
 
       <div className="p-4">
-        {/* Slider Banner */}
+        {/* Slider */}
         <div className="relative w-full h-44 overflow-hidden rounded-3xl shadow-lg border-4 border-white">
           {categories.slice(0, 3).map((c, i) => (
-            <img
-              key={i}
-              src={c.img}
-              className="absolute w-full h-full object-cover transition-opacity duration-1000"
-              style={{ opacity: slide === i ? 1 : 0 }}
-              alt="Slider"
-            />
+            <img key={i} src={c.img} className="absolute w-full h-full object-cover transition-opacity duration-1000" style={{ opacity: slide === i ? 1 : 0 }} alt="Slider" />
           ))}
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className={`h-1.5 rounded-full transition-all ${
-                  slide === i ? "w-6 bg-white" : "w-1.5 bg-white/50"
-                }`}
-              />
-            ))}
+            {[0, 1, 2].map((i) => <div key={i} className={`h-1.5 rounded-full transition-all ${slide === i ? "w-6 bg-white" : "w-1.5 bg-white/50"}`} />)}
           </div>
         </div>
 
-        {/* Live Marquee */}
+        {/* Marquee */}
         <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
           <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
             🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
           </marquee>
         </div>
 
-        {/* Section Header */}
-        <div className="flex items-center justify-between mt-6 px-1">
-          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
-            Free Fire <span className="text-orange-500">Arena</span>
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
-              LIVE NOW
-            </span>
-            <button
-              onClick={async () => {
-                setRefreshing(true);
-                try {
-                  const res = await fetch(`${API_BASE}/matches`);
-                  const data = await res.json();
-                  let safeData = [];
-                  if (Array.isArray(data)) safeData = data;
-                  else if (Array.isArray(data?.matches)) safeData = data.matches;
-                  else if (Array.isArray(data?.data)) safeData = data.data;
-                  setMatches(safeData);
-                } catch (err) {
-                  console.error(err);
-                } finally {
-                  setTimeout(() => setRefreshing(false), 800);
-                }
-              }}
-              disabled={refreshing}
-              className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
-            >
-              <span className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}>
-                🔄
-              </span>
+        {/* ══ 🆕 GAME SWITCHER ══ */}
+        <div style={{ display: "flex", background: "#1f2937", borderRadius: 14, padding: 4, margin: "18px 0 0" }}>
+          {[{ id: "freefire", label: "🔥 Free Fire", color: "#f97316" }, { id: "ludo", label: "🎲 Ludo", color: "#7c3aed" }].map((g) => (
+            <button key={g.id} onClick={() => setActiveGame(g.id)}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 11, border: "none", background: activeGame === g.id ? g.color : "transparent", color: activeGame === g.id ? "#fff" : "#9ca3af", fontWeight: 800, fontSize: 14, cursor: "pointer", transition: "all 0.2s", boxShadow: activeGame === g.id ? `0 4px 12px ${g.color}55` : "none" }}>
+              {g.label}
             </button>
-          </div>
+          ))}
         </div>
 
-        {/* Category Grid with Badge */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          {categories.map((cat) => {
-            const count = getMatchCount(cat.key);
-            return (
-              <div
-                key={cat.key}
-                onClick={() => {
-                  setSelectedCategory(cat.key);
-                  setScreen("category");
-                }}
-                className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5"
-              >
-                <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                
-                <div className="absolute bottom-3 left-3 right-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-white font-extrabold text-sm tracking-wide uppercase">
-                      {cat.title}
-                    </p>
-                    {count > 0 && (
-                      <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                        {count} Matches
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-orange-400 text-[10px] font-medium mt-0.5">
-                    Enter Battle Arena →
-                  </p>
-                </div>
+        {/* ── Free Fire Section ── */}
+        {activeGame === "freefire" && (
+          <>
+            <div className="flex items-center justify-between mt-6 px-1">
+              <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">Free Fire <span className="text-orange-500">Arena</span></h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">LIVE NOW</span>
+                <button
+                  onClick={async () => {
+                    setRefreshing(true);
+                    try { const res = await fetch(`${API_BASE}/matches`); const data = await res.json(); let s = []; if (Array.isArray(data)) s = data; else if (Array.isArray(data?.matches)) s = data.matches; else if (Array.isArray(data?.data)) s = data.data; setMatches(s); }
+                    catch (e) { console.error(e); } finally { setTimeout(() => setRefreshing(false), 800); }
+                  }}
+                  disabled={refreshing}
+                  className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
+                >
+                  <span className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}>🔄</span>
+                </button>
               </div>
-            );
-          })}
-        </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              {categories.map((cat) => {
+                const count = getMatchCount(cat.key);
+                return (
+                  <div key={cat.key} onClick={() => { setSelectedCategory(cat.key); setScreen("category"); }} className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5">
+                    <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-white font-extrabold text-sm tracking-wide uppercase">{cat.title}</p>
+                        {count > 0 && <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{count} Matches</span>}
+                      </div>
+                      <p className="text-orange-400 text-[10px] font-medium mt-0.5">Enter Battle Arena →</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ── Ludo Section ── */}
+        {activeGame === "ludo" && <div className="mt-4"><LudoTournamentSection /></div>}
       </div>
 
       <BottomMenu tab={tab} setTab={setTab} />
