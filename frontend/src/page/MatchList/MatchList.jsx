@@ -1,8 +1,9 @@
- import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import MatchCard from "../MatchCard/MatchCard";
 import BottomMenu from "../../Component/BottomMenu/BottomMenu";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
 const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
   const [matches, setMatches] = useState([]);
@@ -11,52 +12,55 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchMatches = useCallback(async (isManual = false) => {
-    if (isManual) setRefreshing(true);
-    setError(null);
+  const fetchMatches = useCallback(
+    async (isManual = false) => {
+      if (isManual) setRefreshing(true);
+      setError(null);
 
-    try {
-      const res = await fetch(`${API_BASE}/matches`);
+      try {
+        const res = await fetch(`${API_BASE}/matches`);
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+
+        let allMatches = [];
+        if (Array.isArray(data)) {
+          allMatches = data;
+        } else if (Array.isArray(data?.data)) {
+          allMatches = data.data;
+        } else if (Array.isArray(data?.matches)) {
+          allMatches = data.matches;
+        } else {
+          throw new Error("Invalid data format received");
+        }
+
+        let filteredMatches = allMatches;
+        if (category) {
+          filteredMatches = allMatches.filter((m) => {
+            const matchCat = (m.category || "").toLowerCase().trim();
+            const filterCat = category.toLowerCase().trim();
+            return matchCat === filterCat;
+          });
+        }
+
+        filteredMatches = filteredMatches.filter(
+          (m) => m.status !== "completed" && m.status !== "cancelled",
+        );
+
+        setMatches(filteredMatches);
+        setLastUpdated(new Date());
+      } catch (err) {
+        setError(err.message || "Failed to load matches");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      const data = await res.json();
-
-      let allMatches = [];
-      if (Array.isArray(data)) {
-        allMatches = data;
-      } else if (Array.isArray(data?.data)) {
-        allMatches = data.data;
-      } else if (Array.isArray(data?.matches)) {
-        allMatches = data.matches;
-      } else {
-        throw new Error("Invalid data format received");
-      }
-
-      let filteredMatches = allMatches;
-      if (category) {
-        filteredMatches = allMatches.filter((m) => {
-          const matchCat  = (m.category || "").toLowerCase().trim();
-          const filterCat = category.toLowerCase().trim();
-          return matchCat === filterCat;
-        });
-      }
-
-      filteredMatches = filteredMatches.filter(
-        (m) => m.status !== "completed" && m.status !== "cancelled"
-      );
-
-      setMatches(filteredMatches);
-      setLastUpdated(new Date());
-    } catch (err) {
-      setError(err.message || "Failed to load matches");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [category]);
+    },
+    [category],
+  );
 
   useEffect(() => {
     fetchMatches();
@@ -72,8 +76,8 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
       prev.map((m) =>
         m._id === matchId
           ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
-          : m
-      )
+          : m,
+      ),
     );
     if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
   };
@@ -91,7 +95,9 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
           </button>
           <div>
             <h2 className="font-bold uppercase text-gray-800">{title}</h2>
-            <p className="text-xs text-gray-500">Category: {category || "All"}</p>
+            <p className="text-xs text-gray-500">
+              Category: {category || "All"}
+            </p>
           </div>
         </div>
 
@@ -109,34 +115,30 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         </button>
       </div>
 
- 
+      {/* COUNT + LAST UPDATED BAR */}
+      <div className="px-4 py-3 bg-white border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Total Matches:</span>
+          <span className="bg-orange-100 text-orange-600 text-sm font-bold px-3 py-1 rounded-2xl">
+            {matches.length}
+          </span>
+        </div>
 
-     {/* COUNT + LAST UPDATED BAR */}
-{/* <div className="px-4 py-3 bg-white border-b flex items-center justify-between">
-  <div className="flex items-center gap-2">
-    <span className="text-sm text-gray-600">Total Matches:</span>
-    <span className="bg-orange-100 text-orange-600 text-sm font-bold px-3 py-1 rounded-2xl">
-      {matches.length}
-    </span>
-  </div>
-
-  {lastUpdated && (
-    <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-      <span className="text-green-500">●</span>
-      Updated: 
-      <span className="font-medium text-gray-500">
-        {lastUpdated.toLocaleTimeString("en-BD", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </span>
-    </div>
-  )}
-</div> */}
+        {lastUpdated && (
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+            <span className="text-green-500">●</span>
+            Updated:
+            <span className="font-medium text-gray-500">
+              {lastUpdated.toLocaleTimeString("en-BD", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Auto refresh indicator */}
-
-
 
       <div className="px-3 py-2 bg-green-50 border-b border-green-100">
         <div className="flex items-center gap-1.5">
@@ -150,7 +152,9 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
       {/* ERROR STATE */}
       {error && (
         <div className="m-3 bg-red-50 border-2 border-red-200 rounded-xl p-4">
-          <p className="text-red-700 font-bold text-sm mb-2">⚠️ Error Loading Matches</p>
+          <p className="text-red-700 font-bold text-sm mb-2">
+            ⚠️ Error Loading Matches
+          </p>
           <p className="text-red-600 text-xs mb-3 font-mono">{error}</p>
           <button
             onClick={() => fetchMatches(true)}
@@ -169,18 +173,15 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
           <p className="text-xs text-gray-400">Please wait</p>
         </div>
       ) : !error ? (
-
-
-
-
         /* MATCH LIST */
-
 
         <div className="p-3 space-y-3">
           {matches.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
               <p className="text-5xl mb-3">🎮</p>
-              <p className="text-gray-700 font-bold text-lg">No Match Available</p>
+              <p className="text-gray-700 font-bold text-lg">
+                No Match Available
+              </p>
               <p className="text-gray-400 text-sm mt-2">
                 {category
                   ? `No ${category.replace(/_/g, " ")} matches found`
@@ -199,7 +200,6 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
               <MatchCard
                 key={match._id || match.id}
                 match={match}
-                totalMatches={matches.length}
                 onJoinSuccess={(newBalance) =>
                   handleJoinSuccess(match._id || match.id, newBalance)
                 }
