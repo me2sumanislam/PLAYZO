@@ -12,7 +12,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const Match = require("./models/Match");
- const ludoTournamentRoutes = require("./routes/ludoTournamentRoutes");
+ const ludoMatchRoutes = require("./routes/ludoMatchRoutes");
 const app = express();
 
 app.use(helmet());
