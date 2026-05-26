@@ -127,29 +127,27 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               display: "flex", 
               justifyContent: "space-between", 
               alignItems: "flex-start", 
-              gap: 8,
-              flexWrap: "wrap" 
+              gap: 8 
             }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#111", lineHeight: 1.3, flex: 1 }}>
                 {match.title} | {match.device || "Mobile"} | Regular
               </div>
               
+              {/* Badge - Mobile Optimized */}
               <div style={{
                 background: "linear-gradient(135deg, #FF6B00, #FF8A00)",
                 color: "#fff",
-                fontSize: "12.5px",
+                fontSize: "12px",
                 fontWeight: "700",
-                padding: "4px 12px",
+                padding: "3px 10px",
                 borderRadius: "9999px",
-                minWidth: "65px",
-                height: "28px",
+                minWidth: "58px",
+                height: "25px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 2px 6px rgba(255,107,0,0.4)",
                 whiteSpace: "nowrap",
                 flexShrink: 0,
-                marginTop: "2px",
               }}>
                 {(totalMatches || 2)} Matches
               </div>
