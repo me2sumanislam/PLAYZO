@@ -194,11 +194,11 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
               </button>
             </div>
           ) : (
-            matches.map((match) => (
+          matches.map((match) => (
               <MatchCard
                 key={match._id || match.id}
                 match={match}
-                totalMatches={matches.length}     {/* ← এইটা add করা হয়েছে */}
+                totalMatches={matches.length}   // Total matches count for badge
                 onJoinSuccess={(newBalance) =>
                   handleJoinSuccess(match._id || match.id, newBalance)
                 }
