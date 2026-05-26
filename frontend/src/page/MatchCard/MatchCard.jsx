@@ -119,18 +119,46 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
         marginBottom: 16,
         position: "relative",
       }}>
- 
 
-        {/* TOP */}
-        <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
+        {/* TOP - Badge Added */}
+        <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px", alignItems: "flex-start" }}>
           <img
             src={match.image || "/image/img-1.jpg"} alt=""
             style={{ width: 80, height: 60, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
           />
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>
-              {match.title} | {match.device || "Mobile"} | Regular
+          <div style={{ flex: 1 }}>
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "flex-start", 
+              gap: 8,
+              flexWrap: "wrap" 
+            }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111", lineHeight: 1.3, flex: 1 }}>
+                {match.title} | {match.device || "Mobile"} | Regular
+              </div>
+              
+              {/* Badge Added Here */}
+              <div style={{
+                background: "linear-gradient(135deg, #FF6B00, #FF8A00)",
+                color: "#fff",
+                fontSize: "13px",
+                fontWeight: "700",
+                padding: "5px 14px",
+                borderRadius: "9999px",
+                minWidth: "70px",
+                height: "30px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 3px 8px rgba(255,107,0,0.35)",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}>
+                {(totalMatches || 2)} Matches
+              </div>
             </div>
+
             <div style={{ fontSize: 12, color: "#e53935", marginTop: 4, fontWeight: 500 }}>
               {formatTime(match.startTime)}
             </div>
@@ -347,6 +375,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
       )}
 
       {/* ══════════════════════════════
+          {/* ══════════════════════════════
           PRIZE MODAL
       ══════════════════════════════ */}
       {showPrizeModal && (
@@ -527,5 +556,15 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
     </>
   );
 };
+
+      {/* [Tomar purano Prize Modal & Room Modal code yekhane paste koro] */}
+
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(40px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+      `}</style>
+    
 
 export default MatchCard;
