@@ -11,18 +11,18 @@ const [loading, setLoading] = useState(true);
 const [openCategory, setOpenCategory] = useState(null);
 
 const fetchMatches = useCallback(async () => {
-try {
-const res = await fetch(`${API_BASE}/matches`);
-const data = await res.json();
+setLoading(true);
 
-```
+
+try {
+  const res = await fetch(`${API_BASE}/matches`);
+  const data = await res.json();
+
   let allMatches = [];
 
-  if (Array.isArray(data)) {
-    allMatches = data;
-  } else if (Array.isArray(data?.data)) {
-    allMatches = data.data;
-  }
+  if (Array.isArray(data)) allMatches = data;
+  else if (Array.isArray(data?.data)) allMatches = data.data;
+  else if (Array.isArray(data?.matches)) allMatches = data.matches;
 
   allMatches = allMatches.filter(
     (m) => m.status !== "completed" && m.status !== "cancelled"
@@ -34,7 +34,7 @@ const data = await res.json();
 } finally {
   setLoading(false);
 }
-```
+
 
 }, []);
 
@@ -42,20 +42,22 @@ useEffect(() => {
 fetchMatches();
 }, [fetchMatches]);
 
-// GROUP MATCHES BY CATEGORY
-const groupedMatches = matches.reduce((acc, match) => {
-const cat = match.category || "Other";
+useEffect(() => {
+const interval = setInterval(() => {
+fetchMatches();
+}, 10000);
 
-```
-if (!acc[cat]) {
-  acc[cat] = [];
-}
 
-acc[cat].push(match);
+return () => clearInterval(interval);
 
+
+}, [fetchMatches]);
+
+const grouped = matches.reduce((acc, m) => {
+const cat = m.category || "Other";
+if (!acc[cat]) acc[cat] = [];
+acc[cat].push(m);
 return acc;
-```
-
 }, {});
 
 const handleJoinSuccess = (matchId, newBalance) => {
@@ -67,101 +69,84 @@ m._id === matchId
 )
 );
 
-```
-if (onJoinSuccess) {
-  onJoinSuccess(matchId, newBalance);
-}
-```
+
+if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
+
 
 };
 
 return ( <div className="bg-gray-100 min-h-screen pb-24">
 
-```
+
   {/* HEADER */}
-  <div className="bg-white p-4 flex items-center gap-3 shadow sticky top-0 z-10">
-    <button
-      onClick={onBack}
-      className="text-2xl font-bold text-gray-700"
-    >
-      ←
-    </button>
+  <div className="bg-white p-4 flex items-center justify-between shadow sticky top-0 z-10">
+    <div className="flex items-center gap-3">
+      <button
+        onClick={onBack}
+        className="text-2xl font-bold"
+      >
+        ←
+      </button>
 
-    <div>
-      <h2 className="font-bold text-gray-800">
-        🎮 Match Categories
-      </h2>
-
-      <p className="text-xs text-gray-500">
-        Total Categories: {Object.keys(groupedMatches).length}
-      </p>
+      <div>
+        <h2 className="font-bold">Match Categories</h2>
+        <p className="text-xs text-gray-500">
+          Total: {Object.keys(grouped).length}
+        </p>
+      </div>
     </div>
   </div>
 
+  {/* CONTENT */}
   {loading ? (
-    <div className="flex justify-center items-center py-20">
+    <div className="flex justify-center py-20">
       <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   ) : (
     <div className="p-3 space-y-4">
 
-      {Object.entries(groupedMatches).map(([category, categoryMatches]) => {
-        const isOpen = openCategory === category;
+      {Object.entries(grouped).map(([cat, list]) => {
+        const open = openCategory === cat;
 
         return (
-          <div
-            key={category}
-            className="bg-white rounded-2xl shadow-sm overflow-hidden"
-          >
+          <div key={cat} className="bg-white rounded-xl overflow-hidden">
 
-            {/* CATEGORY CARD */}
+            {/* CATEGORY */}
             <div
               onClick={() =>
-                setOpenCategory(isOpen ? null : category)
+                setOpenCategory(open ? null : cat)
               }
-              className="p-4 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all"
+              className="p-4 flex justify-between items-center cursor-pointer"
             >
-
               <div>
-                <h3 className="font-bold text-gray-800 uppercase">
-                  {category.replace(/_/g, " ")}
+                <h3 className="font-bold uppercase">
+                  {cat}
                 </h3>
-
-                <p className="text-xs text-gray-500 mt-1">
-                  Click to view matches
+                <p className="text-xs text-gray-500">
+                  Click to open matches
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-
-                {/* MATCH COUNT BADGE */}
-                <div className="bg-orange-500 text-white text-sm font-bold px-3 py-1 rounded-full">
-                  {categoryMatches.length}
-                </div>
-
-                <div className="text-xl">
-                  {isOpen ? "▲" : "▼"}
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                  {list.length}
+                </span>
+                <span>{open ? "▲" : "▼"}</span>
               </div>
             </div>
 
-            {/* MATCHES */}
-            {isOpen && (
-              <div className="p-3 bg-gray-50 border-t space-y-3">
-
-                {categoryMatches.map((match) => (
+            {/* MATCH LIST */}
+            {open && (
+              <div className="p-3 bg-gray-50 space-y-3">
+                {list.map((match) => (
                   <MatchCard
-                    key={match._id || match.id}
+                    key={match._id}
                     match={match}
                     onJoinSuccess={(newBalance) =>
-                      handleJoinSuccess(
-                        match._id || match.id,
-                        newBalance
-                      )
+                      handleJoinSuccess(match._id, newBalance)
                     }
                   />
                 ))}
-
               </div>
             )}
           </div>
