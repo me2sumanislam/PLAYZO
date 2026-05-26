@@ -15,7 +15,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
   const [joinSuccess, setJoinSuccess] = useState(false);
   const [mySlot, setMySlot]           = useState(null);
 
-  // ── countdown ──
   useEffect(() => {
     const timer = setInterval(() => {
       const now      = new Date().getTime();
@@ -38,7 +37,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
     return () => clearInterval(timer);
   }, [match.startTime]);
 
-  // ── user এর আগের slot check ──
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const uid  = user._id || user.id;
@@ -64,7 +62,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
     }).replace(",", " at");
   };
 
-  // ── JOIN ──
   const handleJoin = async () => {
     if (!inGameName.trim()) return;
     setJoinLoading(true);
@@ -108,7 +105,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
     }
   };
 
-  // ────────────────────────────────────────
   return (
     <>
       <div style={{
@@ -138,22 +134,22 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 {match.title} | {match.device || "Mobile"} | Regular
               </div>
               
-              {/* Badge */}
               <div style={{
                 background: "linear-gradient(135deg, #FF6B00, #FF8A00)",
                 color: "#fff",
-                fontSize: "13px",
+                fontSize: "12.5px",
                 fontWeight: "700",
-                padding: "5px 14px",
+                padding: "4px 12px",
                 borderRadius: "9999px",
-                minWidth: "70px",
-                height: "30px",
+                minWidth: "65px",
+                height: "28px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 3px 8px rgba(255,107,0,0.35)",
+                boxShadow: "0 2px 6px rgba(255,107,0,0.4)",
                 whiteSpace: "nowrap",
                 flexShrink: 0,
+                marginTop: "2px",
               }}>
                 {(totalMatches || 2)} Matches
               </div>
@@ -294,7 +290,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               width: "100%", maxWidth: 360, overflow: "hidden",
               animation: "slideUp 0.25s ease",
             }}>
-            {/* Header */}
             <div style={{
               background: "linear-gradient(135deg, #22c55e, #16a34a)",
               padding: "18px 20px",
@@ -313,7 +308,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 }}>✕</button>
             </div>
 
-            {/* Body */}
             <div style={{ padding: "20px" }}>
               <div style={{
                 background: "#fef3c7", border: "1px solid #fde68a",
@@ -379,17 +373,31 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
             zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center",
           }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 450, paddingBottom: 32, animation: "slideUp 0.25s ease" }}>
-            {/* Prize Modal Content - Tomar code same ache */}
-            <div style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", borderRadius: "20px 20px 0 0", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: "20px 20px 0 0",
+              width: "100%", maxWidth: 450, paddingBottom: 32,
+              animation: "slideUp 0.25s ease",
+            }}>
+            <div style={{
+              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              borderRadius: "20px 20px 0 0", padding: "18px 20px",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
               <div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 17 }}>🏆 Prize Pool</div>
                 <div style={{ color: "#fef3c7", fontSize: 12, marginTop: 2 }}>{match.title}</div>
               </div>
-              <button onClick={() => setShowPrizeModal(false)} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#fff", fontSize: 16, cursor: "pointer" }}>✕</button>
+              <button
+                onClick={() => setShowPrizeModal(false)}
+                style={{
+                  background: "rgba(255,255,255,0.25)", border: "none",
+                  borderRadius: "50%", width: 32, height: 32,
+                  color: "#fff", fontSize: 16, cursor: "pointer",
+                }}>✕</button>
             </div>
             <div style={{ padding: "16px 20px 0" }}>
-              {/* Prize list map - Tomar purano code */}
               {[
                 { rank: "🥇", label: "1st Place", value: match.prizes?.first  || match.winPrize || 0, bg: "#fef9c3", border: "#fde68a", color: "#92400e" },
                 { rank: "🥈", label: "2nd Place", value: match.prizes?.second || 0, bg: "#f1f5f9", border: "#e2e8f0", color: "#475569" },
@@ -398,7 +406,11 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 { rank: "🔫", label: "Per Kill",  value: match.perKill || 0, bg: "#fef2f2", border: "#fecaca", color: "#dc2626" },
                 { rank: "🎟", label: "Entry Fee", value: match.entryFee || 0, bg: "#f0fdf4", border: "#bbf7d0", color: "#16a34a" },
               ].map((p, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: p.bg, border: `1px solid ${p.border}`, borderRadius: 12, padding: "12px 16px", marginBottom: 8 }}>
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  background: p.bg, border: `1px solid ${p.border}`,
+                  borderRadius: 12, padding: "12px 16px", marginBottom: 8,
+                }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 20 }}>{p.rank}</span>
                     <span style={{ fontSize: 14, fontWeight: 600, color: p.color }}>{p.label}</span>
@@ -413,20 +425,45 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
 
       {/* ROOM DETAILS MODAL */}
       {showRoomModal && (
-        <div onClick={() => setShowRoomModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 450, paddingBottom: 32, animation: "slideUp 0.25s ease" }}>
-            {/* Room Modal Content */}
-            <div style={{ background: "linear-gradient(135deg, #1e40af, #3b82f6)", borderRadius: "20px 20px 0 0", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          onClick={() => setShowRoomModal(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+            zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center",
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: "20px 20px 0 0",
+              width: "100%", maxWidth: 450, paddingBottom: 32,
+              animation: "slideUp 0.25s ease",
+            }}>
+            <div style={{
+              background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+              borderRadius: "20px 20px 0 0", padding: "18px 20px",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
               <div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 17 }}>🔑 Room Details</div>
                 <div style={{ color: "#bfdbfe", fontSize: 12, marginTop: 2 }}>{match.title}</div>
               </div>
-              <button onClick={() => setShowRoomModal(false)} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#fff", fontSize: 16, cursor: "pointer" }}>✕</button>
+              <button
+                onClick={() => setShowRoomModal(false)}
+                style={{
+                  background: "rgba(255,255,255,0.25)", border: "none",
+                  borderRadius: "50%", width: 32, height: 32,
+                  color: "#fff", fontSize: 16, cursor: "pointer",
+                }}>✕</button>
             </div>
+
             <div style={{ padding: "20px 20px 0" }}>
-              {/* Room content - Tomar purano code */}
               {mySlot && (
-                <div style={{ background: "linear-gradient(135deg, #ecfdf5, #d1fae5)", border: "2px solid #22c55e", borderRadius: 14, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{
+                  background: "linear-gradient(135deg, #ecfdf5, #d1fae5)",
+                  border: "2px solid #22c55e", borderRadius: 14,
+                  padding: "14px 18px", marginBottom: 14,
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
                   <div>
                     <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>আপনার Slot Number</div>
                     <div style={{ fontSize: 28, fontWeight: 900, color: "#15803d" }}>#{mySlot}</div>
@@ -434,7 +471,62 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                   <span style={{ fontSize: 40 }}>🎮</span>
                 </div>
               )}
-              {/* ... baki room content ... */}
+
+              {match.isRoomOpen ? (
+                <>
+                  {[
+                    { label: "Room ID", value: match.roomId || "—", icon: "🏠" },
+                    { label: "Password", value: match.roomPassword || "—", icon: "🔒" },
+                  ].map((item, i) => (
+                    <div key={i} style={{
+                      background: "#f0f9ff", border: "1px solid #bae6fd",
+                      borderRadius: 14, padding: "14px 18px", marginBottom: 10,
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: "#0369a1", fontWeight: 600, marginBottom: 4 }}>
+                          {item.icon} {item.label}
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#0c4a6e", letterSpacing: 1 }}>
+                          {item.value}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigator.clipboard?.writeText(item.value)}
+                        style={{
+                          background: "#0369a1", border: "none", borderRadius: 8,
+                          color: "#fff", fontSize: 11, fontWeight: 600,
+                          padding: "6px 12px", cursor: "pointer",
+                        }}>
+                        Copy
+                      </button>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div style={{
+                  background: "#f8fafc", border: "1px dashed #cbd5e1",
+                  borderRadius: 14, padding: "24px", textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>⏳</div>
+                  <div style={{ color: "#64748b", fontWeight: 600, fontSize: 14 }}>
+                    Room details এখনো দেওয়া হয়নি
+                  </div>
+                  <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 4 }}>
+                    Match শুরুর আগে admin দেবে
+                  </div>
+                </div>
+              )}
+
+              {!mySlot && (
+                <div style={{
+                  background: "#fffbeb", border: "1px solid #fde68a",
+                  borderRadius: 10, padding: "10px 14px", marginTop: 4,
+                  color: "#92400e", fontSize: 12, textAlign: "center",
+                }}>
+                  ⚠️ Match join করলে আপনার Slot Number এখানে দেখাবে
+                </div>
+              )}
             </div>
           </div>
         </div>
