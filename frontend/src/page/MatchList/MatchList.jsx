@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+ import React, { useState, useEffect, useCallback } from "react";
 import MatchCard from "../MatchCard/MatchCard";
 import BottomMenu from "../../Component/BottomMenu/BottomMenu";
 
@@ -139,7 +139,6 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
       </div>
 
       {/* Auto refresh indicator */}
-
       <div className="px-3 py-2 bg-green-50 border-b border-green-100">
         <div className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -174,7 +173,6 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
         </div>
       ) : !error ? (
         /* MATCH LIST */
-
         <div className="p-3 space-y-3">
           {matches.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
@@ -200,6 +198,7 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
               <MatchCard
                 key={match._id || match.id}
                 match={match}
+                totalMatches={matches.length}     {/* ← এইটা add করা হয়েছে */}
                 onJoinSuccess={(newBalance) =>
                   handleJoinSuccess(match._id || match.id, newBalance)
                 }
