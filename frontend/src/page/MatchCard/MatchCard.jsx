@@ -133,7 +133,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 {match.title} | {match.device || "Mobile"} | Regular
               </div>
               
-              {/* Badge - Mobile Optimized */}
+              {/* COUNT BADGE - Mobile Friendly */}
               <div style={{
                 background: "linear-gradient(135deg, #FF6B00, #FF8A00)",
                 color: "#fff",
@@ -272,6 +272,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
         </div>
       </div>
 
+      
       {/* JOIN MODAL */}
       {showJoinModal && (
         <div
@@ -538,6 +539,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
       `}</style>
     </>
   );
+    
+  
 };
 
 export default MatchCard;
