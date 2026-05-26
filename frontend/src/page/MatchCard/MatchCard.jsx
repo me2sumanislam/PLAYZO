@@ -133,23 +133,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 {match.title} | {match.device || "Mobile"} | Regular
               </div>
               
-              {/* COUNT BADGE - Mobile Friendly */}
-              <div style={{
-                background: "linear-gradient(135deg, #FF6B00, #FF8A00)",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: "700",
-                padding: "3px 10px",
-                borderRadius: "9999px",
-                minWidth: "58px",
-                height: "25px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}>
-                {(totalMatches || 2)} Matches
+           
+          
               </div>
             </div>
 
@@ -270,7 +255,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
             : <span>⏰ STARTS IN — <span style={{ fontSize: 16 }}>{timeLeft}</span></span>
           }
         </div>
-      </div>
+      
 
       
       {/* JOIN MODAL */}
