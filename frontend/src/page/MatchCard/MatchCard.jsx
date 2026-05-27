@@ -1,6 +1,6 @@
- import React, { useEffect, useState } from "react";
+ import React, { useState, useEffect } from "react";
 
-const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
+const API = import.meta.env.VITE_API_URL?.replace("/api", "") || "https://playzo-vn8e.onrender.com";
 
 const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
   const [timeLeft, setTimeLeft]             = useState("");
@@ -15,6 +15,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
   const [joinSuccess, setJoinSuccess] = useState(false);
   const [mySlot, setMySlot]           = useState(null);
 
+  // ── countdown ──
   useEffect(() => {
     const timer = setInterval(() => {
       const now      = new Date().getTime();
@@ -29,14 +30,16 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
       const h = Math.floor(distance / (1000 * 60 * 60));
       const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((distance % (1000 * 60)) / 1000);
-      setTimeLeft(h > 0
-        ? `${h}h ${m}m:${String(s).padStart(2, "0")}s`
-        : `${m}m:${String(s).padStart(2, "0")}s`
+      setTimeLeft(
+        h > 0
+          ? `${h}h ${m}m:${String(s).padStart(2, "0")}s`
+          : `${m}m:${String(s).padStart(2, "0")}s`
       );
     }, 1000);
     return () => clearInterval(timer);
   }, [match.startTime]);
 
+  // ── user এর আগের slot check ──
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const uid  = user._id || user.id;
@@ -56,12 +59,24 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
 
   const formatTime = (t) => {
     if (!t) return "";
-    return new Date(t).toLocaleString("en-BD", {
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hour12: true,
-    }).replace(",", " at");
+    return new Date(t)
+      .toLocaleString("en-BD", {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: true,
+      })
+      .replace(",", " at");
   };
 
+  // ── entry type display ──
+  const getEntryType = () => {
+    const cat = (match.category || "").toLowerCase();
+    if (cat.includes("solo")) return "Solo";
+    if (cat.includes("duo"))  return "Duo";
+    if (cat.includes("squad") || cat.includes("4")) return "Squad";
+    return match.category || "Solo";
+  };
+
+  // ── JOIN ──
   const handleJoin = async () => {
     if (!inGameName.trim()) return;
     setJoinLoading(true);
@@ -105,92 +120,134 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
     }
   };
 
+  // ────────────────────────────────────────
   return (
     <>
+      {/* ══════════════════════════════
+          CARD — CARD2 DESIGN
+      ══════════════════════════════ */}
       <div style={{
         background: "#fff",
         borderRadius: 16,
         boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-        overflow: "visible",
+        overflow: "hidden",
         marginBottom: 16,
         position: "relative",
       }}>
 
-        {/* TOP SECTION WITH BADGE */}
-        <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px", alignItems: "flex-start" }}>
+        {/* GREEN PULSE BADGE */}
+        {totalMatches > 0 && (
+          <div style={{
+            position: "absolute",
+            top: -8, right: -8,
+            background: "#22c55e",
+            color: "white",
+            fontSize: "14px",
+            fontWeight: "700",
+            minWidth: "28px",
+            height: "28px",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 0 3px rgba(34,197,94,0.3)",
+            zIndex: 10,
+            animation: "pulse 2s infinite",
+          }}>
+            {totalMatches}
+          </div>
+        )}
+
+        {/* ── TOP: IMAGE + TITLE + DATE ── */}
+        <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
           <img
-            src={match.image || "/image/img-1.jpg"} alt=""
+            src={match.image || "/image/img-1.jpg"}
+            alt=""
             style={{ width: 80, height: 60, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
           />
-          <div style={{ flex: 1 }}>
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between", 
-              alignItems: "flex-start", 
-              gap: 8 
-            }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#111", lineHeight: 1.3, flex: 1 }}>
-                {match.title} | {match.device || "Mobile"} | Regular
-              </div>
-              
-           
-          
-              </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>
+              {match.title}
             </div>
-
             <div style={{ fontSize: 12, color: "#e53935", marginTop: 4, fontWeight: 500 }}>
               {formatTime(match.startTime)}
             </div>
           </div>
         </div>
 
-        {/* STATS */}
+        {/* ── STATS GRID: 3 col × 2 row ── */}
         <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-          padding: "0 14px", rowGap: 14, marginBottom: 14,
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          padding: "0 14px",
+          rowGap: 14,
+          marginBottom: 14,
         }}>
           {[
-            { label: "WIN PRIZE", value: `${match.winPrize} TK` },
-            { label: "ENTRY TYPE", value: match.category?.toUpperCase() },
-            { label: "ENTRY FEE", value: `${match.entryFee} TK` },
-            { label: "PER KILL",  value: `${match.perKill || 0} TK` },
-            { label: "MAP",       value: match.map || "Bermuda" },
-            { label: "VERSION",   value: (match.device || "MOBILE").toUpperCase() },
+            { label: "WIN PRIZE",  value: `${match.winPrize || 0} TK` },
+            { label: "ENTRY TYPE", value: getEntryType() },
+            { label: "ENTRY FEE",  value: `${match.entryFee || 0} TK` },
+            { label: "PER KILL",   value: `${match.perKill || 0} TK` },
+            { label: "MAP",        value: match.map || "Bermuda" },
+            { label: "VERSION",    value: (match.device || "MOBILE").toUpperCase() },
           ].map((s, i) => (
-            <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
-              <div style={{ fontSize: 10, color: "#888", fontWeight: 600, letterSpacing: 0.5 }}>{s.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#111", marginTop: 2 }}>{s.value}</div>
+            <div
+              key={i}
+              style={{
+                textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right",
+              }}
+            >
+              <div style={{ fontSize: 10, color: "#888", fontWeight: 600, letterSpacing: 0.5 }}>
+                {s.label}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#111", marginTop: 2 }}>
+                {s.value}
+              </div>
             </div>
           ))}
         </div>
 
-        {/* PROGRESS + JOIN */}
+        {/* ── PROGRESS BAR + JOIN/FULL BUTTON ── */}
         <div style={{ padding: "0 14px 10px", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ height: 10, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
               <div style={{
-                height: "100%", width: `${fillPercent}%`,
-                background: "#22c55e", borderRadius: 20, transition: "width 0.5s",
+                height: "100%",
+                width: `${fillPercent}%`,
+                background: "#22c55e",
+                borderRadius: 20,
+                transition: "width 0.5s",
               }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-              <span style={{ fontSize: 11, color: "#6b7280" }}>Only {spotsLeft} spots left</span>
+              <span style={{ fontSize: 11, color: "#6b7280" }}>Only {spotsLeft} spots are left</span>
               <span style={{ fontSize: 11, color: "#6b7280" }}>{joined}/{total}</span>
             </div>
           </div>
 
+          {/* JOIN / FULL / SLOT BUTTON */}
           {mySlot ? (
             <div style={{
-              padding: "7px 14px", background: "#f0fdf4",
-              border: "1.5px solid #22c55e", borderRadius: 8,
-              color: "#16a34a", fontWeight: 700, fontSize: 12, whiteSpace: "nowrap",
+              padding: "7px 14px",
+              background: "#f0fdf4",
+              border: "1.5px solid #22c55e",
+              borderRadius: 8,
+              color: "#16a34a",
+              fontWeight: 700,
+              fontSize: 12,
+              whiteSpace: "nowrap",
             }}>
               ✅ Slot #{mySlot}
             </div>
           ) : isFull ? (
             <div style={{
-              padding: "8px 16px", border: "1.5px solid #1e40af",
-              borderRadius: 8, color: "#1e40af", fontWeight: 700, fontSize: 13,
+              padding: "8px 16px",
+              border: "1.5px solid #1e40af",
+              borderRadius: 8,
+              color: "#1e40af",
+              fontWeight: 700,
+              fontSize: 13,
+              whiteSpace: "nowrap",
             }}>
               Match Full
             </div>
@@ -201,10 +258,14 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               style={{
                 padding: "8px 20px",
                 background: joinLoading ? "#86efac" : "#22c55e",
-                border: "none", borderRadius: 8, color: "#fff",
-                fontWeight: 700, fontSize: 13,
+                border: "none",
+                borderRadius: 8,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 13,
                 cursor: joinLoading ? "not-allowed" : "pointer",
-                minWidth: 70, transition: "background 0.2s",
+                minWidth: 70,
+                transition: "background 0.2s",
               }}>
               {joinLoading ? "..." : "Join"}
             </button>
@@ -223,55 +284,91 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
           </div>
         )}
 
-        {/* ROOM + PRIZE BUTTONS */}
+        {/* ── ROOM DETAILS + TOTAL PRIZE BUTTONS ── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "0 14px 14px" }}>
           <button
             onClick={() => setShowRoomModal(true)}
             style={{
-              padding: "10px 0", border: "1.5px solid #1e40af",
-              borderRadius: 10, background: "#fff", color: "#1e40af",
-              fontWeight: 600, fontSize: 12, cursor: "pointer",
+              padding: "10px 0",
+              border: "1.5px solid #1e40af",
+              borderRadius: 10,
+              background: "#fff",
+              color: "#1e40af",
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
             }}>
-            🔑 Room Details
+            🔑 Room Details <span style={{ fontSize: 11 }}>▾</span>
           </button>
           <button
             onClick={() => setShowPrizeModal(true)}
             style={{
-              padding: "10px 0", border: "1.5px solid #f59e0b",
-              borderRadius: 10, background: "#fff", color: "#b45309",
-              fontWeight: 600, fontSize: 12, cursor: "pointer",
+              padding: "10px 0",
+              border: "1.5px solid #1e40af",
+              borderRadius: 10,
+              background: "#fff",
+              color: "#1e40af",
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
             }}>
-            🏆 Prize Details
+            🏆 Total Prize Details <span style={{ fontSize: 11 }}>▾</span>
           </button>
         </div>
 
-        {/* FOOTER */}
+        {/* ── FOOTER: STARTS IN / ROOM READY ── */}
         <div style={{
-          background: "#16a34a", padding: "12px",
-          textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14,
+          background: "#16a34a",
+          padding: "12px",
+          textAlign: "center",
+          color: "#fff",
+          fontWeight: 700,
+          fontSize: 14,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
         }}>
-          {isStarted
-            ? <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
-            : <span>⏰ STARTS IN — <span style={{ fontSize: 16 }}>{timeLeft}</span></span>
-          }
+          {isStarted ? (
+            <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
+          ) : (
+            <>
+              <span style={{ fontSize: 15 }}>⏰</span>
+              <span>STARTS IN — <span style={{ fontSize: 16, fontWeight: 800 }}>{timeLeft}</span></span>
+            </>
+          )}
         </div>
-      
+      </div>
 
-      
-      {/* JOIN MODAL */}
+      {/* ══════════════════════════════
+          JOIN MODAL
+      ══════════════════════════════ */}
       {showJoinModal && (
         <div
           onClick={() => setShowJoinModal(false)}
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-            zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 1000,
+            display: "flex", alignItems: "center", justifyContent: "center",
             padding: "0 20px",
           }}>
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff", borderRadius: 20,
-              width: "100%", maxWidth: 360, overflow: "hidden",
+              background: "#fff",
+              borderRadius: 20,
+              width: "100%",
+              maxWidth: 360,
+              overflow: "hidden",
               animation: "slideUp 0.25s ease",
             }}>
             <div style={{
@@ -315,8 +412,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                   fontSize: 14, outline: "none", boxSizing: "border-box",
                   marginBottom: 16,
                 }}
-                onFocus={(e) => e.target.style.borderColor = "#22c55e"}
-                onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                onFocus={(e) => (e.target.style.borderColor = "#22c55e")}
+                onBlur={(e)  => (e.target.style.borderColor = "#e5e7eb")}
                 onKeyDown={(e) => e.key === "Enter" && inGameName.trim() && handleJoin()}
               />
 
@@ -349,24 +446,31 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
         </div>
       )}
 
-      {/* PRIZE MODAL */}
+      {/* ══════════════════════════════
+          PRIZE MODAL
+      ══════════════════════════════ */}
       {showPrizeModal && (
         <div
           onClick={() => setShowPrizeModal(false)}
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-            zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center",
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 1000,
+            display: "flex", alignItems: "flex-end", justifyContent: "center",
           }}>
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff", borderRadius: "20px 20px 0 0",
-              width: "100%", maxWidth: 450, paddingBottom: 32,
+              background: "#fff",
+              borderRadius: "20px 20px 0 0",
+              width: "100%", maxWidth: 450,
+              paddingBottom: 32,
               animation: "slideUp 0.25s ease",
             }}>
             <div style={{
               background: "linear-gradient(135deg, #f59e0b, #d97706)",
-              borderRadius: "20px 20px 0 0", padding: "18px 20px",
+              borderRadius: "20px 20px 0 0",
+              padding: "18px 20px",
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
               <div>
@@ -387,8 +491,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 { rank: "🥈", label: "2nd Place", value: match.prizes?.second || 0, bg: "#f1f5f9", border: "#e2e8f0", color: "#475569" },
                 { rank: "🥉", label: "3rd Place", value: match.prizes?.third  || 0, bg: "#fff7ed", border: "#fed7aa", color: "#9a3412" },
                 { rank: "4️⃣", label: "4th Place", value: match.prizes?.fourth || 0, bg: "#f8fafc", border: "#e2e8f0", color: "#64748b" },
-                { rank: "🔫", label: "Per Kill",  value: match.perKill || 0, bg: "#fef2f2", border: "#fecaca", color: "#dc2626" },
-                { rank: "🎟", label: "Entry Fee", value: match.entryFee || 0, bg: "#f0fdf4", border: "#bbf7d0", color: "#16a34a" },
+                { rank: "🔫", label: "Per Kill",  value: match.perKill  || 0,       bg: "#fef2f2", border: "#fecaca", color: "#dc2626" },
+                { rank: "🎟", label: "Entry Fee", value: match.entryFee || 0,       bg: "#f0fdf4", border: "#bbf7d0", color: "#16a34a" },
               ].map((p, i) => (
                 <div key={i} style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -407,24 +511,31 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
         </div>
       )}
 
-      {/* ROOM DETAILS MODAL */}
+      {/* ══════════════════════════════
+          ROOM DETAILS MODAL
+      ══════════════════════════════ */}
       {showRoomModal && (
         <div
           onClick={() => setShowRoomModal(false)}
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-            zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center",
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 1000,
+            display: "flex", alignItems: "flex-end", justifyContent: "center",
           }}>
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#fff", borderRadius: "20px 20px 0 0",
-              width: "100%", maxWidth: 450, paddingBottom: 32,
+              background: "#fff",
+              borderRadius: "20px 20px 0 0",
+              width: "100%", maxWidth: 450,
+              paddingBottom: 32,
               animation: "slideUp 0.25s ease",
             }}>
             <div style={{
               background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-              borderRadius: "20px 20px 0 0", padding: "18px 20px",
+              borderRadius: "20px 20px 0 0",
+              padding: "18px 20px",
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
               <div>
@@ -444,8 +555,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               {mySlot && (
                 <div style={{
                   background: "linear-gradient(135deg, #ecfdf5, #d1fae5)",
-                  border: "2px solid #22c55e", borderRadius: 14,
-                  padding: "14px 18px", marginBottom: 14,
+                  border: "2px solid #22c55e",
+                  borderRadius: 14, padding: "14px 18px", marginBottom: 14,
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                 }}>
                   <div>
@@ -459,8 +570,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               {match.isRoomOpen ? (
                 <>
                   {[
-                    { label: "Room ID", value: match.roomId || "—", icon: "🏠" },
-                    { label: "Password", value: match.roomPassword || "—", icon: "🔒" },
+                    { label: "Room ID",   value: match.roomId       || "—", icon: "🏠" },
+                    { label: "Password",  value: match.roomPassword || "—", icon: "🔒" },
                   ].map((item, i) => (
                     <div key={i} style={{
                       background: "#f0f9ff", border: "1px solid #bae6fd",
@@ -517,6 +628,11 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
       )}
 
       <style>{`
+        @keyframes pulse {
+          0%   { box-shadow: 0 0 0 0   rgba(34,197,94,0.4); }
+          70%  { box-shadow: 0 0 0 10px rgba(34,197,94,0);   }
+          100% { box-shadow: 0 0 0 0   rgba(34,197,94,0);   }
+        }
         @keyframes slideUp {
           from { transform: translateY(40px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
@@ -524,8 +640,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
       `}</style>
     </>
   );
-    
-  
 };
 
 export default MatchCard;
