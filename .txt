@@ -4288,8 +4288,7 @@ export default AppRouter;
 //appCore .jsx end 
 
 //AppDeashboard .jsx start 
-
- // components/AppDashboard/AppDashboard.jsx
+  // components/AppDashboard/AppDashboard.jsx
 import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import NotificationBell from "../NotificationBell/NotificationBell";
@@ -5147,8 +5146,8 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
- 
-  // --- CATEGORY SCREEN ---
+
+  // --- CATEGORY SCREEN — সরাসরি MatchList দেখাবে ---
 if (screen === "category") {
   return (
     <div className="mx-auto min-h-screen bg-white">
@@ -5156,19 +5155,16 @@ if (screen === "category") {
         category={selectedCategory}
         title={categories.find(c => c.key === selectedCategory)?.title || selectedCategory}
         onBack={() => {
-          setScreen("home");           // ✅ শুধু back button এ কাজ করবে
-          setSelectedCategory("");      // ✅ category reset
+          setScreen("home");
+          setSelectedCategory("");
         }}
         onJoinSuccess={(matchId, newBalance) => {
           const user = JSON.parse(localStorage.getItem("user") || "{}");
-          localStorage.setItem(
-            "user",
-            JSON.stringify({ ...user, balance: newBalance })
-          );
+          localStorage.setItem("user", JSON.stringify({ ...user, balance: newBalance }));
         }}
-        // ✅ নিচের দুইটা prop pass করুন যাতে BottomMenu কাজ করে
         tab={tab}
         setTab={setTab}
+        hideCategories={true}
       />
     </div>
   );
@@ -5294,9 +5290,18 @@ if (screen === "category") {
                       {cat.title}
                     </p>
                     {count > 0 && (
-                      <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                        {count} Matches
-                      </span>
+                      <div style={{
+                        background: "rgba(34,211,238,0.15)",
+                        border: "1px solid #22d3ee",
+                        borderRadius: 6,
+                        padding: "2px 7px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}>
+                        <span style={{ color: "#22d3ee", fontSize: 11, fontWeight: 700 }}>{count}</span>
+                        <span style={{ color: "#22d3ee", fontSize: 9 }}>live</span>
+                      </div>
                     )}
                   </div>
                   <p className="text-orange-400 text-[10px] font-medium mt-0.5">
@@ -5315,6 +5320,7 @@ if (screen === "category") {
 };
 
 export default AppDashboard;
+ 
 
 //AppDeashboard .jsx end
 
@@ -9776,24 +9782,23 @@ export default Leaderboard;
 //Leaderboard.jsx end 
 
 //MatchCard.jsx start 
- import React, { useEffect, useState } from "react";
+   import React, { useState, useEffect } from "react";
 
-const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
+const API = import.meta.env.VITE_API_URL?.replace("/api", "") || "https://playzo-vn8e.onrender.com";
 
 const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
-  const [timeLeft, setTimeLeft]             = useState("");
-  const [isStarted, setIsStarted]           = useState(false);
-  const [showPrizeModal, setShowPrizeModal] = useState(false);
-  const [showRoomModal, setShowRoomModal]   = useState(false);
-  const [showJoinModal, setShowJoinModal]   = useState(false);
-  const [inGameName, setInGameName]         = useState("");
+  const [timeLeft, setTimeLeft]           = useState("");
+  const [isStarted, setIsStarted]         = useState(false);
+  const [showRoom, setShowRoom]           = useState(false);
+  const [showPrize, setShowPrize]         = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [inGameName, setInGameName]       = useState("");
+  const [joinLoading, setJoinLoading]     = useState(false);
+  const [joinError, setJoinError]         = useState("");
+  const [joinSuccess, setJoinSuccess]     = useState(false);
+  const [mySlot, setMySlot]               = useState(null);
 
-  const [joinLoading, setJoinLoading] = useState(false);
-  const [joinError, setJoinError]     = useState("");
-  const [joinSuccess, setJoinSuccess] = useState(false);
-  const [mySlot, setMySlot]           = useState(null);
-
-  // ── countdown ──
+  // countdown
   useEffect(() => {
     const timer = setInterval(() => {
       const now      = new Date().getTime();
@@ -9808,15 +9813,16 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
       const h = Math.floor(distance / (1000 * 60 * 60));
       const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((distance % (1000 * 60)) / 1000);
-      setTimeLeft(h > 0
-        ? `${h}h ${m}m:${String(s).padStart(2, "0")}s`
-        : `${m}m:${String(s).padStart(2, "0")}s`
+      setTimeLeft(
+        h > 0
+          ? `${h}h ${m}m:${String(s).padStart(2, "0")}s`
+          : `${m}m:${String(s).padStart(2, "0")}s`
       );
     }, 1000);
     return () => clearInterval(timer);
   }, [match.startTime]);
 
-  // ── user এর আগের slot check ──
+  // slot check
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const uid  = user._id || user.id;
@@ -9829,29 +9835,37 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
   }, [match.joinedUsers]);
 
   const joined      = Number(match.joinedPlayers || 0);
-  const total       = Number(match.totalPlayers || 0);
+  const total       = Number(match.totalPlayers  || 0);
   const spotsLeft   = total - joined;
   const isFull      = joined >= total && total > 0;
   const fillPercent = total > 0 ? (joined / total) * 100 : 0;
 
   const formatTime = (t) => {
     if (!t) return "";
-    return new Date(t).toLocaleString("en-BD", {
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hour12: true,
-    }).replace(",", " at");
+    return new Date(t)
+      .toLocaleString("en-BD", {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: true,
+      })
+      .replace(",", " at");
   };
 
-  // ── JOIN ──
+  const getEntryType = () => {
+    const cat = (match.category || "").toLowerCase();
+    if (cat.includes("solo"))  return "Solo";
+    if (cat.includes("duo"))   return "Duo";
+    if (cat.includes("squad") || cat.includes("4")) return "Squad";
+    return match.category || "Solo";
+  };
+
+  // JOIN
   const handleJoin = async () => {
     if (!inGameName.trim()) return;
     setJoinLoading(true);
     setJoinError("");
     setShowJoinModal(false);
-
     const user  = JSON.parse(localStorage.getItem("user") || "{}");
     const token = localStorage.getItem("token");
-
     try {
       const res  = await fetch(`${API}/api/matches/join/${match._id}`, {
         method: "PUT",
@@ -9859,13 +9873,9 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          userId: user._id || user.id,
-          inGameName: inGameName.trim(),
-        }),
+        body: JSON.stringify({ userId: user._id || user.id, inGameName: inGameName.trim() }),
       });
       const data = await res.json();
-
       if (data.success) {
         const updatedUser = { ...user, balance: data.newBalance };
         localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -9886,43 +9896,20 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
     }
   };
 
-  // ────────────────────────────────────────
   return (
     <>
       <div style={{
         background: "#fff",
         borderRadius: 16,
         boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-        overflow: "visible",
+        overflow: "hidden",
         marginBottom: 16,
         position: "relative",
       }}>
 
-        {/* ===== GREEN BADGE WITH PULSE ===== */}
-        {totalMatches > 0 && (
-          <div style={{
-            position: "absolute",
-            top: -8,
-            right: -8,
-            background: "#22c55e",
-            color: "white",
-            fontSize: "14px",
-            fontWeight: "700",
-            minWidth: "28px",
-            height: "28px",
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 0 0 3px rgba(34, 197, 94, 0.3)",
-            zIndex: 10,
-            animation: "pulse 2s infinite",
-          }}>
-            {totalMatches}
-          </div>
-        )}
 
-        {/* TOP */}
+
+        {/* TOP: IMAGE + TITLE + DATE */}
         <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
           <img
             src={match.image || "/image/img-1.jpg"} alt=""
@@ -9930,7 +9917,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
           />
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>
-              {match.title} | {match.device || "Mobile"} | Regular
+              {match.title}
             </div>
             <div style={{ fontSize: 12, color: "#e53935", marginTop: 4, fontWeight: 500 }}>
               {formatTime(match.startTime)}
@@ -9938,18 +9925,18 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
           </div>
         </div>
 
-        {/* STATS */}
+        {/* STATS GRID */}
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
           padding: "0 14px", rowGap: 14, marginBottom: 14,
         }}>
           {[
-            { label: "WIN PRIZE", value: `${match.winPrize} TK` },
-            { label: "ENTRY TYPE", value: match.category?.toUpperCase() },
-            { label: "ENTRY FEE", value: `${match.entryFee} TK` },
-            { label: "PER KILL",  value: `${match.perKill || 0} TK` },
-            { label: "MAP",       value: match.map || "Bermuda" },
-            { label: "VERSION",   value: (match.device || "MOBILE").toUpperCase() },
+            { label: "WIN PRIZE",  value: `${match.winPrize  || 0} TK` },
+            { label: "ENTRY TYPE", value: getEntryType() },
+            { label: "ENTRY FEE",  value: `${match.entryFee  || 0} TK` },
+            { label: "PER KILL",   value: `${match.perKill   || 0} TK` },
+            { label: "MAP",        value: match.map || "Bermuda" },
+            { label: "VERSION",    value: (match.device || "MOBILE").toUpperCase() },
           ].map((s, i) => (
             <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
               <div style={{ fontSize: 10, color: "#888", fontWeight: 600, letterSpacing: 0.5 }}>{s.label}</div>
@@ -9968,7 +9955,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-              <span style={{ fontSize: 11, color: "#6b7280" }}>Only {spotsLeft} spots left</span>
+              <span style={{ fontSize: 11, color: "#6b7280" }}>Only {spotsLeft} spots are left</span>
               <span style={{ fontSize: 11, color: "#6b7280" }}>{joined}/{total}</span>
             </div>
           </div>
@@ -9978,16 +9965,12 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               padding: "7px 14px", background: "#f0fdf4",
               border: "1.5px solid #22c55e", borderRadius: 8,
               color: "#16a34a", fontWeight: 700, fontSize: 12, whiteSpace: "nowrap",
-            }}>
-              ✅ Slot #{mySlot}
-            </div>
+            }}>✅ Slot #{mySlot}</div>
           ) : isFull ? (
             <div style={{
               padding: "8px 16px", border: "1.5px solid #1e40af",
-              borderRadius: 8, color: "#1e40af", fontWeight: 700, fontSize: 13,
-            }}>
-              Match Full
-            </div>
+              borderRadius: 8, color: "#1e40af", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap",
+            }}>Match Full</div>
           ) : (
             <button
               onClick={() => setShowJoinModal(true)}
@@ -9996,16 +9979,14 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 padding: "8px 20px",
                 background: joinLoading ? "#86efac" : "#22c55e",
                 border: "none", borderRadius: 8, color: "#fff",
-                fontWeight: 700, fontSize: 13,
+                fontWeight: 700, fontSize: 13, minWidth: 70,
                 cursor: joinLoading ? "not-allowed" : "pointer",
-                minWidth: 70, transition: "background 0.2s",
               }}>
               {joinLoading ? "..." : "Join"}
             </button>
           )}
         </div>
 
-        {/* ERROR / SUCCESS */}
         {joinError && (
           <div style={{ margin: "0 14px 10px", background: "#fee2e2", borderRadius: 8, padding: "8px 12px", color: "#dc2626", fontSize: 13 }}>
             ❌ {joinError}
@@ -10017,43 +9998,151 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
           </div>
         )}
 
-        {/* ROOM + PRIZE BUTTONS */}
+        {/* ACCORDION BUTTONS */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "0 14px 14px" }}>
           <button
-            onClick={() => setShowRoomModal(true)}
+            onClick={() => { setShowRoom(!showRoom); setShowPrize(false); }}
             style={{
-              padding: "10px 0", border: "1.5px solid #1e40af",
-              borderRadius: 10, background: "#fff", color: "#1e40af",
+              padding: "10px 0",
+              border: "1.5px solid #1e40af",
+              borderRadius: showRoom ? "10px 10px 0 0" : 10,
+              background: showRoom ? "#1e40af" : "#fff",
+              color: showRoom ? "#fff" : "#1e40af",
               fontWeight: 600, fontSize: 12, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+              transition: "all 0.2s",
             }}>
-            🔑 Room Details
+            🔑 Room Details {showRoom ? "▲" : "▼"}
           </button>
           <button
-            onClick={() => setShowPrizeModal(true)}
+            onClick={() => { setShowPrize(!showPrize); setShowRoom(false); }}
             style={{
-              padding: "10px 0", border: "1.5px solid #f59e0b",
-              borderRadius: 10, background: "#fff", color: "#b45309",
+              padding: "10px 0",
+              border: "1.5px solid #1e40af",
+              borderRadius: showPrize ? "10px 10px 0 0" : 10,
+              background: showPrize ? "#1e40af" : "#fff",
+              color: showPrize ? "#fff" : "#1e40af",
               fontWeight: 600, fontSize: 12, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+              transition: "all 0.2s",
             }}>
-            🏆 Prize Details
+            🏆 Total Prize Details {showPrize ? "▲" : "▼"}
           </button>
         </div>
+
+        {/* ROOM DETAILS ACCORDION CONTENT */}
+        {showRoom && (
+          <div style={{ padding: "0 14px 14px" }}>
+            {mySlot && (
+              <div style={{
+                background: "linear-gradient(135deg,#ecfdf5,#d1fae5)",
+                border: "2px solid #22c55e", borderRadius: 12,
+                padding: "12px 16px", marginBottom: 10,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>আপনার Slot Number</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, color: "#15803d" }}>#{mySlot}</div>
+                </div>
+                <span style={{ fontSize: 36 }}>🎮</span>
+              </div>
+            )}
+            {match.isRoomOpen ? (
+              <>
+                {[
+                  { label: "Room ID",  value: match.roomId       || "—", icon: "🏠" },
+                  { label: "Password", value: match.roomPassword || "—", icon: "🔒" },
+                ].map((item, i) => (
+                  <div key={i} style={{
+                    background: "#f0f9ff", border: "1px solid #bae6fd",
+                    borderRadius: 12, padding: "12px 16px", marginBottom: 8,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "#0369a1", fontWeight: 600, marginBottom: 3 }}>
+                        {item.icon} {item.label}
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#0c4a6e", letterSpacing: 1 }}>
+                        {item.value}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard?.writeText(item.value)}
+                      style={{
+                        background: "#0369a1", border: "none", borderRadius: 8,
+                        color: "#fff", fontSize: 11, fontWeight: 600,
+                        padding: "6px 12px", cursor: "pointer",
+                      }}>Copy</button>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div style={{
+                background: "#f8fafc", border: "1px dashed #cbd5e1",
+                borderRadius: 12, padding: "20px", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 32, marginBottom: 6 }}>⏳</div>
+                <div style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
+                  Room details এখনো দেওয়া হয়নি
+                </div>
+                <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 3 }}>
+                  Match শুরুর আগে admin দেবে
+                </div>
+              </div>
+            )}
+            {!mySlot && (
+              <div style={{
+                background: "#fffbeb", border: "1px solid #fde68a",
+                borderRadius: 10, padding: "8px 12px", marginTop: 4,
+                color: "#92400e", fontSize: 11, textAlign: "center",
+              }}>
+                ⚠️ Match join করলে আপনার Slot Number এখানে দেখাবে
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PRIZE DETAILS ACCORDION CONTENT */}
+        {showPrize && (
+          <div style={{ padding: "0 14px 14px" }}>
+            {[
+              { rank: "🥇", label: "1st Place", value: match.prizes?.first  || match.winPrize || 0, bg: "#fef9c3", border: "#fde68a", color: "#92400e" },
+              { rank: "🥈", label: "2nd Place", value: match.prizes?.second || 0, bg: "#f1f5f9", border: "#e2e8f0", color: "#475569" },
+              { rank: "🥉", label: "3rd Place", value: match.prizes?.third  || 0, bg: "#fff7ed", border: "#fed7aa", color: "#9a3412" },
+              { rank: "4️⃣", label: "4th Place", value: match.prizes?.fourth || 0, bg: "#f8fafc", border: "#e2e8f0", color: "#64748b" },
+              { rank: "🔫", label: "Per Kill",  value: match.perKill  || 0,       bg: "#fef2f2", border: "#fecaca", color: "#dc2626" },
+              { rank: "🎟", label: "Entry Fee", value: match.entryFee || 0,       bg: "#f0fdf4", border: "#bbf7d0", color: "#16a34a" },
+            ].map((p, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: p.bg, border: `1px solid ${p.border}`,
+                borderRadius: 12, padding: "10px 14px", marginBottom: 7,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{p.rank}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: p.color }}>{p.label}</span>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 800, color: p.color }}>৳{p.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* FOOTER */}
         <div style={{
           background: "#16a34a", padding: "12px",
           textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
         }}>
-          {isStarted
-            ? <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
-            : <span>⏰ STARTS IN — <span style={{ fontSize: 16 }}>{timeLeft}</span></span>
-          }
+          {isStarted ? (
+            <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
+          ) : (
+            <span>⏰ STARTS IN — <span style={{ fontSize: 16, fontWeight: 800 }}>{timeLeft}</span></span>
+          )}
         </div>
       </div>
 
-      {/* ══════════════════════════════
-          JOIN MODAL
-      ══════════════════════════════ */}
+      {/* JOIN MODAL */}
       {showJoinModal && (
         <div
           onClick={() => setShowJoinModal(false)}
@@ -10069,10 +10158,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               width: "100%", maxWidth: 360, overflow: "hidden",
               animation: "slideUp 0.25s ease",
             }}>
-
-            {/* Header */}
             <div style={{
-              background: "linear-gradient(135deg, #22c55e, #16a34a)",
+              background: "linear-gradient(135deg,#22c55e,#16a34a)",
               padding: "18px 20px",
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
@@ -10088,8 +10175,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                   color: "#fff", fontSize: 15, cursor: "pointer",
                 }}>✕</button>
             </div>
-
-            {/* Body */}
             <div style={{ padding: "20px" }}>
               <div style={{
                 background: "#fef3c7", border: "1px solid #fde68a",
@@ -10098,7 +10183,6 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
               }}>
                 ৳{match.entryFee} আপনার wallet থেকে কাটা হবে
               </div>
-
               <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
                 Free Fire Username
               </label>
@@ -10110,14 +10194,12 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                 style={{
                   width: "100%", padding: "12px 14px",
                   border: "1.5px solid #e5e7eb", borderRadius: 10,
-                  fontSize: 14, outline: "none", boxSizing: "border-box",
-                  marginBottom: 16,
+                  fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 16,
                 }}
-                onFocus={(e) => e.target.style.borderColor = "#22c55e"}
-                onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+                onFocus={(e) => (e.target.style.borderColor = "#22c55e")}
+                onBlur={(e)  => (e.target.style.borderColor = "#e5e7eb")}
                 onKeyDown={(e) => e.key === "Enter" && inGameName.trim() && handleJoin()}
               />
-
               <div style={{ display: "flex", gap: 10 }}>
                 <button
                   onClick={() => { setShowJoinModal(false); setInGameName(""); }}
@@ -10126,9 +10208,7 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                     border: "1.5px solid #e5e7eb", borderRadius: 10,
                     background: "#fff", color: "#374151",
                     fontWeight: 600, fontSize: 13, cursor: "pointer",
-                  }}>
-                  বাতিল
-                </button>
+                  }}>বাতিল</button>
                 <button
                   onClick={handleJoin}
                   disabled={!inGameName.trim()}
@@ -10138,181 +10218,8 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
                     border: "none", borderRadius: 10, color: "#fff",
                     fontWeight: 700, fontSize: 13,
                     cursor: inGameName.trim() ? "pointer" : "not-allowed",
-                  }}>
-                  ✅ Confirm Join
-                </button>
+                  }}>✅ Confirm Join</button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════
-          PRIZE MODAL
-      ══════════════════════════════ */}
-      {showPrizeModal && (
-        <div
-          onClick={() => setShowPrizeModal(false)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-            zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center",
-          }}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff", borderRadius: "20px 20px 0 0",
-              width: "100%", maxWidth: 450, paddingBottom: 32,
-              animation: "slideUp 0.25s ease",
-            }}>
-            <div style={{
-              background: "linear-gradient(135deg, #f59e0b, #d97706)",
-              borderRadius: "20px 20px 0 0", padding: "18px 20px",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-            }}>
-              <div>
-                <div style={{ color: "#fff", fontWeight: 800, fontSize: 17 }}>🏆 Prize Pool</div>
-                <div style={{ color: "#fef3c7", fontSize: 12, marginTop: 2 }}>{match.title}</div>
-              </div>
-              <button
-                onClick={() => setShowPrizeModal(false)}
-                style={{
-                  background: "rgba(255,255,255,0.25)", border: "none",
-                  borderRadius: "50%", width: 32, height: 32,
-                  color: "#fff", fontSize: 16, cursor: "pointer",
-                }}>✕</button>
-            </div>
-            <div style={{ padding: "16px 20px 0" }}>
-              {[
-                { rank: "🥇", label: "1st Place", value: match.prizes?.first  || match.winPrize || 0, bg: "#fef9c3", border: "#fde68a", color: "#92400e" },
-                { rank: "🥈", label: "2nd Place", value: match.prizes?.second || 0, bg: "#f1f5f9", border: "#e2e8f0", color: "#475569" },
-                { rank: "🥉", label: "3rd Place", value: match.prizes?.third  || 0, bg: "#fff7ed", border: "#fed7aa", color: "#9a3412" },
-                { rank: "4️⃣", label: "4th Place", value: match.prizes?.fourth || 0, bg: "#f8fafc", border: "#e2e8f0", color: "#64748b" },
-                { rank: "🔫", label: "Per Kill",  value: match.perKill || 0,         bg: "#fef2f2", border: "#fecaca", color: "#dc2626" },
-                { rank: "🎟", label: "Entry Fee", value: match.entryFee || 0,        bg: "#f0fdf4", border: "#bbf7d0", color: "#16a34a" },
-              ].map((p, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  background: p.bg, border: `1px solid ${p.border}`,
-                  borderRadius: 12, padding: "12px 16px", marginBottom: 8,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 20 }}>{p.rank}</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: p.color }}>{p.label}</span>
-                  </div>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: p.color }}>৳{p.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════
-          ROOM DETAILS MODAL
-      ══════════════════════════════ */}
-      {showRoomModal && (
-        <div
-          onClick={() => setShowRoomModal(false)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
-            zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center",
-          }}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff", borderRadius: "20px 20px 0 0",
-              width: "100%", maxWidth: 450, paddingBottom: 32,
-              animation: "slideUp 0.25s ease",
-            }}>
-            <div style={{
-              background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-              borderRadius: "20px 20px 0 0", padding: "18px 20px",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-            }}>
-              <div>
-                <div style={{ color: "#fff", fontWeight: 800, fontSize: 17 }}>🔑 Room Details</div>
-                <div style={{ color: "#bfdbfe", fontSize: 12, marginTop: 2 }}>{match.title}</div>
-              </div>
-              <button
-                onClick={() => setShowRoomModal(false)}
-                style={{
-                  background: "rgba(255,255,255,0.25)", border: "none",
-                  borderRadius: "50%", width: 32, height: 32,
-                  color: "#fff", fontSize: 16, cursor: "pointer",
-                }}>✕</button>
-            </div>
-
-            <div style={{ padding: "20px 20px 0" }}>
-              {mySlot && (
-                <div style={{
-                  background: "linear-gradient(135deg, #ecfdf5, #d1fae5)",
-                  border: "2px solid #22c55e", borderRadius: 14,
-                  padding: "14px 18px", marginBottom: 14,
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>আপনার Slot Number</div>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: "#15803d" }}>#{mySlot}</div>
-                  </div>
-                  <span style={{ fontSize: 40 }}>🎮</span>
-                </div>
-              )}
-
-              {match.isRoomOpen ? (
-                <>
-                  {[
-                    { label: "Room ID", value: match.roomId || "—", icon: "🏠" },
-                    { label: "Password", value: match.roomPassword || "—", icon: "🔒" },
-                  ].map((item, i) => (
-                    <div key={i} style={{
-                      background: "#f0f9ff", border: "1px solid #bae6fd",
-                      borderRadius: 14, padding: "14px 18px", marginBottom: 10,
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: "#0369a1", fontWeight: 600, marginBottom: 4 }}>
-                          {item.icon} {item.label}
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#0c4a6e", letterSpacing: 1 }}>
-                          {item.value}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => navigator.clipboard?.writeText(item.value)}
-                        style={{
-                          background: "#0369a1", border: "none", borderRadius: 8,
-                          color: "#fff", fontSize: 11, fontWeight: 600,
-                          padding: "6px 12px", cursor: "pointer",
-                        }}>
-                        Copy
-                      </button>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div style={{
-                  background: "#f8fafc", border: "1px dashed #cbd5e1",
-                  borderRadius: 14, padding: "24px", textAlign: "center",
-                }}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>⏳</div>
-                  <div style={{ color: "#64748b", fontWeight: 600, fontSize: 14 }}>
-                    Room details এখনো দেওয়া হয়নি
-                  </div>
-                  <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 4 }}>
-                    Match শুরুর আগে admin দেবে
-                  </div>
-                </div>
-              )}
-
-              {!mySlot && (
-                <div style={{
-                  background: "#fffbeb", border: "1px solid #fde68a",
-                  borderRadius: 10, padding: "10px 14px", marginTop: 4,
-                  color: "#92400e", fontSize: 12, textAlign: "center",
-                }}>
-                  ⚠️ Match join করলে আপনার Slot Number এখানে দেখাবে
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -10320,9 +10227,9 @@ const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
 
       <style>{`
         @keyframes pulse {
-          0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-          70%  { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+          0%   { box-shadow: 0 0 0 0    rgba(34,197,94,0.4); }
+          70%  { box-shadow: 0 0 0 10px rgba(34,197,94,0);   }
+          100% { box-shadow: 0 0 0 0    rgba(34,197,94,0);   }
         }
         @keyframes slideUp {
           from { transform: translateY(40px); opacity: 0; }
@@ -10420,74 +10327,88 @@ export default MatchJoin;
 //MatchJoin.jsx end 
 
 //MatchList.jsx start 
- import React, { useState, useEffect, useCallback } from "react";
+   import React, { useState, useEffect, useRef } from "react";
 import MatchCard from "../MatchCard/MatchCard";
 import BottomMenu from "../../Component/BottomMenu/BottomMenu";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
-const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
+// ✅ Pull-to-refresh — page change না করে শুধু data reload
+const PullToRefresh = ({ onRefresh, children }) => {
+  const startY = useRef(0);
+  const pulling = useRef(false);
+
+  const onTouchStart = (e) => {
+    startY.current = e.touches[0].clientY;
+    pulling.current = true;
+  };
+
+  const onTouchEnd = (e) => {
+    if (!pulling.current) return;
+    const diff = e.changedTouches[0].clientY - startY.current;
+    if (diff > 80) onRefresh(); // 80px নিচে টানলে refresh
+    pulling.current = false;
+  };
+
+  return (
+    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {children}
+    </div>
+  );
+};
+
+const MatchList = ({ category, title, onBack, onJoinSuccess, tab, setTab }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const isMounted = useRef(true);
 
-  const fetchMatches = useCallback(async (isManual = false) => {
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const fetchMatches = async (isManual = false) => {
     if (isManual) setRefreshing(true);
-    setError(null);
-
     try {
       const res = await fetch(`${API_BASE}/matches`);
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-
       const data = await res.json();
 
       let allMatches = [];
-      if (Array.isArray(data)) {
-        allMatches = data;
-      } else if (Array.isArray(data?.data)) {
-        allMatches = data.data;
-      } else if (Array.isArray(data?.matches)) {
-        allMatches = data.matches;
-      } else {
-        throw new Error("Invalid data format received");
-      }
+      if (Array.isArray(data)) allMatches = data;
+      else if (Array.isArray(data?.data)) allMatches = data.data;
+      else if (Array.isArray(data?.matches)) allMatches = data.matches;
 
-      let filteredMatches = allMatches;
       if (category) {
-        filteredMatches = allMatches.filter((m) => {
-          const matchCat  = (m.category || "").toLowerCase().trim();
-          const filterCat = category.toLowerCase().trim();
-          return matchCat === filterCat;
-        });
+        allMatches = allMatches.filter((m) =>
+          (m.category || "").toLowerCase().trim() === category.toLowerCase().trim()
+        );
       }
 
-      filteredMatches = filteredMatches.filter(
+      allMatches = allMatches.filter(
         (m) => m.status !== "completed" && m.status !== "cancelled"
       );
 
-      setMatches(filteredMatches);
-      setLastUpdated(new Date());
+      if (isMounted.current) {
+        setMatches(allMatches);
+        setLoading(false);
+        setRefreshing(false);
+      }
     } catch (err) {
-      setError(err.message || "Failed to load matches");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      console.log(err);
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [category]);
+  };
 
   useEffect(() => {
     fetchMatches();
-  }, [fetchMatches]);
-
-  useEffect(() => {
-    const interval = setInterval(() => fetchMatches(), 10 * 1000);
+    const interval = setInterval(() => fetchMatches(), 10000);
     return () => clearInterval(interval);
-  }, [fetchMatches]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleJoinSuccess = (matchId, newBalance) => {
     setMatches((prev) =>
@@ -10500,446 +10421,279 @@ const MatchList = ({ category, onBack, onJoinSuccess, title, tab, setTab }) => {
     if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
   };
 
+  const handleRefresh = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    fetchMatches(true); // ✅ শুধু data refresh, page change না
+  };
+
   return (
-    <div className="bg-gray-100 min-h-screen pb-24">
-      {/* HEADER */}
-      <div className="bg-white p-4 flex items-center justify-between shadow sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="text-2xl font-bold text-gray-700 active:scale-95 transition-all"
-          >
-            ←
-          </button>
-          <div>
-            <h2 className="font-bold uppercase text-gray-800">{title}</h2>
-            <p className="text-xs text-gray-500">Category: {category || "All"}</p>
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="bg-gray-100 min-h-screen pb-24" style={{ overscrollBehaviorY: "contain" }}>
+
+        {/* refreshing indicator */}
+        {refreshing && (
+          <div className="flex items-center justify-center py-2 bg-orange-50">
+            <span className="inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2" />
+            <span className="text-xs text-orange-500 font-bold">Updating...</span>
           </div>
-        </div>
-
-        <button
-          onClick={() => fetchMatches(true)}
-          disabled={refreshing}
-          className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 active:scale-95 transition-all disabled:opacity-50"
-        >
-          {refreshing ? (
-            <span className="inline-block w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <span>🔄</span>
-          )}
-          {refreshing ? "Updating..." : "Refresh"}
-        </button>
-      </div>
-
-      {/* COUNT + LAST UPDATED */}
-      <div className="px-3 py-2 flex items-center justify-between bg-white border-b">
-        <p className="text-sm text-gray-600">
-          Total: <b className="text-orange-500">{matches.length}</b> matches
-        </p>
-        {lastUpdated && (
-          <p className="text-[10px] text-gray-400">
-            {lastUpdated.toLocaleTimeString("en-BD", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </p>
         )}
-      </div>
 
-      {/* Auto refresh indicator */}
-      <div className="px-3 py-2 bg-green-50 border-b border-green-100">
-        <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-[10px] text-green-600 font-medium">
-            Auto refresh every 10 seconds
-          </span>
-        </div>
-      </div>
+        {/* HEADER */}
+        <div className="bg-white p-4 flex items-center justify-between shadow sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="text-2xl font-bold">←</button>
+            <div>
+              <h2 className="font-bold uppercase text-gray-800">
+                {title || category?.replace(/_/g, " ") || "Matches"}
+              </h2>
+              <p className="text-xs text-gray-500">Total: {matches.length} matches</p>
+            </div>
+          </div>
 
-      {/* ERROR STATE */}
-      {error && (
-        <div className="m-3 bg-red-50 border-2 border-red-200 rounded-xl p-4">
-          <p className="text-red-700 font-bold text-sm mb-2">⚠️ Error Loading Matches</p>
-          <p className="text-red-600 text-xs mb-3 font-mono">{error}</p>
+          {/* ✅ Refresh button — same page এ থাকবে */}
           <button
-            onClick={() => fetchMatches(true)}
-            className="w-full bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm active:scale-95 transition-all"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 active:scale-95 transition-all disabled:opacity-50"
           >
-            🔄 Try Again
+            <span className={refreshing ? "inline-block animate-spin" : ""}>🔄</span>
+            {refreshing ? "Updating..." : "Refresh"}
           </button>
         </div>
-      )}
 
-      {/* LOADING STATE */}
-      {loading && !error ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-600 font-bold">Loading matches...</p>
-          <p className="text-xs text-gray-400">Please wait</p>
-        </div>
-      ) : !error ? (
-        /* MATCH LIST */
-        <div className="p-3 space-y-3">
-          {matches.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
-              <p className="text-5xl mb-3">🎮</p>
-              <p className="text-gray-700 font-bold text-lg">No Match Available</p>
-              <p className="text-gray-400 text-sm mt-2">
-                {category
-                  ? `No ${category.replace(/_/g, " ")} matches found`
-                  : "No matches available"}
-              </p>
-              <p className="text-gray-300 text-xs mt-1">Check back later</p>
-              <button
-                onClick={() => fetchMatches(true)}
-                className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg text-sm font-bold active:scale-95 transition-all"
-              >
-                🔄 Refresh Now
-              </button>
-            </div>
-          ) : (
-            matches.map((match) => (
-              <MatchCard
-                key={match._id || match.id}
-                match={match}
-                totalMatches={matches.length}
-                onJoinSuccess={(newBalance) =>
-                  handleJoinSuccess(match._id || match.id, newBalance)
-                }
-              />
-            ))
-          )}
-        </div>
-      ) : null}
+        {/* CONTENT */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-600 font-bold">Loading matches...</p>
+          </div>
+        ) : (
+          <div className="p-3 space-y-3">
+            {matches.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+                <p className="text-5xl mb-3">🎮</p>
+                <p className="text-gray-700 font-bold text-lg">No Match Available</p>
+                <p className="text-gray-400 text-sm mt-2">
+                  {category
+                    ? `No ${category.replace(/_/g, " ")} matches found`
+                    : "No matches available"}
+                </p>
+                <p className="text-gray-300 text-xs mt-1">Check back later</p>
+                <button
+                  onClick={handleRefresh}
+                  className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg text-sm font-bold active:scale-95 transition-all"
+                >
+                  🔄 Refresh Now
+                </button>
+              </div>
+            ) : (
+              matches.map((match) => (
+                <MatchCard
+                  key={match._id}
+                  match={match}
+                  totalMatches={null} // ✅ green count badge সরানো হয়েছে
+                  onJoinSuccess={(newBalance) =>
+                    handleJoinSuccess(match._id, newBalance)
+                  }
+                />
+              ))
+            )}
+          </div>
+        )}
 
-      {/* Bottom Menu */}
-      {tab && setTab && <BottomMenu tab={tab} setTab={setTab} />}
-    </div>
+        {tab && setTab && <BottomMenu tab={tab} setTab={setTab} />}
+      </div>
+    </PullToRefresh>
   );
 };
+
+export default MatchList;
 
 export default MatchList;
 //MatchList.jsx end 
 
 //MyMatch.jsx stat 
- import React, { useState, useEffect, useCallback } from "react";
- 
- const API = "https://playzo-vn8e.onrender.com/api";
- 
- const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
- 
- // ── Countdown Timer ──
- const TimeLeft = ({ startTime }) => {
-   const [time, setTime] = useState("");
- 
-   useEffect(() => {
-     const calc = () => {
-       const diff = new Date(startTime).getTime() - Date.now();
-       if (diff <= 0) { setTime("শুরু হয়েছে"); return; }
-       const h = Math.floor(diff / 3600000);
-       const m = Math.floor((diff % 3600000) / 60000);
-       const s = Math.floor((diff % 60000) / 1000);
-       setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
-     };
-     calc();
-     const t = setInterval(calc, 1000);
-     return () => clearInterval(t);
-   }, [startTime]);
- 
-   return <span>{time}</span>;
- };
- 
- const MyMatch = () => {
-   const [matches, setMatches] = useState([]);
-   const [loading, setLoading] = useState(false);
-   const [openRoom, setOpenRoom] = useState({});
-   const [openPrize, setOpenPrize] = useState({});
- 
-   // user ID localStorage থেকে
-   const user = (() => {
-     try { return JSON.parse(localStorage.getItem("user") || "{}"); }
-     catch { return {}; }
-   })();
-   const userId = user?.id || user?._id;
- 
-   const load = useCallback(async () => {
-     if (!userId) return;
-     setLoading(true);
-     try {
-       // ✅ query parameter দিয়ে call — matchRoutes এর সাথে match করছে
-       const res = await fetch(`${API}/matches/my-matches?userId=${userId}`, {
-         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-       });
-       const d = await res.json();
-       setMatches(Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : []);
-     } catch {
-       setMatches([]);
-     }
-     setLoading(false);
-   }, [userId]);
- 
-   useEffect(() => { load(); }, [load]);
- 
-   // ── slot number বের করা ──
-   const getSlot = (match) => {
-     const entry = (match.joinedUsers || []).find(
-       (u) => u.userId?.toString() === userId?.toString()
-     );
-     return entry?.slotNumber || "—";
-   };
- 
-   const statusStyle = (s) => {
-     if (s === "live")      return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
-     if (s === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
-     return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
-   };
- 
-   if (!userId) {
-     return (
-       <div style={{ padding: 40, textAlign: "center" }}>
-         <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
-         <p style={{ color: "#9ca3af", fontSize: 14 }}>Login করুন</p>
-       </div>
-     );
-   }
- 
-   return (
-     <div style={{ background: "#f3f4f6", minHeight: "100vh", maxWidth: 450, margin: "0 auto", paddingBottom: 100 }}>
- 
-       {/* ── Header ── */}
-       <div style={{
-         background: "#fff", padding: "14px 16px",
-         display: "flex", alignItems: "center", justifyContent: "space-between",
-         borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, zIndex: 10,
-       }}>
-         <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>🎮 My Matches</div>
-         <button
-           onClick={load}
-           disabled={loading}
-           style={{
-             display: "flex", alignItems: "center", gap: 5,
-             padding: "6px 14px",
-             background: loading ? "#f3f4f6" : "#dbeafe",
-             border: "none", borderRadius: 20, fontSize: 12,
-             color: loading ? "#9ca3af" : "#1e40af",
-             cursor: loading ? "not-allowed" : "pointer",
-             fontWeight: 600,
-           }}>
-           <span style={{
-             display: "inline-block",
-             animation: loading ? "spin 1s linear infinite" : "none",
-           }}>🔄</span>
-           {loading ? "Loading..." : "Refresh"}
-         </button>
-       </div>
- 
-       <style>{`
-         @keyframes spin {
-           from { transform: rotate(0deg); }
-           to   { transform: rotate(360deg); }
-         }
-       `}</style>
- 
-       {/* ── Content ── */}
-       <div style={{ padding: "12px 12px 0" }}>
- 
-         {/* Loading */}
-         {loading && matches.length === 0 && (
-           <div style={{ textAlign: "center", padding: 40 }}>
-             <div style={{ fontSize: 32, animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</div>
-             <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 8 }}>Loading...</p>
-           </div>
-         )}
- 
-         {/* Empty State */}
-         {!loading && matches.length === 0 && (
-           <div style={{ textAlign: "center", padding: "60px 20px" }}>
-             <div style={{ fontSize: 52, marginBottom: 12 }}>🎮</div>
-             <div style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-               কোনো match join করা হয়নি
-             </div>
-             <div style={{ fontSize: 13, color: "#9ca3af" }}>
-               Match join করলে এখানে দেখা যাবে
-             </div>
-           </div>
-         )}
- 
-         {/* Match Cards */}
-         {matches.map((m) => {
-           const st = statusStyle(m.status);
-           const joined = Number(m.joinedPlayers || 0);
-           const total  = Number(m.totalPlayers || 0);
-           const fill   = total > 0 ? (joined / total) * 100 : 0;
-           const started = new Date(m.startTime).getTime() <= Date.now();
-           const slotNo  = getSlot(m);
- 
-           return (
-             <div key={m._id} style={{
-               background: "#fff", borderRadius: 16,
-               boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-               overflow: "hidden", marginBottom: 14,
-             }}>
- 
-               {/* ── Top: image + title ── */}
-               <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
-                 <img
-                   src={m.image || "/image/img-1.jpg"}
-                   alt=""
-                   style={{ width: 76, height: 58, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
-                   onError={(e) => { e.target.src = "/image/img-1.jpg"; }}
-                 />
-                 <div style={{ flex: 1 }}>
-                   <div style={{ fontSize: 14, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>
-                     {m.title} | {m.device || "Mobile"} | Regular
-                   </div>
-                   <div style={{ fontSize: 11, color: "#e53935", marginTop: 3, fontWeight: 500 }}>
-                     {m.startTime
-                       ? new Date(m.startTime).toLocaleString("en-BD", {
-                           day: "2-digit", month: "short", year: "numeric",
-                           hour: "2-digit", minute: "2-digit", hour12: true,
-                         })
-                       : "—"}
-                   </div>
-                   <div style={{ marginTop: 5, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                     <span style={{ background: st.bg, color: st.color, fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>
-                       {st.label}
-                     </span>
-                     {slotNo !== "—" && (
-                       <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>
-                         Slot #{slotNo}
-                       </span>
-                     )}
-                   </div>
-                 </div>
-               </div>
- 
-               {/* ── Stats Grid ── */}
-               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "0 14px", rowGap: 12, marginBottom: 12 }}>
-                 {[
-                   { label: "WIN PRIZE",  value: fmt(m.winPrize) },
-                   { label: "ENTRY TYPE", value: (m.category || "").toUpperCase() },
-                   { label: "ENTRY FEE",  value: fmt(m.entryFee) },
-                   { label: "PER KILL",   value: fmt(m.perKill || 0) },
-                   { label: "MAP",        value: m.map || "Bermuda" },
-                   { label: "VERSION",    value: (m.device || "MOBILE").toUpperCase() },
-                 ].map((s, i) => (
-                   <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
-                     <div style={{ fontSize: 9, color: "#888", fontWeight: 600, letterSpacing: 0.5 }}>{s.label}</div>
-                     <div style={{ fontSize: 14, fontWeight: 700, color: "#111", marginTop: 2 }}>{s.value}</div>
-                   </div>
-                 ))}
-               </div>
- 
-               {/* ── Progress Bar ── */}
-               <div style={{ padding: "0 14px 12px" }}>
-                 <div style={{ height: 8, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
-                   <div style={{ height: "100%", width: `${fill}%`, background: "#22c55e", borderRadius: 20, transition: "width 0.5s" }} />
-                 </div>
-                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                   <span style={{ fontSize: 10, color: "#6b7280" }}>Only {total - joined} spots left</span>
-                   <span style={{ fontSize: 10, color: "#6b7280" }}>{joined}/{total}</span>
-                 </div>
-               </div>
- 
-               {/* ── Room + Prize Buttons ── */}
-               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "0 14px 12px" }}>
- 
-                 {/* Room Details */}
-                 <div>
-                   <button
-                     onClick={() => setOpenRoom((p) => ({ ...p, [m._id]: !p[m._id] }))}
-                     style={{
-                       width: "100%", padding: "9px 0", border: "1.5px solid #1e40af",
-                       borderRadius: 8, background: "#fff", color: "#1e40af",
-                       fontWeight: 600, fontSize: 11, cursor: "pointer",
-                       display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                     }}>
-                     🔑 Room Details {openRoom[m._id] ? "▲" : "▼"}
-                   </button>
-                   {openRoom[m._id] && (
-                     <div style={{ marginTop: 6, background: "#f0f9ff", borderRadius: 8, padding: "10px 12px", border: "1px solid #bae6fd" }}>
-                       {m.isRoomOpen && m.roomId ? (
-                         <>
-                           <div style={{ fontSize: 12, color: "#0369a1", marginBottom: 4 }}>
-                             <b>Room ID:</b> {m.roomId}
-                           </div>
-                           <div style={{ fontSize: 12, color: "#0369a1" }}>
-                             <b>Password:</b> {m.roomPassword || "—"}
-                           </div>
-                         </>
-                       ) : (
-                         <div style={{ fontSize: 12, color: "#64748b", textAlign: "center" }}>
-                           ⏳ Room details not available yet
-                         </div>
-                       )}
-                     </div>
-                   )}
-                 </div>
- 
-                 {/* Prize Details */}
-                 <div>
-                   <button
-                     onClick={() => setOpenPrize((p) => ({ ...p, [m._id]: !p[m._id] }))}
-                     style={{
-                       width: "100%", padding: "9px 0", border: "1.5px solid #1e40af",
-                       borderRadius: 8, background: "#fff", color: "#1e40af",
-                       fontWeight: 600, fontSize: 11, cursor: "pointer",
-                       display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                     }}>
-                     🏆 Prize Details {openPrize[m._id] ? "▲" : "▼"}
-                   </button>
-                   {openPrize[m._id] && (
-                     <div style={{ marginTop: 6, background: "#fefce8", borderRadius: 8, padding: "10px 12px", border: "1px solid #fde68a" }}>
-                       {[
-                         { label: "🥇 1st Prize", value: m.prizes?.first  || m.winPrize || 0 },
-                         { label: "🥈 2nd Prize", value: m.prizes?.second || 0 },
-                         { label: "🥉 3rd Prize", value: m.prizes?.third  || 0 },
-                         { label: "4️⃣ 4th Prize", value: m.prizes?.fourth || 0 },
-                         { label: "🔫 Per Kill",  value: m.perKill || 0 },
-                         { label: "🎟 Entry Fee", value: m.entryFee || 0 },
-                       ].map((p, i) => (
-                         <div key={i} style={{
-                           display: "flex", justifyContent: "space-between",
-                           fontSize: 12, color: "#92400e",
-                           paddingBottom: 4, marginBottom: 4,
-                           borderBottom: i < 5 ? "1px solid #fde68a" : "none",
-                         }}>
-                           <span>{p.label}</span>
-                           <b>৳{p.value}</b>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                 </div>
- 
-               </div>
- 
-               {/* ── Footer: countdown or started ── */}
-               <div style={{
-                 background: m.status === "completed" ? "#374151" : "#16a34a",
-                 padding: "11px", textAlign: "center",
-                 color: "#fff", fontWeight: 700, fontSize: 13,
-               }}>
-                 {m.status === "completed" ? (
-                   <span>✅ Match শেষ হয়েছে</span>
-                 ) : started ? (
-                   <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
-                 ) : (
-                   <span>⏰ STARTS IN — <TimeLeft startTime={m.startTime} /></span>
-                 )}
-               </div>
- 
-             </div>
-           );
-         })}
- 
-       </div>
-     </div>
-   );
- };
- 
- export default MyMatch;
+  import React, { useState, useEffect, useRef } from "react";
+import MatchCard from "../MatchCard/MatchCard";
+import BottomMenu from "../../Component/BottomMenu/BottomMenu";
+
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+
+// ✅ Pull-to-refresh — page change না করে শুধু data reload
+const PullToRefresh = ({ onRefresh, children }) => {
+  const startY = useRef(0);
+  const pulling = useRef(false);
+
+  const onTouchStart = (e) => {
+    startY.current = e.touches[0].clientY;
+    pulling.current = true;
+  };
+
+  const onTouchEnd = (e) => {
+    if (!pulling.current) return;
+    const diff = e.changedTouches[0].clientY - startY.current;
+    if (diff > 80) onRefresh(); // 80px নিচে টানলে refresh
+    pulling.current = false;
+  };
+
+  return (
+    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {children}
+    </div>
+  );
+};
+
+const MatchList = ({ category, title, onBack, onJoinSuccess, tab, setTab }) => {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const fetchMatches = async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    try {
+      const res = await fetch(`${API_BASE}/matches`);
+      const data = await res.json();
+
+      let allMatches = [];
+      if (Array.isArray(data)) allMatches = data;
+      else if (Array.isArray(data?.data)) allMatches = data.data;
+      else if (Array.isArray(data?.matches)) allMatches = data.matches;
+
+      if (category) {
+        allMatches = allMatches.filter((m) =>
+          (m.category || "").toLowerCase().trim() === category.toLowerCase().trim()
+        );
+      }
+
+      allMatches = allMatches.filter(
+        (m) => m.status !== "completed" && m.status !== "cancelled"
+      );
+
+      if (isMounted.current) {
+        setMatches(allMatches);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    } catch (err) {
+      console.log(err);
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchMatches();
+    const interval = setInterval(() => fetchMatches(), 10000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleJoinSuccess = (matchId, newBalance) => {
+    setMatches((prev) =>
+      prev.map((m) =>
+        m._id === matchId
+          ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
+          : m
+      )
+    );
+    if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
+  };
+
+  const handleRefresh = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    fetchMatches(true); // ✅ শুধু data refresh, page change না
+  };
+
+  return (
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="bg-gray-100 min-h-screen pb-24" style={{ overscrollBehaviorY: "contain" }}>
+
+        {/* refreshing indicator */}
+        {refreshing && (
+          <div className="flex items-center justify-center py-2 bg-orange-50">
+            <span className="inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2" />
+            <span className="text-xs text-orange-500 font-bold">Updating...</span>
+          </div>
+        )}
+
+        {/* HEADER */}
+        <div className="bg-white p-4 flex items-center justify-between shadow sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="text-2xl font-bold">←</button>
+            <div>
+              <h2 className="font-bold uppercase text-gray-800">
+                {title || category?.replace(/_/g, " ") || "Matches"}
+              </h2>
+              <p className="text-xs text-gray-500">Total: {matches.length} matches</p>
+            </div>
+          </div>
+
+          {/* ✅ Refresh button — same page এ থাকবে */}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 active:scale-95 transition-all disabled:opacity-50"
+          >
+            <span className={refreshing ? "inline-block animate-spin" : ""}>🔄</span>
+            {refreshing ? "Updating..." : "Refresh"}
+          </button>
+        </div>
+
+        {/* CONTENT */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-600 font-bold">Loading matches...</p>
+          </div>
+        ) : (
+          <div className="p-3 space-y-3">
+            {matches.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+                <p className="text-5xl mb-3">🎮</p>
+                <p className="text-gray-700 font-bold text-lg">No Match Available</p>
+                <p className="text-gray-400 text-sm mt-2">
+                  {category
+                    ? `No ${category.replace(/_/g, " ")} matches found`
+                    : "No matches available"}
+                </p>
+                <p className="text-gray-300 text-xs mt-1">Check back later</p>
+                <button
+                  onClick={handleRefresh}
+                  className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg text-sm font-bold active:scale-95 transition-all"
+                >
+                  🔄 Refresh Now
+                </button>
+              </div>
+            ) : (
+              matches.map((match) => (
+                <MatchCard
+                  key={match._id}
+                  match={match}
+                  totalMatches={null} // ✅ green count badge সরানো হয়েছে
+                  onJoinSuccess={(newBalance) =>
+                    handleJoinSuccess(match._id, newBalance)
+                  }
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {tab && setTab && <BottomMenu tab={tab} setTab={setTab} />}
+      </div>
+    </PullToRefresh>
+  );
+};
+
+export default MatchList;
  
 //MyMatch.jsx end 
 
@@ -12081,7 +11835,7 @@ export const subscribeUserToPush = async () => {
 pushnotification.js end 
 
 app.jsx start 
- import React, { useState, useEffect } from "react";
+   import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./App.css";
 
@@ -12089,13 +11843,15 @@ import Footer from "./Component/Footer/Footer";
 import Hero from "./Component/HeroSection/HeroSection";
 import Navbar from "./Component/Navbar/Navbar";
 import HomeCard from "./page/HomeCard/HomeCard";
-
 import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
 import Referral from "./page/Referral/Referral";
 
 import { subscribeUserToPush } from "./utils/pushNotification";
+
+// ✅ PWA Install Version Key — প্রতিটি install-এ check হবে
+const PWA_INSTALL_KEY = "pwa_install_id";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -12124,6 +11880,72 @@ function App() {
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone;
 
+  // ✅ PWA Reinstall Detection — uninstall করে আবার install করলে logout হবে
+  useEffect(() => {
+    const checkPWAReinstall = () => {
+      // PWA standalone mode এ আছে কিনা check
+      const runningAsStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      if (!runningAsStandalone) return; // Browser-এ চললে skip
+
+      const savedInstallId = localStorage.getItem(PWA_INSTALL_KEY);
+
+      // sessionStorage PWA install session track করে
+      // PWA uninstall হলে sessionStorage clear হয়, localStorage নাও হতে পারে
+      const currentSessionId = sessionStorage.getItem(PWA_INSTALL_KEY);
+
+      if (!currentSessionId) {
+        // নতুন session = নতুন install
+        const newInstallId = Date.now().toString();
+        sessionStorage.setItem(PWA_INSTALL_KEY, newInstallId);
+
+        if (savedInstallId && savedInstallId !== newInstallId) {
+          // ✅ পুরনো install ID ছিল কিন্তু নতুন session — মানে reinstall হয়েছে
+          // সব auth data clear করো
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("isAdmin");
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminInfo");
+          localStorage.removeItem("user_balance");
+          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
+          setIsLoggedIn(false);
+        } else if (!savedInstallId) {
+          // ✅ প্রথমবার install
+          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
+        }
+      }
+    };
+
+    checkPWAReinstall();
+  }, []);
+
+  // ✅ Service Worker Message Listener — SW activate হলে logout
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const handleSWMessage = (event) => {
+      if (event.data?.type === "SW_ACTIVATED_CLEAR_AUTH") {
+        // ✅ Service Worker নতুনভাবে activate হয়েছে = reinstall
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("isAdmin");
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminInfo");
+        localStorage.removeItem("user_balance");
+        setIsLoggedIn(false);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleSWMessage);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleSWMessage);
+    };
+  }, []);
+
   useEffect(() => {
     if (isStandalone && location.pathname === "/") {
       navigate("/app");
@@ -12136,20 +11958,20 @@ function App() {
     }
   }, [isLoggedIn]);
 
-  // 🔴 PWA মোবাইলের হোম স্ক্রিন আইকনে নোটিফিকেশন ব্যাজ (Badge API) দেখানোর লজিক
-   // App.jsx - শুধু badge update useEffect টা replace করুন
-
-  // 🔴 PWA মোবাইলের হোম স্ক্রিন আইকনে নোটিফিকেশন ব্যাজ (Badge API) দেখানোর লজিক
+  // PWA Badge Logic
   useEffect(() => {
     const updateAppIconBadge = async () => {
       if (!("setAppBadge" in navigator) || !isLoggedIn) return;
-      
+
       try {
-        // ✅ FIX: সঠিক API endpoint ব্যবহার
-        const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
-        const res = await fetch(`${API_BASE}/notifications?isRead=false&limit=1`);
+        const API_BASE =
+          import.meta.env.VITE_API_URL ||
+          "https://playzo-vn8e.onrender.com/api";
+        const res = await fetch(
+          `${API_BASE}/notifications?isRead=false&limit=1`
+        );
         const data = await res.json();
-        
+
         const count = data.unreadCount || 0;
         if (count > 0) {
           await navigator.setAppBadge(count);
@@ -12163,7 +11985,6 @@ function App() {
 
     updateAppIconBadge();
 
-    // প্রতি ৩০ সেকেন্ড পর পর badge update
     const badgeInterval = setInterval(updateAppIconBadge, 30000);
 
     return () => {
@@ -12183,8 +12004,7 @@ function App() {
     localStorage.removeItem("adminInfo");
     localStorage.removeItem("user_balance");
     setIsLoggedIn(false);
-    
-    // ✅ FIX: Logout এ badge clear
+
     if ("clearAppBadge" in navigator) {
       navigator.clearAppBadge().catch(() => {});
     }
@@ -12225,7 +12045,7 @@ function App() {
       <Route
         path="/referral"
         element={
-          isLoggedIn ? ( // ← এখানে ভুল ট্যাগটি ঠিক করে ব্র্যাকেট `{}` দেওয়া হয়েছে
+          isLoggedIn ? (
             <Referral onBack={() => navigate("/app")} />
           ) : (
             <Auth onLoginSuccess={handleLoginSuccess} />
@@ -13010,7 +12830,237 @@ export default LudoTournamentManager;
 
 .............................ludotournamentmanagerstart............................................
 
+ import React, { useState, useEffect, useCallback } from "react";
 
+const API_LUDO = (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com").replace("/api", "");
+
+// Countdown Timer
+const LudoTimeLeft = ({ startTime }) => {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(startTime).getTime() - Date.now();
+      if (diff <= 0) {
+        setTime("শুরু হয়েছে");
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [startTime]);
+  return <span>{time}</span>;
+};
+
+// Ludo Card
+const LudoCard = ({ match, userId, onJoin, joining }) => {
+  const [showRoom, setShowRoom] = useState(false);
+  const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+  const joined = Number(match.joinedPlayers || 0);
+  const total = Number(match.totalSlots || match.totalPlayers || 4);
+  const fill = total > 0 ? (joined / total) * 100 : 0;
+
+  const isMine = (match.joinedUsers || []).some((u) =>
+    u.userId?.toString?.() === userId?.toString?.() || u.userId === userId
+  );
+
+  const isFull = joined >= total;
+  const canJoin = !isMine && !isFull && !["completed", "cancelled"].includes(match.status);
+
+  const mySlot = isMine
+    ? (match.joinedUsers || []).find((u) => u.userId?.toString?.() === userId?.toString?.() || u.userId === userId)?.slotNumber
+    : null;
+
+  return (
+    <div style={{
+      background: "#fff",
+      borderRadius: 18,
+      overflow: "hidden",
+      boxShadow: "0 3px 14px rgba(0,0,0,0.07)",
+      marginBottom: 14,
+      border: isMine ? "2px solid #10b981" : "1px solid #f3f4f6"
+    }}>
+      <div style={{ height: 4, background: "linear-gradient(90deg,#f59e0b,#ef4444,#8b5cf6,#10b981)" }} />
+
+      {match.image && (
+        <img src={match.image} alt="" style={{ width: "100%", height: 110, objectFit: "cover" }} onError={(e) => e.target.style.display = "none"} />
+      )}
+
+      <div style={{ padding: "12px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 4 }}>🎲 {match.title}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 800 }}>
+                {match.mode === "1v1" ? "⚔️ 1v1" : match.mode === "2v2" ? "👥 2v2" : "🎮 4 Player"}
+              </span>
+              <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 700 }}>
+                {match.status?.toUpperCase() || "UPCOMING"}
+              </span>
+              {isMine && <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 700 }}>✅ Joined #{mySlot}</span>}
+            </div>
+          </div>
+          <div style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)", borderRadius: 12, padding: "6px 12px", textAlign: "center", border: "1px solid #fcd34d" }}>
+            <div style={{ fontSize: 9, color: "#92400e", fontWeight: 700 }}>WIN</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#b45309" }}>{fmt(match.winPrize)}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: "#f9fafb", borderRadius: 10, padding: "10px 0", marginBottom: 10 }}>
+          {[
+            { label: "Entry", value: fmt(match.entryFee) },
+            { label: "Players", value: `${joined}/${total}` },
+            { label: "Map", value: match.map || "Classic" }
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#9ca3af" }}>{s.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {canJoin && (
+          <button
+            onClick={() => onJoin(match._id, match.entryFee, match.title)}
+            disabled={joining === match._id}
+            style={{
+              width: "100%",
+              background: joining === match._id ? "#9ca3af" : "linear-gradient(135deg,#f59e0b,#d97706)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              padding: "12px 0",
+              fontSize: 14,
+              fontWeight: 800,
+              marginTop: 8
+            }}
+          >
+            {joining === match._id ? "⏳ Joining..." : `Join — ${fmt(match.entryFee)}`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Main Component
+const LudoTournamentSection = () => {
+  const [activeMode, setActiveMode] = useState("all");
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [joining, setJoining] = useState(null);
+  const [toast, setToast] = useState({ text: "", type: "" });
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  const userId = user?.id || user?._id;
+  const token = localStorage.getItem("token");
+
+  const showToast = (text, type = "success") => {
+    setToast({ text, type });
+    setTimeout(() => setToast({ text: "", type: "" }), 3500);
+  };
+
+  const loadMatches = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q = activeMode !== "all" ? `?mode=${activeMode}` : "";
+      const res = await fetch(`${API_LUDO}/api/ludo-tournament${q}`);
+      const d = await res.json();
+      setMatches(Array.isArray(d?.data) ? d.data : []);
+    } catch (err) {
+      console.error(err);
+      setMatches([]);
+    }
+    setLoading(false);
+  }, [activeMode]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
+
+  const handleJoin = async (matchId, entryFee, matchTitle) => {
+    if (!userId) return showToast("আগে Login করুন", "error");
+    if (!window.confirm(`"${matchTitle}" তে Join করবেন? Entry: ৳${entryFee}`)) return;
+
+    setJoining(matchId);
+    try {
+      const res = await fetch(`${API_LUDO}/api/ludo-tournament/join/${matchId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        showToast(`✅ Join সফল!`);
+        loadMatches();
+      } else {
+        showToast(d.message || "Join হয়নি", "error");
+      }
+    } catch {
+      showToast("নেটওয়ার্ক সমস্যা", "error");
+    }
+    setJoining(null);
+  };
+
+  const filtered = activeMode === "all" ? matches : matches.filter(m => m.mode === activeMode);
+
+  return (
+    <div style={{ background: "#f3f4f6", minHeight: "100%", paddingBottom: 20 }}>
+      <div style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", padding: "18px 16px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ color: "#c4b5fd", fontSize: 11, fontWeight: 600 }}>TOURNAMENT</div>
+            <div style={{ color: "#fff", fontSize: 20, fontWeight: 900 }}>🎲 Ludo Arena</div>
+          </div>
+          <button onClick={loadMatches} disabled={loading} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", borderRadius: 20, padding: "6px 14px" }}>
+            {loading ? "⏳" : "🔄"}
+          </button>
+        </div>
+      </div>
+
+      {toast.text && (
+        <div style={{
+          margin: "12px",
+          padding: "12px",
+          borderRadius: 12,
+          background: toast.type === "error" ? "#fee2e2" : "#d1fae5",
+          color: toast.type === "error" ? "#991b1b" : "#065f46"
+        }}>
+          {toast.text}
+        </div>
+      )}
+
+      <div style={{ padding: "12px" }}>
+        {filtered.map((m) => (
+          <LudoCard
+            key={m._id}
+            match={m}
+            userId={userId}
+            onJoin={handleJoin}
+            joining={joining}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default LudoTournamentSection;
 
 
 
