@@ -1,1 +1,5 @@
- 
+ /* App.css বা index.css এ এই lines যোগ করুন */
+
+html, body {
+  overscroll-behavior-y: contain; /* ✅ browser pull-to-refresh বন্ধ */
+}
