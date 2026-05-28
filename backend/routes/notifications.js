@@ -29,13 +29,15 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-// ================= GET NOTIFICATIONS (Bell icon badge এর জন্য) =================
+// ================= GET NOTIFICATIONS =================
 router.get("/", async (req, res) => {
   try {
-    const { isRead, limit = 20 } = req.query;
+    const { isRead, limit = 20, category } = req.query;
+
     const filter = {};
     if (isRead === "false") filter.isRead = false;
-    if (isRead === "true") filter.isRead = true;
+    if (isRead === "true")  filter.isRead = true;
+    if (category)           filter.category = category; // freefire / ludo / general
 
     const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
@@ -54,7 +56,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ================= MARK AS READ =================
+// ================= MARK ALL AS READ =================
 router.patch("/read-all", async (req, res) => {
   try {
     await Notification.updateMany({ isRead: false }, { isRead: true });
@@ -64,39 +66,58 @@ router.patch("/read-all", async (req, res) => {
   }
 });
 
-// ================= SEND MATCH NOTIFICATION =================
-router.sendMatchNotification = async (match) => {
+// ================================================================
+// ✅ INTERNAL HELPER — match create হলে এই function call করো
+// Free Fire এর জন্য:  sendMatchNotification(match, "freefire")
+// Ludo এর জন্য:       sendMatchNotification(match, "ludo")
+// ================================================================
+router.sendMatchNotification = async (match, category = "general") => {
   try {
-    // ১. DB তে save করো
-    const unreadCount = await Notification.countDocuments({ isRead: false });
+    // ─── গেম অনুযায়ী title/icon/url ───────────────────────────
+    const isLudo     = category === "ludo";
+    const emoji      = isLudo ? "🎲" : "🎮";
+    const gameLabel  = isLudo ? "Ludo Match" : "Free Fire Match";
+    const url        = isLudo
+      ? `/app?tab=ludo`
+      : `/app?tab=results&matchId=${match._id}`;
+
+    const notifTitle   = `${emoji} নতুন ${gameLabel} তৈরি হয়েছে!`;
+    const notifMessage = `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`;
+
+    // ─── ১. DB তে save করো ──────────────────────────────────────
+    const unreadBefore = await Notification.countDocuments({ isRead: false });
 
     await Notification.create({
-      title: "🎮 নতুন Match তৈরি হয়েছে!",
-      message: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
-      matchId: match._id,
-      isRead: false,
+      title:    notifTitle,
+      message:  notifMessage,
+      matchId:  match._id,
+      category: category,   // ✅ freefire / ludo / general
+      isRead:   false,
     });
 
-    const newUnreadCount = unreadCount + 1;
+    const newUnreadCount = unreadBefore + 1;
 
-    // ২. Push notification পাঠাও — 🔑 KEY FIX: matchId এবং unreadCount payload-এ
+    // ─── ২. Push notification পাঠাও ─────────────────────────────
     const subs = await PushSubscription.find({});
     if (subs.length === 0) return;
 
     const payload = JSON.stringify({
-      title: "🎮 নতুন Match তৈরি হয়েছে!",
-      body: `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`,
-      icon: "/image/icon/icon-192x192.png",
-      badge: "/image/icon/icon-72x72.png",
-      matchId: match._id.toString(),           // ← এটা sw.js এ URL বানাতে ব্যবহার হবে
-      url: `/app?tab=results&matchId=${match._id}`, // ← fallback URL
-      unreadCount: newUnreadCount,             // ← app icon badge count
+      title:       notifTitle,
+      body:        notifMessage,
+      icon:        "/image/icon/icon-192x192.png",
+      badge:       "/image/icon/icon-72x72.png",
+      tag:         `match-${category}`,       // same tag হলে replace হবে, spam হবে না
+      matchId:     match._id.toString(),
+      category:    category,
+      url:         url,
+      unreadCount: newUnreadCount,            // ✅ badge count
     });
 
     const results = await Promise.allSettled(
       subs.map((s) => webpush.sendNotification(s.subscription, payload))
     );
 
+    // ─── মেয়াদ শেষ subscription মুছে ফেলো ──────────────────────
     const expired = [];
     results.forEach((r, i) => {
       if (r.status === "rejected") {
@@ -110,7 +131,7 @@ router.sendMatchNotification = async (match) => {
       console.log(`🗑️ ${expired.length} expired subscription(s) removed`);
     }
 
-    console.log(`📨 Notification sent to ${subs.length} subscribers`);
+    console.log(`📨 [${category}] Notification sent to ${subs.length} subscribers`);
   } catch (err) {
     console.error("Push notification error:", err.message);
   }
