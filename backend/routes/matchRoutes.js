@@ -46,7 +46,7 @@ router.post("/create", protectAdmin, async (req, res) => {
     });
 
     // ✅ Match create হলে সব users কে notification পাঠাও
-    notificationRouter.sendMatchNotification(match);
+    notificationRouter.sendMatchNotification(match, "freefire");
 
     res.status(201).json({
       success: true,
