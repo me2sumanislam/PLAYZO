@@ -1001,16 +1001,16 @@ if (screen === "category") {
                     </p>
                     {count > 0 && (
                       <div style={{
-                        background: "rgba(249,115,22,0.2)",
-                        border: "1px solid #f97316",
+                        background: "rgba(34,211,238,0.15)",
+                        border: "1px solid #22d3ee",
                         borderRadius: 6,
                         padding: "2px 7px",
                         display: "flex",
                         alignItems: "center",
                         gap: 4,
                       }}>
-                        <span style={{ color: "#f97316", fontSize: 11, fontWeight: 700 }}>{count}</span>
-                        <span style={{ color: "#f97316", fontSize: 9 }}>live</span>
+                        <span style={{ color: "#22d3ee", fontSize: 11, fontWeight: 700 }}>{count}</span>
+                        <span style={{ color: "#22d3ee", fontSize: 9 }}>live</span>
                       </div>
                     )}
                   </div>
@@ -1030,5 +1030,4 @@ if (screen === "category") {
 };
 
 export default AppDashboard;
-
-//AppDeashboard .jsx end
+ 
