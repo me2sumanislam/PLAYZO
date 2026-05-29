@@ -1,4 +1,4 @@
- // components/AppDashboard/AppDashboard.jsx
+
 import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import NotificationBell from "../NotificationBell/NotificationBell";
@@ -10,6 +10,9 @@ import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
+import Referral from "../../page/Referral/Referral";
+
+const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
 // ─── Inline MatchResults Component ────────────────────────────────────────────
 
@@ -63,7 +66,6 @@ function MatchResultsPage({
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-orange-500/10 to-transparent pointer-events-none" />
         <div className="px-4 pt-6 pb-4 relative z-10">
@@ -94,7 +96,6 @@ function MatchResultsPage({
         </div>
       </div>
 
-      {/* Top 3 Podium */}
       {sorted.length >= 1 && (
         <div className="px-4 mb-4">
           <div className="flex items-end justify-center gap-2">
@@ -108,7 +109,7 @@ function MatchResultsPage({
                   {sorted[1].kills} kills
                 </p>
                 <p className="text-gray-200 text-sm font-black mt-1">
-                  &nbsp;৳{sorted[1].totalPrize}
+                  ৳{sorted[1].totalPrize}
                 </p>
               </div>
             )}
@@ -144,7 +145,6 @@ function MatchResultsPage({
         </div>
       )}
 
-      {/* Tabs */}
       <div className="px-4 mb-3">
         <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
           {[
@@ -162,7 +162,6 @@ function MatchResultsPage({
         </div>
       </div>
 
-      {/* Leaderboard */}
       {tab === "leaderboard" && (
         <div className="px-4 space-y-2">
           {sorted.length === 0 && (
@@ -242,7 +241,6 @@ function MatchResultsPage({
         </div>
       )}
 
-      {/* My Result */}
       {tab === "mine" && (
         <div className="px-4">
           {!currentUserUid ? (
@@ -290,9 +288,7 @@ function MatchResultsPage({
                     <p className="text-white font-black text-lg">
                       #{myResult.rank || "—"}
                     </p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">
-                      Final Rank
-                    </p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
                   </div>
                   <div className="bg-black/30 rounded-xl p-3 text-center">
                     <p className="text-orange-400 font-black text-lg">
@@ -368,8 +364,6 @@ function MatchResultsPage({
 
 // ─── Results List ─────────────────────────────────────────────────────────────
 function ResultsListPage({ onSelectResult, currentUserUid }) {
-  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
-
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -380,14 +374,14 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
         const res = await fetch(`${API_BASE}/matches/completed`);
         const data = await res.json();
         setMatches(Array.isArray(data?.data) ? data.data : []);
-      } catch (e) {
+      } catch {
         setMatches([]);
       } finally {
         setLoading(false);
       }
     };
     fetchResults();
-  }, [API_BASE]);
+  }, []);
 
   if (loading) {
     return (
@@ -400,7 +394,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -414,7 +407,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
         </p>
       </div>
 
-      {/* Match Cards */}
       <div className="px-4 space-y-3">
         {matches.length === 0 ? (
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
@@ -457,12 +449,16 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span style={{
-                        fontSize: 10, fontWeight: 700,
-                        padding: "2px 8px", borderRadius: 20,
-                        background: categoryColor.bg,
-                        color: categoryColor.text,
-                      }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 20,
+                          background: categoryColor.bg,
+                          color: categoryColor.text,
+                        }}
+                      >
                         {categoryLabel}
                       </span>
                     </div>
@@ -506,9 +502,13 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 </div>
                 <div className="flex items-center justify-between">
                   {myResult ? (
-                    <div className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}>
+                    <div
+                      className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}
+                    >
                       <span>You:</span>
-                      <span className="font-bold">#{myResult.position || "—"}</span>
+                      <span className="font-bold">
+                        #{myResult.position || "—"}
+                      </span>
                       <span>⚔️ {myResult.kills} kills</span>
                       {myResult.prize > 0 && (
                         <span className="font-black">+৳{myResult.prize}</span>
@@ -534,7 +534,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 
 // ─── Notifications Page ───────────────────────────────────────────────────────
 function NotificationsPage({ onBack }) {
-  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -544,7 +543,13 @@ function NotificationsPage({ onBack }) {
       try {
         const res = await fetch(`${API_BASE}/notifications`);
         const data = await res.json();
-        setNotifications(Array.isArray(data?.data) ? data.data : Array.isArray(data?.notifications) ? data.notifications : []);
+        setNotifications(
+          Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.notifications)
+              ? data.notifications
+              : []
+        );
       } catch {
         setNotifications([]);
       } finally {
@@ -552,7 +557,7 @@ function NotificationsPage({ onBack }) {
       }
     };
     fetchNotifications();
-  }, [API_BASE]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
@@ -628,6 +633,318 @@ function NotificationsPage({ onBack }) {
   );
 }
 
+// ════════════════════════════════════════════════════════════
+// 🆕 LUDO TOURNAMENT PAGE
+// ════════════════════════════════════════════════════════════
+function LudoTournamentPage({ currentUser, token, onBack }) {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("upcoming");
+  const [joining, setJoining] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    loadMatches();
+  }, [filter]);
+
+  const loadMatches = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/ludo-tournament?status=${filter}`);
+      const data = await res.json();
+      setMatches(Array.isArray(data?.data) ? data.data : []);
+    } catch {
+      setMatches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoin = async (matchId, entryFee) => {
+    if (!currentUser?.id && !currentUser?._id) {
+      setMsg("আগে login করুন");
+      return;
+    }
+    setJoining(matchId);
+    setMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/ludo-tournament/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          matchId,
+          userId: currentUser?.id || currentUser?._id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg("✅ Successfully joined!");
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            ...stored,
+            balance: data.newBalance ?? stored.balance,
+          })
+        );
+        loadMatches();
+      } else {
+        setMsg("❌ " + (data.message || "Join failed"));
+      }
+    } catch {
+      setMsg("❌ Server error");
+    } finally {
+      setJoining(null);
+    }
+  };
+
+  const FILTERS = [
+    { id: "upcoming", label: "🕐 Upcoming" },
+    { id: "live", label: "🔴 Live" },
+    { id: "completed", label: "✅ Done" },
+  ];
+
+  const modeLabel = { "1v1": "⚔️ 1v1", "2v2": "👥 2v2", "4player": "🎮 4 Player" };
+  const modeColor = { "1v1": "#f59e0b", "2v2": "#3b82f6", "4player": "#10b981" };
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-4 pt-5 pb-5">
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={onBack}
+            className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95"
+          >
+            ←
+          </button>
+          <div>
+            <h1 className="text-white text-xl font-extrabold">🎲 Ludo Tournament</h1>
+            <p className="text-violet-200 text-xs mt-0.5">Play & Win Real Cash</p>
+          </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex gap-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                filter === f.id
+                  ? "bg-white text-violet-600"
+                  : "bg-white/15 text-white/70"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Message */}
+      {msg && (
+        <div
+          className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
+            msg.startsWith("✅")
+              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+              : "bg-red-500/20 text-red-400 border border-red-500/30"
+          }`}
+        >
+          {msg}
+        </div>
+      )}
+
+      {/* Match list */}
+      <div className="px-4 mt-4 space-y-3">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm">Loading tournaments...</p>
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-4xl mb-3">🎲</p>
+            <p className="text-white font-bold mb-1">কোনো Tournament নেই</p>
+            <p className="text-gray-500 text-sm">
+              এই category তে এখন কোনো match নেই
+            </p>
+          </div>
+        ) : (
+          matches.map((match) => {
+            const mc = modeColor[match.mode] || "#6b7280";
+            const isFull =
+              (match.joinedPlayers || 0) >= (match.totalSlots || 4);
+            const isJoined = match.joinedUsers?.some(
+              (u) =>
+                (u.userId?._id || u.userId) ===
+                (currentUser?.id || currentUser?._id)
+            );
+            return (
+              <div
+                key={match._id}
+                className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden"
+              >
+                {/* color bar */}
+                <div style={{ height: 3, background: mc }} />
+
+                {match.image && (
+                  <img
+                    src={match.image}
+                    alt=""
+                    className="w-full h-28 object-cover"
+                  />
+                )}
+
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          style={{
+                            background: mc + "22",
+                            color: mc,
+                            fontSize: 10,
+                            padding: "2px 8px",
+                            borderRadius: 20,
+                            fontWeight: 700,
+                            border: `1px solid ${mc}55`,
+                          }}
+                        >
+                          {modeLabel[match.mode] || match.mode}
+                        </span>
+                        {match.status === "live" && (
+                          <span className="flex items-center gap-1 text-[10px] text-red-400 font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            LIVE
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white font-bold text-base">
+                        {match.title}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        🗺️ {match.map || "Classic"} • 📱{" "}
+                        {match.device || "Mobile"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-400 text-xs">Entry</p>
+                      <p className="text-white font-black text-lg">
+                        ৳{match.entryFee || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      {
+                        label: "Prize",
+                        value: `৳${match.winPrize || 0}`,
+                        color: "#f59e0b",
+                      },
+                      {
+                        label: "Players",
+                        value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`,
+                        color: isFull ? "#ef4444" : "#22d3ee",
+                      },
+                      {
+                        label: "Start",
+                        value: match.startTime
+                          ? new Date(match.startTime).toLocaleTimeString(
+                              "en-BD",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                              }
+                            )
+                          : "—",
+                        color: "#a78bfa",
+                      },
+                    ].map((s, i) => (
+                      <div key={i} className="bg-black/30 rounded-xl p-2 text-center">
+                        <p className="text-[9px] text-gray-500 font-semibold uppercase">
+                          {s.label}
+                        </p>
+                        <p
+                          className="text-xs font-black mt-0.5"
+                          style={{ color: s.color }}
+                        >
+                          {s.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Room code — live হলে দেখাবে */}
+                  {match.status === "live" && match.roomCode && (
+                    <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-violet-300 text-[10px] font-bold uppercase">
+                          Room Code
+                        </p>
+                        <p className="text-white font-black text-lg tracking-widest">
+                          {match.roomCode}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(match.roomCode);
+                          setMsg("✅ Room code copied!");
+                        }}
+                        className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Join button */}
+                  {match.status === "upcoming" && (
+                    isJoined ? (
+                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">
+                        ✅ Already Joined
+                      </div>
+                    ) : isFull ? (
+                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">
+                        ❌ Full
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleJoin(match._id, match.entryFee)}
+                        disabled={joining === match._id}
+                        className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60"
+                        style={{
+                          background: `linear-gradient(135deg, ${mc}, #4f46e5)`,
+                        }}
+                      >
+                        {joining === match._id
+                          ? "Joining..."
+                          : `Join Now • ৳${match.entryFee}`}
+                      </button>
+                    )
+                  )}
+
+                  {match.status === "completed" && (
+                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">
+                      ✅ Completed
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main AppDashboard ────────────────────────────────────────────────────────
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
@@ -640,14 +957,16 @@ const AppDashboard = ({ onLogout }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // ✅ localStorage থেকে user ও token নাও
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+  const currentToken = localStorage.getItem("token") || "";
+  const currentUserUid =
+    currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
-  const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
-
-  // Match Count Helper
   const getMatchCount = (categoryKey) =>
-    matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
+    matches.filter(
+      (m) => m.category === categoryKey && m.status !== "completed"
+    ).length;
 
   useEffect(() => {
     const loadMatches = async () => {
@@ -660,20 +979,16 @@ const AppDashboard = ({ onLogout }) => {
         else if (Array.isArray(data?.data)) safeData = data.data;
         setMatches(safeData);
       } catch (err) {
-        console.error("Failed to load matches:", err);
         setMatches([]);
       }
     };
-
     loadMatches();
-    const interval = setInterval(loadMatches, 10 * 1000);
+    const interval = setInterval(loadMatches, 10000);
     return () => clearInterval(interval);
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSlide((p) => (p === 2 ? 0 : p + 1));
-    }, 3000);
+    const timer = setInterval(() => setSlide((p) => (p === 2 ? 0 : p + 1)), 3000);
     return () => clearInterval(timer);
   }, []);
 
@@ -686,7 +1001,7 @@ const AppDashboard = ({ onLogout }) => {
     { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
   ];
 
-  // --- NOTIFICATIONS SCREEN ---
+  // --- NOTIFICATIONS ---
   if (showNotifications) {
     return (
       <div className="mx-auto min-h-screen">
@@ -728,14 +1043,21 @@ const AppDashboard = ({ onLogout }) => {
         </div>
       );
     }
+
+    // ✅ Referral screen — user ও token prop পাঠানো হচ্ছে
     if (screen === "referral") {
       return (
         <div className="bg-white min-h-screen mx-auto">
-          <div className="p-4 text-center text-gray-500">Referral Component</div>
+          <Referral
+            onBack={() => setScreen("home")}
+            user={currentUser}
+            token={currentToken}
+          />
           <BottomMenu tab={tab} setTab={setTab} />
         </div>
       );
     }
+
     return (
       <div className="bg-white min-h-screen mx-auto pb-24">
         <Profile
@@ -832,7 +1154,10 @@ const AppDashboard = ({ onLogout }) => {
                 fontWeight: 700,
                 fontSize: 13,
                 color: resultTab === t.id ? "#4f46e5" : "#9ca3af",
-                borderBottom: resultTab === t.id ? "2px solid #4f46e5" : "2px solid transparent",
+                borderBottom:
+                  resultTab === t.id
+                    ? "2px solid #4f46e5"
+                    : "2px solid transparent",
                 cursor: "pointer",
                 transition: "all 0.2s",
                 marginBottom: -2,
@@ -842,7 +1167,6 @@ const AppDashboard = ({ onLogout }) => {
             </button>
           ))}
         </div>
-
         {resultTab === "leaderboard" ? (
           <Leaderboard />
         ) : (
@@ -856,29 +1180,48 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
+  // --- CATEGORY SCREEN ---
+  if (screen === "category") {
+    return (
+      <div className="mx-auto min-h-screen bg-white">
+        <MatchList
+          category={selectedCategory}
+          title={
+            categories.find((c) => c.key === selectedCategory)?.title ||
+            selectedCategory
+          }
+          onBack={() => {
+            setScreen("home");
+            setSelectedCategory("");
+          }}
+          onJoinSuccess={(matchId, newBalance) => {
+            const user = JSON.parse(localStorage.getItem("user") || "{}");
+            localStorage.setItem(
+              "user",
+              JSON.stringify({ ...user, balance: newBalance })
+            );
+          }}
+          tab={tab}
+          setTab={setTab}
+          hideCategories={true}
+        />
+      </div>
+    );
+  }
 
-  // --- CATEGORY SCREEN — সরাসরি MatchList দেখাবে ---
-if (screen === "category") {
-  return (
-    <div className="mx-auto min-h-screen bg-white">
-      <MatchList
-        category={selectedCategory}
-        title={categories.find(c => c.key === selectedCategory)?.title || selectedCategory}
-        onBack={() => {
-          setScreen("home");
-          setSelectedCategory("");
-        }}
-        onJoinSuccess={(matchId, newBalance) => {
-          const user = JSON.parse(localStorage.getItem("user") || "{}");
-          localStorage.setItem("user", JSON.stringify({ ...user, balance: newBalance }));
-        }}
-        tab={tab}
-        setTab={setTab}
-        hideCategories={true}
-      />
-    </div>
-  );
-}
+  // ✅ LUDO SCREEN
+  if (screen === "ludo") {
+    return (
+      <div className="mx-auto min-h-screen">
+        <LudoTournamentPage
+          currentUser={currentUser}
+          token={currentToken}
+          onBack={() => setScreen("home")}
+        />
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
 
   // --- HOME SCREEN ---
   return (
@@ -893,7 +1236,9 @@ if (screen === "category") {
               </span>
             </div>
             <div>
-              <p className="text-white/80 text-[11px] font-medium">Welcome back</p>
+              <p className="text-white/80 text-[11px] font-medium">
+                Welcome back
+              </p>
               <p className="text-white font-extrabold text-sm truncate max-w-[150px]">
                 {currentUser?.name || "Player"}
               </p>
@@ -937,9 +1282,46 @@ if (screen === "category") {
 
         {/* Live Marquee */}
         <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
-          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
-            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN CUSTOM ROOM NOW 🚀
+          <marquee
+            scrollamount="6"
+            className="py-2 text-orange-400 text-sm font-extrabold"
+          >
+            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL
+            CASH • JOIN CUSTOM ROOM NOW 🚀
           </marquee>
+        </div>
+
+        {/* ✅ LUDO TOURNAMENT BANNER */}
+        <div
+          onClick={() => setScreen("ludo")}
+          className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
+          style={{
+            background: "linear-gradient(135deg, #4c1d95, #1e1b4b)",
+            border: "1px solid #7c3aed44",
+          }}
+        >
+          <div className="p-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                <span className="text-violet-300 text-[10px] font-bold uppercase tracking-wider">
+                  Now Available
+                </span>
+              </div>
+              <p className="text-white text-lg font-extrabold">
+                🎲 Ludo Tournament
+              </p>
+              <p className="text-violet-300 text-xs mt-0.5">
+                1v1 • 2v2 • 4 Player • Win Cash!
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-4xl">🎲</p>
+              <p className="text-violet-300 text-xs mt-1 font-bold">
+                Play Now →
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Section Header */}
@@ -959,7 +1341,8 @@ if (screen === "category") {
                   const data = await res.json();
                   let safeData = [];
                   if (Array.isArray(data)) safeData = data;
-                  else if (Array.isArray(data?.matches)) safeData = data.matches;
+                  else if (Array.isArray(data?.matches))
+                    safeData = data.matches;
                   else if (Array.isArray(data?.data)) safeData = data.data;
                   setMatches(safeData);
                 } catch (err) {
@@ -971,14 +1354,16 @@ if (screen === "category") {
               disabled={refreshing}
               className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
             >
-              <span className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}>
+              <span
+                className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}
+              >
                 🔄
               </span>
             </button>
           </div>
         </div>
 
-        {/* Category Grid with Badge */}
+        {/* Category Grid */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           {categories.map((cat) => {
             const count = getMatchCount(cat.key);
@@ -991,26 +1376,41 @@ if (screen === "category") {
                 }}
                 className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5"
               >
-                <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+                <img
+                  src={cat.img}
+                  alt={cat.title}
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                
                 <div className="absolute bottom-3 left-3 right-3">
                   <div className="flex items-center justify-between">
                     <p className="text-white font-extrabold text-sm tracking-wide uppercase">
                       {cat.title}
                     </p>
                     {count > 0 && (
-                      <div style={{
-                        background: "rgba(34,211,238,0.15)",
-                        border: "1px solid #22d3ee",
-                        borderRadius: 6,
-                        padding: "2px 7px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}>
-                        <span style={{ color: "#22d3ee", fontSize: 11, fontWeight: 700 }}>{count}</span>
-                        <span style={{ color: "#22d3ee", fontSize: 9 }}>live</span>
+                      <div
+                        style={{
+                          background: "rgba(34,211,238,0.15)",
+                          border: "1px solid #22d3ee",
+                          borderRadius: 6,
+                          padding: "2px 7px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#22d3ee",
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {count}
+                        </span>
+                        <span style={{ color: "#22d3ee", fontSize: 9 }}>
+                          live
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1030,4 +1430,3 @@ if (screen === "category") {
 };
 
 export default AppDashboard;
- 
