@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback } from "react";
+ import React, { useState, useEffect, useCallback } from "react";
 
 const API = "https://playzo-vn8e.onrender.com/api";
 
@@ -14,7 +13,23 @@ const timeAgo = (d) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
-const api = async (path, opts = {}) => {
+const api = async (path, method = "GET", body = null) => {
+  const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
+  try {
+    const opts = {
+      method,
+      headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${API}${path}`, opts);
+    if (res.status === 401) { localStorage.clear(); window.location.reload(); return { success: false }; }
+    if (!res.ok) return { success: false, status: res.status };
+    return await res.json();
+  } catch { return { success: false }; }
+};
+
+// legacy overload: api(path, fetchOpts) still works
+const apiLegacy = async (path, opts = {}) => {
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
   try {
     const res = await fetch(`${API}${path}`, {
@@ -33,22 +48,22 @@ const Badge = ({ color, children }) => {
   return <span style={{ ...s, fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 500 }}>{children}</span>;
 };
 
-// ─── NAV (with Ludo added) ────────────────────────────────────────────────────
+// ─── NAV ──────────────────────────────────────────────────────────────────────
 const NAV = [
-  { key: "dashboard",        label: "Dashboard",        icon: "⊞", roles: ["super-admin","admin","finance"] },
-  { key: "create-match",     label: "Create match",     icon: "＋", roles: ["super-admin","admin"] },
-  { key: "match-results",    label: "Match results",    icon: "🏆", roles: ["super-admin","admin"] },
-  // 🆕 Ludo
-  { key: "ludo-tournament",  label: "Ludo Tournament",  icon: "🎲", roles: ["super-admin","admin"] },
-  { key: "deposit-requests", label: "Deposit requests", icon: "↓", badge: "deposit", roles: ["super-admin","finance"] },
-  { key: "withdraw-requests",label: "Withdraw requests",icon: "↑", badge: "withdraw", roles: ["super-admin","finance"] },
-  { key: "money-overview",   label: "Money overview",   icon: "₹", roles: ["super-admin","finance"] },
-  { key: "deposit-history",  label: "Deposit history",  icon: "◷", roles: ["super-admin","finance"] },
-  { key: "withdraw-history", label: "Withdraw history", icon: "◷", roles: ["super-admin","finance"] },
-  { key: "users",            label: "Users",            icon: "👥", roles: ["super-admin","admin"] },
-  { key: "payment-numbers",  label: "Payment Numbers",  icon: "💳", roles: ["super-admin","finance"] },
-  { key: "activity-log",     label: "Activity log",     icon: "📋", roles: ["super-admin","admin"] },
-  { key: "manage-admins",    label: "Manage admins",    icon: "🔐", roles: ["super-admin"] },
+  { key: "dashboard",         label: "Dashboard",         icon: "⊞",  roles: ["super-admin","admin","finance"] },
+  { key: "create-match",      label: "Create match",      icon: "＋",  roles: ["super-admin","admin"] },
+  { key: "match-results",     label: "Match results",     icon: "🏆", roles: ["super-admin","admin"] },
+  { key: "ludo-tournament",   label: "Ludo Tournament",   icon: "🎲", roles: ["super-admin","admin"] },
+  { key: "deposit-requests",  label: "Deposit requests",  icon: "↓",  badge: "deposit",  roles: ["super-admin","finance"] },
+  { key: "withdraw-requests", label: "Withdraw requests", icon: "↑",  badge: "withdraw", roles: ["super-admin","finance"] },
+  { key: "point-requests",    label: "Point Requests",    icon: "🎯", badge: "point",    roles: ["super-admin","finance"] },
+  { key: "money-overview",    label: "Money overview",    icon: "₹",  roles: ["super-admin","finance"] },
+  { key: "deposit-history",   label: "Deposit history",   icon: "◷",  roles: ["super-admin","finance"] },
+  { key: "withdraw-history",  label: "Withdraw history",  icon: "◷",  roles: ["super-admin","finance"] },
+  { key: "users",             label: "Users",             icon: "👥", roles: ["super-admin","admin"] },
+  { key: "payment-numbers",   label: "Payment Numbers",   icon: "💳", roles: ["super-admin","finance"] },
+  { key: "activity-log",      label: "Activity log",      icon: "📋", roles: ["super-admin","admin"] },
+  { key: "manage-admins",     label: "Manage admins",     icon: "🔐", roles: ["super-admin"] },
 ];
 
 const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
@@ -66,11 +81,13 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
     </div>
     <nav style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
       {NAV.filter((n) => n.roles.includes(admin?.role)).map((n) => {
-        const cnt = n.badge === "deposit" ? badges.deposit : n.badge === "withdraw" ? badges.withdraw : 0;
-        const isLudo = n.key === "ludo-tournament";
+        const cnt = n.badge === "deposit" ? badges.deposit : n.badge === "withdraw" ? badges.withdraw : n.badge === "point" ? badges.point : 0;
+        const isLudo  = n.key === "ludo-tournament";
+        const isPoint = n.key === "point-requests";
+        const activeColor = isLudo ? "#7c3aed" : isPoint ? "#f97316" : "#3b82f6";
         return (
           <div key={n.key} onClick={() => setPage(n.key)}
-            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 14px", fontSize: 12.5, cursor: "pointer", borderLeft: page === n.key ? `3px solid ${isLudo ? "#7c3aed" : "#3b82f6"}` : "3px solid transparent", background: page === n.key ? "#1e293b" : "transparent", color: page === n.key ? (isLudo ? "#c4b5fd" : "#f1f5f9") : "#94a3b8", transition: "all 0.12s" }}>
+            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 14px", fontSize: 12.5, cursor: "pointer", borderLeft: page === n.key ? `3px solid ${activeColor}` : "3px solid transparent", background: page === n.key ? "#1e293b" : "transparent", color: page === n.key ? (isLudo ? "#c4b5fd" : isPoint ? "#fdba74" : "#f1f5f9") : "#94a3b8", transition: "all 0.12s" }}>
             <span style={{ fontSize: 13 }}>{n.icon}</span>
             <span style={{ flex: 1 }}>{n.label}</span>
             {cnt > 0 && <span style={{ background: "#ef4444", color: "#fff", fontSize: 9, padding: "1px 5px", borderRadius: 20 }}>{cnt}</span>}
@@ -142,9 +159,9 @@ const Dashboard = () => {
   const [recentDeposits, setRecentDeposits]   = useState([]);
   const [recentWithdraws, setRecentWithdraws] = useState([]);
   useEffect(() => {
-    api("/admin/stats").then((d) => setStats(d?.data || d || {})).catch(() => {});
-    api("/admin/deposits?status=approved&limit=3").then((d) => { setRecentDeposits(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
-    api("/admin/withdraws?status=pending&limit=3").then((d) => { setRecentWithdraws(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
+    apiLegacy("/admin/stats").then((d) => setStats(d?.data || d || {})).catch(() => {});
+    apiLegacy("/admin/deposits?status=approved&limit=3").then((d) => { setRecentDeposits(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
+    apiLegacy("/withdraw/admin/all?status=pending&limit=3").then((d) => { setRecentWithdraws(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
   }, []);
   const balance = (stats?.totalDeposit || 0) - (stats?.totalWithdraw || 0);
   return (
@@ -187,7 +204,7 @@ const CreateMatch = () => {
   };
   const submit = async () => {
     if (!form.title || !form.startTime) { setMsg("❌ Title আর Start Time অবশ্যই দিন"); return; }
-    const d = await api("/matches/create", { method: "POST", body: JSON.stringify(form) });
+    const d = await apiLegacy("/matches/create", { method: "POST", body: JSON.stringify(form) });
     setMsg(d.success ? "✅ Match created!" : "❌ " + (d.message || "Failed"));
     if (d.success) setForm({ title: "", category: "br_match", entryFee: "", winPrize: "", totalPlayers: "", startTime: "", perKill: "", map: "", device: "Mobile", image: "", prizes: { first: "", second: "", third: "", fourth: "" } });
   };
@@ -252,10 +269,10 @@ const CreateMatch = () => {
 // ─── Deposit Requests ─────────────────────────────────────────────────────────
 const DepositRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
-  const load = useCallback(() => { api("/admin/deposits?status=pending").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  const load = useCallback(() => { apiLegacy("/admin/deposits?status=pending").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load]);
-  const approve = async (id) => { await api(`/admin/deposits/${id}/approve`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
-  const reject  = async (id) => { await api(`/admin/deposits/${id}/reject`,  { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
+  const approve = async (id) => { await apiLegacy(`/admin/deposits/${id}/approve`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
+  const reject  = async (id) => { await apiLegacy(`/admin/deposits/${id}/reject`,  { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
   return (
     <div style={{ padding: 24 }}>
       <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
@@ -269,10 +286,10 @@ const DepositRequests = ({ adminName, refresh }) => {
 // ─── Withdraw Requests ────────────────────────────────────────────────────────
 const WithdrawRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
-  const load = useCallback(() => { api("/withdraw/admin/all?status=pending").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  const load = useCallback(() => { apiLegacy("/withdraw/admin/all?status=pending").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load]);
-  const approve = async (id) => { await api(`/withdraw/admin/approve/${id}`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
-  const reject  = async (id) => { await api(`/withdraw/admin/reject/${id}`,  { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
+  const approve = async (id) => { await apiLegacy(`/withdraw/admin/approve/${id}`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
+  const reject  = async (id) => { await apiLegacy(`/withdraw/admin/reject/${id}`,  { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
   return (
     <div style={{ padding: 24 }}>
       <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
@@ -283,10 +300,135 @@ const WithdrawRequests = ({ adminName, refresh }) => {
   );
 };
 
+// ════════════════════════════════════════════════════════════
+// 🆕 POINT REQUESTS — Referral point convert requests
+// ════════════════════════════════════════════════════════════
+const PointRequests = ({ adminName, refresh }) => {
+  const [requests, setRequests] = useState([]);
+  const [filter, setFilter]     = useState("pending");
+  const [loading, setLoading]   = useState(false);
+  const [msg, setMsg]           = useState("");
+
+  useEffect(() => { load(); }, [filter]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const d = await api(`/wallet/referral/convert-requests?status=${filter}`);
+      setRequests(Array.isArray(d?.requests) ? d.requests : []);
+    } catch { setRequests([]); }
+    finally  { setLoading(false); }
+  };
+
+  const approve = async (id) => {
+    if (!window.confirm("Approve করবেন?")) return;
+    try {
+      const d = await api(`/wallet/referral/convert-requests/${id}/approve`, "PATCH");
+      setMsg(d.message || "✅ Approved!");
+      load(); refresh();
+    } catch { setMsg("Error!"); }
+  };
+
+  const reject = async (id) => {
+    const note = window.prompt("Reject কারণ লিখুন (optional):");
+    if (note === null) return;
+    try {
+      const d = await api(`/wallet/referral/convert-requests/${id}/reject`, "PATCH", { adminNote: note });
+      setMsg(d.message || "❌ Rejected!");
+      load(); refresh();
+    } catch { setMsg("Error!"); }
+  };
+
+  const FILTERS = [
+    { id: "pending",  label: "Pending" },
+    { id: "approved", label: "Approved" },
+    { id: "rejected", label: "Rejected" },
+    { id: "all",      label: "সব" },
+  ];
+
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {FILTERS.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)}
+            style={{ padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12,
+              background: filter === f.id ? "#f97316" : "#f3f4f6",
+              color: filter === f.id ? "#fff" : "#6b7280" }}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {msg && (
+        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d", padding: "10px 14px", borderRadius: 10, marginBottom: 12, fontSize: 13, fontWeight: 600 }}>
+          {msg}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: "center", color: "#9ca3af", padding: 40 }}>লোড হচ্ছে...</div>
+      ) : requests.length === 0 ? (
+        <div style={{ textAlign: "center", color: "#9ca3af", padding: 40 }}>কোনো request নেই</div>
+      ) : (
+        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+          {requests.map((r) => (
+            <div key={r._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderBottom: "1px solid #f3f4f6", flexWrap: "wrap" }}>
+
+              {/* Avatar */}
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#fed7aa", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#c2410c", flexShrink: 0 }}>
+                {(r.userId?.name || r.userId?.phone || "U").charAt(0).toUpperCase()}
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{r.userId?.name || "Unknown"}</div>
+                <div style={{ fontSize: 11, color: "#6b7280" }}>{r.userId?.phone}</div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{new Date(r.createdAt).toLocaleString("en-BD")}</div>
+                {r.adminNote && (
+                  <div style={{ fontSize: 11, color: "#dc2626", marginTop: 2 }}>Note: {r.adminNote}</div>
+                )}
+              </div>
+
+              {/* Points & Taka */}
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#f97316" }}>🎯 {r.points} pts</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#059669" }}>৳{r.taka}</div>
+              </div>
+
+              {/* Status / Actions */}
+              {r.status === "pending" ? (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => approve(r._id)}
+                    style={{ fontSize: 11, padding: "5px 12px", background: "#d1fae5", color: "#065f46", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700 }}>
+                    ✅ Approve
+                  </button>
+                  <button onClick={() => reject(r._id)}
+                    style={{ fontSize: 11, padding: "5px 12px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700 }}>
+                    ❌ Reject
+                  </button>
+                </div>
+              ) : (
+                <span style={{
+                  padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                  background: r.status === "approved" ? "#d1fae5" : "#fee2e2",
+                  color: r.status === "approved" ? "#065f46" : "#991b1b"
+                }}>
+                  {r.status === "approved" ? "✅ Approved" : "❌ Rejected"}
+                </span>
+              )}
+
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Money Overview ───────────────────────────────────────────────────────────
 const MoneyOverview = () => {
   const [stats, setStats] = useState({});
-  useEffect(() => { api("/admin/stats").then((d) => setStats(d?.data || d || {})).catch(() => {}); }, []);
+  useEffect(() => { apiLegacy("/admin/stats").then((d) => setStats(d?.data || d || {})).catch(() => {}); }, []);
   const rows = [
     { label: "Total user deposits (approved)",    value: stats?.totalDeposit,          color: "#059669" },
     { label: "Total user withdrawals (approved)",  value: stats?.totalWithdraw,         color: "#dc2626" },
@@ -317,7 +459,7 @@ const History = ({ type }) => {
   const [search, setSearch] = useState("");
   useEffect(() => {
     const url = type === "withdraw" ? "/withdraw/admin/all" : `/admin/${type}s?limit=50`;
-    api(url).then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
+    apiLegacy(url).then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
   }, [type]);
   const filtered = list.filter((h) => (h.user?.name || h.user?.phone || h.userName || "").toLowerCase().includes(search.toLowerCase()));
   return (
@@ -337,8 +479,8 @@ const History = ({ type }) => {
 const Users = () => {
   const [list, setList]     = useState([]);
   const [search, setSearch] = useState("");
-  useEffect(() => { api("/admin/users").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
-  const toggleBan = async (id, banned) => { await api(`/admin/users/${id}/${banned ? "unban" : "ban"}`, { method: "PUT" }); setList((l) => l.map((u) => (u._id === id ? { ...u, isBlocked: !banned } : u))); };
+  useEffect(() => { apiLegacy("/admin/users").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  const toggleBan = async (id, banned) => { await apiLegacy(`/admin/users/${id}/${banned ? "unban" : "ban"}`, { method: "PUT" }); setList((l) => l.map((u) => (u._id === id ? { ...u, isBlocked: !banned } : u))); };
   const filtered = list.filter((u) => (u.name || u.phone || "").toLowerCase().includes(search.toLowerCase()) || (u.phone || "").includes(search));
   return (
     <div style={{ padding: 24 }}>
@@ -376,7 +518,7 @@ const MatchResults = () => {
   const [message, setMessage]         = useState({});
 
   const loadMatches = useCallback(() => {
-    api("/matches").then((d) => { const data = Array.isArray(d) ? d : d?.data || []; setMatches(data.filter((m) => m.status !== "completed")); });
+    apiLegacy("/matches").then((d) => { const data = Array.isArray(d) ? d : d?.data || []; setMatches(data.filter((m) => m.status !== "completed")); });
   }, []);
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
@@ -396,7 +538,7 @@ const MatchResults = () => {
   const isAlreadyAdded  = (userId, ci) => results.some((r, i) => i !== ci && r.userId === userId);
   const totalPrize      = results.reduce((sum, r) => sum + calculatePrize(r.position, r.kills), 0);
 
-  const updateRoom = async (id) => { const d = await api(`/matches/update-room/${id}`, { method: "PUT", body: JSON.stringify(roomData[id]||{}) }); setMessage((p) => ({ ...p, [id]: d.success ? "✅ Room Updated!" : "❌ Failed" })); if (d.success) loadMatches(); };
+  const updateRoom = async (id) => { const d = await apiLegacy(`/matches/update-room/${id}`, { method: "PUT", body: JSON.stringify(roomData[id]||{}) }); setMessage((p) => ({ ...p, [id]: d.success ? "✅ Room Updated!" : "❌ Failed" })); if (d.success) loadMatches(); };
 
   const submitResult = async () => {
     if (!selectedMatch) return alert("Match সিলেক্ট করুন");
@@ -406,7 +548,7 @@ const MatchResults = () => {
     if (positions.length !== new Set(positions).size) return alert("একই position দুজনকে দেওয়া যাবে না");
     setLoading(true);
     try {
-      const resp = await api(`/admin/matches/${selectedMatch._id}/result`, { method: "PUT", body: JSON.stringify({ results: results.map((r) => ({ userId: r.userId, inGameName: r.inGameName, position: Number(r.position)||0, kills: Number(r.kills)||0 })) }) });
+      const resp = await apiLegacy(`/admin/matches/${selectedMatch._id}/result`, { method: "PUT", body: JSON.stringify({ results: results.map((r) => ({ userId: r.userId, inGameName: r.inGameName, position: Number(r.position)||0, kills: Number(r.kills)||0 })) }) });
       if (resp.success) { alert("✅ Result submit হয়েছে!"); setResults([]); setSelectedMatch(null); setPlayers([]); loadMatches(); }
       else alert("❌ " + (resp.message || "Failed"));
     } catch { alert("Server Error"); }
@@ -491,18 +633,18 @@ const PaymentNumbers = () => {
   const [msg, setMsg]         = useState("");
   const [editId, setEditId]   = useState(null);
   const [editForm, setEditForm] = useState({});
-  const load = useCallback(() => { api("/admin/payment-numbers").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  const load = useCallback(() => { apiLegacy("/admin/payment-numbers").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load]);
   const save = async () => {
     if (!form.number) { setMsg("❌ নম্বর দিন"); return; }
-    const d = await api("/admin/payment-numbers", { method: "POST", body: JSON.stringify({ ...form, limit: form.limit ? Number(form.limit) : undefined }) });
+    const d = await apiLegacy("/admin/payment-numbers", { method: "POST", body: JSON.stringify({ ...form, limit: form.limit ? Number(form.limit) : undefined }) });
     setMsg(d.success ? "✅ সংরক্ষিত!" : "❌ " + (d.message || "Failed"));
     if (d.success) { setForm({ method: "bkash", number: "", limit: "", active: true }); load(); setTimeout(() => setMsg(""), 3000); }
   };
-  const toggle   = async (id, active) => { await api(`/admin/payment-numbers/${id}`, { method: "PUT", body: JSON.stringify({ active: !active }) }); load(); };
-  const remove   = async (id) => { if (!window.confirm("মুছে ফেলবেন?")) return; await api(`/admin/payment-numbers/${id}`, { method: "DELETE" }); load(); };
+  const toggle   = async (id, active) => { await apiLegacy(`/admin/payment-numbers/${id}`, { method: "PUT", body: JSON.stringify({ active: !active }) }); load(); };
+  const remove   = async (id) => { if (!window.confirm("মুছে ফেলবেন?")) return; await apiLegacy(`/admin/payment-numbers/${id}`, { method: "DELETE" }); load(); };
   const startEdit = (n) => { setEditId(n._id); setEditForm({ method: n.method, number: n.number, limit: n.limit||"", active: n.active }); };
-  const saveEdit  = async () => { await api(`/admin/payment-numbers/${editId}`, { method: "PUT", body: JSON.stringify({ ...editForm, limit: editForm.limit ? Number(editForm.limit) : undefined }) }); setEditId(null); load(); };
+  const saveEdit  = async () => { await apiLegacy(`/admin/payment-numbers/${editId}`, { method: "PUT", body: JSON.stringify({ ...editForm, limit: editForm.limit ? Number(editForm.limit) : undefined }) }); setEditId(null); load(); };
   const inp = { width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" };
   return (
     <div style={{ padding: 24, display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, alignItems: "start" }}>
@@ -547,7 +689,7 @@ const PaymentNumbers = () => {
 // ─── Activity Log ─────────────────────────────────────────────────────────────
 const ActivityLog = () => {
   const [logs, setLogs] = useState([]);
-  useEffect(() => { api("/admin/logs").then((d) => { setLogs(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  useEffect(() => { apiLegacy("/admin/logs").then((d) => { setLogs(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
   const colorMap = { approve:"green",reject:"red",create:"blue",ban:"amber",login:"gray" };
   return (
     <div style={{ padding: 24 }}>
@@ -575,9 +717,9 @@ const ManageAdmins = () => {
   const [admins, setAdmins] = useState([]);
   const [form, setForm]     = useState({ name:"",phone:"",password:"",role:"admin" });
   const [msg, setMsg]       = useState("");
-  useEffect(() => { api("/admin/admins").then((d) => { setAdmins(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  useEffect(() => { apiLegacy("/admin/admins").then((d) => { setAdmins(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
   const create = async () => {
-    const d = await api("/admin/admins/create", { method: "POST", body: JSON.stringify(form) });
+    const d = await apiLegacy("/admin/admins/create", { method: "POST", body: JSON.stringify(form) });
     setMsg(d.success ? "✅ Admin created!" : "❌ " + (d.message || "Failed"));
     if (d.success) { setForm({ name:"",phone:"",password:"",role:"admin" }); if (d.admin) setAdmins((p) => [...p, d.admin]); }
   };
@@ -636,7 +778,7 @@ const CreateLudoForm = ({ onCreated }) => {
   const submit = async () => {
     if (!form.title||!form.startTime) { setMsg("❌ Title ও Start Time দিন"); return; }
     const payload = { ...form, entryFee:Number(form.entryFee||0), winPrize:Number(form.winPrize||0), prizes:{first:Number(form.prizes.first||0),second:Number(form.prizes.second||0),third:Number(form.prizes.third||0),fourth:Number(form.prizes.fourth||0)} };
-    const d = await api("/ludo-tournament/create", { method:"POST", body:JSON.stringify(payload) });
+    const d = await apiLegacy("/ludo-tournament/create", { method:"POST", body:JSON.stringify(payload) });
     if (d.success) {
       setMsg("✅ Ludo tournament created!");
       setForm({ title:"",mode:"4player",entryFee:"",winPrize:"",startTime:"",map:"Classic",device:"Mobile",image:"",prizes:{first:"",second:"",third:"",fourth:""} });
@@ -710,18 +852,18 @@ const LudoMatchRow = ({ match, onRefresh }) => {
 
   const updateRoom = async () => {
     if (!roomCode) return;
-    const d = await api(`/ludo-tournament/update-room/${match._id}`, { method:"PUT", body:JSON.stringify({roomCode}) });
+    const d = await apiLegacy(`/ludo-tournament/update-room/${match._id}`, { method:"PUT", body:JSON.stringify({roomCode}) });
     setMsg(d.success?"✅ Room code set, match is LIVE":"❌ "+d.message);
     onRefresh();
   };
   const submitResult = async () => {
     const filled = results.filter(r=>r.rank&&r.userId);
     if (!filled.length) { setMsg("❌ অন্তত একজনের result দিন"); return; }
-    const d = await api(`/ludo-tournament/result/${match._id}`, { method:"POST", body:JSON.stringify({ results: filled.map(r=>({...r,rank:Number(r.rank),prize:Number(r.prize),kills:Number(r.kills||0)})) }) });
+    const d = await apiLegacy(`/ludo-tournament/result/${match._id}`, { method:"POST", body:JSON.stringify({ results: filled.map(r=>({...r,rank:Number(r.rank),prize:Number(r.prize),kills:Number(r.kills||0)})) }) });
     setMsg(d.success?"✅ Result submitted & prizes sent!":"❌ "+d.message);
     onRefresh();
   };
-  const deleteMatch = async () => { if (!window.confirm("এই match delete করবেন?")) return; await api(`/ludo-tournament/${match._id}`,{method:"DELETE"}); onRefresh(); };
+  const deleteMatch = async () => { if (!window.confirm("এই match delete করবেন?")) return; await apiLegacy(`/ludo-tournament/${match._id}`,{method:"DELETE"}); onRefresh(); };
 
   return (
     <div style={{ background:"#fff",borderRadius:14,border:"1px solid #e5e7eb",overflow:"hidden",marginBottom:12 }}>
@@ -792,7 +934,7 @@ const LudoTournamentManager = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const d = await api("/ludo-tournament");
+    const d = await apiLegacy("/ludo-tournament");
     setMatches(Array.isArray(d?.data) ? d.data : []);
     setLoading(false);
   }, []);
@@ -880,11 +1022,25 @@ const Login = ({ onLogin }) => {
 const AdminPanel = () => {
   const [admin, setAdmin]   = useState(null);
   const [page, setPage]     = useState("dashboard");
-  const [badges, setBadges] = useState({ deposit:0,withdraw:0 });
+  // 🆕 point badge যোগ হয়েছে
+  const [badges, setBadges] = useState({ deposit: 0, withdraw: 0, point: 0 });
 
   const loadBadges = useCallback(() => {
-    api("/admin/deposits?status=pending").then((d) => { const arr = Array.isArray(d)?d:Array.isArray(d?.data)?d.data:[]; setBadges(p=>({...p,deposit:arr.length})); }).catch(()=>{});
-    api("/withdraw/admin/all?status=pending").then((d) => { const arr = Array.isArray(d)?d:Array.isArray(d?.data)?d.data:[]; setBadges(p=>({...p,withdraw:arr.length})); }).catch(()=>{});
+    apiLegacy("/admin/deposits?status=pending").then((d) => {
+      const arr = Array.isArray(d)?d:Array.isArray(d?.data)?d.data:[];
+      setBadges(p=>({...p,deposit:arr.length}));
+    }).catch(()=>{});
+
+    apiLegacy("/withdraw/admin/all?status=pending").then((d) => {
+      const arr = Array.isArray(d)?d:Array.isArray(d?.data)?d.data:[];
+      setBadges(p=>({...p,withdraw:arr.length}));
+    }).catch(()=>{});
+
+    // 🆕 Point requests badge
+    api("/wallet/referral/convert-requests?status=pending").then((d) => {
+      const arr = Array.isArray(d?.requests) ? d.requests : [];
+      setBadges(p=>({...p,point:arr.length}));
+    }).catch(()=>{});
   }, []);
 
   useEffect(() => {
@@ -902,19 +1058,20 @@ const AdminPanel = () => {
   if (!admin) return <Login onLogin={handleLogin} />;
 
   const titles = {
-    dashboard:        ["Dashboard",        "Overview of all activity"],
-    "create-match":   ["Create match",     "Add a new tournament match"],
-    "match-results":  ["Match results",    "Set Room ID/Password & Winner"],
-    "ludo-tournament":["Ludo Tournament",  "Ludo match create, room & result"],
-    "deposit-requests":["Deposit requests","Approve or reject incoming deposits"],
-    "withdraw-requests":["Withdraw requests","Process user withdrawal requests"],
-    "money-overview": ["Money overview",   "Full financial summary"],
-    "deposit-history":["Deposit history",  "All deposit transactions"],
-    "withdraw-history":["Withdraw history","All withdrawal transactions"],
-    users:            ["Users",            "Manage all users"],
-    "activity-log":   ["Activity log",     "All admin actions"],
-    "manage-admins":  ["Manage admins",    "Add or manage admin accounts"],
-    "payment-numbers":["Payment Numbers",  "Deposit number manage করুন"],
+    dashboard:          ["Dashboard",          "Overview of all activity"],
+    "create-match":     ["Create match",        "Add a new tournament match"],
+    "match-results":    ["Match results",       "Set Room ID/Password & Winner"],
+    "ludo-tournament":  ["Ludo Tournament",     "Ludo match create, room & result"],
+    "deposit-requests": ["Deposit requests",    "Approve or reject incoming deposits"],
+    "withdraw-requests":["Withdraw requests",   "Process user withdrawal requests"],
+    "point-requests":   ["Point Requests",      "Referral point convert requests"],   // 🆕
+    "money-overview":   ["Money overview",      "Full financial summary"],
+    "deposit-history":  ["Deposit history",     "All deposit transactions"],
+    "withdraw-history": ["Withdraw history",    "All withdrawal transactions"],
+    users:              ["Users",               "Manage all users"],
+    "activity-log":     ["Activity log",        "All admin actions"],
+    "manage-admins":    ["Manage admins",       "Add or manage admin accounts"],
+    "payment-numbers":  ["Payment Numbers",     "Deposit number manage করুন"],
   };
 
   const [title, sub] = titles[page] || ["Admin Panel",""];
@@ -924,19 +1081,20 @@ const AdminPanel = () => {
       <Sidebar page={page} setPage={setPage} admin={admin} onLogout={handleLogout} badges={badges} />
       <main style={{ flex:1,overflowY:"auto" }}>
         <Topbar title={title} sub={sub} onRefresh={()=>window.location.reload()} />
-        {page==="dashboard"          && <Dashboard />}
-        {page==="create-match"       && <CreateMatch />}
-        {page==="match-results"      && <MatchResults />}
-        {page==="ludo-tournament"    && <LudoTournamentManager />}
-        {page==="deposit-requests"   && <DepositRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
-        {page==="withdraw-requests"  && <WithdrawRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
-        {page==="money-overview"     && <MoneyOverview />}
-        {page==="deposit-history"    && <History type="deposit" />}
-        {page==="withdraw-history"   && <History type="withdraw" />}
-        {page==="users"              && <Users />}
-        {page==="activity-log"       && <ActivityLog />}
-        {page==="manage-admins"      && <ManageAdmins />}
-        {page==="payment-numbers"    && <PaymentNumbers />}
+        {page==="dashboard"           && <Dashboard />}
+        {page==="create-match"        && <CreateMatch />}
+        {page==="match-results"       && <MatchResults />}
+        {page==="ludo-tournament"     && <LudoTournamentManager />}
+        {page==="deposit-requests"    && <DepositRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
+        {page==="withdraw-requests"   && <WithdrawRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
+        {page==="point-requests"      && <PointRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
+        {page==="money-overview"      && <MoneyOverview />}
+        {page==="deposit-history"     && <History type="deposit" />}
+        {page==="withdraw-history"    && <History type="withdraw" />}
+        {page==="users"               && <Users />}
+        {page==="activity-log"        && <ActivityLog />}
+        {page==="manage-admins"       && <ManageAdmins />}
+        {page==="payment-numbers"     && <PaymentNumbers />}
       </main>
     </div>
   );
