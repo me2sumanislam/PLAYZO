@@ -1,4 +1,5 @@
- import React, { useState, useEffect } from "react";
+ // App.jsx
+import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./App.css";
 
@@ -13,7 +14,6 @@ import Referral from "./page/Referral/Referral";
 
 import { subscribeUserToPush } from "./utils/pushNotification";
 
-// ✅ PWA Install Version Key — প্রতিটি install-এ check হবে
 const PWA_INSTALL_KEY = "pwa_install_id";
 
 function App() {
@@ -43,30 +43,22 @@ function App() {
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone;
 
-  // ✅ PWA Reinstall Detection — uninstall করে আবার install করলে logout হবে
   useEffect(() => {
     const checkPWAReinstall = () => {
-      // PWA standalone mode এ আছে কিনা check
       const runningAsStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         window.navigator.standalone === true;
 
-      if (!runningAsStandalone) return; // Browser-এ চললে skip
+      if (!runningAsStandalone) return;
 
       const savedInstallId = localStorage.getItem(PWA_INSTALL_KEY);
-
-      // sessionStorage PWA install session track করে
-      // PWA uninstall হলে sessionStorage clear হয়, localStorage নাও হতে পারে
       const currentSessionId = sessionStorage.getItem(PWA_INSTALL_KEY);
 
       if (!currentSessionId) {
-        // নতুন session = নতুন install
         const newInstallId = Date.now().toString();
         sessionStorage.setItem(PWA_INSTALL_KEY, newInstallId);
 
         if (savedInstallId && savedInstallId !== newInstallId) {
-          // ✅ পুরনো install ID ছিল কিন্তু নতুন session — মানে reinstall হয়েছে
-          // সব auth data clear করো
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           localStorage.removeItem("isAdmin");
@@ -76,7 +68,6 @@ function App() {
           localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
           setIsLoggedIn(false);
         } else if (!savedInstallId) {
-          // ✅ প্রথমবার install
           localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
         }
       }
@@ -85,13 +76,11 @@ function App() {
     checkPWAReinstall();
   }, []);
 
-  // ✅ Service Worker Message Listener — SW activate হলে logout
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
     const handleSWMessage = (event) => {
       if (event.data?.type === "SW_ACTIVATED_CLEAR_AUTH") {
-        // ✅ Service Worker নতুনভাবে activate হয়েছে = reinstall
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         localStorage.removeItem("isAdmin");
@@ -103,7 +92,6 @@ function App() {
     };
 
     navigator.serviceWorker.addEventListener("message", handleSWMessage);
-
     return () => {
       navigator.serviceWorker.removeEventListener("message", handleSWMessage);
     };
@@ -121,7 +109,6 @@ function App() {
     }
   }, [isLoggedIn]);
 
-  // PWA Badge Logic
   useEffect(() => {
     const updateAppIconBadge = async () => {
       if (!("setAppBadge" in navigator) || !isLoggedIn) return;
@@ -147,12 +134,8 @@ function App() {
     };
 
     updateAppIconBadge();
-
     const badgeInterval = setInterval(updateAppIconBadge, 30000);
-
-    return () => {
-      clearInterval(badgeInterval);
-    };
+    return () => clearInterval(badgeInterval);
   }, [isLoggedIn]);
 
   const handleLoginSuccess = () => {
@@ -204,12 +187,16 @@ function App() {
         }
       />
 
-      {/* Referral Page */}
+      {/* ✅ Referral Page — user আর token এখন পাঠানো হচ্ছে */}
       <Route
         path="/referral"
         element={
           isLoggedIn ? (
-            <Referral onBack={() => navigate("/app")} />
+            <Referral
+              onBack={() => navigate("/app")}
+              user={JSON.parse(localStorage.getItem("user"))}
+              token={localStorage.getItem("token")}
+            />
           ) : (
             <Auth onLoginSuccess={handleLoginSuccess} />
           )
