@@ -5,21 +5,42 @@ import axios from "axios";
 const API = import.meta.env.VITE_API_URL || "";
 
 const Referral = ({ onBack, user, token }) => {
-  const [referralData, setReferralData]   = useState(null);
-  const [converting, setConverting]       = useState(false);
-  const [convertMsg, setConvertMsg]       = useState("");
-  const [msgType, setMsgType]             = useState("success"); // "success" | "error" | "info"
+  const [referralData, setReferralData] = useState(null);
+  const [converting, setConverting]     = useState(false);
+  const [convertMsg, setConvertMsg]     = useState("");
+  const [msgType, setMsgType]           = useState("success");
+  const [loading, setLoading]           = useState(true);
+  const [errorMsg, setErrorMsg]         = useState("");
 
-  useEffect(() => { fetchReferral(); }, []);
+  // ✅ user.id অথবা user._id যেটাই থাকুক কাজ করবে
+  const userId = user?.id || user?._id;
+
+  useEffect(() => {
+    if (userId) {
+      fetchReferral();
+    } else {
+      setErrorMsg("User তথ্য পাওয়া যায়নি। আবার লগইন করুন।");
+      setLoading(false);
+    }
+  }, [userId]);
 
   const fetchReferral = async () => {
+    setLoading(true);
+    setErrorMsg("");
     try {
-      const res = await axios.get(`${API}/api/wallet/referral/${user.id}`, {
+      const res = await axios.get(`${API}/api/wallet/referral/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data.success) setReferralData(res.data.data);
+      if (res.data.success) {
+        setReferralData(res.data.data);
+      } else {
+        setErrorMsg("ডেটা লোড হয়নি।");
+      }
     } catch (err) {
       console.error("Referral fetch error:", err);
+      setErrorMsg("সার্ভার থেকে ডেটা আনতে পারেনি।");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -29,7 +50,7 @@ const Referral = ({ onBack, user, token }) => {
     try {
       const res = await axios.post(
         `${API}/api/wallet/referral/convert`,
-        { userId: user.id },
+        { userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setConvertMsg(res.data.message || "সফল হয়েছে!");
@@ -44,34 +65,26 @@ const Referral = ({ onBack, user, token }) => {
   };
 
   const handleShare = () => {
-  const code = referralData?.referralCode;
+    const code = referralData?.referralCode;
+    if (!code) {
+      setConvertMsg("⚠️ Referral code লোড হয়নি, একটু অপেক্ষা করুন।");
+      setMsgType("error");
+      return;
+    }
+    const link = `https://playzo-eight.vercel.app?ref=${code}`;
+    const text = `আমার referral code: ${code}\n${link}`;
+    if (navigator.share) {
+      navigator.share({ title: "Playzo তে যোগ দাও!", text: `আমার referral code: ${code}`, url: link });
+    } else {
+      navigator.clipboard.writeText(text);
+      setConvertMsg("✅ লিংক কপি হয়েছে!");
+      setMsgType("info");
+    }
+  };
 
-  // code না থাকলে share করব না
-  if (!code) {
-    setConvertMsg("⚠️ Referral code লোড হয়নি, একটু অপেক্ষা করুন।");
-    setMsgType("error");
-    return;
-  }
-
-  const link = `https://playzo-eight.vercel.app?ref=${code}`;
-  const text = `আমার referral code: ${code}\n${link}`;
-
-  if (navigator.share) {
-    navigator.share({
-      title: "Playzo তে যোগ দাও!",
-      text: `আমার referral code: ${code}`,
-      url: link,
-    });
-  } else {
-    navigator.clipboard.writeText(text);
-    setConvertMsg("✅ লিংক কপি হয়েছে!");
-    setMsgType("info");
-  }
-};
-
-  const hasPending  = referralData?.hasPendingRequest;
-  const points      = referralData?.referralPoints || 0;
-  const canConvert  = points >= 100 && !hasPending;
+  const hasPending = referralData?.hasPendingRequest;
+  const points     = referralData?.referralPoints || 0;
+  const canConvert = points >= 100 && !hasPending;
 
   const msgColors = {
     success: { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d" },
@@ -79,6 +92,32 @@ const Referral = ({ onBack, user, token }) => {
     info:    { bg: "#eff6ff", border: "#bfdbfe", text: "#1d4ed8" },
   };
   const mc = msgColors[msgType];
+
+  // ✅ Loading state
+  if (loading) {
+    return (
+      <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-4 border-orange-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 font-bold text-sm">লোড হচ্ছে...</p>
+      </div>
+    );
+  }
+
+  // ✅ Error state
+  if (errorMsg) {
+    return (
+      <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-4 px-8">
+        <p className="text-4xl">😕</p>
+        <p className="text-red-500 font-bold text-center">{errorMsg}</p>
+        <button
+          onClick={onBack}
+          className="bg-orange-500 text-white px-6 py-3 rounded-2xl font-bold"
+        >
+          ← ফিরে যান
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white min-h-screen pb-10">
@@ -88,7 +127,6 @@ const Referral = ({ onBack, user, token }) => {
         <p className="text-4xl mb-2">🎁</p>
         <h2 className="text-xl font-black">Refer & Earn</h2>
         <p className="text-orange-100 text-sm mt-1">বন্ধুদের invite করুন, পয়েন্ট জিতুন!</p>
-
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
           <p className="text-xs text-orange-100">আপনার Points</p>
           <p className="text-3xl font-black">{points}</p>
@@ -103,7 +141,7 @@ const Referral = ({ onBack, user, token }) => {
           <p className="text-xs text-gray-500 font-bold mb-1">আপনার Referral Code</p>
           <div className="flex items-center justify-between">
             <p className="text-2xl font-black text-orange-600 tracking-widest">
-              {referralData?.referralCode || "লোড হচ্ছে..."}
+              {referralData?.referralCode || "—"}
             </p>
             <button
               onClick={handleShare}
@@ -148,7 +186,7 @@ const Referral = ({ onBack, user, token }) => {
           </div>
         </div>
 
-        {/* Pending request notice */}
+        {/* Pending notice */}
         {hasPending && (
           <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 16, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
             <span style={{ fontSize: 20 }}>⏳</span>
