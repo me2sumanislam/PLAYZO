@@ -44,19 +44,30 @@ const Referral = ({ onBack, user, token }) => {
   };
 
   const handleShare = () => {
-    const link = `https://playzo-eight.vercel.app?ref=${referralData?.referralCode}`;
-    if (navigator.share) {
-      navigator.share({
-        title: "uthiYO তে যোগ দাও!",
-        text: `আমার referral code: ${referralData?.referralCode}`,
-        url: link,
-      });
-    } else {
-      navigator.clipboard.writeText(link);
-      setConvertMsg("✅ লিংক কপি হয়েছে!");
-      setMsgType("info");
-    }
-  };
+  const code = referralData?.referralCode;
+
+  // code না থাকলে share করব না
+  if (!code) {
+    setConvertMsg("⚠️ Referral code লোড হয়নি, একটু অপেক্ষা করুন।");
+    setMsgType("error");
+    return;
+  }
+
+  const link = `https://playzo-eight.vercel.app?ref=${code}`;
+  const text = `আমার referral code: ${code}\n${link}`;
+
+  if (navigator.share) {
+    navigator.share({
+      title: "Playzo তে যোগ দাও!",
+      text: `আমার referral code: ${code}`,
+      url: link,
+    });
+  } else {
+    navigator.clipboard.writeText(text);
+    setConvertMsg("✅ লিংক কপি হয়েছে!");
+    setMsgType("info");
+  }
+};
 
   const hasPending  = referralData?.hasPendingRequest;
   const points      = referralData?.referralPoints || 0;
