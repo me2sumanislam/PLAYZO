@@ -4,7 +4,6 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// ================= REFERRAL CODE GENERATOR =================
 function generateReferralCode(name) {
   const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);
   const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -16,13 +15,11 @@ router.post("/register", async (req, res) => {
   try {
     const { name, inGameName, email, phone, password, referralCode } = req.body;
 
-    // Phone unique check
     const existingPhone = await User.findOne({ phone });
     if (existingPhone) {
       return res.json({ success: false, message: "এই ফোন নম্বর দিয়ে আগেই একাউন্ট আছে" });
     }
 
-    // Name unique check
     if (name && name.trim()) {
       const existingName = await User.findOne({ name: name.trim() });
       if (existingName) {
@@ -32,11 +29,9 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ Unique referral code generate
     let newReferralCode;
     let isUnique = false;
     let attempts = 0;
-
     while (!isUnique && attempts < 15) {
       newReferralCode = generateReferralCode(name);
       const existing = await User.findOne({ referralCode: newReferralCode });
@@ -44,7 +39,6 @@ router.post("/register", async (req, res) => {
       attempts++;
     }
 
-    // ✅ Referrer খোঁজো
     let referrer = null;
     if (referralCode && referralCode.trim()) {
       referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
@@ -63,7 +57,6 @@ router.post("/register", async (req, res) => {
       referralHistory: [],
     });
 
-    // ✅ Referrer এর history তে add করো
     if (referrer) {
       referrer.referralHistory.push({
         userId:     user._id,
@@ -71,20 +64,39 @@ router.post("/register", async (req, res) => {
         phone:      user.phone,
         deposited:  false,
         pointGiven: false,
-        date: new Date()
+        joinedAt:   new Date(),
       });
       referrer.referralCount += 1;
       await referrer.save();
     }
 
-    res.json({ 
-      success: true, 
-      message: "রেজিস্ট্রেশন সফল হয়েছে!", 
-      referralCode: newReferralCode 
+    // ✅ Token generate করো
+    const token = jwt.sign(
+      { id: user._id, role: user.role, phone: user.phone },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      message: "রেজিস্ট্রেশন সফল হয়েছে!",
+      token, // ✅ token পাঠাও
+      user: { // ✅ user পাঠাও
+        id:             user._id,
+        name:           user.name,
+        inGameName:     user.inGameName,
+        email:          user.email,
+        phone:          user.phone,
+        role:           user.role,
+        balance:        user.balance,
+        referralCode:   user.referralCode,
+        referralPoints: user.referralPoints,
+        referralCount:  user.referralCount,
+      },
     });
   } catch (err) {
     console.error("Register Error:", err);
-    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
   }
 });
 
@@ -137,7 +149,7 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
   }
 });
 
