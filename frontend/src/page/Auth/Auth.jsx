@@ -1,4 +1,5 @@
- import React, { useState } from "react";
+ // page/Auth/Auth.jsx
+import React, { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 const PasswordInput = ({ placeholder, value, onChange, required, autoComplete, className }) => {
@@ -34,11 +35,21 @@ const Auth = ({ onLoginSuccess }) => {
   const [loginData, setLoginData] = useState({ phone: "", password: "" });
   const [regData, setRegData] = useState({
     name: "", phone: "", password: "", confirm: "",
-    referralCode: "" // ✅ NEW
+    referralCode: ""
   });
   const [forgotPhone, setForgotPhone] = useState("");
   const [newPass, setNewPass] = useState("");
   const [forgotStep, setForgotStep] = useState(1);
+
+  // ✅ URL থেকে ?ref=CODE auto-fill
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get("ref");
+    if (refCode) {
+      setRegData((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
+      setScreen("register"); // সরাসরি register এ নিয়ে যাও
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -54,7 +65,7 @@ const Auth = ({ onLoginSuccess }) => {
       if (data.success) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("isAdmin", "false");
-        localStorage.setItem("user", JSON.stringify(data.user || { phone: loginData.phone }));
+        localStorage.setItem("user", JSON.stringify(data.user));
         onLoginSuccess();
       } else {
         setError(data.message || "Login failed!");
@@ -86,14 +97,15 @@ const Auth = ({ onLoginSuccess }) => {
           name: regData.name,
           phone: regData.phone,
           password: regData.password,
-          referralCode: regData.referralCode.trim().toUpperCase() || null, // ✅ NEW
+          referralCode: regData.referralCode.trim().toUpperCase() || null,
         }),
       });
       const data = await res.json();
       if (data.success) {
+        // ✅ token আর user এখন backend থেকে আসছে
         localStorage.setItem("token", data.token);
         localStorage.setItem("isAdmin", "false");
-        localStorage.setItem("user", JSON.stringify(data.user || { name: regData.name, phone: regData.phone }));
+        localStorage.setItem("user", JSON.stringify(data.user));
         onLoginSuccess();
       } else {
         setError(data.message || "Registration failed!");
@@ -283,6 +295,13 @@ const Auth = ({ onLoginSuccess }) => {
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🎁</span>
           </div>
+
+          {/* ✅ Referral code দেওয়া থাকলে confirm দেখাও */}
+          {regData.referralCode && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 font-bold">
+              🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু ৫ পয়েন্ট পাবে!
+            </div>
+          )}
 
           <button
             type="submit"
