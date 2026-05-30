@@ -995,17 +995,17 @@ const AppDashboard = ({ onLogout }) => {
   // ✅ Best Mobile + PWA Friendly Slider Data
   const sliderSlides = [
     {
-      image: "/image/slider/banner-freefire.jpg",
+      image: "/frontend/public/image/slider/banner-freefire.jpg",
       title: "Free Fire Big Tournament",
       link: "/app?tab=freefire"
     },
     {
-      image: "/image/slider/banner-ludo.jpg",
+      image: "/frontend/public/image/slider/banner-ludo.jpg",
       title: "Ludo Cash Tournament 🔥",
       link: "/ludo"
     },
     {
-      image: "/image/slider/banner-refer.jpg",
+      image: "/frontend/public/image/slider/banner-refer.jpg",
       title: "Refer & Earn ৳100",
       link: "/referral"
     },
