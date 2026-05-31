@@ -6,12 +6,15 @@ import NotificationBell from "../NotificationBell/NotificationBell";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
 import Withdraw from "../../page/Withdraw/Withdraw";
+import AddMoneyModal from "../Addmoney/AddMoney";
 import AllRulesPage from "../AllRulesPage/AllRulesPage";
 import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
 import Referral from "../../page/Referral/Referral";
 import ClickableSlider from "../Slider/ClickableSlider";
+
+ 
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
