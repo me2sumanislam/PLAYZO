@@ -14,12 +14,12 @@ const ClickableSlider = ({ slides }) => {
   useEffect(() => {
     const startAutoSlide = () => {
       if (autoSlideRef.current) clearInterval(autoSlideRef.current);
-
+      
       autoSlideRef.current = setInterval(() => {
         if (!isDragging) {
           setCurrentIndex((prev) => (prev + 1) % slides.length);
         }
-      }, 4500);
+      }, 5000);
     };
 
     startAutoSlide();
@@ -27,7 +27,6 @@ const ClickableSlider = ({ slides }) => {
     return () => clearInterval(autoSlideRef.current);
   }, [slides.length, isDragging]);
 
-  // Touch Handlers
   const handleTouchStart = useCallback((e) => {
     setIsDragging(true);
     setStartX(e.touches[0].clientX);
@@ -61,7 +60,7 @@ const ClickableSlider = ({ slides }) => {
   };
 
   return (
-    <div className="relative w-full h-[260px] sm:h-[300px] md:h-[350px] overflow-hidden rounded-3xl shadow-2xl">
+    <div className="relative w-full h-[320px] sm:h-[380px] md:h-[420px] overflow-hidden rounded-3xl shadow-2xl">
       <div
         className="flex h-full transition-transform duration-700 ease-out"
         style={{
@@ -77,7 +76,7 @@ const ClickableSlider = ({ slides }) => {
             className="min-w-full h-full relative cursor-pointer"
             onClick={() => handleClick(slide)}
           >
-            {/* Banner Image */}
+            {/* Full Banner Image */}
             <img
               src={slide.image}
               alt={slide.title}
@@ -85,29 +84,29 @@ const ClickableSlider = ({ slides }) => {
               loading="lazy"
             />
 
-            {/* Beautiful Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/80" />
+            {/* Very Strong Gradient Overlay (Text স্পষ্ট করার জন্য) */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/70 to-black/90" />
 
-            {/* Centered Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5 z-10">
+            {/* Main Content - Full Banner Style */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10">
               {slide.subtitle && (
-                <p className="text-white/90 text-sm sm:text-base tracking-widest mb-1">
+                <p className="text-yellow-300 text-lg sm:text-xl font-medium tracking-widest mb-2">
                   {slide.subtitle}
                 </p>
               )}
 
-              <h2 className="text-white text-2xl sm:text-3xl md:text-4xl font-bold leading-tight mb-3 drop-shadow-xl">
+              <h2 className="text-white text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.1] mb-4 drop-shadow-2xl">
                 {slide.title}
               </h2>
 
               {slide.description && (
-                <p className="text-white/80 text-[15px] max-w-[260px] mb-5">
+                <p className="text-white/95 text-lg sm:text-xl font-medium max-w-[320px] mb-6 leading-tight">
                   {slide.description}
                 </p>
               )}
 
               {slide.buttonText && (
-                <button className="mt-2 bg-white hover:bg-yellow-400 text-black font-semibold px-8 py-3 rounded-full text-sm transition-all active:scale-95 shadow-lg">
+                <button className="bg-white hover:bg-yellow-400 text-black font-bold px-10 py-4 rounded-2xl text-lg shadow-2xl transition-all active:scale-95">
                   {slide.buttonText}
                 </button>
               )}
@@ -116,32 +115,18 @@ const ClickableSlider = ({ slides }) => {
         ))}
       </div>
 
-      {/* Progress Dots */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+      {/* Dots */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-30">
         {slides.map((_, idx) => (
           <div
             key={idx}
             onClick={() => setCurrentIndex(idx)}
-            className={`h-[5px] rounded-full cursor-pointer transition-all ${
-              currentIndex === idx ? "w-9 bg-white" : "w-[5px] bg-white/60"
+            className={`h-3 rounded-full cursor-pointer transition-all ${
+              currentIndex === idx ? "w-11 bg-white" : "w-3 bg-white/60"
             }`}
           />
         ))}
       </div>
-
-      {/* Optional Desktop Arrows */}
-      <button
-        onClick={() => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length)}
-        className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white w-9 h-9 rounded-full items-center justify-center text-2xl z-30"
-      >
-        ←
-      </button>
-      <button
-        onClick={() => setCurrentIndex((prev) => (prev + 1) % slides.length)}
-        className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white w-9 h-9 rounded-full items-center justify-center text-2xl z-30"
-      >
-        →
-      </button>
     </div>
   );
 };
