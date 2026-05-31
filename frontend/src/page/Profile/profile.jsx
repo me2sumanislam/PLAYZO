@@ -13,7 +13,7 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showBuildApp, setShowBuildApp] = useState(false);
-  const [showReferralPage, setShowReferralPage] = useState(false); // রেফারের জন্য নতুন স্টেট
+  const [showReferralPage, setShowReferralPage] = useState(false);
   const [balance, setBalance] = useState(0);
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -33,7 +33,6 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
 
   useEffect(() => {
     fetchBalance();
-    // প্রতি ৫ সেকেন্ড পর পর ব্যালেন্স অটো আপডেট হবে
     const interval = setInterval(fetchBalance, 5000);
     return () => clearInterval(interval);
   }, [token]);
@@ -54,15 +53,14 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
     if (id === "all_rules") onAllRules();
     if (id === "my_profile") onMyProfile();
     if (id === "dev_profile") setShowBuildApp(true);
-    if (id === "referral") setShowReferralPage(true); // ক্লিক করলে রেফারেল পেজ শো করবে
+    if (id === "referral") setShowReferralPage(true);
   };
 
-  // যদি Build Your App ওপেন থাকে
+  // পূর্ণাঙ্গ আলাদা পেজগুলোর জন্য কন্ডিশনাল রিটার্ন (যেমন আছে থাকবে)
   if (showBuildApp) {
     return <BuildYourApp onBack={() => setShowBuildApp(false)} />;
   }
 
-  // যদি Refer & Earn ওপেন থাকে
   if (showReferralPage) {
     return <Referral onBack={() => setShowReferralPage(false)} />;
   }
@@ -80,7 +78,6 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
         {/* Balance Card */}
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block backdrop-blur-sm border border-white/10">
           <p className="text-xs text-blue-100 font-medium">ব্যালেন্স</p>
-          {/* ফিক্সড: ৳ সাইন এবং দশমিকের পর নিখুঁত ২ ঘর (.00) ফরম্যাট */}
           <p className="text-2xl font-black mt-0.5">
             ৳ {balance.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
@@ -114,7 +111,7 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
         </button>
       </div>
 
-      {/* Modals */}
+      {/* মোডাল দুটিকে এখানে নিচে রাখা হলো, যাতে ক্লিক করলে আগের মতো সুন্দর পপ-আপ ডিজাইন দেখায় */}
       <AddMoneyModal
         isOpen={showAddMoney}
         onClose={() => {
