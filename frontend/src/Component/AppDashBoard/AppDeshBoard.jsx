@@ -941,8 +941,12 @@ const AppDashboard = ({ onLogout }) => {
 };
 
 // ─── Profile Component ────────────────────────────────────────────────────────
-const Profile = ({ onLogout, onWallet, onWithdraw, onAllRules, onMyProfile, onReferral }) => {
+ // ─── Profile Component ────────────────────────────────────────────────────────
+const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
   const [balance, setBalance] = useState(0);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
 
@@ -965,59 +969,80 @@ const Profile = ({ onLogout, onWallet, onWithdraw, onAllRules, onMyProfile, onRe
   }, [token]);
 
   const menuItems = [
-    { id: "wallet", label: "Wallet / Add Money", icon: "👛" },
-    { id: "withdraw", label: "Withdraw", icon: "💵" },
-    { id: "referral", label: "Refer & Earn", icon: "🎁" },
-    { id: "my_profile", label: "Account Info", icon: "👤" },
-    { id: "all_rules", label: "All Rules", icon: "📋" },
-    { id: "top_players", label: "Top Players", icon: "📈" },
+    { id: "wallet",      label: "Wallet / Add Money", icon: "👛" },
+    { id: "withdraw",    label: "Withdraw",            icon: "💵" },
+    { id: "referral",    label: "Refer & Earn",        icon: "🎁" },
+    { id: "my_profile",  label: "Account Info",        icon: "👤" },
+    { id: "all_rules",   label: "All Rules",           icon: "📋" },
+    { id: "top_players", label: "Top Players",         icon: "📈" },
   ];
 
   const handleNavigate = (id) => {
-    if (id === "wallet") onWallet();
-    if (id === "withdraw") onWithdraw();
-    if (id === "all_rules") onAllRules();
+    if (id === "wallet")     setShowAddMoney(true);
+    if (id === "withdraw")   setShowWithdraw(true);
+    if (id === "all_rules")  onAllRules();
     if (id === "my_profile") onMyProfile();
-    if (id === "referral") onReferral();
+    if (id === "referral")   onReferral();
   };
 
   return (
-    <div className="bg-white min-h-screen pb-10">
-      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
-        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
-          👨‍💻
+    <>
+      <div className="bg-white min-h-screen pb-10">
+        <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
+          <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
+            👨‍💻
+          </div>
+          <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
+          <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
+          <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
+            <p className="text-xs text-blue-100">ব্যালেন্স</p>
+            <p className="text-2xl font-black">
+              ৳ {balance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
         </div>
-        <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
-        <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
-        <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
-          <p className="text-xs text-blue-100">ব্যালেন্স</p>
-          <p className="text-2xl font-black">
-            ৳ {balance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
+
+        <div className="mt-4 px-2">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleNavigate(item.id)}
+              className="w-full flex justify-between items-center p-4 border-b hover:bg-gray-50 transition"
+            >
+              <div className="flex gap-4 items-center">
+                <span className="text-xl">{item.icon}</span>
+                <span className="font-bold text-sm">{item.label}</span>
+              </div>
+              <span className="text-gray-400">›</span>
+            </button>
+          ))}
         </div>
-      </div>
-      <div className="mt-4 px-2">
-        {menuItems.map((item) => (
+
+        <div className="px-8 mt-12">
           <button
-            key={item.id}
-            onClick={() => handleNavigate(item.id)}
-            className="w-full flex justify-between items-center p-4 border-b hover:bg-gray-50 transition"
+            onClick={onLogout}
+            className="w-full bg-blue-500 text-white py-3 rounded-full font-bold"
           >
-            <div className="flex gap-4 items-center">
-              <span className="text-xl">{item.icon}</span>
-              <span className="font-bold text-sm">{item.label}</span>
-            </div>
-            <span className="text-gray-400">›</span>
+            Logout
           </button>
-        ))}
+        </div>
       </div>
-      <div className="px-8 mt-12">
-        <button onClick={onLogout} className="w-full bg-blue-500 text-white py-3 rounded-full font-bold">
-          Logout
-        </button>
-      </div>
-    </div>
+
+      <AddMoneyModal
+        isOpen={showAddMoney}
+        onClose={() => {
+          setShowAddMoney(false);
+          fetchProfileBalance();
+        }}
+      />
+      <Withdraw
+        isOpen={showWithdraw}
+        onClose={() => {
+          setShowWithdraw(false);
+          fetchProfileBalance();
+        }}
+      />
+    </>
   );
 };
-
 export default AppDashboard;
