@@ -995,7 +995,7 @@ const AppDashboard = ({ onLogout }) => {
   // ✅ Best Mobile + PWA Friendly Slider Data
   const sliderSlides = [
     {
-      image: "/frontend/public/image/slider/banner-freefire.jpg",
+      image: "image/slider/uthiyo_facebook.png",
       title: "Free Fire Big Tournament",
       link: "/app?tab=freefire"
     },
