@@ -60,7 +60,7 @@ const ClickableSlider = ({ slides }) => {
   };
 
   return (
-    <div className="relative w-full h-[200px] md:h-[220px] overflow-hidden rounded-3xl shadow-2xl border-4 border-white mx-auto select-none">
+     <div className="relative w-full h-[260px] md:h-[300px] overflow-hidden rounded-3xl shadow-2xl border-4 border-white mx-auto select-none">
       <div
         ref={sliderRef}
         className="flex h-full transition-transform duration-500 ease-out"
@@ -80,7 +80,7 @@ const ClickableSlider = ({ slides }) => {
             <img
               src={slide.image}
               alt={slide.title}
-              className="relative w-full aspect-[16/7] md:aspect-[16/6] overflow-hidden object-cover rounded-3xl"
+              className="w-full h-full object-contain bg-[#0a0a0a] p-1"
               loading="lazy"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
