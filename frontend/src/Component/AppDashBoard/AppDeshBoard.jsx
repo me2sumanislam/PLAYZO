@@ -997,7 +997,7 @@ const AppDashboard = ({ onLogout }) => {
 const sliderSlides = [
    {
     image: "/image/slider/facebook1.png",
-    title: "Join Our Facebook Group!",
+    // title: "Join Our Facebook Group!",
     // subtitle: "Daily Updates",
     // description: "Get latest news & offers",
     // buttonText: "Join Now",
@@ -1005,7 +1005,7 @@ const sliderSlides = [
   },
   {
     image: "/image/slider/ludo.png",
-    title: "Ludo Khele Jitun 🔥",
+    // title: "Ludo Khele Jitun 🔥",
     // subtitle: "Real Money Tournament",
     // description: "Win up to ₹10,000",
     // buttonText: "Play Now",
@@ -1013,7 +1013,7 @@ const sliderSlides = [
   },
   {
     image: "/image/slider/telegram.png",
-    title: "Join Our Telegram Group!",
+    // title: "Join Our Telegram Group!",
     // subtitle: "Daily Updates",
     // description: "Get latest news & offers",
     // buttonText: "Join Now",
@@ -1021,11 +1021,11 @@ const sliderSlides = [
   },
   {
     image: "/image/slider/youtube.png",
-    title: "Join Our YouTube Channel",
+    // title: "Join Our YouTube Channel",
     // subtitle: "Daily Updates",
     // description: "Get latest news & offers",
     // buttonText: "Subscribe",
-    link: "/youtube"
+    link: "https://www.youtube.com/watch?v=7uY-_hskZ4A"
   },
 ];
 
