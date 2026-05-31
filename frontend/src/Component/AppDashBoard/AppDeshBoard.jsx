@@ -1,4 +1,6 @@
- import React, { useState, useEffect } from "react";
+ // AppDashboard.jsx
+
+import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import NotificationBell from "../NotificationBell/NotificationBell";
 import Wallet from "../../page/Wallet/Wallet";
@@ -9,14 +11,12 @@ import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
 import Referral from "../../page/Referral/Referral";
-import ClickableSlider from "../Slider/ClickableSlider";   
+import ClickableSlider from "../Slider/ClickableSlider";
 import axios from "axios";
 
-// API URL ঠিক করা হয়েছে যেন শেষে বাড়তি /api ডাবল না হয়
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 const CLEAN_API_URL = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
 
-// ─── Inline MatchResults Component ────────────────────────────────────────────
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
 function getRankMeta(rank) {
@@ -106,12 +106,8 @@ function MatchResultsPage({
                 <p className="text-white text-xs font-bold truncate">
                   {sorted[1].playerName}
                 </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[1].kills} kills
-                </p>
-                <p className="text-gray-200 text-sm font-black mt-1">
-                  ৳{sorted[1].totalPrize}
-                </p>
+                <p className="text-gray-400 text-[10px]">{sorted[1].kills} kills</p>
+                <p className="text-gray-200 text-sm font-black mt-1">৳{sorted[1].totalPrize}</p>
               </div>
             )}
             {sorted[0] && (
@@ -120,12 +116,8 @@ function MatchResultsPage({
                 <p className="text-yellow-400 text-xs font-extrabold truncate">
                   {sorted[0].playerName}
                 </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[0].kills} kills
-                </p>
-                <p className="text-yellow-400 text-base font-black mt-1">
-                  ৳{sorted[0].totalPrize}
-                </p>
+                <p className="text-gray-400 text-[10px]">{sorted[0].kills} kills</p>
+                <p className="text-yellow-400 text-base font-black mt-1">৳{sorted[0].totalPrize}</p>
               </div>
             )}
             {sorted[2] && (
@@ -134,12 +126,8 @@ function MatchResultsPage({
                 <p className="text-white text-xs font-bold truncate">
                   {sorted[2].playerName}
                 </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[2].kills} kills
-                </p>
-                <p className="text-orange-300 text-sm font-black mt-1">
-                  ৳{sorted[2].totalPrize}
-                </p>
+                <p className="text-gray-400 text-[10px]">{sorted[2].kills} kills</p>
+                <p className="text-orange-300 text-sm font-black mt-1">৳{sorted[2].totalPrize}</p>
               </div>
             )}
           </div>
@@ -155,7 +143,9 @@ function MatchResultsPage({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"}`}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"
+              }`}
             >
               {t.label}
             </button>
@@ -175,7 +165,9 @@ function MatchResultsPage({
             return (
               <div
                 key={player.uid + idx}
-                className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
+                className={`rounded-2xl p-4 border ${
+                  isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -193,9 +185,7 @@ function MatchResultsPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p
-                        className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}
-                      >
+                      <p className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}>
                         {player.playerName}
                       </p>
                       {isMe && (
@@ -210,15 +200,11 @@ function MatchResultsPage({
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p
-                      className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}
-                    >
+                    <p className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}>
                       {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
                     </p>
                     {player.totalPrize > 0 && (
-                      <p className="text-[10px] text-gray-600 mt-0.5">
-                        credited
-                      </p>
+                      <p className="text-[10px] text-gray-600 mt-0.5">credited</p>
                     )}
                   </div>
                 </div>
@@ -252,9 +238,7 @@ function MatchResultsPage({
             <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
               <p className="text-3xl mb-3">😔</p>
               <p className="text-white font-bold mb-1">Not in Results</p>
-              <p className="text-gray-500 text-sm">
-                Your UID was not found in this match result
-              </p>
+              <p className="text-gray-500 text-sm">Your UID was not found in this match result</p>
             </div>
           ) : (
             <div>
@@ -272,9 +256,7 @@ function MatchResultsPage({
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-gray-400 text-xs">Your IGN</p>
-                    <p className="text-white text-xl font-black">
-                      {myResult.playerName}
-                    </p>
+                    <p className="text-white text-xl font-black">{myResult.playerName}</p>
                   </div>
                   {getRankMeta(myResult.rank) && (
                     <span
@@ -286,21 +268,15 @@ function MatchResultsPage({
                 </div>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-white font-black text-lg">
-                      #{myResult.rank || "—"}
-                    </p>
+                    <p className="text-white font-black text-lg">#{myResult.rank || "—"}</p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
                   </div>
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-orange-400 font-black text-lg">
-                      {myResult.kills}
-                    </p>
+                    <p className="text-orange-400 font-black text-lg">{myResult.kills}</p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
                   </div>
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-green-400 font-black text-lg">
-                      ৳{myResult.totalPrize}
-                    </p>
+                    <p className="text-green-400 font-black text-lg">৳{myResult.totalPrize}</p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
                   </div>
                 </div>
@@ -313,36 +289,24 @@ function MatchResultsPage({
                       {myResult.rankPrize > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-400">Placement Prize</span>
-                          <span className="text-yellow-400 font-bold">
-                            +৳{myResult.rankPrize}
-                          </span>
+                          <span className="text-yellow-400 font-bold">+৳{myResult.rankPrize}</span>
                         </div>
                       )}
                       {myResult.killEarning > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">
-                            {myResult.kills} Kills × ৳{killPrice}
-                          </span>
-                          <span className="text-green-400 font-bold">
-                            +৳{myResult.killEarning}
-                          </span>
+                          <span className="text-gray-400">{myResult.kills} Kills × ৳{killPrice}</span>
+                          <span className="text-green-400 font-bold">+৳{myResult.killEarning}</span>
                         </div>
                       )}
                       <div className="border-t border-white/10 pt-1.5 flex justify-between">
-                        <span className="text-white font-bold text-sm">
-                          Total Credited
-                        </span>
-                        <span className="text-green-400 font-black text-base">
-                          ৳{myResult.totalPrize}
-                        </span>
+                        <span className="text-white font-bold text-sm">Total Credited</span>
+                        <span className="text-green-400 font-black text-base">৳{myResult.totalPrize}</span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="bg-black/30 rounded-xl p-4 text-center">
-                    <p className="text-gray-500 text-sm">
-                      No prize this match. Better luck next time! 💪
-                    </p>
+                    <p className="text-gray-500 text-sm">No prize this match. Better luck next time! 💪</p>
                   </div>
                 )}
               </div>
@@ -350,8 +314,7 @@ function MatchResultsPage({
                 <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
                   <span className="text-green-400">✓</span>
                   <p className="text-green-400 text-sm">
-                    <strong>৳{myResult.totalPrize}</strong> has been credited to
-                    your wallet
+                    <strong>৳{myResult.totalPrize}</strong> has been credited to your wallet
                   </p>
                 </div>
               )}
@@ -403,9 +366,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
           </span>
         </div>
         <h1 className="text-white text-2xl font-extrabold">Results</h1>
-        <p className="text-gray-500 text-xs mt-1">
-          Tap a match to see full leaderboard
-        </p>
+        <p className="text-gray-500 text-xs mt-1">Tap a match to see full leaderboard</p>
       </div>
 
       <div className="px-4 space-y-3">
@@ -413,9 +374,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-3xl mb-3">🎮</p>
             <p className="text-white font-bold mb-1">No Results Yet</p>
-            <p className="text-gray-500 text-sm">
-              Results will appear here after matches end
-            </p>
+            <p className="text-gray-500 text-sm">Results will appear here after matches end</p>
           </div>
         ) : (
           matches.map((match) => {
@@ -463,14 +422,10 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                         {categoryLabel}
                       </span>
                     </div>
-                    <p className="text-white font-bold text-sm truncate">
-                      {match.title}
-                    </p>
+                    <p className="text-white font-bold text-sm truncate">{match.title}</p>
                     <p className="text-gray-500 text-xs mt-0.5">
                       {match.map || "Free Fire"} • ৳{match.perKill}/kill •{" "}
-                      {match.completedAt
-                        ? new Date(match.completedAt).toLocaleDateString("en-BD")
-                        : ""}
+                      {match.completedAt ? new Date(match.completedAt).toLocaleDateString("en-BD") : ""}
                     </p>
                   </div>
                   <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
@@ -480,20 +435,11 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 <div className="flex gap-2 mb-3">
                   {top3.length > 0 ? (
                     top3.map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1"
-                      >
-                        <span className="text-sm">
-                          {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
-                        </span>
+                      <div key={i} className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1">
+                        <span className="text-sm">{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
                         <div className="min-w-0">
-                          <p className="text-white text-[11px] font-bold truncate">
-                            {p.inGameName || "—"}
-                          </p>
-                          <p className="text-gray-500 text-[10px]">
-                            ৳{p.prize || 0}
-                          </p>
+                          <p className="text-white text-[11px] font-bold truncate">{p.inGameName || "—"}</p>
+                          <p className="text-gray-500 text-[10px]">৳{p.prize || 0}</p>
                         </div>
                       </div>
                     ))
@@ -503,26 +449,16 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 </div>
                 <div className="flex items-center justify-between">
                   {myResult ? (
-                    <div
-                      className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}
-                    >
+                    <div className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}>
                       <span>You:</span>
-                      <span className="font-bold">
-                        #{myResult.position || "—"}
-                      </span>
+                      <span className="font-bold">#{myResult.position || "—"}</span>
                       <span>⚔️ {myResult.kills} kills</span>
-                      {myResult.prize > 0 && (
-                        <span className="font-black">+৳{myResult.prize}</span>
-                      )}
+                      {myResult.prize > 0 && <span className="font-black">+৳{myResult.prize}</span>}
                     </div>
                   ) : (
-                    <span className="text-gray-600 text-xs">
-                      You didn't participate
-                    </span>
+                    <span className="text-gray-600 text-xs">You didn't participate</span>
                   )}
-                  <span className="text-orange-400 text-xs font-bold">
-                    View →
-                  </span>
+                  <span className="text-orange-400 text-xs font-bold">View →</span>
                 </div>
               </div>
             );
@@ -576,7 +512,6 @@ function NotificationsPage({ onBack }) {
           </div>
         </div>
       </div>
-
       <div className="px-4 pt-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -587,9 +522,7 @@ function NotificationsPage({ onBack }) {
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-4xl mb-3">🔔</p>
             <p className="text-white font-bold mb-1">No Notifications</p>
-            <p className="text-gray-500 text-sm">
-              You're all caught up! Check back later
-            </p>
+            <p className="text-gray-500 text-sm">You're all caught up! Check back later</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -597,9 +530,7 @@ function NotificationsPage({ onBack }) {
               <div
                 key={n._id || idx}
                 className={`rounded-2xl p-4 border ${
-                  n.isRead
-                    ? "bg-[#111827] border-white/5"
-                    : "bg-orange-500/10 border-orange-500/30"
+                  n.isRead ? "bg-[#111827] border-white/5" : "bg-orange-500/10 border-orange-500/30"
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -608,16 +539,10 @@ function NotificationsPage({ onBack }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-white font-bold text-sm">
-                        {n.title || "Notification"}
-                      </p>
-                      {!n.isRead && (
-                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
-                      )}
+                      <p className="text-white font-bold text-sm">{n.title || "Notification"}</p>
+                      {!n.isRead && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />}
                     </div>
-                    <p className="text-gray-400 text-xs mt-1">
-                      {n.body || n.message}
-                    </p>
+                    <p className="text-gray-400 text-xs mt-1">{n.body || n.message}</p>
                     {n.createdAt && (
                       <p className="text-gray-600 text-[10px] mt-2">
                         {new Date(n.createdAt).toLocaleString("en-BD")}
@@ -642,9 +567,7 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
   const [joining, setJoining] = useState(null);
   const [msg, setMsg] = useState("");
 
-  useEffect(() => {
-    loadMatches();
-  }, [filter]);
+  useEffect(() => { loadMatches(); }, [filter]);
 
   const loadMatches = async () => {
     setLoading(true);
@@ -660,36 +583,21 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
   };
 
   const handleJoin = async (matchId, entryFee) => {
-    if (!currentUser?.id && !currentUser?._id) {
-      setMsg("আগে login করুন");
-      return;
-    }
+    if (!currentUser?.id && !currentUser?._id) { setMsg("আগে login করুন"); return; }
     setJoining(matchId);
     setMsg("");
     try {
       const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/join`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          matchId,
-          userId: currentUser?.id || currentUser?._id,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ matchId, userId: currentUser?.id || currentUser?._id }),
       });
       const data = await res.json();
       if (data.success) {
         setMsg("✅ Successfully joined!");
         const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            ...stored,
-            balance: data.newBalance ?? stored.balance,
-          })
-        );
-        if (onRefreshBalance) onRefreshBalance(); 
+        localStorage.setItem("user", JSON.stringify({ ...stored, balance: data.newBalance ?? stored.balance }));
+        if (onRefreshBalance) onRefreshBalance();
         loadMatches();
       } else {
         setMsg("❌ " + (data.message || "Join failed"));
@@ -706,7 +614,6 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
     { id: "live", label: "🔴 Live" },
     { id: "completed", label: "✅ Done" },
   ];
-
   const modeLabel = { "1v1": "⚔️ 1v1", "2v2": "👥 2v2", "4player": "🎮 4 Player" };
   const modeColor = { "1v1": "#f59e0b", "2v2": "#3b82f6", "4player": "#10b981" };
 
@@ -714,27 +621,19 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
       <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-4 pt-5 pb-5">
         <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95"
-          >
-            ←
-          </button>
+          <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95">←</button>
           <div>
             <h1 className="text-white text-xl font-extrabold">🎲 Ludo Tournament</h1>
             <p className="text-violet-200 text-xs mt-0.5">Play & Win Real Cash</p>
           </div>
         </div>
-
         <div className="flex gap-2">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                filter === f.id
-                  ? "bg-white text-violet-600"
-                  : "bg-white/15 text-white/70"
+                filter === f.id ? "bg-white text-violet-600" : "bg-white/15 text-white/70"
               }`}
             >
               {f.label}
@@ -744,13 +643,9 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
       </div>
 
       {msg && (
-        <div
-          className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
-            msg.startsWith("✅")
-              ? "bg-green-500/20 text-green-400 border border-green-500/30"
-              : "bg-red-500/20 text-red-400 border border-red-500/30"
-          }`}
-        >
+        <div className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
+          msg.startsWith("✅") ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-red-500/20 text-red-400 border border-red-500/30"
+        }`}>
           {msg}
         </div>
       )}
@@ -765,166 +660,76 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-4xl mb-3">🎲</p>
             <p className="text-white font-bold mb-1">কোনো Tournament নেই</p>
-            <p className="text-gray-500 text-sm">
-              এই category তে এখন কোনো match নেই
-            </p>
+            <p className="text-gray-500 text-sm">এই category তে এখন কোনো match নেই</p>
           </div>
         ) : (
           matches.map((match) => {
             const mc = modeColor[match.mode] || "#6b7280";
-            const isFull =
-              (match.joinedPlayers || 0) >= (match.totalSlots || 4);
+            const isFull = (match.joinedPlayers || 0) >= (match.totalSlots || 4);
             const isJoined = match.joinedUsers?.some(
-              (u) =>
-                (u.userId?._id || u.userId) ===
-                (currentUser?.id || currentUser?._id)
+              (u) => (u.userId?._id || u.userId) === (currentUser?.id || currentUser?._id)
             );
             return (
-              <div
-                key={match._id}
-                className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden"
-              >
+              <div key={match._id} className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden">
                 <div style={{ height: 3, background: mc }} />
-                {match.image && (
-                  <img
-                    src={match.image}
-                    alt=""
-                    className="w-full h-28 object-cover"
-                  />
-                )}
-
+                {match.image && <img src={match.image} alt="" className="w-full h-28 object-cover" />}
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span
-                          style={{
-                            background: mc + "22",
-                            color: mc,
-                            fontSize: 10,
-                            padding: "2px 8px",
-                            borderRadius: 20,
-                            fontWeight: 700,
-                            border: `1px solid ${mc}55`,
-                          }}
-                        >
+                        <span style={{ background: mc + "22", color: mc, fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700, border: `1px solid ${mc}55` }}>
                           {modeLabel[match.mode] || match.mode}
                         </span>
                         {match.status === "live" && (
                           <span className="flex items-center gap-1 text-[10px] text-red-400 font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            LIVE
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />LIVE
                           </span>
                         )}
                       </div>
-                      <p className="text-white font-bold text-base">
-                        {match.title}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-0.5">
-                        🗺️ {match.map || "Classic"} • 📱{" "}
-                        {match.device || "Mobile"}
-                      </p>
+                      <p className="text-white font-bold text-base">{match.title}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">🗺️ {match.map || "Classic"} • 📱 {match.device || "Mobile"}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-gray-400 text-xs">Entry</p>
-                      <p className="text-white font-black text-lg">
-                        ৳{match.entryFee || 0}
-                      </p>
+                      <p className="text-white font-black text-lg">৳{match.entryFee || 0}</p>
                     </div>
                   </div>
-
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     {[
-                      {
-                        label: "Prize",
-                        value: `৳${match.winPrize || 0}`,
-                        color: "#f59e0b",
-                      },
-                      {
-                        label: "Players",
-                        value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`,
-                        color: isFull ? "#ef4444" : "#22d3ee",
-                      },
-                      {
-                        label: "Start",
-                        value: match.startTime
-                          ? new Date(match.startTime).toLocaleTimeString(
-                              "en-BD",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                              }
-                            )
-                          : "—",
-                        color: "#a78bfa",
-                      },
+                      { label: "Prize", value: `৳${match.winPrize || 0}`, color: "#f59e0b" },
+                      { label: "Players", value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`, color: isFull ? "#ef4444" : "#22d3ee" },
+                      { label: "Start", value: match.startTime ? new Date(match.startTime).toLocaleTimeString("en-BD", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—", color: "#a78bfa" },
                     ].map((s, i) => (
                       <div key={i} className="bg-black/30 rounded-xl p-2 text-center">
-                        <p className="text-[9px] text-gray-500 font-semibold uppercase">
-                          {s.label}
-                        </p>
-                        <p
-                          className="text-xs font-black mt-0.5"
-                          style={{ color: s.color }}
-                        >
-                          {s.value}
-                        </p>
+                        <p className="text-[9px] text-gray-500 font-semibold uppercase">{s.label}</p>
+                        <p className="text-xs font-black mt-0.5" style={{ color: s.color }}>{s.value}</p>
                       </div>
                     ))}
                   </div>
-
                   {match.status === "live" && match.roomCode && (
                     <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
                       <div>
-                        <p className="text-violet-300 text-[10px] font-bold uppercase">
-                          Room Code
-                        </p>
-                        <p className="text-white font-black text-lg tracking-widest">
-                          {match.roomCode}
-                        </p>
+                        <p className="text-violet-300 text-[10px] font-bold uppercase">Room Code</p>
+                        <p className="text-white font-black text-lg tracking-widest">{match.roomCode}</p>
                       </div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(match.roomCode);
-                          setMsg("✅ Room code copied!");
-                        }}
-                        className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95"
-                      >
+                      <button onClick={() => { navigator.clipboard.writeText(match.roomCode); setMsg("✅ Room code copied!"); }} className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95">
                         Copy
                       </button>
                     </div>
                   )}
-
                   {match.status === "upcoming" && (
                     isJoined ? (
-                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">
-                        ✅ Already Joined
-                      </div>
+                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">✅ Already Joined</div>
                     ) : isFull ? (
-                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">
-                        ❌ Full
-                      </div>
+                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">❌ Full</div>
                     ) : (
-                      <button
-                        onClick={() => handleJoin(match._id, match.entryFee)}
-                        disabled={joining === match._id}
-                        className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60"
-                        style={{
-                          background: `linear-gradient(135deg, ${mc}, #4f46e5)`,
-                        }}
-                      >
-                        {joining === match._id
-                          ? "Joining..."
-                          : `Join Now • ৳${match.entryFee}`}
+                      <button onClick={() => handleJoin(match._id, match.entryFee)} disabled={joining === match._id} className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${mc}, #4f46e5)` }}>
+                        {joining === match._id ? "Joining..." : `Join Now • ৳${match.entryFee}`}
                       </button>
                     )
                   )}
-
                   {match.status === "completed" && (
-                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">
-                      ✅ Completed
-                    </div>
+                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">✅ Completed</div>
                   )}
                 </div>
               </div>
@@ -944,13 +749,12 @@ const AppDashboard = ({ onLogout }) => {
   const [matches, setMatches] = useState([]);
   const [selectedResult, setSelectedResult] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [dashboardBalance, setDashboardBalance] = useState(0); 
+  const [dashboardBalance, setDashboardBalance] = useState(0);
 
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const currentToken = localStorage.getItem("token") || "";
   const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
-  // ড্যাশবোর্ড ব্যালেন্স লোড করার ফাংশন
   const fetchDashboardBalance = async () => {
     if (!currentToken) return;
     try {
@@ -965,7 +769,7 @@ const AppDashboard = ({ onLogout }) => {
 
   useEffect(() => {
     fetchDashboardBalance();
-    const bInterval = setInterval(fetchDashboardBalance, 5000); 
+    const bInterval = setInterval(fetchDashboardBalance, 5000);
     return () => clearInterval(bInterval);
   }, [currentToken]);
 
@@ -998,25 +802,20 @@ const AppDashboard = ({ onLogout }) => {
   ];
 
   const sliderSlides = [
-     { image: "/image/slider/facebook1.png", link: "/facebook" },
-     { image: "/image/slider/ludo.png", link: "/ludo" },
-     { image: "/image/slider/telegram.png", link: "/telegram" },
-     { image: "/image/slider/youtube.png", link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
+    { image: "/image/slider/facebook1.png", link: "/facebook" },
+    { image: "/image/slider/ludo.png", link: "/ludo" },
+    { image: "/image/slider/telegram.png", link: "/telegram" },
+    { image: "/image/slider/youtube.png", link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
   ];
 
-  if (showNotifications) {
-    return <NotificationsPage onBack={() => setShowNotifications(false)} />;
-  }
+  if (showNotifications) return <NotificationsPage onBack={() => setShowNotifications(false)} />;
 
   if (tab === "profile") {
     if (screen === "wallet") return <Wallet onBack={() => setScreen("home")} />;
     if (screen === "withdraw") return <Withdraw onBack={() => setScreen("home")} />;
     if (screen === "all_rules") return <AllRulesPage onBack={() => setScreen("home")} />;
     if (screen === "my_profile") return <AccountInfo onBack={() => setScreen("home")} />;
-    if (screen === "referral") {
-      return <Referral onBack={() => setScreen("home")} user={currentUser} token={currentToken} />;
-    }
-
+    if (screen === "referral") return <Referral onBack={() => setScreen("home")} user={currentUser} token={currentToken} />;
     return (
       <Profile
         onLogout={onLogout}
@@ -1034,24 +833,24 @@ const AppDashboard = ({ onLogout }) => {
     if (selectedResult) return <MatchResultsPage {...selectedResult} currentUserUid={currentUserUid} />;
     return <ResultsListPage onSelectResult={setSelectedResult} currentUserUid={currentUserUid} />;
   }
-
   if (screen === "category") {
     return (
       <MatchList
         category={selectedCategory}
-        title={categories.find(c => c.key === selectedCategory)?.title}
+        title={categories.find((c) => c.key === selectedCategory)?.title}
         onBack={() => { setScreen("home"); setSelectedCategory(""); }}
         tab={tab} setTab={setTab}
       />
     );
   }
-
   if (screen === "ludo") {
     return <LudoTournamentPage currentUser={currentUser} token={currentToken} onBack={() => setScreen("home")} onRefreshBalance={fetchDashboardBalance} />;
   }
 
+  // ─── Home Screen ──────────────────────────────────────────────────────────
   return (
     <div className="bg-gray-50 min-h-screen mx-auto pb-24">
+
       {/* Top Header */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between">
@@ -1071,9 +870,8 @@ const AppDashboard = ({ onLogout }) => {
           <div className="flex items-center gap-2">
             <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <span className="text-yellow-300 text-xs">💰</span>
-              {/* ফিক্সড: Taka sign (৳) এবং দশমিকের পর দুই ঘর */}
               <span className="text-white font-black text-xs">
-                ৳ {dashboardBalance.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ৳ {dashboardBalance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
             <NotificationBell onOpen={() => setShowNotifications(true)} />
@@ -1082,18 +880,47 @@ const AppDashboard = ({ onLogout }) => {
       </div>
 
       <div className="p-4">
+
+        {/* Slider */}
         <ClickableSlider slides={sliderSlides} />
 
+        {/* ✅ Live Marquee */}
+        <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
+          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
+            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN NOW 🚀
+          </marquee>
+        </div>
+
+        {/* ✅ Ludo Banner */}
+        <div
+          onClick={() => setScreen("ludo")}
+          className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
+          style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
+        >
+          <div className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
+              <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
+            </div>
+            <p className="text-4xl">🎲</p>
+          </div>
+        </div>
+
+        {/* Categories Heading */}
+        <div className="flex items-center justify-between mt-6 px-1">
+          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
+            Free Fire <span className="text-orange-500">Arena</span>
+          </h2>
+        </div>
+
+        {/* Categories Grid */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           {categories.map((cat) => {
             const count = getMatchCount(cat.key);
             return (
               <div
                 key={cat.key}
-                onClick={() => {
-                  setSelectedCategory(cat.key);
-                  setScreen("category");
-                }}
+                onClick={() => { setSelectedCategory(cat.key); setScreen("category"); }}
                 className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all"
               >
                 <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
@@ -1119,7 +946,6 @@ const Profile = ({ onLogout, onWallet, onWithdraw, onAllRules, onMyProfile, onRe
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
 
-  // ফিক্সড: প্রোফাইলের ব্যালেন্স এপিআই কল ডাবল-ইউআরএল সমস্যা দূর করা হয়েছে
   const fetchProfileBalance = async () => {
     if (!token) return;
     try {
@@ -1165,13 +991,11 @@ const Profile = ({ onLogout, onWallet, onWithdraw, onAllRules, onMyProfile, onRe
         <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
           <p className="text-xs text-blue-100">ব্যালেন্স</p>
-          {/* ফিক্সড: প্রোফাইলেও ৳ সাইন এবং দশমিকের পর দুই ঘর */}
           <p className="text-2xl font-black">
-            ৳ {balance.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ৳ {balance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
       </div>
-
       <div className="mt-4 px-2">
         {menuItems.map((item) => (
           <button
@@ -1187,7 +1011,6 @@ const Profile = ({ onLogout, onWallet, onWithdraw, onAllRules, onMyProfile, onRe
           </button>
         ))}
       </div>
-
       <div className="px-8 mt-12">
         <button onClick={onLogout} className="w-full bg-blue-500 text-white py-3 rounded-full font-bold">
           Logout
