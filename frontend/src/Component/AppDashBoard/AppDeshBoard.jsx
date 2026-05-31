@@ -984,12 +984,12 @@ const AppDashboard = ({ onLogout }) => {
   }, []);
 
   const categories = [
-    { key: "br_match", title: "BR Match", img: "/image/cards/br_match.jpg" },
-    { key: "br_survival", title: "BR Survival", img: "/image/cards/br_survival.jpg" },
-    { key: "clash_squad", title: "Clash Squad", img: "/image/cards/clash_squad.jpg" },
-    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/cards/cs_2vs2.jpg" },
-    { key: "lone_wolf", title: "Lone Wolf", img: "/image/cards/lone_wolf.jpg" },
-    { key: "training", title: "Training Match", img: "/image/cards/training.jpg" },
+    { key: "br_match", title: "BR Match", img: "/image/cards/BRMatchcard.png" },
+    { key: "br_survival", title: "BR Survival", img: "/image/cards/solo.png" },
+    { key: "clash_squad", title: "Clash Squad", img: "/image/cards/squard.png" },
+    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/cards/2vs2.png" },
+    { key: "lone_wolf", title: "Lone Wolf", img: "/image/cards/longwolf.png" },
+    { key: "training", title: "Training Match", img: "/image/cards/freematch.png" },
   ];
 
   // ✅ Best Mobile + PWA Friendly Slider Data
