@@ -6,12 +6,11 @@ const ClickableSlider = ({ slides }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [translateX, setTranslateX] = useState(0);
-  
+
   const navigate = useNavigate();
-  const sliderRef = useRef(null);
   const autoSlideRef = useRef(null);
 
-  // Auto Slide with Pause on Hover/Drag
+  // Auto Slide
   useEffect(() => {
     const startAutoSlide = () => {
       if (autoSlideRef.current) clearInterval(autoSlideRef.current);
@@ -20,14 +19,12 @@ const ClickableSlider = ({ slides }) => {
         if (!isDragging) {
           setCurrentIndex((prev) => (prev + 1) % slides.length);
         }
-      }, 4000);
+      }, 4500);
     };
 
     startAutoSlide();
 
-    return () => {
-      if (autoSlideRef.current) clearInterval(autoSlideRef.current);
-    };
+    return () => clearInterval(autoSlideRef.current);
   }, [slides.length, isDragging]);
 
   // Touch Handlers
@@ -39,50 +36,34 @@ const ClickableSlider = ({ slides }) => {
 
   const handleTouchMove = useCallback((e) => {
     if (!isDragging) return;
-    const currentX = e.touches[0].clientX;
-    const diff = currentX - startX;
-    setTranslateX(diff);
+    setTranslateX(e.touches[0].clientX - startX);
   }, [isDragging, startX]);
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging) return;
 
-    let newIndex = currentIndex;
-
     if (translateX > 80 && currentIndex > 0) {
-      newIndex = currentIndex - 1;
+      setCurrentIndex((prev) => prev - 1);
     } else if (translateX < -80 && currentIndex < slides.length - 1) {
-      newIndex = currentIndex + 1;
+      setCurrentIndex((prev) => prev + 1);
     }
 
-    setCurrentIndex(newIndex);
     setIsDragging(false);
     setTranslateX(0);
   }, [translateX, currentIndex, slides.length]);
 
-  const goToSlide = (index) => {
-    setCurrentIndex(index);
-  };
-
   const handleClick = (slide) => {
     if (slide.link) {
-      if (slide.link.startsWith("http")) {
-        window.open(slide.link, "_blank");
-      } else {
-        navigate(slide.link);
-      }
+      slide.link.startsWith("http")
+        ? window.open(slide.link, "_blank")
+        : navigate(slide.link);
     }
   };
 
   return (
-    <div 
-      className="relative w-full h-[280px] md:h-[320px] overflow-hidden rounded-3xl"
-      onMouseEnter={() => setIsDragging(true)}   // Pause on hover
-      onMouseLeave={() => setIsDragging(false)}
-    >
+    <div className="relative w-full h-[260px] sm:h-[300px] md:h-[350px] overflow-hidden rounded-3xl shadow-2xl">
       <div
-        ref={sliderRef}
-        className="flex h-full transition-transform duration-500 ease-out"
+        className="flex h-full transition-transform duration-700 ease-out"
         style={{
           transform: `translateX(calc(-${currentIndex * 100}% + ${translateX}px))`,
         }}
@@ -93,57 +74,71 @@ const ClickableSlider = ({ slides }) => {
         {slides.map((slide, index) => (
           <div
             key={index}
-            className="min-w-full h-full relative cursor-pointer select-none"
+            className="min-w-full h-full relative cursor-pointer"
             onClick={() => handleClick(slide)}
           >
+            {/* Banner Image */}
             <img
               src={slide.image}
-              alt={slide.alt || slide.title}
-              className="w-full h-full object-cover bg-[#0a0a0a]"
+              alt={slide.title}
+              className="w-full h-full object-cover"
               loading="lazy"
             />
-            
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-            {/* Title */}
-            {slide.title && (
-              <div className="absolute bottom-6 left-5 right-5">
-                <div className="bg-black/70 backdrop-blur-md text-white px-6 py-3 rounded-2xl text-[17px] font-semibold shadow-xl inline-block">
-                  {slide.title}
-                </div>
-              </div>
-            )}
+            {/* Beautiful Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/80" />
+
+            {/* Centered Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5 z-10">
+              {slide.subtitle && (
+                <p className="text-white/90 text-sm sm:text-base tracking-widest mb-1">
+                  {slide.subtitle}
+                </p>
+              )}
+
+              <h2 className="text-white text-2xl sm:text-3xl md:text-4xl font-bold leading-tight mb-3 drop-shadow-xl">
+                {slide.title}
+              </h2>
+
+              {slide.description && (
+                <p className="text-white/80 text-[15px] max-w-[260px] mb-5">
+                  {slide.description}
+                </p>
+              )}
+
+              {slide.buttonText && (
+                <button className="mt-2 bg-white hover:bg-yellow-400 text-black font-semibold px-8 py-3 rounded-full text-sm transition-all active:scale-95 shadow-lg">
+                  {slide.buttonText}
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Progress Dots */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-30">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
         {slides.map((_, idx) => (
           <div
             key={idx}
-            onClick={() => goToSlide(idx)}
-            className={`h-2.5 rounded-full transition-all cursor-pointer ${
-              currentIndex === idx
-                ? "w-9 bg-white"
-                : "w-2.5 bg-white/60 hover:bg-white/90"
+            onClick={() => setCurrentIndex(idx)}
+            className={`h-[5px] rounded-full cursor-pointer transition-all ${
+              currentIndex === idx ? "w-9 bg-white" : "w-[5px] bg-white/60"
             }`}
           />
         ))}
       </div>
 
-      {/* Navigation Arrows (Desktop) */}
+      {/* Optional Desktop Arrows */}
       <button
         onClick={() => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length)}
-        className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white w-10 h-10 rounded-full items-center justify-center text-3xl z-30 transition-all"
+        className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white w-9 h-9 rounded-full items-center justify-center text-2xl z-30"
       >
         ←
       </button>
-
       <button
         onClick={() => setCurrentIndex((prev) => (prev + 1) % slides.length)}
-        className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white w-10 h-10 rounded-full items-center justify-center text-3xl z-30 transition-all"
+        className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white w-9 h-9 rounded-full items-center justify-center text-2xl z-30"
       >
         →
       </button>

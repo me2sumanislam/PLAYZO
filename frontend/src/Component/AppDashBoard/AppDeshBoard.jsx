@@ -995,24 +995,36 @@ const AppDashboard = ({ onLogout }) => {
   // ✅ Best Mobile + PWA Friendly Slider Data
   
 const sliderSlides = [
-  {
+   {
     image: "/image/slider/facebook1.png",
-    title: "Join our Facebook Group!",
+    title: "Join Our Facebook Group!",
+    subtitle: "Daily Updates",
+    description: "Get latest news & offers",
+    buttonText: "Join Now",
     link: "/facebook"
   },
   {
     image: "/image/slider/ludo.png",
-    title: "ludo khele jitun🔥",
+    title: "Ludo Khele Jitun 🔥",
+    subtitle: "Real Money Tournament",
+    description: "Win up to ₹10,000",
+    buttonText: "Play Now",
     link: "/ludo"
   },
   {
     image: "/image/slider/telegram.png",
-    title: "join our Telegram Group!",
+    title: "Join Our Telegram Group!",
+    subtitle: "Daily Updates",
+    description: "Get latest news & offers",
+    buttonText: "Join Now",
     link: "/telegram"
   },
   {
     image: "/image/slider/youtube.png",
-    title: "join our YouTube Channel",
+    title: "Join Our YouTube Channel",
+    subtitle: "Daily Updates",
+    description: "Get latest news & offers",
+    buttonText: "Subscribe",
     link: "/youtube"
   },
 ];
