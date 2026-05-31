@@ -1,4 +1,6 @@
- import React, { useState, useEffect, useRef, useCallback } from "react";
+ // ClickableSlider.jsx
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 const ClickableSlider = ({ slides }) => {
@@ -38,20 +40,18 @@ const ClickableSlider = ({ slides }) => {
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging) return;
-
     if (translateX > 60) {
       setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
     } else if (translateX < -60) {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
     }
-
     setIsDragging(false);
     setTranslateX(0);
     resetAutoSlide();
   }, [translateX, isDragging, slides.length, resetAutoSlide]);
 
   const handleClick = (slide) => {
-    if (Math.abs(translateX) > 10) return; // drag হলে click fire করবে না
+    if (Math.abs(translateX) > 10) return;
     if (slide.link) {
       slide.link.startsWith("http")
         ? window.open(slide.link, "_blank")
@@ -65,13 +65,15 @@ const ClickableSlider = ({ slides }) => {
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl shadow-xl">
+    <div className="relative w-full overflow-hidden rounded-2xl shadow-xl bg-black">
       {/* Slider Track */}
       <div
         className="flex"
         style={{
           transform: `translateX(calc(-${currentIndex * 100}% + ${translateX}px))`,
-          transition: isDragging ? "none" : "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+          transition: isDragging
+            ? "none"
+            : "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -86,13 +88,17 @@ const ClickableSlider = ({ slides }) => {
             <img
               src={slide.image}
               alt={slide.title || `Slide ${index + 1}`}
-              className="w-full  block"
-              style={{ aspectRatio: "2/1", objectFit: "cover" }}
+              className="w-full block"
+              style={{
+                aspectRatio: "16/7",
+                objectFit: "cover",
+                objectPosition: "center",
+              }}
               draggable={false}
               loading={index === 0 ? "eager" : "lazy"}
             />
 
-            {/* Text content থাকলেই overlay দেখাবে */}
+            {/* Text overlay — শুধু text থাকলে দেখাবে */}
             {(slide.title || slide.subtitle || slide.description || slide.buttonText) && (
               <>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-black/90" />
