@@ -996,19 +996,24 @@ const AppDashboard = ({ onLogout }) => {
   
 const sliderSlides = [
   {
-    image: "/image/slider/uthiyo_facebook_slider.png",
+    image: "/image/slider/facebook1.png",
     title: "Join our Facebook Group!",
-    link: "/app?tab=freefire"
+    link: "/facebook"
   },
   {
-    image: "/image/slider/uthiyo_slider.png",
-    title: "khub sohoje add money🔥",
+    image: "/image/slider/ludo.png",
+    title: "ludo khele jitun🔥",
     link: "/ludo"
   },
   {
-    image: "/image/slider/uthiyo_youtube_slider.png",
+    image: "/image/slider/telegram.png",
+    title: "join our Telegram Group!",
+    link: "/telegram"
+  },
+  {
+    image: "/image/slider/youtube.png",
     title: "join our YouTube Channel",
-    link: "/referral"
+    link: "/youtube"
   },
 ];
 
