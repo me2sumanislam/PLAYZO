@@ -993,23 +993,24 @@ const AppDashboard = ({ onLogout }) => {
   ];
 
   // ✅ Best Mobile + PWA Friendly Slider Data
-  const sliderSlides = [
-    {
-      image: "/frontend/public/image/slider/uthiyo_facebook_slider.png",
-      title: "Free Fire Big Tournament",
-      link: "/app?tab=freefire"
-    },
-    {
-      image: "/frontend/public/image/slider/banner-ludo.jpg",
-      title: "Ludo Cash Tournament 🔥",
-      link: "/ludo"
-    },
-    {
-      image: "/frontend/public/image/slider/banner-refer.jpg",
-      title: "Refer & Earn ৳100",
-      link: "/referral"
-    },
-  ];
+  // ✅ Correct Slider Data
+const sliderSlides = [
+  {
+    image: "/image/slider/uthiyo_facebook_slider.png",
+    title: "Free Fire Big Tournament",
+    link: "/app?tab=freefire"
+  },
+  {
+    image: "/image/slider/uthiyo_slider.png",
+    title: "Ludo Cash Tournament 🔥",
+    link: "/ludo"
+  },
+  {
+    image: "/image/slider/banner-refer.jpg",
+    title: "Refer & Earn ৳100",
+    link: "/referral"
+  },
+];
 
   // --- NOTIFICATIONS ---
   if (showNotifications) {
