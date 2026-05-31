@@ -802,9 +802,9 @@ const AppDashboard = ({ onLogout }) => {
   ];
 
   const sliderSlides = [
-    { image: "/image/slider/facebook1.png", link: "/facebook" },
+    { image: "/image/slider/facebook1.png", link: "https://www.facebook.com/share/1aF9S8AKDF/" },
     { image: "/image/slider/ludo.png", link: "/ludo" },
-    { image: "/image/slider/telegram.png", link: "/telegram" },
+    { image: "/image/slider/telegram.png", link: "https://t.me/+EBjyieShuwk4MGQ1" },
     { image: "/image/slider/youtube.png", link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
   ];
 
