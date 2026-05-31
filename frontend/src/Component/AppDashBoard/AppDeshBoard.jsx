@@ -1,8 +1,6 @@
-
  import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import NotificationBell from "../NotificationBell/NotificationBell";
-import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
 import Withdraw from "../../page/Withdraw/Withdraw";
@@ -11,13 +9,14 @@ import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
 import Referral from "../../page/Referral/Referral";
-import ClickableSlider from "../Slider/ClickableSlider";   // ← নতুন স্লাইডার
+import ClickableSlider from "../Slider/ClickableSlider";   
+import axios from "axios";
 
-
+// API URL ঠিক করা হয়েছে যেন শেষে বাড়তি /api ডাবল না হয়
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const CLEAN_API_URL = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
 
 // ─── Inline MatchResults Component ────────────────────────────────────────────
-
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
 function getRankMeta(rank) {
@@ -373,7 +372,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
     const fetchResults = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/matches/completed`);
+        const res = await fetch(`${CLEAN_API_URL}/matches/completed`);
         const data = await res.json();
         setMatches(Array.isArray(data?.data) ? data.data : []);
       } catch {
@@ -543,7 +542,7 @@ function NotificationsPage({ onBack }) {
     const fetchNotifications = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/notifications`);
+        const res = await fetch(`${CLEAN_API_URL}/notifications`);
         const data = await res.json();
         setNotifications(
           Array.isArray(data?.data)
@@ -635,10 +634,8 @@ function NotificationsPage({ onBack }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════
-// 🆕 LUDO TOURNAMENT PAGE
-// ════════════════════════════════════════════════════════════
-function LudoTournamentPage({ currentUser, token, onBack }) {
+// ─── LUDO TOURNAMENT PAGE ────────────────────────────────────────────────────
+function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("upcoming");
@@ -652,7 +649,7 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
   const loadMatches = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/ludo-tournament?status=${filter}`);
+      const res = await fetch(`${CLEAN_API_URL}/ludo-tournament?status=${filter}`);
       const data = await res.json();
       setMatches(Array.isArray(data?.data) ? data.data : []);
     } catch {
@@ -670,7 +667,7 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
     setJoining(matchId);
     setMsg("");
     try {
-      const res = await fetch(`${API_BASE}/ludo-tournament/join`, {
+      const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/join`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -692,6 +689,7 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
             balance: data.newBalance ?? stored.balance,
           })
         );
+        if (onRefreshBalance) onRefreshBalance(); 
         loadMatches();
       } else {
         setMsg("❌ " + (data.message || "Join failed"));
@@ -714,7 +712,6 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
       <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-4 pt-5 pb-5">
         <div className="flex items-center gap-3 mb-3">
           <button
@@ -729,7 +726,6 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
           </div>
         </div>
 
-        {/* Filter tabs */}
         <div className="flex gap-2">
           {FILTERS.map((f) => (
             <button
@@ -747,7 +743,6 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
         </div>
       </div>
 
-      {/* Message */}
       {msg && (
         <div
           className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
@@ -760,7 +755,6 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
         </div>
       )}
 
-      {/* Match list */}
       <div className="px-4 mt-4 space-y-3">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -790,9 +784,7 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
                 key={match._id}
                 className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden"
               >
-                {/* color bar */}
                 <div style={{ height: 3, background: mc }} />
-
                 {match.image && (
                   <img
                     src={match.image}
@@ -841,7 +833,6 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
                     </div>
                   </div>
 
-                  {/* Stats row */}
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     {[
                       {
@@ -883,7 +874,6 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
                     ))}
                   </div>
 
-                  {/* Room code — live হলে দেখাবে */}
                   {match.status === "live" && match.roomCode && (
                     <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
                       <div>
@@ -906,7 +896,6 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
                     </div>
                   )}
 
-                  {/* Join button */}
                   {match.status === "upcoming" && (
                     isJoined ? (
                       <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">
@@ -948,29 +937,45 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
 }
 
 // ─── Main AppDashboard ────────────────────────────────────────────────────────
- // ─── Main AppDashboard ────────────────────────────────────────────────────────
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
   const [screen, setScreen] = useState("home");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [matches, setMatches] = useState([]);
   const [selectedResult, setSelectedResult] = useState(null);
-  const [resultTab, setResultTab] = useState("leaderboard");
-  const [refreshing, setRefreshing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [dashboardBalance, setDashboardBalance] = useState(0); 
 
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const currentToken = localStorage.getItem("token") || "";
   const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
 
+  // ড্যাশবোর্ড ব্যালেন্স লোড করার ফাংশন
+  const fetchDashboardBalance = async () => {
+    if (!currentToken) return;
+    try {
+      const res = await axios.get(`${CLEAN_API_URL}/users/balance`, {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      setDashboardBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error("Dashboard balance fetch error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardBalance();
+    const bInterval = setInterval(fetchDashboardBalance, 5000); 
+    return () => clearInterval(bInterval);
+  }, [currentToken]);
+
   const getMatchCount = (categoryKey) =>
     matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
 
-  // Load Matches
   useEffect(() => {
     const loadMatches = async () => {
       try {
-        const res = await fetch(`${API_BASE}/matches`);
+        const res = await fetch(`${CLEAN_API_URL}/matches`);
         const data = await res.json();
         let safeData = Array.isArray(data) ? data : data?.data || data?.matches || [];
         setMatches(safeData);
@@ -992,49 +997,17 @@ const AppDashboard = ({ onLogout }) => {
     { key: "training", title: "Training Match", img: "/image/cards/freematch.png" },
   ];
 
-  // ✅ Best Mobile + PWA Friendly Slider Data
-  
-const sliderSlides = [
-   {
-    image: "/image/slider/facebook1.png",
-    // title: "Join Our Facebook Group!",
-    // subtitle: "Daily Updates",
-    // description: "Get latest news & offers",
-    // buttonText: "Join Now",
-    link: "/facebook"
-  },
-  {
-    image: "/image/slider/ludo.png",
-    // title: "Ludo Khele Jitun 🔥",
-    // subtitle: "Real Money Tournament",
-    // description: "Win up to ₹10,000",
-    // buttonText: "Play Now",
-    link: "/ludo"
-  },
-  {
-    image: "/image/slider/telegram.png",
-    // title: "Join Our Telegram Group!",
-    // subtitle: "Daily Updates",
-    // description: "Get latest news & offers",
-    // buttonText: "Join Now",
-    link: "/telegram"
-  },
-  {
-    image: "/image/slider/youtube.png",
-    // title: "Join Our YouTube Channel",
-    // subtitle: "Daily Updates",
-    // description: "Get latest news & offers",
-    // buttonText: "Subscribe",
-    link: "https://www.youtube.com/watch?v=7uY-_hskZ4A"
-  },
-];
+  const sliderSlides = [
+     { image: "/image/slider/facebook1.png", link: "/facebook" },
+     { image: "/image/slider/ludo.png", link: "/ludo" },
+     { image: "/image/slider/telegram.png", link: "/telegram" },
+     { image: "/image/slider/youtube.png", link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
+  ];
 
-  // --- NOTIFICATIONS ---
   if (showNotifications) {
     return <NotificationsPage onBack={() => setShowNotifications(false)} />;
   }
 
-  // --- PROFILE TAB ---
   if (tab === "profile") {
     if (screen === "wallet") return <Wallet onBack={() => setScreen("home")} />;
     if (screen === "withdraw") return <Withdraw onBack={() => setScreen("home")} />;
@@ -1056,7 +1029,6 @@ const sliderSlides = [
     );
   }
 
-  // --- OTHER TABS ---
   if (tab === "matches") return <MyMatch />;
   if (tab === "results") {
     if (selectedResult) return <MatchResultsPage {...selectedResult} currentUserUid={currentUserUid} />;
@@ -1075,10 +1047,9 @@ const sliderSlides = [
   }
 
   if (screen === "ludo") {
-    return <LudoTournamentPage currentUser={currentUser} token={currentToken} onBack={() => setScreen("home")} />;
+    return <LudoTournamentPage currentUser={currentUser} token={currentToken} onBack={() => setScreen("home")} onRefreshBalance={fetchDashboardBalance} />;
   }
 
-  // ==================== HOME SCREEN ====================
   return (
     <div className="bg-gray-50 min-h-screen mx-auto pb-24">
       {/* Top Header */}
@@ -1100,7 +1071,10 @@ const sliderSlides = [
           <div className="flex items-center gap-2">
             <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <span className="text-yellow-300 text-xs">💰</span>
-              <span className="text-white font-black text-xs">৳{currentUser?.balance || 0}</span>
+              {/* ফিক্সড: Taka sign (৳) এবং দশমিকের পর দুই ঘর */}
+              <span className="text-white font-black text-xs">
+                ৳ {dashboardBalance.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
             <NotificationBell onOpen={() => setShowNotifications(true)} />
           </div>
@@ -1108,37 +1082,7 @@ const sliderSlides = [
       </div>
 
       <div className="p-4">
-        {/* ✅ Best Mobile PWA Slider */}
         <ClickableSlider slides={sliderSlides} />
-
-        {/* Live Marquee */}
-        <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
-          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
-            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN NOW 🚀
-          </marquee>
-        </div>
-
-        {/* Ludo Banner */}
-        <div
-          onClick={() => setScreen("ludo")}
-          className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
-          style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
-        >
-          <div className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
-              <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
-            </div>
-            <p className="text-4xl">🎲</p>
-          </div>
-        </div>
-
-        {/* Categories */}
-        <div className="flex items-center justify-between mt-6 px-1">
-          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
-            Free Fire <span className="text-orange-500">Arena</span>
-          </h2>
-        </div>
 
         <div className="grid grid-cols-2 gap-3 mt-4">
           {categories.map((cat) => {
@@ -1169,5 +1113,88 @@ const sliderSlides = [
   );
 };
 
-export default AppDashboard;
+// ─── Profile Component ────────────────────────────────────────────────────────
+const Profile = ({ onLogout, onWallet, onWithdraw, onAllRules, onMyProfile, onReferral }) => {
+  const [balance, setBalance] = useState(0);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const token = localStorage.getItem("token");
 
+  // ফিক্সড: প্রোফাইলের ব্যালেন্স এপিআই কল ডাবল-ইউআরএল সমস্যা দূর করা হয়েছে
+  const fetchProfileBalance = async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${CLEAN_API_URL}/users/balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error("Profile balance error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfileBalance();
+    const interval = setInterval(fetchProfileBalance, 5000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const menuItems = [
+    { id: "wallet", label: "Wallet / Add Money", icon: "👛" },
+    { id: "withdraw", label: "Withdraw", icon: "💵" },
+    { id: "referral", label: "Refer & Earn", icon: "🎁" },
+    { id: "my_profile", label: "Account Info", icon: "👤" },
+    { id: "all_rules", label: "All Rules", icon: "📋" },
+    { id: "top_players", label: "Top Players", icon: "📈" },
+  ];
+
+  const handleNavigate = (id) => {
+    if (id === "wallet") onWallet();
+    if (id === "withdraw") onWithdraw();
+    if (id === "all_rules") onAllRules();
+    if (id === "my_profile") onMyProfile();
+    if (id === "referral") onReferral();
+  };
+
+  return (
+    <div className="bg-white min-h-screen pb-10">
+      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
+        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
+          👨‍💻
+        </div>
+        <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
+        <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
+        <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
+          <p className="text-xs text-blue-100">ব্যালেন্স</p>
+          {/* ফিক্সড: প্রোফাইলেও ৳ সাইন এবং দশমিকের পর দুই ঘর */}
+          <p className="text-2xl font-black">
+            ৳ {balance.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 px-2">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => handleNavigate(item.id)}
+            className="w-full flex justify-between items-center p-4 border-b hover:bg-gray-50 transition"
+          >
+            <div className="flex gap-4 items-center">
+              <span className="text-xl">{item.icon}</span>
+              <span className="font-bold text-sm">{item.label}</span>
+            </div>
+            <span className="text-gray-400">›</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="px-8 mt-12">
+        <button onClick={onLogout} className="w-full bg-blue-500 text-white py-3 rounded-full font-bold">
+          Logout
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default AppDashboard;

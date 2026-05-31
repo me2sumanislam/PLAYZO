@@ -1,5 +1,9 @@
  import { useState, useEffect } from "react";
 
+// API URL ঠিক করা হয়েছে যেন শেষে বাড়তি /api ডাবল না হয়
+const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const CLEAN_API_URL = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
+
 const AccountInfo = ({ onBack }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,7 +17,7 @@ const AccountInfo = ({ onBack }) => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("https://playzo-vn8e.onrender.com/api/users/me", {
+        const res = await fetch(`${CLEAN_API_URL}/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -43,7 +47,7 @@ const AccountInfo = ({ onBack }) => {
     }
     setSaving(true);
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/users/change-password", {
+      const res = await fetch(`${CLEAN_API_URL}/users/change-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -152,8 +156,11 @@ const AccountInfo = ({ onBack }) => {
           </div>
           <div className="grid grid-cols-3 divide-x divide-gray-50">
             <div className="px-3 py-4 text-center">
-              <div className="text-xl font-black text-gray-900">৳{user?.balance ?? 0}</div>
-              <div className="text-[10px] text-gray-400 font-semibold mt-0.5 uppercase">ব্যালেন্স</div>
+              {/* ফিক্সড: ৳ সাইন এবং দশমিকের পর নিখুঁত ২ ঘর (.00) ফরম্যাট */}
+              <div className="text-sm font-black text-gray-900 truncate">
+                ৳ {(user?.balance ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div className="text-[10px] text-gray-400 font-semibold mt-1 uppercase">ব্যালেন্স</div>
             </div>
             <div className="px-3 py-4 text-center">
               <div className="text-xl font-black text-gray-900">{user?.totalMatchesPlayed ?? 0}</div>
@@ -161,7 +168,7 @@ const AccountInfo = ({ onBack }) => {
             </div>
             <div className="px-3 py-4 text-center">
               <div className="text-xl font-black text-gray-900">{user?.totalWins ?? 0}</div>
-              <div className="text-[10px] text-gray-400 font-semibold mt-0.5 uppercase">জয়</div>
+              <div className="text-[10px] text-gray-400 font-semibold mt-0.5 uppercase">জয়</div>
             </div>
           </div>
         </div>
@@ -205,7 +212,7 @@ const AccountInfo = ({ onBack }) => {
               <button
                 onClick={handleChangePassword}
                 disabled={saving}
-                className="w-full py-3 bg-gradient-to-r from-[#56CCF2] to-[#2F80ED] text-white rounded-xl font-bold text-sm disabled:opacity-60"
+                className="w-full py-3 bg-gradient-to-r from-[#56CCF2] to-[#2F80ED] text-white rounded-xl font-bold text-sm disabled:opacity-60 text-center"
               >
                 {saving ? "পরিবর্তন হচ্ছে..." : "পাসওয়ার্ড পরিবর্তন করো"}
               </button>
