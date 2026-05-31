@@ -993,21 +993,21 @@ const AppDashboard = ({ onLogout }) => {
   ];
 
   // ✅ Best Mobile + PWA Friendly Slider Data
-  // ✅ Correct Slider Data
+  
 const sliderSlides = [
   {
     image: "/image/slider/uthiyo_facebook_slider.png",
-    title: "Free Fire Big Tournament",
+    title: "Join our Facebook Group!",
     link: "/app?tab=freefire"
   },
   {
     image: "/image/slider/uthiyo_slider.png",
-    title: "Ludo Cash Tournament 🔥",
+    title: "khub sohoje add money🔥",
     link: "/ludo"
   },
   {
-    image: "/image/slider/banner-refer.jpg",
-    title: "Refer & Earn ৳100",
+    image: "/image/slider/uthiyo_youtube_slider.png",
+    title: "join our YouTube Channel",
     link: "/referral"
   },
 ];
