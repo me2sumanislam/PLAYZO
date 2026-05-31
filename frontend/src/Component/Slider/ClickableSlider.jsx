@@ -80,7 +80,7 @@ const ClickableSlider = ({ slides }) => {
             <img
               src={slide.image}
               alt={slide.title}
-              className="w-full h-full object-cover"
+              className="relative w-full aspect-[16/7] md:aspect-[16/6] overflow-hidden object-cover rounded-3xl"
               loading="lazy"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
