@@ -1,9 +1,9 @@
  // routes/ludoTournamentRoutes.js
 const express = require("express");
-const router  = express.Router();
+const router = express.Router();
 const LudoTournament = require("../models/LudoTournament");
-const User    = require("../models/User");
-const jwt     = require("jsonwebtoken");
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
 
 // ✅ Notification
 const notificationRouter = require("./notifications");
@@ -13,9 +13,9 @@ const protectAdmin = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.json({ success: false, message: "No token" });
-    const token   = authHeader.split(" ")[1];
+    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!["admin","super-admin"].includes(decoded.role)) {
+    if (!["admin", "super-admin"].includes(decoded.role)) {
       return res.json({ success: false, message: "Admin only" });
     }
     req.user = decoded;
@@ -27,8 +27,8 @@ const protectAdmin = (req, res, next) => {
 
 // ─── HELPERS ──────────────────────────────────────────────────
 const slotsForMode = (mode) => {
-  if (mode === "1v1")     return 2;
-  if (mode === "2v2")     return 4;
+  if (mode === "1v1") return 2;
+  if (mode === "2v2") return 4;
   if (mode === "4player") return 4;
   return 4;
 };
@@ -56,7 +56,6 @@ router.post("/create", protectAdmin, async (req, res) => {
       status: "upcoming",
     });
 
-    // ✅ Ludo notification পাঠাও
     notificationRouter.sendMatchNotification(match, "ludo");
 
     res.status(201).json({ success: true, message: "Ludo tournament created", data: match });
@@ -66,14 +65,94 @@ router.post("/create", protectAdmin, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// GET ALL (public)
-// GET /api/ludo-tournament
+// ADMIN: SUBMIT RESULT (Enhanced for 1v1, 2v2, 4player)
+// POST /api/ludo-tournament/result/:id
+// body: { results: [{ userId, rank, prize, kills }], winningTeam? }
 // ════════════════════════════════════════════════════════════
+router.post("/result/:id", protectAdmin, async (req, res) => {
+  try {
+    const { results, winningTeam } = req.body;
+    const match = await LudoTournament.findById(req.params.id);
+
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+    if (!Array.isArray(results) || results.length === 0) {
+      return res.json({ success: false, message: "Results array is required" });
+    }
+
+    // Validate number of results
+    if (results.length !== match.joinedPlayers) {
+      return res.json({ 
+        success: false, 
+        message: `Exactly ${match.joinedPlayers} results needed for this match` 
+      });
+    }
+
+    // Check for duplicate ranks
+    const ranks = results.map(r => r.rank);
+    if (new Set(ranks).size !== ranks.length) {
+      return res.json({ success: false, message: "Duplicate ranks are not allowed" });
+    }
+
+    // Optional: Validate ranks are from 1 to total players
+    const sortedRanks = [...ranks].sort((a, b) => a - b);
+    for (let i = 0; i < sortedRanks.length; i++) {
+      if (sortedRanks[i] !== i + 1) {
+        return res.json({ success: false, message: "Ranks must be sequential starting from 1" });
+      }
+    }
+
+    // Save result
+    match.results = results;
+    match.status = "completed";
+    
+    // For 2v2 mode
+    if (match.mode === "2v2" && winningTeam) {
+      match.winningTeam = winningTeam;
+    }
+
+    await match.save();
+
+    // Prize Distribution
+    let totalPrizeDistributed = 0;
+    for (const r of results) {
+      if (r.userId && r.prize > 0) {
+        totalPrizeDistributed += r.prize;
+        await User.findByIdAndUpdate(r.userId, {
+          $inc: { balance: r.prize },
+          $push: {
+            transactions: {
+              type: "match_prize",
+              amount: r.prize,
+              matchId: match._id,
+              description: `${match.title} (${match.mode}) - Rank #${r.rank}`,
+            },
+          },
+        });
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: "✅ Result submitted successfully & prizes distributed!",
+      data: match,
+      totalPrizeDistributed
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// Other Routes (unchanged)
+// ════════════════════════════════════════════════════════════
+
 router.get("/", async (req, res) => {
   try {
     const { mode, status } = req.query;
     const filter = {};
-    if (mode)   filter.mode   = mode;
+    if (mode) filter.mode = mode;
     if (status) filter.status = status;
     const matches = await LudoTournament.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data: matches });
@@ -82,10 +161,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// GET MY MATCHES (by userId query param)
-// GET /api/ludo-tournament/my-matches?userId=xxx
-// ════════════════════════════════════════════════════════════
 router.get("/my-matches", async (req, res) => {
   try {
     const { userId } = req.query;
@@ -99,10 +174,6 @@ router.get("/my-matches", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// GET SINGLE
-// GET /api/ludo-tournament/:id
-// ════════════════════════════════════════════════════════════
 router.get("/:id", async (req, res) => {
   try {
     const match = await LudoTournament.findById(req.params.id)
@@ -114,10 +185,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// ADMIN: UPDATE ROOM CODE & SET LIVE
-// PUT /api/ludo-tournament/update-room/:id
-// ════════════════════════════════════════════════════════════
 router.put("/update-room/:id", protectAdmin, async (req, res) => {
   try {
     const { roomCode } = req.body;
@@ -132,11 +199,6 @@ router.put("/update-room/:id", protectAdmin, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// USER: JOIN TOURNAMENT
-// PUT /api/ludo-tournament/join/:id
-// body: { userId }
-// ════════════════════════════════════════════════════════════
 router.put("/join/:id", async (req, res) => {
   try {
     const { userId } = req.body;
@@ -198,47 +260,6 @@ router.put("/join/:id", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// ADMIN: SUBMIT RESULT & DISTRIBUTE PRIZE
-// POST /api/ludo-tournament/result/:id
-// body: { results: [{ userId, rank, prize, kills }] }
-// ════════════════════════════════════════════════════════════
-router.post("/result/:id", protectAdmin, async (req, res) => {
-  try {
-    const { results } = req.body;
-    const match = await LudoTournament.findById(req.params.id);
-    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
-
-    match.results  = results;
-    match.status   = "completed";
-    await match.save();
-
-    for (const r of results) {
-      if (r.userId && r.prize > 0) {
-        await User.findByIdAndUpdate(r.userId, {
-          $inc: { balance: r.prize },
-          $push: {
-            transactions: {
-              type: "match_prize",
-              amount: r.prize,
-              matchId: match._id,
-              description: `${match.title} (Ludo ${match.mode}) - Rank #${r.rank} Prize`,
-            },
-          },
-        });
-      }
-    }
-
-    res.json({ success: true, message: "Result submitted & prizes distributed ✅", data: match });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ════════════════════════════════════════════════════════════
-// ADMIN: DELETE
-// DELETE /api/ludo-tournament/:id
-// ════════════════════════════════════════════════════════════
 router.delete("/:id", protectAdmin, async (req, res) => {
   try {
     await LudoTournament.findByIdAndDelete(req.params.id);
@@ -248,10 +269,6 @@ router.delete("/:id", protectAdmin, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// ADMIN: UPDATE MATCH
-// PUT /api/ludo-tournament/:id
-// ════════════════════════════════════════════════════════════
 router.put("/:id", protectAdmin, async (req, res) => {
   try {
     const match = await LudoTournament.findByIdAndUpdate(
