@@ -224,6 +224,28 @@ router.put("/join/:id", async (req, res) => {
     match.joinedPlayers = match.joinedUsers.length;
     await match.save();
 
+    // ✅ REFERRAL POINT TRIGGER
+    // শর্ত: user referral দিয়ে এসেছে + ৳৫০+ deposit করেছে (deposited=true) + point এখনো পায়নি (pointGiven=false)
+    if (user.referredBy) {
+      try {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          const refEntry = referrer.referralHistory.find(
+            (r) => r.userId.toString() === user._id.toString()
+          );
+          if (refEntry && refEntry.deposited && !refEntry.pointGiven) {
+            refEntry.pointGiven = true;
+            referrer.referralPoints = (referrer.referralPoints || 0) + 5;
+            await referrer.save();
+            console.log(`🎯 [Referral] ${referrer.name} পেলেন 5 points — ${user.name} match join করেছে`);
+          }
+        }
+      } catch (refErr) {
+        // referral error হলেও join সফল থাকবে
+        console.error("Referral point error:", refErr.message);
+      }
+    }
+
     res.json({
       success: true,
       message: "Match-এ join সফল হয়েছে",
