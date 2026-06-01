@@ -151,4 +151,4 @@ export default function NotificationBell({ onOpen }) {
       )}
     </button>
   );
-}
+}         
