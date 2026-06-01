@@ -54,30 +54,6 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// ================= DATABASE CONNECTION + AUTO DELETE =================
-connectDB().then(() => {
-  console.log("✅ MongoDB Connected Successfully".bgGreen.black);
-
-  setInterval(async () => {
-    try {
-      const deleted = await Match.deleteMany({
-        status: "completed",
-        deleteAt: { $lte: new Date() },
-      });
-      if (deleted.deletedCount > 0) {
-        console.log(`🗑️ ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white);
-      }
-    } catch (err) {
-      console.error("Auto delete error:", err.message);
-    }
-  }, 60 * 1000);
-});
-
-console.log(
-  "MONGO_URI:",
-  process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
-);
-
 // ================= ROUTES =================
 app.get("/", (req, res) => {
   res.json({ success: true, message: "🚀 Playzo Backend is running!" });
@@ -104,7 +80,7 @@ app.use("/api/notifications", require("./routes/notifications"));
 
 // Ludo Routes
 app.use("/api/ludo-matches", ludoMatchRoutes);
-app.use("/api/ludo-tournament", ludoMatchRoutes);   // যদি ফ্রন্টএন্ড এই রুট ব্যবহার করে
+app.use("/api/ludo-tournament", ludoMatchRoutes);
 
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
@@ -112,8 +88,42 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Something went wrong!" });
 });
 
+// ================= DATABASE CONNECTION + SERVER START =================
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
-});
+console.log(
+  "MONGO_URI:",
+  process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
+);
+
+connectDB()
+  .then(() => {
+    console.log("✅ MongoDB Connected Successfully".bgGreen.black);
+
+    // Auto delete completed matches
+    setInterval(async () => {
+      try {
+        const deleted = await Match.deleteMany({
+          status: "completed",
+          deleteAt: { $lte: new Date() },
+        });
+        if (deleted.deletedCount > 0) {
+          console.log(
+            `🗑️ ${deleted.deletedCount} completed match(es) auto deleted`.bgRed
+              .white
+          );
+        }
+      } catch (err) {
+        console.error("Auto delete error:", err.message);
+      }
+    }, 60 * 1000);
+
+    // Server শুধু DB connect হওয়ার পরেই চালু হবে
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection failed:".bgRed.white, err.message);
+    process.exit(1);
+  });

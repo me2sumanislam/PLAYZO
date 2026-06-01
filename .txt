@@ -4315,12 +4315,12 @@ const AppRouter = ({ onLogout }) => {
 export default AppRouter;
 //appCore .jsx end 
 
-....................................................................AppDeashboard.jsx start .................................................
-  
+.......................AppDeshBoard.jsx start .................................................
+    // AppDashboard.jsx
+
 import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import NotificationBell from "../NotificationBell/NotificationBell";
-import Profile from "../../page/Profile/profile";
 import Wallet from "../../page/Wallet/Wallet";
 import MatchList from "../../page/MatchList/MatchList";
 import Withdraw from "../../page/Withdraw/Withdraw";
@@ -4329,10 +4329,11 @@ import AccountInfo from "../../page/AccountInfo/AccountInfo";
 import MyMatch from "../../page/MyMatch/MyMatch";
 import Leaderboard from "../../page/Leaderboard/Leaderboard";
 import Referral from "../../page/Referral/Referral";
+import ClickableSlider from "../Slider/ClickableSlider";
+import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
-
-// ─── Inline MatchResults Component ────────────────────────────────────────────
+const CLEAN_API_URL = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
 
 const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
@@ -4423,12 +4424,8 @@ function MatchResultsPage({
                 <p className="text-white text-xs font-bold truncate">
                   {sorted[1].playerName}
                 </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[1].kills} kills
-                </p>
-                <p className="text-gray-200 text-sm font-black mt-1">
-                  ৳{sorted[1].totalPrize}
-                </p>
+                <p className="text-gray-400 text-[10px]">{sorted[1].kills} kills</p>
+                <p className="text-gray-200 text-sm font-black mt-1">৳{sorted[1].totalPrize}</p>
               </div>
             )}
             {sorted[0] && (
@@ -4437,12 +4434,8 @@ function MatchResultsPage({
                 <p className="text-yellow-400 text-xs font-extrabold truncate">
                   {sorted[0].playerName}
                 </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[0].kills} kills
-                </p>
-                <p className="text-yellow-400 text-base font-black mt-1">
-                  ৳{sorted[0].totalPrize}
-                </p>
+                <p className="text-gray-400 text-[10px]">{sorted[0].kills} kills</p>
+                <p className="text-yellow-400 text-base font-black mt-1">৳{sorted[0].totalPrize}</p>
               </div>
             )}
             {sorted[2] && (
@@ -4451,12 +4444,8 @@ function MatchResultsPage({
                 <p className="text-white text-xs font-bold truncate">
                   {sorted[2].playerName}
                 </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[2].kills} kills
-                </p>
-                <p className="text-orange-300 text-sm font-black mt-1">
-                  ৳{sorted[2].totalPrize}
-                </p>
+                <p className="text-gray-400 text-[10px]">{sorted[2].kills} kills</p>
+                <p className="text-orange-300 text-sm font-black mt-1">৳{sorted[2].totalPrize}</p>
               </div>
             )}
           </div>
@@ -4472,7 +4461,9 @@ function MatchResultsPage({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"}`}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"
+              }`}
             >
               {t.label}
             </button>
@@ -4492,7 +4483,9 @@ function MatchResultsPage({
             return (
               <div
                 key={player.uid + idx}
-                className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
+                className={`rounded-2xl p-4 border ${
+                  isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -4510,9 +4503,7 @@ function MatchResultsPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p
-                        className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}
-                      >
+                      <p className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}>
                         {player.playerName}
                       </p>
                       {isMe && (
@@ -4527,15 +4518,11 @@ function MatchResultsPage({
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p
-                      className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}
-                    >
+                    <p className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}>
                       {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
                     </p>
                     {player.totalPrize > 0 && (
-                      <p className="text-[10px] text-gray-600 mt-0.5">
-                        credited
-                      </p>
+                      <p className="text-[10px] text-gray-600 mt-0.5">credited</p>
                     )}
                   </div>
                 </div>
@@ -4569,9 +4556,7 @@ function MatchResultsPage({
             <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
               <p className="text-3xl mb-3">😔</p>
               <p className="text-white font-bold mb-1">Not in Results</p>
-              <p className="text-gray-500 text-sm">
-                Your UID was not found in this match result
-              </p>
+              <p className="text-gray-500 text-sm">Your UID was not found in this match result</p>
             </div>
           ) : (
             <div>
@@ -4589,9 +4574,7 @@ function MatchResultsPage({
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-gray-400 text-xs">Your IGN</p>
-                    <p className="text-white text-xl font-black">
-                      {myResult.playerName}
-                    </p>
+                    <p className="text-white text-xl font-black">{myResult.playerName}</p>
                   </div>
                   {getRankMeta(myResult.rank) && (
                     <span
@@ -4603,21 +4586,15 @@ function MatchResultsPage({
                 </div>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-white font-black text-lg">
-                      #{myResult.rank || "—"}
-                    </p>
+                    <p className="text-white font-black text-lg">#{myResult.rank || "—"}</p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
                   </div>
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-orange-400 font-black text-lg">
-                      {myResult.kills}
-                    </p>
+                    <p className="text-orange-400 font-black text-lg">{myResult.kills}</p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
                   </div>
                   <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-green-400 font-black text-lg">
-                      ৳{myResult.totalPrize}
-                    </p>
+                    <p className="text-green-400 font-black text-lg">৳{myResult.totalPrize}</p>
                     <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
                   </div>
                 </div>
@@ -4630,36 +4607,24 @@ function MatchResultsPage({
                       {myResult.rankPrize > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-400">Placement Prize</span>
-                          <span className="text-yellow-400 font-bold">
-                            +৳{myResult.rankPrize}
-                          </span>
+                          <span className="text-yellow-400 font-bold">+৳{myResult.rankPrize}</span>
                         </div>
                       )}
                       {myResult.killEarning > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">
-                            {myResult.kills} Kills × ৳{killPrice}
-                          </span>
-                          <span className="text-green-400 font-bold">
-                            +৳{myResult.killEarning}
-                          </span>
+                          <span className="text-gray-400">{myResult.kills} Kills × ৳{killPrice}</span>
+                          <span className="text-green-400 font-bold">+৳{myResult.killEarning}</span>
                         </div>
                       )}
                       <div className="border-t border-white/10 pt-1.5 flex justify-between">
-                        <span className="text-white font-bold text-sm">
-                          Total Credited
-                        </span>
-                        <span className="text-green-400 font-black text-base">
-                          ৳{myResult.totalPrize}
-                        </span>
+                        <span className="text-white font-bold text-sm">Total Credited</span>
+                        <span className="text-green-400 font-black text-base">৳{myResult.totalPrize}</span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="bg-black/30 rounded-xl p-4 text-center">
-                    <p className="text-gray-500 text-sm">
-                      No prize this match. Better luck next time! 💪
-                    </p>
+                    <p className="text-gray-500 text-sm">No prize this match. Better luck next time! 💪</p>
                   </div>
                 )}
               </div>
@@ -4667,8 +4632,7 @@ function MatchResultsPage({
                 <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
                   <span className="text-green-400">✓</span>
                   <p className="text-green-400 text-sm">
-                    <strong>৳{myResult.totalPrize}</strong> has been credited to
-                    your wallet
+                    <strong>৳{myResult.totalPrize}</strong> has been credited to your wallet
                   </p>
                 </div>
               )}
@@ -4689,7 +4653,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
     const fetchResults = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/matches/completed`);
+        const res = await fetch(`${CLEAN_API_URL}/matches/completed`);
         const data = await res.json();
         setMatches(Array.isArray(data?.data) ? data.data : []);
       } catch {
@@ -4720,9 +4684,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
           </span>
         </div>
         <h1 className="text-white text-2xl font-extrabold">Results</h1>
-        <p className="text-gray-500 text-xs mt-1">
-          Tap a match to see full leaderboard
-        </p>
+        <p className="text-gray-500 text-xs mt-1">Tap a match to see full leaderboard</p>
       </div>
 
       <div className="px-4 space-y-3">
@@ -4730,9 +4692,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-3xl mb-3">🎮</p>
             <p className="text-white font-bold mb-1">No Results Yet</p>
-            <p className="text-gray-500 text-sm">
-              Results will appear here after matches end
-            </p>
+            <p className="text-gray-500 text-sm">Results will appear here after matches end</p>
           </div>
         ) : (
           matches.map((match) => {
@@ -4780,14 +4740,10 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                         {categoryLabel}
                       </span>
                     </div>
-                    <p className="text-white font-bold text-sm truncate">
-                      {match.title}
-                    </p>
+                    <p className="text-white font-bold text-sm truncate">{match.title}</p>
                     <p className="text-gray-500 text-xs mt-0.5">
                       {match.map || "Free Fire"} • ৳{match.perKill}/kill •{" "}
-                      {match.completedAt
-                        ? new Date(match.completedAt).toLocaleDateString("en-BD")
-                        : ""}
+                      {match.completedAt ? new Date(match.completedAt).toLocaleDateString("en-BD") : ""}
                     </p>
                   </div>
                   <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
@@ -4797,20 +4753,11 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 <div className="flex gap-2 mb-3">
                   {top3.length > 0 ? (
                     top3.map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1"
-                      >
-                        <span className="text-sm">
-                          {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
-                        </span>
+                      <div key={i} className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1">
+                        <span className="text-sm">{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
                         <div className="min-w-0">
-                          <p className="text-white text-[11px] font-bold truncate">
-                            {p.inGameName || "—"}
-                          </p>
-                          <p className="text-gray-500 text-[10px]">
-                            ৳{p.prize || 0}
-                          </p>
+                          <p className="text-white text-[11px] font-bold truncate">{p.inGameName || "—"}</p>
+                          <p className="text-gray-500 text-[10px]">৳{p.prize || 0}</p>
                         </div>
                       </div>
                     ))
@@ -4820,26 +4767,16 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                 </div>
                 <div className="flex items-center justify-between">
                   {myResult ? (
-                    <div
-                      className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}
-                    >
+                    <div className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}>
                       <span>You:</span>
-                      <span className="font-bold">
-                        #{myResult.position || "—"}
-                      </span>
+                      <span className="font-bold">#{myResult.position || "—"}</span>
                       <span>⚔️ {myResult.kills} kills</span>
-                      {myResult.prize > 0 && (
-                        <span className="font-black">+৳{myResult.prize}</span>
-                      )}
+                      {myResult.prize > 0 && <span className="font-black">+৳{myResult.prize}</span>}
                     </div>
                   ) : (
-                    <span className="text-gray-600 text-xs">
-                      You didn't participate
-                    </span>
+                    <span className="text-gray-600 text-xs">You didn't participate</span>
                   )}
-                  <span className="text-orange-400 text-xs font-bold">
-                    View →
-                  </span>
+                  <span className="text-orange-400 text-xs font-bold">View →</span>
                 </div>
               </div>
             );
@@ -4859,7 +4796,7 @@ function NotificationsPage({ onBack }) {
     const fetchNotifications = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/notifications`);
+        const res = await fetch(`${CLEAN_API_URL}/notifications`);
         const data = await res.json();
         setNotifications(
           Array.isArray(data?.data)
@@ -4893,7 +4830,6 @@ function NotificationsPage({ onBack }) {
           </div>
         </div>
       </div>
-
       <div className="px-4 pt-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -4904,9 +4840,7 @@ function NotificationsPage({ onBack }) {
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-4xl mb-3">🔔</p>
             <p className="text-white font-bold mb-1">No Notifications</p>
-            <p className="text-gray-500 text-sm">
-              You're all caught up! Check back later
-            </p>
+            <p className="text-gray-500 text-sm">You're all caught up! Check back later</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -4914,9 +4848,7 @@ function NotificationsPage({ onBack }) {
               <div
                 key={n._id || idx}
                 className={`rounded-2xl p-4 border ${
-                  n.isRead
-                    ? "bg-[#111827] border-white/5"
-                    : "bg-orange-500/10 border-orange-500/30"
+                  n.isRead ? "bg-[#111827] border-white/5" : "bg-orange-500/10 border-orange-500/30"
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -4925,16 +4857,10 @@ function NotificationsPage({ onBack }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-white font-bold text-sm">
-                        {n.title || "Notification"}
-                      </p>
-                      {!n.isRead && (
-                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
-                      )}
+                      <p className="text-white font-bold text-sm">{n.title || "Notification"}</p>
+                      {!n.isRead && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />}
                     </div>
-                    <p className="text-gray-400 text-xs mt-1">
-                      {n.body || n.message}
-                    </p>
+                    <p className="text-gray-400 text-xs mt-1">{n.body || n.message}</p>
                     {n.createdAt && (
                       <p className="text-gray-600 text-[10px] mt-2">
                         {new Date(n.createdAt).toLocaleString("en-BD")}
@@ -4951,24 +4877,20 @@ function NotificationsPage({ onBack }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════
-// 🆕 LUDO TOURNAMENT PAGE
-// ════════════════════════════════════════════════════════════
-function LudoTournamentPage({ currentUser, token, onBack }) {
+// ─── LUDO TOURNAMENT PAGE ────────────────────────────────────────────────────
+function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("upcoming");
   const [joining, setJoining] = useState(null);
   const [msg, setMsg] = useState("");
 
-  useEffect(() => {
-    loadMatches();
-  }, [filter]);
+  useEffect(() => { loadMatches(); }, [filter]);
 
   const loadMatches = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/ludo-tournament?status=${filter}`);
+      const res = await fetch(`${CLEAN_API_URL}/ludo-tournament?status=${filter}`);
       const data = await res.json();
       setMatches(Array.isArray(data?.data) ? data.data : []);
     } catch {
@@ -4979,35 +4901,21 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
   };
 
   const handleJoin = async (matchId, entryFee) => {
-    if (!currentUser?.id && !currentUser?._id) {
-      setMsg("আগে login করুন");
-      return;
-    }
+    if (!currentUser?.id && !currentUser?._id) { setMsg("আগে login করুন"); return; }
     setJoining(matchId);
     setMsg("");
     try {
-      const res = await fetch(`${API_BASE}/ludo-tournament/join`, {
+      const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/join`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          matchId,
-          userId: currentUser?.id || currentUser?._id,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ matchId, userId: currentUser?.id || currentUser?._id }),
       });
       const data = await res.json();
       if (data.success) {
         setMsg("✅ Successfully joined!");
         const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            ...stored,
-            balance: data.newBalance ?? stored.balance,
-          })
-        );
+        localStorage.setItem("user", JSON.stringify({ ...stored, balance: data.newBalance ?? stored.balance }));
+        if (onRefreshBalance) onRefreshBalance();
         loadMatches();
       } else {
         setMsg("❌ " + (data.message || "Join failed"));
@@ -5024,37 +4932,26 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
     { id: "live", label: "🔴 Live" },
     { id: "completed", label: "✅ Done" },
   ];
-
   const modeLabel = { "1v1": "⚔️ 1v1", "2v2": "👥 2v2", "4player": "🎮 4 Player" };
   const modeColor = { "1v1": "#f59e0b", "2v2": "#3b82f6", "4player": "#10b981" };
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
       <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-4 pt-5 pb-5">
         <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95"
-          >
-            ←
-          </button>
+          <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95">←</button>
           <div>
             <h1 className="text-white text-xl font-extrabold">🎲 Ludo Tournament</h1>
             <p className="text-violet-200 text-xs mt-0.5">Play & Win Real Cash</p>
           </div>
         </div>
-
-        {/* Filter tabs */}
         <div className="flex gap-2">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                filter === f.id
-                  ? "bg-white text-violet-600"
-                  : "bg-white/15 text-white/70"
+                filter === f.id ? "bg-white text-violet-600" : "bg-white/15 text-white/70"
               }`}
             >
               {f.label}
@@ -5063,20 +4960,14 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
         </div>
       </div>
 
-      {/* Message */}
       {msg && (
-        <div
-          className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
-            msg.startsWith("✅")
-              ? "bg-green-500/20 text-green-400 border border-green-500/30"
-              : "bg-red-500/20 text-red-400 border border-red-500/30"
-          }`}
-        >
+        <div className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
+          msg.startsWith("✅") ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-red-500/20 text-red-400 border border-red-500/30"
+        }`}>
           {msg}
         </div>
       )}
 
-      {/* Match list */}
       <div className="px-4 mt-4 space-y-3">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -5087,171 +4978,76 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-4xl mb-3">🎲</p>
             <p className="text-white font-bold mb-1">কোনো Tournament নেই</p>
-            <p className="text-gray-500 text-sm">
-              এই category তে এখন কোনো match নেই
-            </p>
+            <p className="text-gray-500 text-sm">এই category তে এখন কোনো match নেই</p>
           </div>
         ) : (
           matches.map((match) => {
             const mc = modeColor[match.mode] || "#6b7280";
-            const isFull =
-              (match.joinedPlayers || 0) >= (match.totalSlots || 4);
+            const isFull = (match.joinedPlayers || 0) >= (match.totalSlots || 4);
             const isJoined = match.joinedUsers?.some(
-              (u) =>
-                (u.userId?._id || u.userId) ===
-                (currentUser?.id || currentUser?._id)
+              (u) => (u.userId?._id || u.userId) === (currentUser?.id || currentUser?._id)
             );
             return (
-              <div
-                key={match._id}
-                className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden"
-              >
-                {/* color bar */}
+              <div key={match._id} className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden">
                 <div style={{ height: 3, background: mc }} />
-
-                {match.image && (
-                  <img
-                    src={match.image}
-                    alt=""
-                    className="w-full h-28 object-cover"
-                  />
-                )}
-
+                {match.image && <img src={match.image} alt="" className="w-full h-28 object-cover" />}
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span
-                          style={{
-                            background: mc + "22",
-                            color: mc,
-                            fontSize: 10,
-                            padding: "2px 8px",
-                            borderRadius: 20,
-                            fontWeight: 700,
-                            border: `1px solid ${mc}55`,
-                          }}
-                        >
+                        <span style={{ background: mc + "22", color: mc, fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700, border: `1px solid ${mc}55` }}>
                           {modeLabel[match.mode] || match.mode}
                         </span>
                         {match.status === "live" && (
                           <span className="flex items-center gap-1 text-[10px] text-red-400 font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            LIVE
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />LIVE
                           </span>
                         )}
                       </div>
-                      <p className="text-white font-bold text-base">
-                        {match.title}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-0.5">
-                        🗺️ {match.map || "Classic"} • 📱{" "}
-                        {match.device || "Mobile"}
-                      </p>
+                      <p className="text-white font-bold text-base">{match.title}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">🗺️ {match.map || "Classic"} • 📱 {match.device || "Mobile"}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-gray-400 text-xs">Entry</p>
-                      <p className="text-white font-black text-lg">
-                        ৳{match.entryFee || 0}
-                      </p>
+                      <p className="text-white font-black text-lg">৳{match.entryFee || 0}</p>
                     </div>
                   </div>
-
-                  {/* Stats row */}
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     {[
-                      {
-                        label: "Prize",
-                        value: `৳${match.winPrize || 0}`,
-                        color: "#f59e0b",
-                      },
-                      {
-                        label: "Players",
-                        value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`,
-                        color: isFull ? "#ef4444" : "#22d3ee",
-                      },
-                      {
-                        label: "Start",
-                        value: match.startTime
-                          ? new Date(match.startTime).toLocaleTimeString(
-                              "en-BD",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                              }
-                            )
-                          : "—",
-                        color: "#a78bfa",
-                      },
+                      { label: "Prize", value: `৳${match.winPrize || 0}`, color: "#f59e0b" },
+                      { label: "Players", value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`, color: isFull ? "#ef4444" : "#22d3ee" },
+                      { label: "Start", value: match.startTime ? new Date(match.startTime).toLocaleTimeString("en-BD", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—", color: "#a78bfa" },
                     ].map((s, i) => (
                       <div key={i} className="bg-black/30 rounded-xl p-2 text-center">
-                        <p className="text-[9px] text-gray-500 font-semibold uppercase">
-                          {s.label}
-                        </p>
-                        <p
-                          className="text-xs font-black mt-0.5"
-                          style={{ color: s.color }}
-                        >
-                          {s.value}
-                        </p>
+                        <p className="text-[9px] text-gray-500 font-semibold uppercase">{s.label}</p>
+                        <p className="text-xs font-black mt-0.5" style={{ color: s.color }}>{s.value}</p>
                       </div>
                     ))}
                   </div>
-
-                  {/* Room code — live হলে দেখাবে */}
                   {match.status === "live" && match.roomCode && (
                     <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
                       <div>
-                        <p className="text-violet-300 text-[10px] font-bold uppercase">
-                          Room Code
-                        </p>
-                        <p className="text-white font-black text-lg tracking-widest">
-                          {match.roomCode}
-                        </p>
+                        <p className="text-violet-300 text-[10px] font-bold uppercase">Room Code</p>
+                        <p className="text-white font-black text-lg tracking-widest">{match.roomCode}</p>
                       </div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(match.roomCode);
-                          setMsg("✅ Room code copied!");
-                        }}
-                        className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95"
-                      >
+                      <button onClick={() => { navigator.clipboard.writeText(match.roomCode); setMsg("✅ Room code copied!"); }} className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95">
                         Copy
                       </button>
                     </div>
                   )}
-
-                  {/* Join button */}
                   {match.status === "upcoming" && (
                     isJoined ? (
-                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">
-                        ✅ Already Joined
-                      </div>
+                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">✅ Already Joined</div>
                     ) : isFull ? (
-                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">
-                        ❌ Full
-                      </div>
+                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">❌ Full</div>
                     ) : (
-                      <button
-                        onClick={() => handleJoin(match._id, match.entryFee)}
-                        disabled={joining === match._id}
-                        className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60"
-                        style={{
-                          background: `linear-gradient(135deg, ${mc}, #4f46e5)`,
-                        }}
-                      >
-                        {joining === match._id
-                          ? "Joining..."
-                          : `Join Now • ৳${match.entryFee}`}
+                      <button onClick={() => handleJoin(match._id, match.entryFee)} disabled={joining === match._id} className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${mc}, #4f46e5)` }}>
+                        {joining === match._id ? "Joining..." : `Join Now • ৳${match.entryFee}`}
                       </button>
                     )
                   )}
-
                   {match.status === "completed" && (
-                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">
-                      ✅ Completed
-                    </div>
+                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">✅ Completed</div>
                   )}
                 </div>
               </div>
@@ -5267,283 +5063,112 @@ function LudoTournamentPage({ currentUser, token, onBack }) {
 const AppDashboard = ({ onLogout }) => {
   const [tab, setTab] = useState("play");
   const [screen, setScreen] = useState("home");
-  const [slide, setSlide] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [matches, setMatches] = useState([]);
   const [selectedResult, setSelectedResult] = useState(null);
-  const [resultTab, setResultTab] = useState("leaderboard");
-  const [refreshing, setRefreshing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [dashboardBalance, setDashboardBalance] = useState(0);
 
-  // ✅ localStorage থেকে user ও token নাও
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const currentToken = localStorage.getItem("token") || "";
-  const currentUserUid =
-    currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+
+  const fetchDashboardBalance = async () => {
+    if (!currentToken) return;
+    try {
+      const res = await axios.get(`${CLEAN_API_URL}/users/balance`, {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      setDashboardBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error("Dashboard balance fetch error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardBalance();
+    const bInterval = setInterval(fetchDashboardBalance, 5000);
+    return () => clearInterval(bInterval);
+  }, [currentToken]);
 
   const getMatchCount = (categoryKey) =>
-    matches.filter(
-      (m) => m.category === categoryKey && m.status !== "completed"
-    ).length;
+    matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
 
   useEffect(() => {
     const loadMatches = async () => {
       try {
-        const res = await fetch(`${API_BASE}/matches`);
+        const res = await fetch(`${CLEAN_API_URL}/matches`);
         const data = await res.json();
-        let safeData = [];
-        if (Array.isArray(data)) safeData = data;
-        else if (Array.isArray(data?.matches)) safeData = data.matches;
-        else if (Array.isArray(data?.data)) safeData = data.data;
+        let safeData = Array.isArray(data) ? data : data?.data || data?.matches || [];
         setMatches(safeData);
       } catch (err) {
         setMatches([]);
       }
     };
     loadMatches();
-    const interval = setInterval(loadMatches, 10000);
+    const interval = setInterval(loadMatches, 15000);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => setSlide((p) => (p === 2 ? 0 : p + 1)), 3000);
-    return () => clearInterval(timer);
-  }, []);
-
   const categories = [
-    { key: "br_match", title: "BR Match", img: "/image/img-1.jpg" },
-    { key: "br_survival", title: "BR Survival", img: "/image/img-2.jpg" },
-    { key: "clash_squad", title: "Clash Squad", img: "/image/img-3.jpg" },
-    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/img-1.jpg" },
-    { key: "lone_wolf", title: "Lone Wolf", img: "/image/img-2.jpg" },
-    { key: "training", title: "Training Match", img: "/image/img-3.jpg" },
+    { key: "br_match", title: "BR Match", img: "/image/cards/BRMatchcard.png" },
+    { key: "br_survival", title: "BR Survival", img: "/image/cards/solo.png" },
+    { key: "clash_squad", title: "Clash Squad", img: "/image/cards/squard.png" },
+    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/cards/2vs2.png" },
+    { key: "lone_wolf", title: "Lone Wolf", img: "/image/cards/longwolf.png" },
+    { key: "training", title: "Training Match", img: "/image/cards/freematch.png" },
   ];
 
-  // --- NOTIFICATIONS ---
-  if (showNotifications) {
-    return (
-      <div className="mx-auto min-h-screen">
-        <NotificationsPage onBack={() => setShowNotifications(false)} />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
+  const sliderSlides = [
+    { image: "/image/slider/facebook1.png", link: "/facebook" },
+    { image: "/image/slider/ludo.png", link: "/ludo" },
+    { image: "/image/slider/telegram.png", link: "/telegram" },
+    { image: "/image/slider/youtube.png", link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
+  ];
 
-  // --- PROFILE TAB ---
+  if (showNotifications) return <NotificationsPage onBack={() => setShowNotifications(false)} />;
+
   if (tab === "profile") {
-    if (screen === "wallet") {
-      return (
-        <div className="bg-white min-h-screen mx-auto pb-24">
-          <Wallet onBack={() => setScreen("home")} />
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    if (screen === "withdraw") {
-      return (
-        <div className="bg-white min-h-screen mx-auto pb-24 shadow-xl">
-          <Withdraw onBack={() => setScreen("home")} />
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-    if (screen === "all_rules") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <AllRulesPage onBack={() => setScreen("home")} />
-        </div>
-      );
-    }
-    if (screen === "my_profile") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <AccountInfo onBack={() => setScreen("home")} />
-        </div>
-      );
-    }
-
-    // ✅ Referral screen — user ও token prop পাঠানো হচ্ছে
-    if (screen === "referral") {
-      return (
-        <div className="bg-white min-h-screen mx-auto">
-          <Referral
-            onBack={() => setScreen("home")}
-            user={currentUser}
-            token={currentToken}
-          />
-          <BottomMenu tab={tab} setTab={setTab} />
-        </div>
-      );
-    }
-
+    if (screen === "wallet") return <Wallet onBack={() => setScreen("home")} />;
+    if (screen === "withdraw") return <Withdraw onBack={() => setScreen("home")} />;
+    if (screen === "all_rules") return <AllRulesPage onBack={() => setScreen("home")} />;
+    if (screen === "my_profile") return <AccountInfo onBack={() => setScreen("home")} />;
+    if (screen === "referral") return <Referral onBack={() => setScreen("home")} user={currentUser} token={currentToken} />;
     return (
-      <div className="bg-white min-h-screen mx-auto pb-24">
-        <Profile
-          onLogout={onLogout}
-          onWallet={() => setScreen("wallet")}
-          onWithdraw={() => setScreen("withdraw")}
-          onAllRules={() => setScreen("all_rules")}
-          onMyProfile={() => setScreen("my_profile")}
-          onReferral={() => setScreen("referral")}
-        />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
+      <Profile
+        onLogout={onLogout}
+        onWallet={() => setScreen("wallet")}
+        onWithdraw={() => setScreen("withdraw")}
+        onAllRules={() => setScreen("all_rules")}
+        onMyProfile={() => setScreen("my_profile")}
+        onReferral={() => setScreen("referral")}
+      />
     );
   }
 
-  // --- SHOP TAB ---
-  if (tab === "shop") {
-    return (
-      <div className="bg-white min-h-screen mx-auto pb-24">
-        <div className="p-4 text-center text-gray-400 mt-20 text-lg font-bold">
-          🛒 Shop Coming Soon...
-        </div>
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // --- MY MATCHES TAB ---
-  if (tab === "matches") {
-    return (
-      <div className="mx-auto min-h-screen">
-        <MyMatch />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
-  }
-
-  // --- RESULTS TAB ---
+  if (tab === "matches") return <MyMatch />;
   if (tab === "results") {
-    if (selectedResult) {
-      return (
-        <div className="mx-auto min-h-screen">
-          <div className="bg-[#0a0e1a] px-4 pt-4">
-            <button
-              onClick={() => setSelectedResult(null)}
-              className="flex items-center gap-2 text-orange-400 text-sm font-bold mb-2"
-            >
-              ← Back to Results
-            </button>
-          </div>
-          <MatchResultsPage
-            matchId={selectedResult.matchId || selectedResult._id}
-            matchTitle={selectedResult.matchTitle}
-            killPrice={selectedResult.killPrice}
-            results={selectedResult.results}
-            publishedAt={selectedResult.submittedAt || selectedResult.publishedAt}
-            mapName={selectedResult.mapName}
-            currentUserUid={currentUserUid}
-          />
-          <BottomMenu
-            tab={tab}
-            setTab={(t) => {
-              setTab(t);
-              setSelectedResult(null);
-            }}
-          />
-        </div>
-      );
-    }
-    return (
-      <div className="mx-auto min-h-screen bg-[#f7f2fb]">
-        <div
-          style={{
-            display: "flex",
-            background: "#fff",
-            borderBottom: "2px solid #ede9fe",
-            position: "sticky",
-            top: 0,
-            zIndex: 40,
-          }}
-        >
-          {[
-            { id: "leaderboard", label: "🏆 Leaderboard" },
-            { id: "matchresults", label: "📊 Match Results" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setResultTab(t.id)}
-              style={{
-                flex: 1,
-                padding: "13px 0",
-                border: "none",
-                background: "transparent",
-                fontWeight: 700,
-                fontSize: 13,
-                color: resultTab === t.id ? "#4f46e5" : "#9ca3af",
-                borderBottom:
-                  resultTab === t.id
-                    ? "2px solid #4f46e5"
-                    : "2px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                marginBottom: -2,
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {resultTab === "leaderboard" ? (
-          <Leaderboard />
-        ) : (
-          <ResultsListPage
-            onSelectResult={(match) => setSelectedResult(match)}
-            currentUserUid={currentUserUid}
-          />
-        )}
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
+    if (selectedResult) return <MatchResultsPage {...selectedResult} currentUserUid={currentUserUid} />;
+    return <ResultsListPage onSelectResult={setSelectedResult} currentUserUid={currentUserUid} />;
   }
-
-  // --- CATEGORY SCREEN ---
   if (screen === "category") {
     return (
-      <div className="mx-auto min-h-screen bg-white">
-        <MatchList
-          category={selectedCategory}
-          title={
-            categories.find((c) => c.key === selectedCategory)?.title ||
-            selectedCategory
-          }
-          onBack={() => {
-            setScreen("home");
-            setSelectedCategory("");
-          }}
-          onJoinSuccess={(matchId, newBalance) => {
-            const user = JSON.parse(localStorage.getItem("user") || "{}");
-            localStorage.setItem(
-              "user",
-              JSON.stringify({ ...user, balance: newBalance })
-            );
-          }}
-          tab={tab}
-          setTab={setTab}
-          hideCategories={true}
-        />
-      </div>
+      <MatchList
+        category={selectedCategory}
+        title={categories.find((c) => c.key === selectedCategory)?.title}
+        onBack={() => { setScreen("home"); setSelectedCategory(""); }}
+        tab={tab} setTab={setTab}
+      />
     );
   }
-
-  // ✅ LUDO SCREEN
   if (screen === "ludo") {
-    return (
-      <div className="mx-auto min-h-screen">
-        <LudoTournamentPage
-          currentUser={currentUser}
-          token={currentToken}
-          onBack={() => setScreen("home")}
-        />
-        <BottomMenu tab={tab} setTab={setTab} />
-      </div>
-    );
+    return <LudoTournamentPage currentUser={currentUser} token={currentToken} onBack={() => setScreen("home")} onRefreshBalance={fetchDashboardBalance} />;
   }
 
-  // --- HOME SCREEN ---
+  // ─── Home Screen ──────────────────────────────────────────────────────────
   return (
     <div className="bg-gray-50 min-h-screen mx-auto pb-24">
+
       {/* Top Header */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between">
@@ -5554,9 +5179,7 @@ const AppDashboard = ({ onLogout }) => {
               </span>
             </div>
             <div>
-              <p className="text-white/80 text-[11px] font-medium">
-                Welcome back
-              </p>
+              <p className="text-white/80 text-[11px] font-medium">Welcome back</p>
               <p className="text-white font-extrabold text-sm truncate max-w-[150px]">
                 {currentUser?.name || "Player"}
               </p>
@@ -5566,7 +5189,7 @@ const AppDashboard = ({ onLogout }) => {
             <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <span className="text-yellow-300 text-xs">💰</span>
               <span className="text-white font-black text-xs">
-                ৳{currentUser?.balance || 0}
+                ৳ {dashboardBalance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
             <NotificationBell onOpen={() => setShowNotifications(true)} />
@@ -5575,166 +5198,54 @@ const AppDashboard = ({ onLogout }) => {
       </div>
 
       <div className="p-4">
-        {/* Slider Banner */}
-        <div className="relative w-full h-44 overflow-hidden rounded-3xl shadow-lg border-4 border-white">
-          {categories.slice(0, 3).map((c, i) => (
-            <img
-              key={i}
-              src={c.img}
-              className="absolute w-full h-full object-cover transition-opacity duration-1000"
-              style={{ opacity: slide === i ? 1 : 0 }}
-              alt="Slider"
-            />
-          ))}
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className={`h-1.5 rounded-full transition-all ${
-                  slide === i ? "w-6 bg-white" : "w-1.5 bg-white/50"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
 
-        {/* Live Marquee */}
+        {/* Slider */}
+        <ClickableSlider slides={sliderSlides} />
+
+        {/* ✅ Live Marquee */}
         <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
-          <marquee
-            scrollamount="6"
-            className="py-2 text-orange-400 text-sm font-extrabold"
-          >
-            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL
-            CASH • JOIN CUSTOM ROOM NOW 🚀
+          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
+            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN NOW 🚀
           </marquee>
         </div>
 
-        {/* ✅ LUDO TOURNAMENT BANNER */}
+        {/* ✅ Ludo Banner */}
         <div
           onClick={() => setScreen("ludo")}
           className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
-          style={{
-            background: "linear-gradient(135deg, #4c1d95, #1e1b4b)",
-            border: "1px solid #7c3aed44",
-          }}
+          style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
         >
           <div className="p-4 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-                <span className="text-violet-300 text-[10px] font-bold uppercase tracking-wider">
-                  Now Available
-                </span>
-              </div>
-              <p className="text-white text-lg font-extrabold">
-                🎲 Ludo Tournament
-              </p>
-              <p className="text-violet-300 text-xs mt-0.5">
-                1v1 • 2v2 • 4 Player • Win Cash!
-              </p>
+              <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
+              <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
             </div>
-            <div className="text-right">
-              <p className="text-4xl">🎲</p>
-              <p className="text-violet-300 text-xs mt-1 font-bold">
-                Play Now →
-              </p>
-            </div>
+            <p className="text-4xl">🎲</p>
           </div>
         </div>
 
-        {/* Section Header */}
+        {/* Categories Heading */}
         <div className="flex items-center justify-between mt-6 px-1">
           <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
             Free Fire <span className="text-orange-500">Arena</span>
           </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-md font-bold animate-pulse">
-              LIVE NOW
-            </span>
-            <button
-              onClick={async () => {
-                setRefreshing(true);
-                try {
-                  const res = await fetch(`${API_BASE}/matches`);
-                  const data = await res.json();
-                  let safeData = [];
-                  if (Array.isArray(data)) safeData = data;
-                  else if (Array.isArray(data?.matches))
-                    safeData = data.matches;
-                  else if (Array.isArray(data?.data)) safeData = data.data;
-                  setMatches(safeData);
-                } catch (err) {
-                  console.error(err);
-                } finally {
-                  setTimeout(() => setRefreshing(false), 800);
-                }
-              }}
-              disabled={refreshing}
-              className="flex items-center justify-center w-8 h-8 bg-orange-50 border border-orange-200 rounded-full active:scale-95 transition-all disabled:opacity-70"
-            >
-              <span
-                className={`text-orange-500 text-sm ${refreshing ? "animate-spin" : ""}`}
-              >
-                🔄
-              </span>
-            </button>
-          </div>
         </div>
 
-        {/* Category Grid */}
+        {/* Categories Grid */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           {categories.map((cat) => {
             const count = getMatchCount(cat.key);
             return (
               <div
                 key={cat.key}
-                onClick={() => {
-                  setSelectedCategory(cat.key);
-                  setScreen("category");
-                }}
-                className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all border border-black/5"
+                onClick={() => { setSelectedCategory(cat.key); setScreen("category"); }}
+                className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all"
               >
-                <img
-                  src={cat.img}
-                  alt={cat.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-white font-extrabold text-sm tracking-wide uppercase">
-                      {cat.title}
-                    </p>
-                    {count > 0 && (
-                      <div
-                        style={{
-                          background: "rgba(34,211,238,0.15)",
-                          border: "1px solid #22d3ee",
-                          borderRadius: 6,
-                          padding: "2px 7px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: "#22d3ee",
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {count}
-                        </span>
-                        <span style={{ color: "#22d3ee", fontSize: 9 }}>
-                          live
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-orange-400 text-[10px] font-medium mt-0.5">
-                    Enter Battle Arena →
-                  </p>
+                  <p className="text-white font-extrabold text-sm">{cat.title}</p>
+                  {count > 0 && <p className="text-cyan-400 text-xs font-bold">{count} Live</p>}
                 </div>
               </div>
             );
@@ -5747,9 +5258,89 @@ const AppDashboard = ({ onLogout }) => {
   );
 };
 
+// ─── Profile Component ────────────────────────────────────────────────────────
+const Profile = ({ onLogout, onWallet, onWithdraw, onAllRules, onMyProfile, onReferral }) => {
+  const [balance, setBalance] = useState(0);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const token = localStorage.getItem("token");
+
+  const fetchProfileBalance = async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${CLEAN_API_URL}/users/balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error("Profile balance error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfileBalance();
+    const interval = setInterval(fetchProfileBalance, 5000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const menuItems = [
+    { id: "wallet", label: "Wallet / Add Money", icon: "👛" },
+    { id: "withdraw", label: "Withdraw", icon: "💵" },
+    { id: "referral", label: "Refer & Earn", icon: "🎁" },
+    { id: "my_profile", label: "Account Info", icon: "👤" },
+    { id: "all_rules", label: "All Rules", icon: "📋" },
+    { id: "top_players", label: "Top Players", icon: "📈" },
+  ];
+
+  const handleNavigate = (id) => {
+    if (id === "wallet") onWallet();
+    if (id === "withdraw") onWithdraw();
+    if (id === "all_rules") onAllRules();
+    if (id === "my_profile") onMyProfile();
+    if (id === "referral") onReferral();
+  };
+
+  return (
+    <div className="bg-white min-h-screen pb-10">
+      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
+        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
+          👨‍💻
+        </div>
+        <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
+        <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
+        <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
+          <p className="text-xs text-blue-100">ব্যালেন্স</p>
+          <p className="text-2xl font-black">
+            ৳ {balance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 px-2">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => handleNavigate(item.id)}
+            className="w-full flex justify-between items-center p-4 border-b hover:bg-gray-50 transition"
+          >
+            <div className="flex gap-4 items-center">
+              <span className="text-xl">{item.icon}</span>
+              <span className="font-bold text-sm">{item.label}</span>
+            </div>
+            <span className="text-gray-400">›</span>
+          </button>
+        ))}
+      </div>
+      <div className="px-8 mt-12">
+        <button onClick={onLogout} className="w-full bg-blue-500 text-white py-3 rounded-full font-bold">
+          Logout
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default AppDashboard;
 
-...............................................AppDeashboard .jsx end..........................................................
+...............................................AppDeshBoard.jsx end..........................................................
 
 //AppRoute.jsx start 
  import React from "react";
@@ -8642,7 +8233,9 @@ export default AdminPanel;
 
 //AdminPanel.jsx end 
 
-//AdminDashboard.jsx start 
+........................AdminDashboard.jsx start ........................
+
+
  import React, { useState } from "react";
 import MatchManager from "../MatchManager.jsx/MatchManager";
 import DepositRequests from "../DepositeRequest/DepositeRequest";
@@ -10969,7 +10562,8 @@ export default MatchList;
  
 //MyMatch.jsx end 
 
-//Profile.jsx start 
+.............................................Profile.jsx start...........................................................
+
  import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AddMoneyModal from "../../Component/Addmoney/AddMoney";
@@ -11092,7 +10686,8 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
 };
 
 export default Profile;
-//Profile.jsx end
+
+.....................................................Profile.jsx end..................................................................
 
 
  ...................................Referral.jsx start.............................................
@@ -12411,7 +12006,7 @@ function App() {
 }
 
 export default App;
-...............................................app.jsx end  ............................................................
+.......................app.jsx end  ............................................................
  
 
 main.jsx start 
@@ -13408,3 +13003,157 @@ export default LudoTournamentSection;
 
 .......................ludotournamentmanager end............................................
  
+
+
+ ..........................................ClickableSlider.jsx start....................................................
+ // ClickableSlider.jsx
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+
+const ClickableSlider = ({ slides }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [translateX, setTranslateX] = useState(0);
+
+  const navigate = useNavigate();
+  const autoSlideRef = useRef(null);
+
+  const resetAutoSlide = useCallback(() => {
+    if (autoSlideRef.current) clearInterval(autoSlideRef.current);
+    autoSlideRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
+    }, 5000);
+  }, [slides.length]);
+
+  useEffect(() => {
+    resetAutoSlide();
+    return () => clearInterval(autoSlideRef.current);
+  }, [resetAutoSlide]);
+
+  const handleTouchStart = useCallback((e) => {
+    setIsDragging(true);
+    setStartX(e.touches[0].clientX);
+    setTranslateX(0);
+  }, []);
+
+  const handleTouchMove = useCallback(
+    (e) => {
+      if (!isDragging) return;
+      setTranslateX(e.touches[0].clientX - startX);
+    },
+    [isDragging, startX]
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isDragging) return;
+    if (translateX > 60) {
+      setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+    } else if (translateX < -60) {
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
+    }
+    setIsDragging(false);
+    setTranslateX(0);
+    resetAutoSlide();
+  }, [translateX, isDragging, slides.length, resetAutoSlide]);
+
+  const handleClick = (slide) => {
+    if (Math.abs(translateX) > 10) return;
+    if (slide.link) {
+      slide.link.startsWith("http")
+        ? window.open(slide.link, "_blank")
+        : navigate(slide.link);
+    }
+  };
+
+  const goToSlide = (idx) => {
+    setCurrentIndex(idx);
+    resetAutoSlide();
+  };
+
+  return (
+    <div className="relative w-full overflow-hidden rounded-2xl shadow-xl bg-black">
+      {/* Slider Track */}
+      <div
+        className="flex"
+        style={{
+          transform: `translateX(calc(-${currentIndex * 100}% + ${translateX}px))`,
+          transition: isDragging
+            ? "none"
+            : "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {slides.map((slide, index) => (
+          <div
+            key={index}
+            className="min-w-full relative cursor-pointer select-none"
+            onClick={() => handleClick(slide)}
+          >
+            <img
+              src={slide.image}
+              alt={slide.title || `Slide ${index + 1}`}
+              className="w-full block"
+              style={{
+                aspectRatio: "16/7",
+                objectFit: "cover",
+                objectPosition: "center",
+              }}
+              draggable={false}
+              loading={index === 0 ? "eager" : "lazy"}
+            />
+
+            {/* Text overlay — শুধু text থাকলে দেখাবে */}
+            {(slide.title || slide.subtitle || slide.description || slide.buttonText) && (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-black/90" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10">
+                  {slide.subtitle && (
+                    <p className="text-yellow-300 text-sm sm:text-base font-medium tracking-widest mb-1">
+                      {slide.subtitle}
+                    </p>
+                  )}
+                  {slide.title && (
+                    <h2 className="text-white text-2xl sm:text-3xl md:text-4xl font-bold leading-tight mb-3 drop-shadow-2xl">
+                      {slide.title}
+                    </h2>
+                  )}
+                  {slide.description && (
+                    <p className="text-white/90 text-sm sm:text-base max-w-xs mb-4 leading-snug">
+                      {slide.description}
+                    </p>
+                  )}
+                  {slide.buttonText && (
+                    <button className="bg-white hover:bg-yellow-400 text-black font-bold px-8 py-3 rounded-2xl text-base shadow-xl transition-all active:scale-95">
+                      {slide.buttonText}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Dot Indicators */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-30">
+        {slides.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => goToSlide(idx)}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              currentIndex === idx ? "w-8 bg-white" : "w-2 bg-white/50"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default ClickableSlider;
+
+ ..........................................ClickableSlider.jsx end....................................................
