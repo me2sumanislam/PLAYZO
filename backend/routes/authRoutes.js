@@ -1,4 +1,5 @@
- const express = require("express");
+ // routes/authRoutes.js
+const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -70,7 +71,6 @@ router.post("/register", async (req, res) => {
       await referrer.save();
     }
 
-    // ✅ Token generate করো
     const token = jwt.sign(
       { id: user._id, role: user.role, phone: user.phone },
       process.env.JWT_SECRET || "secretkey",
@@ -80,8 +80,8 @@ router.post("/register", async (req, res) => {
     res.json({
       success: true,
       message: "রেজিস্ট্রেশন সফল হয়েছে!",
-      token, // ✅ token পাঠাও
-      user: { // ✅ user পাঠাও
+      token,
+      user: {
         id:             user._id,
         name:           user.name,
         inGameName:     user.inGameName,
@@ -119,14 +119,29 @@ router.post("/login", async (req, res) => {
       return res.json({ success: false, message: "ফোন নম্বর বা পাসওয়ার্ড ভুল" });
     }
 
+    // ✅ FIX: referralCode না থাকলে এখনই generate করে save করো
+    if (!user.referralCode) {
+      let newCode;
+      let isUnique = false;
+      let attempts = 0;
+      while (!isUnique && attempts < 15) {
+        newCode = generateReferralCode(user.name);
+        const existing = await User.findOne({ referralCode: newCode });
+        if (!existing) isUnique = true;
+        attempts++;
+      }
+      user.referralCode = newCode;
+      console.log(`🔑 [Login] Generated referralCode for ${user.name}: ${newCode}`);
+    }
+
+    user.lastLogin = new Date();
+    await user.save();
+
     const token = jwt.sign(
       { id: user._id, role: user.role, phone: user.phone },
       process.env.JWT_SECRET || "secretkey",
       { expiresIn: "7d" }
     );
-
-    user.lastLogin = new Date();
-    await user.save();
 
     res.json({
       success: true,
@@ -142,7 +157,7 @@ router.post("/login", async (req, res) => {
         balance:            user.balance,
         totalMatchesPlayed: user.totalMatchesPlayed,
         totalWins:          user.totalWins,
-        referralCode:       user.referralCode,
+        referralCode:       user.referralCode,  // ✅ এখন সবসময় আসবে
         referralPoints:     user.referralPoints,
         referralCount:      user.referralCount,
       },
@@ -150,6 +165,32 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+  }
+});
+
+// ================= CHECK PHONE =================
+router.post("/check-phone", async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const user = await User.findOne({ phone });
+    if (!user) return res.json({ success: false, message: "User not found" });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= RESET PASSWORD =================
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+    const user = await User.findOne({ phone });
+    if (!user) return res.json({ success: false, message: "User not found" });
+    user.password = await bcrypt.hash(password, 10);
+    await user.save();
+    res.json({ success: true, message: "পাসওয়ার্ড পরিবর্তন সফল হয়েছে!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

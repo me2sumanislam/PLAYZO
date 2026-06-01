@@ -1,4 +1,5 @@
- const express = require("express");
+ // routes/referralRoutes.js
+const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const { protect } = require("../middleware/auth");
@@ -15,7 +16,7 @@ router.post("/convert", protect, async (req, res) => {
 
     const currentPoints = user.referralPoints || 0;
 
-    // ✅ Minimum 20 points (আগে ছিল 100 — ভুল ছিল)
+    // ✅ Minimum 20 points
     if (currentPoints < 20) {
       return res.json({
         success: false,
