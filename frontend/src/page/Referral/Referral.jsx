@@ -28,7 +28,8 @@ const Referral = ({ onBack, user, token }) => {
     setLoading(true);
     setErrorMsg("");
     try {
-      const res = await axios.get(`${API}/api/wallet/referral/${userId}`, {
+      // ✅ FIX: /api/wallet/referral → /api/referral
+      const res = await axios.get(`${API}/api/referral/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -48,8 +49,9 @@ const Referral = ({ onBack, user, token }) => {
     setConverting(true);
     setConvertMsg("");
     try {
+      // ✅ FIX: /api/wallet/referral/convert → /api/referral/convert
       const res = await axios.post(
-        `${API}/api/wallet/referral/convert`,
+        `${API}/api/referral/convert`,
         { userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -84,7 +86,7 @@ const Referral = ({ onBack, user, token }) => {
 
   const hasPending = referralData?.hasPendingRequest;
   const points     = referralData?.referralPoints || 0;
-  const canConvert = points >= 100 && !hasPending;
+  const canConvert = points >= 20 && !hasPending;
 
   const msgColors = {
     success: { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d" },
@@ -130,7 +132,7 @@ const Referral = ({ onBack, user, token }) => {
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
           <p className="text-xs text-orange-100">আপনার Points</p>
           <p className="text-3xl font-black">{points}</p>
-          <p className="text-xs text-orange-100 mt-1">১০০ points = ৳১০০</p>
+          <p className="text-xs text-orange-100 mt-1">২০ points = ৳২০</p>
         </div>
       </div>
 
@@ -174,7 +176,7 @@ const Referral = ({ onBack, user, token }) => {
               "১. আপনার code দিয়ে বন্ধু register করবে",
               "২. বন্ধু ৳৫০+ deposit করবে",
               "৩. আপনি ৫ পয়েন্ট পাবেন",
-              "৪. ২০ জন = ১০০ পয়েন্ট = ৳১০০",
+              "৪. ২০ পয়েন্ট = ৳২০ balance",
             ].map((text, i) => (
               <div key={i} className="flex gap-3 items-start">
                 <span className="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">
@@ -214,9 +216,9 @@ const Referral = ({ onBack, user, token }) => {
             ? "হচ্ছে..."
             : hasPending
               ? "⏳ Request Pending..."
-              : points < 100
+              : points < 20
                 ? `Convert করুন (${points} pts — কম আছে)`
-                : `Convert করুন (${points} pts → ৳${Math.floor(points / 100) * 100})`
+                : `Convert করুন (${points} pts → ৳${points})`
           }
         </button>
 

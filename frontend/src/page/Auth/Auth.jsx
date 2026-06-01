@@ -1,6 +1,7 @@
  // page/Auth/Auth.jsx
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 const PasswordInput = ({ placeholder, value, onChange, required, autoComplete, className }) => {
   const [show, setShow] = useState(false);
@@ -41,15 +42,17 @@ const Auth = ({ onLoginSuccess }) => {
   const [newPass, setNewPass] = useState("");
   const [forgotStep, setForgotStep] = useState(1);
 
-  // ✅ URL থেকে ?ref=CODE auto-fill — referral link কাজ করবে
+  // ✅ FIX: useSearchParams ব্যবহার করা হয়েছে — window.location.search এর চেয়ে নির্ভরযোগ্য
+  // navigate("/app?ref=CODE") এর পরেও এটা ঠিকভাবে কাজ করবে
+  const [searchParams] = useSearchParams();
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const refCode = params.get("ref");
+    const refCode = searchParams.get("ref");
     if (refCode) {
       setRegData((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
       setScreen("register"); // সরাসরি register tab এ নিয়ে যাও
     }
-  }, []);
+  }, [searchParams]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -188,31 +191,33 @@ const Auth = ({ onLoginSuccess }) => {
         </p>
       </div>
 
+      {/* Tab Switcher */}
       {screen !== "forgot" && (
-        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+        <div className="flex bg-slate-100 rounded-2xl p-1 mb-6">
           <button
             onClick={() => switchScreen("login")}
-            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${screen === "login" ? "bg-white shadow text-slate-800" : "text-gray-400"}`}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition ${screen === "login" ? "bg-white shadow text-slate-800" : "text-slate-500"}`}
           >
             লগইন
           </button>
           <button
             onClick={() => switchScreen("register")}
-            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${screen === "register" ? "bg-white shadow text-slate-800" : "text-gray-400"}`}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition ${screen === "register" ? "bg-white shadow text-slate-800" : "text-slate-500"}`}
           >
             রেজিস্ট্রেশন
           </button>
         </div>
       )}
 
+      {/* Error / Success */}
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm font-bold text-center p-3 rounded-xl">
-          ⚠️ {error}
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-2xl px-4 py-3 text-sm font-bold mb-4 text-center">
+          {error}
         </div>
       )}
       {success && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-600 text-sm font-bold text-center p-3 rounded-xl">
-          ✅ {success}
+        <div className="bg-green-50 border border-green-200 text-green-600 rounded-2xl px-4 py-3 text-sm font-bold mb-4 text-center">
+          {success}
         </div>
       )}
 
@@ -221,7 +226,7 @@ const Auth = ({ onLoginSuccess }) => {
         <form onSubmit={handleLogin} className="space-y-4">
           <input
             type="text"
-            placeholder="ফোন নাম্বার / Username"
+            placeholder="ফোন নাম্বার"
             className={inputClass}
             value={loginData.phone}
             onChange={(e) => setLoginData({ ...loginData, phone: e.target.value })}
