@@ -1,5 +1,4 @@
- // App.jsx
-import React, { useState, useEffect } from "react";
+ import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./App.css";
 
@@ -42,6 +41,18 @@ function App() {
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone;
+
+  // ✅ Referral link redirect
+  // কেউ https://playzo-eight.vercel.app?ref=CODE খুললে
+  // → /app?ref=CODE এ redirect হবে
+  // → Auth.jsx সেখান থেকে code পড়ে register tab খুলবে
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const refCode = params.get("ref");
+    if (refCode && location.pathname === "/") {
+      navigate(`/app?ref=${refCode}`, { replace: true });
+    }
+  }, []);
 
   useEffect(() => {
     const checkPWAReinstall = () => {
