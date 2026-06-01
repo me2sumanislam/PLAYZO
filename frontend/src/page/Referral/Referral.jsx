@@ -12,7 +12,6 @@ const Referral = ({ onBack, user, token }) => {
   const [loading, setLoading]           = useState(true);
   const [errorMsg, setErrorMsg]         = useState("");
 
-  // ✅ user.id অথবা user._id যেটাই থাকুক কাজ করবে
   const userId = user?.id || user?._id;
 
   useEffect(() => {
@@ -28,8 +27,7 @@ const Referral = ({ onBack, user, token }) => {
     setLoading(true);
     setErrorMsg("");
     try {
-      // ✅ FIX: /api/wallet/referral → /api/referral
-      const res = await axios.get(`${API}/api/referral/${userId}`, {
+      const res = await axios.get(`${API}/api/wallet/referral/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
@@ -49,9 +47,8 @@ const Referral = ({ onBack, user, token }) => {
     setConverting(true);
     setConvertMsg("");
     try {
-      // ✅ FIX: /api/wallet/referral/convert → /api/referral/convert
       const res = await axios.post(
-        `${API}/api/referral/convert`,
+        `${API}/api/wallet/referral/convert`,
         { userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -84,9 +81,11 @@ const Referral = ({ onBack, user, token }) => {
     }
   };
 
-  const hasPending = referralData?.hasPendingRequest;
+  // ✅ 20 points minimum (আগে ছিল 100 — ভুল)
   const points     = referralData?.referralPoints || 0;
-  const canConvert = points >= 20 && !hasPending;
+  const canConvert = points >= 20;
+  // ✅ 1 point = 1 টাকা (আগে ছিল Math.floor(points/100)*100 — ভুল)
+  const takaAmount = points;
 
   const msgColors = {
     success: { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d" },
@@ -95,7 +94,6 @@ const Referral = ({ onBack, user, token }) => {
   };
   const mc = msgColors[msgType];
 
-  // ✅ Loading state
   if (loading) {
     return (
       <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-3">
@@ -105,7 +103,6 @@ const Referral = ({ onBack, user, token }) => {
     );
   }
 
-  // ✅ Error state
   if (errorMsg) {
     return (
       <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-4 px-8">
@@ -132,7 +129,8 @@ const Referral = ({ onBack, user, token }) => {
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
           <p className="text-xs text-orange-100">আপনার Points</p>
           <p className="text-3xl font-black">{points}</p>
-          <p className="text-xs text-orange-100 mt-1">২০ points = ৳২০</p>
+          {/* ✅ সঠিক rate */}
+          <p className="text-xs text-orange-100 mt-1">১ point = ১ টাকা (min: ২০ pts)</p>
         </div>
       </div>
 
@@ -152,6 +150,10 @@ const Referral = ({ onBack, user, token }) => {
               Share 🔗
             </button>
           </div>
+          {/* ✅ Share link preview */}
+          <p className="text-xs text-gray-400 mt-2 break-all">
+            https://playzo-eight.vercel.app?ref={referralData?.referralCode || "..."}
+          </p>
         </div>
 
         {/* Stats */}
@@ -162,21 +164,22 @@ const Referral = ({ onBack, user, token }) => {
           </div>
           <div className="bg-green-50 rounded-2xl p-4 text-center">
             <p className="text-2xl font-black text-green-600">
-              {referralData?.referralHistory?.filter(r => r.deposited).length || 0}
+              {referralData?.referralHistory?.filter(r => r.pointGiven).length || 0}
             </p>
-            <p className="text-xs text-gray-500 font-bold">Deposit করেছে</p>
+            <p className="text-xs text-gray-500 font-bold">Points পেয়েছি</p>
           </div>
         </div>
 
-        {/* How it works */}
+        {/* How it works — ✅ সঠিক তথ্য */}
         <div className="bg-gray-50 rounded-2xl p-4">
           <p className="font-black text-sm mb-3">কীভাবে কাজ করে?</p>
           <div className="space-y-2 text-sm">
             {[
               "১. আপনার code দিয়ে বন্ধু register করবে",
               "২. বন্ধু ৳৫০+ deposit করবে",
-              "৩. আপনি ৫ পয়েন্ট পাবেন",
-              "৪. ২০ পয়েন্ট = ৳২০ balance",
+              "৩. বন্ধু যেকোনো একটি match join করবে",
+              "৪. আপনি ৫ পয়েন্ট পাবেন (১ point = ১ টাকা)",
+              "৫. মাত্র ২০ points হলেই ৳২০ convert করতে পারবেন",
             ].map((text, i) => (
               <div key={i} className="flex gap-3 items-start">
                 <span className="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">
@@ -188,16 +191,22 @@ const Referral = ({ onBack, user, token }) => {
           </div>
         </div>
 
-        {/* Pending notice */}
-        {hasPending && (
-          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 16, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <span style={{ fontSize: 20 }}>⏳</span>
-            <div>
-              <p style={{ fontWeight: 700, fontSize: 13, color: "#92400e", marginBottom: 2 }}>Convert Request Pending</p>
-              <p style={{ fontSize: 12, color: "#b45309" }}>আপনার request Admin এর কাছে পাঠানো হয়েছে। Approve হলে balance এ যোগ হবে।</p>
-            </div>
+        {/* Progress bar */}
+        <div className="bg-gray-50 rounded-2xl p-4">
+          <div className="flex justify-between text-xs font-bold text-gray-500 mb-2">
+            <span>Progress</span>
+            <span>{points} / ২০ pts minimum</span>
           </div>
-        )}
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className="bg-orange-500 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min((points / 20) * 100, 100)}%` }}
+            />
+          </div>
+          {canConvert && (
+            <p className="text-xs text-green-600 font-bold mt-2">✅ আপনি convert করতে পারবেন! → ৳{takaAmount}</p>
+          )}
+        </div>
 
         {/* Message */}
         {convertMsg && (
@@ -206,19 +215,17 @@ const Referral = ({ onBack, user, token }) => {
           </div>
         )}
 
-        {/* Convert Button */}
+        {/* Convert Button — ✅ সঠিক amount */}
         <button
           onClick={handleConvert}
           disabled={converting || !canConvert}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50 transition"
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50 transition active:scale-95"
         >
           {converting
             ? "হচ্ছে..."
-            : hasPending
-              ? "⏳ Request Pending..."
-              : points < 20
-                ? `Convert করুন (${points} pts — কম আছে)`
-                : `Convert করুন (${points} pts → ৳${points})`
+            : points < 20
+              ? `Convert করুন (${points} pts — কমপক্ষে ২০ লাগবে)`
+              : `Convert করুন (${points} pts → ৳${takaAmount})`
           }
         </button>
 
@@ -237,9 +244,9 @@ const Referral = ({ onBack, user, token }) => {
                     {r.pointGiven ? (
                       <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold">+5 pts ✅</span>
                     ) : r.deposited ? (
-                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">Deposited</span>
+                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-semibold">Match পেন্ডিং ⏳</span>
                     ) : (
-                      <span className="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Pending</span>
+                      <span className="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Deposit পেন্ডিং</span>
                     )}
                   </div>
                 </div>
