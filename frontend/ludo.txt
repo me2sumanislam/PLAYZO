@@ -1,0 +1,823 @@
+  import React, { useState, useEffect, useCallback } from "react";
+
+const API_LUDO = (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com").replace("/api", "");
+
+// Countdown Timer
+const LudoTimeLeft = ({ startTime }) => {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(startTime).getTime() - Date.now();
+      if (diff <= 0) {
+        setTime("শুরু হয়েছে");
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [startTime]);
+  return <span>{time}</span>;
+};
+
+// Ludo Card
+const LudoCard = ({ match, userId, onJoin, joining }) => {
+  const [showRoom, setShowRoom] = useState(false);
+  const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+  const joined = Number(match.joinedPlayers || 0);
+  const total = Number(match.totalSlots || match.totalPlayers || 4);
+  const fill = total > 0 ? (joined / total) * 100 : 0;
+
+  const isMine = (match.joinedUsers || []).some((u) =>
+    u.userId?.toString?.() === userId?.toString?.() || u.userId === userId
+  );
+
+  const isFull = joined >= total;
+  const canJoin = !isMine && !isFull && !["completed", "cancelled"].includes(match.status);
+
+  const mySlot = isMine
+    ? (match.joinedUsers || []).find((u) => u.userId?.toString?.() === userId?.toString?.() || u.userId === userId)?.slotNumber
+    : null;
+
+  return (
+    <div style={{
+      background: "#fff",
+      borderRadius: 18,
+      overflow: "hidden",
+      boxShadow: "0 3px 14px rgba(0,0,0,0.07)",
+      marginBottom: 14,
+      border: isMine ? "2px solid #10b981" : "1px solid #f3f4f6"
+    }}>
+      <div style={{ height: 4, background: "linear-gradient(90deg,#f59e0b,#ef4444,#8b5cf6,#10b981)" }} />
+
+      {match.image && (
+        <img src={match.image} alt="" style={{ width: "100%", height: 110, objectFit: "cover" }} onError={(e) => e.target.style.display = "none"} />
+      )}
+
+      <div style={{ padding: "12px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 4 }}>🎲 {match.title}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 800 }}>
+                {match.mode === "1v1" ? "⚔️ 1v1" : match.mode === "2v2" ? "👥 2v2" : "🎮 4 Player"}
+              </span>
+              <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 700 }}>
+                {match.status?.toUpperCase() || "UPCOMING"}
+              </span>
+              {isMine && <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 700 }}>✅ Joined #{mySlot}</span>}
+            </div>
+          </div>
+          <div style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)", borderRadius: 12, padding: "6px 12px", textAlign: "center", border: "1px solid #fcd34d" }}>
+            <div style={{ fontSize: 9, color: "#92400e", fontWeight: 700 }}>WIN</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#b45309" }}>{fmt(match.winPrize)}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: "#f9fafb", borderRadius: 10, padding: "10px 0", marginBottom: 10 }}>
+          {[
+            { label: "Entry", value: fmt(match.entryFee) },
+            { label: "Players", value: `${joined}/${total}` },
+            { label: "Map", value: match.map || "Classic" }
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#9ca3af" }}>{s.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {canJoin && (
+          <button
+            onClick={() => onJoin(match._id, match.entryFee, match.title)}
+            disabled={joining === match._id}
+            style={{
+              width: "100%",
+              background: joining === match._id ? "#9ca3af" : "linear-gradient(135deg,#f59e0b,#d97706)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              padding: "12px 0",
+              fontSize: 14,
+              fontWeight: 800,
+              marginTop: 8
+            }}
+          >
+            {joining === match._id ? "⏳ Joining..." : `Join — ${fmt(match.entryFee)}`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Main Component
+const LudoTournamentSection = () => {
+  const [activeMode, setActiveMode] = useState("all");
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [joining, setJoining] = useState(null);
+  const [toast, setToast] = useState({ text: "", type: "" });
+
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  const userId = user?.id || user?._id;
+  const token = localStorage.getItem("token");
+
+  const showToast = (text, type = "success") => {
+    setToast({ text, type });
+    setTimeout(() => setToast({ text: "", type: "" }), 3500);
+  };
+
+  const loadMatches = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q = activeMode !== "all" ? `?mode=${activeMode}` : "";
+      const res = await fetch(`${API_LUDO}/api/ludo-tournament${q}`);
+      const d = await res.json();
+      setMatches(Array.isArray(d?.data) ? d.data : []);
+    } catch (err) {
+      console.error(err);
+      setMatches([]);
+    }
+    setLoading(false);
+  }, [activeMode]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
+
+  const handleJoin = async (matchId, entryFee, matchTitle) => {
+    if (!userId) return showToast("আগে Login করুন", "error");
+    if (!window.confirm(`"${matchTitle}" তে Join করবেন? Entry: ৳${entryFee}`)) return;
+
+    setJoining(matchId);
+    try {
+      const res = await fetch(`${API_LUDO}/api/ludo-tournament/join/${matchId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        showToast(`✅ Join সফল!`);
+        loadMatches();
+      } else {
+        showToast(d.message || "Join হয়নি", "error");
+      }
+    } catch {
+      showToast("নেটওয়ার্ক সমস্যা", "error");
+    }
+    setJoining(null);
+  };
+
+  const filtered = activeMode === "all" ? matches : matches.filter(m => m.mode === activeMode);
+
+  return (
+    <div style={{ background: "#f3f4f6", minHeight: "100%", paddingBottom: 20 }}>
+      <div style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", padding: "18px 16px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ color: "#c4b5fd", fontSize: 11, fontWeight: 600 }}>TOURNAMENT</div>
+            <div style={{ color: "#fff", fontSize: 20, fontWeight: 900 }}>🎲 Ludo Arena</div>
+          </div>
+          <button onClick={loadMatches} disabled={loading} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", borderRadius: 20, padding: "6px 14px" }}>
+            {loading ? "⏳" : "🔄"}
+          </button>
+        </div>
+      </div>
+
+      {toast.text && (
+        <div style={{
+          margin: "12px",
+          padding: "12px",
+          borderRadius: 12,
+          background: toast.type === "error" ? "#fee2e2" : "#d1fae5",
+          color: toast.type === "error" ? "#991b1b" : "#065f46"
+        }}>
+          {toast.text}
+        </div>
+      )}
+
+      <div style={{ padding: "12px" }}>
+        {filtered.map((m) => (
+          <LudoCard
+            key={m._id}
+            match={m}
+            userId={userId}
+            onJoin={handleJoin}
+            joining={joining}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default LudoTournamentSection;
+
+ // src/Component/Admin/LudoTournamentManager.jsx
+import React, { useState, useEffect, useCallback } from "react";
+
+const API_BASE = (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com").replace("/api", "");
+
+const getToken = () =>
+  localStorage.getItem("adminToken") || localStorage.getItem("token") || "";
+
+const api = async (path, opts = {}) => {
+  try {
+    const res = await fetch(`${API_BASE}/api${path}`, {
+      headers: { 
+        "Content-Type": "application/json", 
+        Authorization: `Bearer ${getToken()}` 
+      },
+      ...opts,
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, message: "Network error" };
+  }
+};
+
+const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+const inp = {
+  width: "100%", 
+  boxSizing: "border-box",
+  padding: "10px 12px", 
+  border: "1.5px solid #e5e7eb",
+  borderRadius: 10, 
+  fontSize: 13, 
+  background: "#f9fafb",
+  outline: "none", 
+  fontFamily: "inherit",
+};
+
+const LUDO_MAPS = ["Classic", "Quick Ludo", "Arrow", "Magic"];
+const MODES = [
+  { id: "1v1", label: "⚔️ 1 vs 1 (2 জন)", slots: 2 },
+  { id: "2v2", label: "👥 2 vs 2 (4 জন)", slots: 4 },
+  { id: "4player", label: "🎮 4 Player Solo", slots: 4 },
+];
+
+// Create Form
+const CreateLudoForm = ({ onCreated }) => {
+  const [form, setForm] = useState({
+    title: "", mode: "4player",
+    entryFee: "", winPrize: "",
+    startTime: "", map: "Classic", device: "Mobile", image: "",
+    prizes: { first: "", second: "", third: "", fourth: "" },
+  });
+  const [msg, setMsg] = useState("");
+
+  const f = (key) => ({
+    style: inp,
+    value: form[key] || "",
+    onChange: (e) => setForm(p => ({ ...p, [key]: e.target.value }))
+  });
+
+  const fp = (key) => ({
+    style: inp,
+    value: form.prizes[key] || "",
+    onChange: (e) => setForm(p => ({ ...p, prizes: { ...p.prizes, [key]: e.target.value } }))
+  });
+
+  const handleImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm(p => ({ ...p, image: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const submit = async () => {
+    if (!form.title || !form.startTime) {
+      setMsg("❌ Title ও Start Time দিন");
+      return;
+    }
+
+    const payload = {
+      ...form,
+      entryFee: Number(form.entryFee || 0),
+      winPrize: Number(form.winPrize || 0),
+      prizes: {
+        first: Number(form.prizes.first || 0),
+        second: Number(form.prizes.second || 0),
+        third: Number(form.prizes.third || 0),
+        fourth: Number(form.prizes.fourth || 0),
+      },
+    };
+
+    const d = await api("/ludo-tournament/create", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    if (d.success) {
+      setMsg("✅ Ludo tournament created successfully!");
+      setForm({
+        title: "", mode: "4player", entryFee: "", winPrize: "",
+        startTime: "", map: "Classic", device: "Mobile", image: "",
+        prizes: { first: "", second: "", third: "", fourth: "" }
+      });
+      onCreated?.();
+    } else {
+      setMsg("❌ " + (d.message || "Failed to create"));
+    }
+  };
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb" }}>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 18, color: "#111" }}>🎲 নতুন Ludo Tournament</div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Match Title *</div>
+          <input placeholder="যেমন: Ludo Solo #1" {...f("title")} />
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>Mode</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setForm(p => ({ ...p, mode: m.id }))}
+                style={{
+                  padding: "10px 8px",
+                  borderRadius: 10,
+                  border: `2px solid ${form.mode === m.id ? "#7c3aed" : "#e5e7eb"}`,
+                  background: form.mode === m.id ? "#ede9fe" : "#fff",
+                  color: form.mode === m.id ? "#5b21b6" : "#6b7280",
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Start Time *</div>
+          <input type="datetime-local" {...f("startTime")} />
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>Entry & Prize</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input placeholder="Entry Fee" {...f("entryFee")} type="number" />
+            <input placeholder="Win Prize" {...f("winPrize")} type="number" />
+          </div>
+        </div>
+
+        <button 
+          onClick={submit}
+          style={{
+            padding: 12,
+            background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            marginTop: 10
+          }}
+        >
+          🎲 Create Ludo Tournament
+        </button>
+
+        {msg && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: msg.includes("✅") ? "#d1fae5" : "#fee2e2" }}>{msg}</div>}
+      </div>
+    </div>
+  );
+};
+
+// Main Component
+const LudoTournamentManager = () => {
+  const [tab, setTab] = useState("list");
+  const [matches, setMatches] = useState([]);
+  const [filter, setFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const d = await api("/ludo-tournament");
+    setMatches(Array.isArray(d?.data) ? d.data : []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const filtered = filter === "all" ? matches : matches.filter(m => m.status === filter);
+
+  const counts = {
+    all: matches.length,
+    upcoming: matches.filter(m => m.status === "upcoming").length,
+    live: matches.filter(m => m.status === "live").length,
+    completed: matches.filter(m => m.status === "completed").length,
+  };
+
+  return (
+    <div style={{ padding: 16, maxWidth: 700, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>🎲 Ludo Tournaments</div>
+          <div style={{ fontSize: 12, color: "#9ca3af" }}>Total: {matches.length}</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setTab("create")} style={{ padding: "8px 16px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 8 }}>
+            + Create New
+          </button>
+          <button onClick={load} style={{ padding: "8px 12px", background: "#f3f4f6", borderRadius: 8 }}>🔄</button>
+        </div>
+      </div>
+
+      {tab === "create" && <CreateLudoForm onCreated={load} />}
+
+      {tab === "list" && (
+        <>
+          <div style={{ marginBottom: 12 }}>
+            {["all", "upcoming", "live", "completed"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  marginRight: 6,
+                  padding: "6px 12px",
+                  borderRadius: 20,
+                  background: filter === f ? "#7c3aed" : "#f3f4f6",
+                  color: filter === f ? "#fff" : "#374151",
+                  border: "none",
+                }}
+              >
+                {f.toUpperCase()} ({counts[f]})
+              </button>
+            ))}
+          </div>
+
+          {filtered.map((m) => (
+            <div key={m._id} style={{ background: "#fff", padding: 16, borderRadius: 12, marginBottom: 12, border: "1px solid #e5e7eb" }}>
+              <h3>{m.title}</h3>
+              <p>Status: {m.status} | Mode: {m.mode}</p>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+};
+
+export default LudoTournamentManager;
+
+  // models/LudoTournament.js
+  const mongoose = require("mongoose");
+  
+  const ludoTournamentSchema = new mongoose.Schema({
+    title:        { type: String, required: true },
+    mode:         { type: String, enum: ["1v1", "2v2", "4player"], default: "4player" },
+    // 1v1 = 2 players, 2v2 = 4 players (2 teams), 4player = 4 solo players
+    entryFee:     { type: Number, default: 0 },
+    winPrize:     { type: Number, default: 0 },
+    totalSlots:   { type: Number, default: 4 },   // total player slots
+    joinedPlayers:{ type: Number, default: 0 },
+    roomCode:     { type: String, default: "" },
+    isRoomOpen:   { type: Boolean, default: false },
+    map:          { type: String, default: "Classic" },
+    device:       { type: String, default: "Mobile" },
+    image:        { type: String, default: "" },
+    status:       { type: String, enum: ["upcoming","live","completed","cancelled"], default: "upcoming" },
+    startTime:    { type: Date, default: null },
+    expiresAt:    { type: Date, default: null },
+  
+    prizes: {
+      first:  { type: Number, default: 0 },
+      second: { type: Number, default: 0 },
+      third:  { type: Number, default: 0 },
+      fourth: { type: Number, default: 0 },
+    },
+  
+    // For 2v2 mode: teams
+    teams: [
+      {
+        teamName:   { type: String, default: "" },
+        players: [
+          {
+            userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+            slotNumber: { type: Number },
+          }
+        ],
+      }
+    ],
+  
+    // For 1v1 and 4player: individual slots
+    joinedUsers: [
+      {
+        userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        slotNumber: { type: Number },
+        teamId:     { type: String, default: "" }, // for 2v2 pairing
+      }
+    ],
+  
+    // Result
+    results: [
+      {
+        userId:   { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        rank:     { type: Number },
+        prize:    { type: Number, default: 0 },
+        kills:    { type: Number, default: 0 },
+      }
+    ],
+  
+  }, { timestamps: true });
+  
+  // Auto-delete 20 min after startTime
+  ludoTournamentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  
+  module.exports = mongoose.model("LudoTournament", ludoTournamentSchema);
+   // routes/ludoTournamentRoutes.js
+const express = require("express");
+const router  = express.Router();
+const LudoTournament = require("../models/LudoTournament");
+const User    = require("../models/User");
+const jwt     = require("jsonwebtoken");
+
+// ✅ Notification
+const notificationRouter = require("./notifications");
+
+// ─── ADMIN MIDDLEWARE ──────────────────────────────────────────
+const protectAdmin = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.json({ success: false, message: "No token" });
+    const token   = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!["admin","super-admin"].includes(decoded.role)) {
+      return res.json({ success: false, message: "Admin only" });
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.json({ success: false, message: "Invalid token: " + err.message });
+  }
+};
+
+// ─── HELPERS ──────────────────────────────────────────────────
+const slotsForMode = (mode) => {
+  if (mode === "1v1")     return 2;
+  if (mode === "2v2")     return 4;
+  if (mode === "4player") return 4;
+  return 4;
+};
+
+// ════════════════════════════════════════════════════════════
+// ADMIN: CREATE LUDO TOURNAMENT
+// POST /api/ludo-tournament/create
+// ════════════════════════════════════════════════════════════
+router.post("/create", protectAdmin, async (req, res) => {
+  try {
+    const { startTime, mode, ...rest } = req.body;
+    const expiresAt = startTime
+      ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
+      : new Date(Date.now() + 20 * 60 * 1000);
+
+    const totalSlots = slotsForMode(mode || "4player");
+
+    const match = await LudoTournament.create({
+      ...rest,
+      mode: mode || "4player",
+      startTime,
+      expiresAt,
+      totalSlots,
+      joinedPlayers: 0,
+      status: "upcoming",
+    });
+
+    // ✅ Ludo notification পাঠাও
+    notificationRouter.sendMatchNotification(match, "ludo");
+
+    res.status(201).json({ success: true, message: "Ludo tournament created", data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// GET ALL (public)
+// GET /api/ludo-tournament
+// ════════════════════════════════════════════════════════════
+router.get("/", async (req, res) => {
+  try {
+    const { mode, status } = req.query;
+    const filter = {};
+    if (mode)   filter.mode   = mode;
+    if (status) filter.status = status;
+    const matches = await LudoTournament.find(filter).sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// GET MY MATCHES (by userId query param)
+// GET /api/ludo-tournament/my-matches?userId=xxx
+// ════════════════════════════════════════════════════════════
+router.get("/my-matches", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ success: false, message: "userId required" });
+    const matches = await LudoTournament
+      .find({ "joinedUsers.userId": userId })
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// GET SINGLE
+// GET /api/ludo-tournament/:id
+// ════════════════════════════════════════════════════════════
+router.get("/:id", async (req, res) => {
+  try {
+    const match = await LudoTournament.findById(req.params.id)
+      .populate("joinedUsers.userId", "name phone inGameName");
+    if (!match) return res.status(404).json({ success: false, message: "Not found" });
+    res.json({ success: true, data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// ADMIN: UPDATE ROOM CODE & SET LIVE
+// PUT /api/ludo-tournament/update-room/:id
+// ════════════════════════════════════════════════════════════
+router.put("/update-room/:id", protectAdmin, async (req, res) => {
+  try {
+    const { roomCode } = req.body;
+    const match = await LudoTournament.findByIdAndUpdate(
+      req.params.id,
+      { roomCode, status: "live", isRoomOpen: true },
+      { new: true }
+    );
+    res.json({ success: true, message: "Room code updated, match is now LIVE", data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// USER: JOIN TOURNAMENT
+// PUT /api/ludo-tournament/join/:id
+// body: { userId }
+// ════════════════════════════════════════════════════════════
+router.put("/join/:id", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const match = await LudoTournament.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+    if (match.status === "completed" || match.status === "cancelled") {
+      return res.json({ success: false, message: "Match আর join করা যাবে না" });
+    }
+
+    const already = (match.joinedUsers || []).find(
+      (u) => u.userId?.toString() === userId?.toString()
+    );
+    if (already) return res.json({ success: false, message: "ইতোমধ্যে join করেছেন" });
+
+    if (match.joinedPlayers >= match.totalSlots) {
+      return res.json({ success: false, message: "Match ফুল হয়ে গেছে" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (user.balance < match.entryFee) {
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+    }
+
+    const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
+    let slot = 1;
+    while (usedSlots.includes(slot)) slot++;
+
+    user.balance -= match.entryFee;
+    if (!user.joinHistory) user.joinHistory = [];
+    user.joinHistory.push({
+      matchId: match._id,
+      matchTitle: match.title,
+      entryFee: match.entryFee,
+      joinedAt: new Date(),
+      gameType: "ludo",
+    });
+    await user.save();
+
+    if (!match.joinedUsers) match.joinedUsers = [];
+    match.joinedUsers.push({ userId, slotNumber: slot });
+    match.joinedPlayers = match.joinedUsers.length;
+
+    if (match.joinedPlayers >= match.totalSlots) {
+      match.status = "live";
+    }
+
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "Join সফল! 🎉",
+      newBalance: user.balance,
+      slotNumber: slot,
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// ADMIN: SUBMIT RESULT & DISTRIBUTE PRIZE
+// POST /api/ludo-tournament/result/:id
+// body: { results: [{ userId, rank, prize, kills }] }
+// ════════════════════════════════════════════════════════════
+router.post("/result/:id", protectAdmin, async (req, res) => {
+  try {
+    const { results } = req.body;
+    const match = await LudoTournament.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+
+    match.results  = results;
+    match.status   = "completed";
+    await match.save();
+
+    for (const r of results) {
+      if (r.userId && r.prize > 0) {
+        await User.findByIdAndUpdate(r.userId, {
+          $inc: { balance: r.prize },
+          $push: {
+            transactions: {
+              type: "match_prize",
+              amount: r.prize,
+              matchId: match._id,
+              description: `${match.title} (Ludo ${match.mode}) - Rank #${r.rank} Prize`,
+            },
+          },
+        });
+      }
+    }
+
+    res.json({ success: true, message: "Result submitted & prizes distributed ✅", data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// ADMIN: DELETE
+// DELETE /api/ludo-tournament/:id
+// ════════════════════════════════════════════════════════════
+router.delete("/:id", protectAdmin, async (req, res) => {
+  try {
+    await LudoTournament.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: "Match deleted" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// ADMIN: UPDATE MATCH
+// PUT /api/ludo-tournament/:id
+// ════════════════════════════════════════════════════════════
+router.put("/:id", protectAdmin, async (req, res) => {
+  try {
+    const match = await LudoTournament.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    res.json({ success: true, data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
