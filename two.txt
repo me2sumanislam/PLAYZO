@@ -1,1295 +1,1488 @@
- 
- import React, { useState, useEffect } from "react";
-import BottomMenu from "../BottomMenu/BottomMenu";
-import NotificationBell from "../NotificationBell/NotificationBell";
-import Profile from "../../page/Profile/profile";
-import Wallet from "../../page/Wallet/Wallet";
-import MatchList from "../../page/MatchList/MatchList";
-import Withdraw from "../../page/Withdraw/Withdraw";
-import AllRulesPage from "../AllRulesPage/AllRulesPage";
-import AccountInfo from "../../page/AccountInfo/AccountInfo";
-import MyMatch from "../../page/MyMatch/MyMatch";
-import Leaderboard from "../../page/Leaderboard/Leaderboard";
-import Referral from "../../page/Referral/Referral";
-import ClickableSlider from "../Slider/ClickableSlider";   // ← নতুন স্লাইডার
+  // page/Referral/Referral.jsx
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
+const API = import.meta.env.VITE_API_URL || "";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const Referral = ({ onBack, user, token }) => {
+  const [referralData, setReferralData] = useState(null);
+  const [converting, setConverting]     = useState(false);
+  const [convertMsg, setConvertMsg]     = useState("");
+  const [msgType, setMsgType]           = useState("success");
+  const [loading, setLoading]           = useState(true);
+  const [errorMsg, setErrorMsg]         = useState("");
 
-// ─── Inline MatchResults Component ────────────────────────────────────────────
-
-const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
-
-function getRankMeta(rank) {
-  if (rank === 1)
-    return {
-      icon: "🏆",
-      text: "text-yellow-400",
-      bg: "bg-yellow-500/20",
-      border: "border-yellow-500/30",
-      label: "BOOYAH!",
-    };
-  if (rank === 2)
-    return {
-      icon: "🥈",
-      text: "text-gray-300",
-      bg: "bg-gray-500/20",
-      border: "border-gray-400/30",
-      label: "2nd Place",
-    };
-  if (rank === 3)
-    return {
-      icon: "🥉",
-      text: "text-orange-400",
-      bg: "bg-orange-500/20",
-      border: "border-orange-500/30",
-      label: "3rd Place",
-    };
-  return null;
-}
-
-function MatchResultsPage({
-  matchId,
-  matchTitle,
-  killPrice,
-  results,
-  publishedAt,
-  mapName,
-  currentUserUid,
-}) {
-  const [tab, setTab] = useState("leaderboard");
-
-  const sorted = [...(results || [])].sort((a, b) => {
-    if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
-    return (a.rank || 999) - (b.rank || 999);
-  });
-
-  const myResult = results?.find((r) => r.uid === currentUserUid);
-
-  return (
-    <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/10 to-transparent pointer-events-none" />
-        <div className="px-4 pt-6 pb-4 relative z-10">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">
-              Result Live
-            </span>
-          </div>
-          <h1 className="text-white text-2xl font-extrabold">
-            {matchTitle || "Match Result"}
-          </h1>
-          <div className="flex items-center gap-3 mt-1 text-gray-500 text-xs flex-wrap">
-            {mapName && <span>🗺️ {mapName}</span>}
-            {killPrice && (
-              <>
-                <span>•</span>
-                <span>⚔️ Kill: ৳{killPrice}</span>
-              </>
-            )}
-            {publishedAt && (
-              <>
-                <span>•</span>
-                <span>{new Date(publishedAt).toLocaleDateString("en-BD")}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {sorted.length >= 1 && (
-        <div className="px-4 mb-4">
-          <div className="flex items-end justify-center gap-2">
-            {sorted[1] && (
-              <div className="flex-1 bg-[#111827] border border-gray-400/20 rounded-2xl p-3 text-center pb-4">
-                <p className="text-2xl mb-1">🥈</p>
-                <p className="text-white text-xs font-bold truncate">
-                  {sorted[1].playerName}
-                </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[1].kills} kills
-                </p>
-                <p className="text-gray-200 text-sm font-black mt-1">
-                  ৳{sorted[1].totalPrize}
-                </p>
-              </div>
-            )}
-            {sorted[0] && (
-              <div className="flex-1 bg-[#111827] border border-yellow-500/30 rounded-2xl p-3 text-center pb-6 -mb-2 shadow-lg shadow-yellow-500/10">
-                <p className="text-3xl mb-1">🏆</p>
-                <p className="text-yellow-400 text-xs font-extrabold truncate">
-                  {sorted[0].playerName}
-                </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[0].kills} kills
-                </p>
-                <p className="text-yellow-400 text-base font-black mt-1">
-                  ৳{sorted[0].totalPrize}
-                </p>
-              </div>
-            )}
-            {sorted[2] && (
-              <div className="flex-1 bg-[#111827] border border-orange-500/20 rounded-2xl p-3 text-center pb-4">
-                <p className="text-2xl mb-1">🥉</p>
-                <p className="text-white text-xs font-bold truncate">
-                  {sorted[2].playerName}
-                </p>
-                <p className="text-gray-400 text-[10px]">
-                  {sorted[2].kills} kills
-                </p>
-                <p className="text-orange-300 text-sm font-black mt-1">
-                  ৳{sorted[2].totalPrize}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="px-4 mb-3">
-        <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
-          {[
-            { key: "leaderboard", label: "Leaderboard" },
-            { key: "mine", label: "My Result" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {tab === "leaderboard" && (
-        <div className="px-4 space-y-2">
-          {sorted.length === 0 && (
-            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
-              <p className="text-gray-500 text-sm">No results yet</p>
-            </div>
-          )}
-          {sorted.map((player, idx) => {
-            const isMe = player.uid === currentUserUid;
-            return (
-              <div
-                key={player.uid + idx}
-                className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
-                      idx === 0
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : idx === 1
-                          ? "bg-gray-500/20 text-gray-300"
-                          : idx === 2
-                            ? "bg-orange-500/20 text-orange-400"
-                            : "bg-white/5 text-gray-500"
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p
-                        className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}
-                      >
-                        {player.playerName}
-                      </p>
-                      {isMe && (
-                        <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full shrink-0">
-                          YOU
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
-                      {player.rank && <span>#{player.rank} Rank</span>}
-                      <span>⚔️ {player.kills} kills</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p
-                      className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}
-                    >
-                      {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
-                    </p>
-                    {player.totalPrize > 0 && (
-                      <p className="text-[10px] text-gray-600 mt-0.5">
-                        credited
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {player.totalPrize > 0 && (
-                  <div className="mt-3 flex gap-2 flex-wrap">
-                    {player.rankPrize > 0 && (
-                      <span className="text-[11px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20">
-                        Rank ৳{player.rankPrize}
-                      </span>
-                    )}
-                    {player.killEarning > 0 && (
-                      <span className="text-[11px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
-                        ⚔️ {player.kills} kills ৳{player.killEarning}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {tab === "mine" && (
-        <div className="px-4">
-          {!currentUserUid ? (
-            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
-              <p className="text-gray-500 text-sm">Login to see your result</p>
-            </div>
-          ) : !myResult ? (
-            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
-              <p className="text-3xl mb-3">😔</p>
-              <p className="text-white font-bold mb-1">Not in Results</p>
-              <p className="text-gray-500 text-sm">
-                Your UID was not found in this match result
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div
-                className={`rounded-2xl p-5 border mb-4 ${
-                  myResult.rank === 1
-                    ? "bg-yellow-500/10 border-yellow-500/30"
-                    : myResult.rank === 2
-                      ? "bg-gray-500/10 border-gray-400/30"
-                      : myResult.rank === 3
-                        ? "bg-orange-500/10 border-orange-500/30"
-                        : "bg-[#111827] border-white/5"
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-gray-400 text-xs">Your IGN</p>
-                    <p className="text-white text-xl font-black">
-                      {myResult.playerName}
-                    </p>
-                  </div>
-                  {getRankMeta(myResult.rank) && (
-                    <span
-                      className={`text-xs font-bold px-3 py-1 rounded-full border ${getRankMeta(myResult.rank).bg} ${getRankMeta(myResult.rank).text} ${getRankMeta(myResult.rank).border}`}
-                    >
-                      {getRankMeta(myResult.rank).icon} #{myResult.rank}
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-white font-black text-lg">
-                      #{myResult.rank || "—"}
-                    </p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
-                  </div>
-                  <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-orange-400 font-black text-lg">
-                      {myResult.kills}
-                    </p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
-                  </div>
-                  <div className="bg-black/30 rounded-xl p-3 text-center">
-                    <p className="text-green-400 font-black text-lg">
-                      ৳{myResult.totalPrize}
-                    </p>
-                    <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
-                  </div>
-                </div>
-                {myResult.totalPrize > 0 ? (
-                  <div className="bg-black/30 rounded-xl p-3">
-                    <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wider">
-                      Prize Breakdown
-                    </p>
-                    <div className="space-y-1.5">
-                      {myResult.rankPrize > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Placement Prize</span>
-                          <span className="text-yellow-400 font-bold">
-                            +৳{myResult.rankPrize}
-                          </span>
-                        </div>
-                      )}
-                      {myResult.killEarning > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">
-                            {myResult.kills} Kills × ৳{killPrice}
-                          </span>
-                          <span className="text-green-400 font-bold">
-                            +৳{myResult.killEarning}
-                          </span>
-                        </div>
-                      )}
-                      <div className="border-t border-white/10 pt-1.5 flex justify-between">
-                        <span className="text-white font-bold text-sm">
-                          Total Credited
-                        </span>
-                        <span className="text-green-400 font-black text-base">
-                          ৳{myResult.totalPrize}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-black/30 rounded-xl p-4 text-center">
-                    <p className="text-gray-500 text-sm">
-                      No prize this match. Better luck next time! 💪
-                    </p>
-                  </div>
-                )}
-              </div>
-              {myResult.totalPrize > 0 && (
-                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
-                  <span className="text-green-400">✓</span>
-                  <p className="text-green-400 text-sm">
-                    <strong>৳{myResult.totalPrize}</strong> has been credited to
-                    your wallet
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Results List ─────────────────────────────────────────────────────────────
-function ResultsListPage({ onSelectResult, currentUserUid }) {
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // ✅ user.id অথবা user._id যেটাই থাকুক কাজ করবে
+  const userId = user?.id || user?._id;
 
   useEffect(() => {
-    const fetchResults = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/matches/completed`);
-        const data = await res.json();
-        setMatches(Array.isArray(data?.data) ? data.data : []);
-      } catch {
-        setMatches([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchResults();
-  }, []);
+    if (userId) {
+      fetchReferral();
+    } else {
+      setErrorMsg("User তথ্য পাওয়া যায়নি। আবার লগইন করুন।");
+      setLoading(false);
+    }
+  }, [userId]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0e1a] flex flex-col items-center justify-center gap-4">
-        <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Loading results...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      <div className="px-4 pt-6 pb-4">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-          <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">
-            Match Results
-          </span>
-        </div>
-        <h1 className="text-white text-2xl font-extrabold">Results</h1>
-        <p className="text-gray-500 text-xs mt-1">
-          Tap a match to see full leaderboard
-        </p>
-      </div>
-
-      <div className="px-4 space-y-3">
-        {matches.length === 0 ? (
-          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
-            <p className="text-3xl mb-3">🎮</p>
-            <p className="text-white font-bold mb-1">No Results Yet</p>
-            <p className="text-gray-500 text-sm">
-              Results will appear here after matches end
-            </p>
-          </div>
-        ) : (
-          matches.map((match) => {
-            const top3 = (match.results || [])
-              .sort((a, b) => a.position - b.position)
-              .slice(0, 3);
-            const myResult = (match.results || []).find(
-              (r) => r.userId?.toString() === currentUserUid?.toString()
-            );
-            const categoryLabel = {
-              br_match: "BR Match",
-              br_survival: "BR Survival",
-              clash_squad: "Clash Squad",
-              cs_2vs2: "CS 2vs2",
-              lone_wolf: "Lone Wolf",
-              training: "Training Match",
-            }[match.category] || match.category;
-            const categoryColor = {
-              br_match: { bg: "#7c3aed20", text: "#a78bfa" },
-              br_survival: { bg: "#dc262620", text: "#f87171" },
-              clash_squad: { bg: "#0284c720", text: "#38bdf8" },
-              cs_2vs2: { bg: "#16a34a20", text: "#4ade80" },
-              lone_wolf: { bg: "#d9770620", text: "#fb923c" },
-              training: { bg: "#64748b20", text: "#94a3b8" },
-            }[match.category] || { bg: "#ffffff10", text: "#fff" };
-            return (
-              <div
-                key={match._id}
-                onClick={() => onSelectResult(match)}
-                className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "2px 8px",
-                          borderRadius: 20,
-                          background: categoryColor.bg,
-                          color: categoryColor.text,
-                        }}
-                      >
-                        {categoryLabel}
-                      </span>
-                    </div>
-                    <p className="text-white font-bold text-sm truncate">
-                      {match.title}
-                    </p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {match.map || "Free Fire"} • ৳{match.perKill}/kill •{" "}
-                      {match.completedAt
-                        ? new Date(match.completedAt).toLocaleDateString("en-BD")
-                        : ""}
-                    </p>
-                  </div>
-                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
-                    ✅ Completed
-                  </span>
-                </div>
-                <div className="flex gap-2 mb-3">
-                  {top3.length > 0 ? (
-                    top3.map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1"
-                      >
-                        <span className="text-sm">
-                          {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-white text-[11px] font-bold truncate">
-                            {p.inGameName || "—"}
-                          </p>
-                          <p className="text-gray-500 text-[10px]">
-                            ৳{p.prize || 0}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-600 text-xs">No result data</p>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  {myResult ? (
-                    <div
-                      className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}
-                    >
-                      <span>You:</span>
-                      <span className="font-bold">
-                        #{myResult.position || "—"}
-                      </span>
-                      <span>⚔️ {myResult.kills} kills</span>
-                      {myResult.prize > 0 && (
-                        <span className="font-black">+৳{myResult.prize}</span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-gray-600 text-xs">
-                      You didn't participate
-                    </span>
-                  )}
-                  <span className="text-orange-400 text-xs font-bold">
-                    View →
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Notifications Page ───────────────────────────────────────────────────────
-function NotificationsPage({ onBack }) {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/notifications`);
-        const data = await res.json();
-        setNotifications(
-          Array.isArray(data?.data)
-            ? data.data
-            : Array.isArray(data?.notifications)
-              ? data.notifications
-              : []
-        );
-      } catch {
-        setNotifications([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotifications();
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5">
-        <div className="px-4 py-4 flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/10 active:scale-95 transition-all"
-          >
-            <span className="text-white text-lg">←</span>
-          </button>
-          <div className="flex-1">
-            <h1 className="text-white text-xl font-extrabold">Notifications</h1>
-            <p className="text-gray-500 text-xs">All your alerts in one place</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 pt-4">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500 text-sm">Loading notifications...</p>
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
-            <p className="text-4xl mb-3">🔔</p>
-            <p className="text-white font-bold mb-1">No Notifications</p>
-            <p className="text-gray-500 text-sm">
-              You're all caught up! Check back later
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {notifications.map((n, idx) => (
-              <div
-                key={n._id || idx}
-                className={`rounded-2xl p-4 border ${
-                  n.isRead
-                    ? "bg-[#111827] border-white/5"
-                    : "bg-orange-500/10 border-orange-500/30"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-lg">{n.icon || "🔔"}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-white font-bold text-sm">
-                        {n.title || "Notification"}
-                      </p>
-                      {!n.isRead && (
-                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
-                      )}
-                    </div>
-                    <p className="text-gray-400 text-xs mt-1">
-                      {n.body || n.message}
-                    </p>
-                    {n.createdAt && (
-                      <p className="text-gray-600 text-[10px] mt-2">
-                        {new Date(n.createdAt).toLocaleString("en-BD")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════
-// 🆕 LUDO TOURNAMENT PAGE
-// ════════════════════════════════════════════════════════════
-function LudoTournamentPage({ currentUser, token, onBack }) {
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("upcoming");
-  const [joining, setJoining] = useState(null);
-  const [msg, setMsg] = useState("");
-
-  useEffect(() => {
-    loadMatches();
-  }, [filter]);
-
-  const loadMatches = async () => {
+  const fetchReferral = async () => {
     setLoading(true);
+    setErrorMsg("");
     try {
-      const res = await fetch(`${API_BASE}/ludo-tournament?status=${filter}`);
-      const data = await res.json();
-      setMatches(Array.isArray(data?.data) ? data.data : []);
-    } catch {
-      setMatches([]);
+      const res = await axios.get(`${API}/api/wallet/referral/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) {
+        setReferralData(res.data.data);
+      } else {
+        setErrorMsg("ডেটা লোড হয়নি।");
+      }
+    } catch (err) {
+      console.error("Referral fetch error:", err);
+      setErrorMsg("সার্ভার থেকে ডেটা আনতে পারেনি।");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleJoin = async (matchId, entryFee) => {
-    if (!currentUser?.id && !currentUser?._id) {
-      setMsg("আগে login করুন");
+  const handleConvert = async () => {
+    setConverting(true);
+    setConvertMsg("");
+    try {
+      const res = await axios.post(
+        `${API}/api/wallet/referral/convert`,
+        { userId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setConvertMsg(res.data.message || "সফল হয়েছে!");
+      setMsgType(res.data.success ? "success" : "error");
+      if (res.data.success) fetchReferral();
+    } catch {
+      setConvertMsg("এরর হয়েছে! আবার চেষ্টা করুন।");
+      setMsgType("error");
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const handleShare = () => {
+    const code = referralData?.referralCode;
+    if (!code) {
+      setConvertMsg("⚠️ Referral code লোড হয়নি, একটু অপেক্ষা করুন।");
+      setMsgType("error");
       return;
     }
-    setJoining(matchId);
-    setMsg("");
-    try {
-      const res = await fetch(`${API_BASE}/ludo-tournament/join`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          matchId,
-          userId: currentUser?.id || currentUser?._id,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMsg("✅ Successfully joined!");
-        const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            ...stored,
-            balance: data.newBalance ?? stored.balance,
-          })
-        );
-        loadMatches();
-      } else {
-        setMsg("❌ " + (data.message || "Join failed"));
-      }
-    } catch {
-      setMsg("❌ Server error");
-    } finally {
-      setJoining(null);
+    const link = `https://playzo-eight.vercel.app?ref=${code}`;
+    const text = `আমার referral code: ${code}\n${link}`;
+    if (navigator.share) {
+      navigator.share({ title: "Playzo তে যোগ দাও!", text: `আমার referral code: ${code}`, url: link });
+    } else {
+      navigator.clipboard.writeText(text);
+      setConvertMsg("✅ লিংক কপি হয়েছে!");
+      setMsgType("info");
     }
   };
 
-  const FILTERS = [
-    { id: "upcoming", label: "🕐 Upcoming" },
-    { id: "live", label: "🔴 Live" },
-    { id: "completed", label: "✅ Done" },
-  ];
+  const hasPending = referralData?.hasPendingRequest;
+  const points     = referralData?.referralPoints || 0;
+  const canConvert = points >= 100 && !hasPending;
 
-  const modeLabel = { "1v1": "⚔️ 1v1", "2v2": "👥 2v2", "4player": "🎮 4 Player" };
-  const modeColor = { "1v1": "#f59e0b", "2v2": "#3b82f6", "4player": "#10b981" };
+  const msgColors = {
+    success: { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d" },
+    error:   { bg: "#fff1f2", border: "#fecdd3", text: "#be123c" },
+    info:    { bg: "#eff6ff", border: "#bfdbfe", text: "#1d4ed8" },
+  };
+  const mc = msgColors[msgType];
 
-  return (
-    <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-4 pt-5 pb-5">
-        <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95"
-          >
-            ←
-          </button>
-          <div>
-            <h1 className="text-white text-xl font-extrabold">🎲 Ludo Tournament</h1>
-            <p className="text-violet-200 text-xs mt-0.5">Play & Win Real Cash</p>
-          </div>
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex gap-2">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                filter === f.id
-                  ? "bg-white text-violet-600"
-                  : "bg-white/15 text-white/70"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Message */}
-      {msg && (
-        <div
-          className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
-            msg.startsWith("✅")
-              ? "bg-green-500/20 text-green-400 border border-green-500/30"
-              : "bg-red-500/20 text-red-400 border border-red-500/30"
-          }`}
-        >
-          {msg}
-        </div>
-      )}
-
-      {/* Match list */}
-      <div className="px-4 mt-4 space-y-3">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500 text-sm">Loading tournaments...</p>
-          </div>
-        ) : matches.length === 0 ? (
-          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
-            <p className="text-4xl mb-3">🎲</p>
-            <p className="text-white font-bold mb-1">কোনো Tournament নেই</p>
-            <p className="text-gray-500 text-sm">
-              এই category তে এখন কোনো match নেই
-            </p>
-          </div>
-        ) : (
-          matches.map((match) => {
-            const mc = modeColor[match.mode] || "#6b7280";
-            const isFull =
-              (match.joinedPlayers || 0) >= (match.totalSlots || 4);
-            const isJoined = match.joinedUsers?.some(
-              (u) =>
-                (u.userId?._id || u.userId) ===
-                (currentUser?.id || currentUser?._id)
-            );
-            return (
-              <div
-                key={match._id}
-                className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden"
-              >
-                {/* color bar */}
-                <div style={{ height: 3, background: mc }} />
-
-                {match.image && (
-                  <img
-                    src={match.image}
-                    alt=""
-                    className="w-full h-28 object-cover"
-                  />
-                )}
-
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          style={{
-                            background: mc + "22",
-                            color: mc,
-                            fontSize: 10,
-                            padding: "2px 8px",
-                            borderRadius: 20,
-                            fontWeight: 700,
-                            border: `1px solid ${mc}55`,
-                          }}
-                        >
-                          {modeLabel[match.mode] || match.mode}
-                        </span>
-                        {match.status === "live" && (
-                          <span className="flex items-center gap-1 text-[10px] text-red-400 font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            LIVE
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-white font-bold text-base">
-                        {match.title}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-0.5">
-                        🗺️ {match.map || "Classic"} • 📱{" "}
-                        {match.device || "Mobile"}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-400 text-xs">Entry</p>
-                      <p className="text-white font-black text-lg">
-                        ৳{match.entryFee || 0}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {[
-                      {
-                        label: "Prize",
-                        value: `৳${match.winPrize || 0}`,
-                        color: "#f59e0b",
-                      },
-                      {
-                        label: "Players",
-                        value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`,
-                        color: isFull ? "#ef4444" : "#22d3ee",
-                      },
-                      {
-                        label: "Start",
-                        value: match.startTime
-                          ? new Date(match.startTime).toLocaleTimeString(
-                              "en-BD",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                              }
-                            )
-                          : "—",
-                        color: "#a78bfa",
-                      },
-                    ].map((s, i) => (
-                      <div key={i} className="bg-black/30 rounded-xl p-2 text-center">
-                        <p className="text-[9px] text-gray-500 font-semibold uppercase">
-                          {s.label}
-                        </p>
-                        <p
-                          className="text-xs font-black mt-0.5"
-                          style={{ color: s.color }}
-                        >
-                          {s.value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Room code — live হলে দেখাবে */}
-                  {match.status === "live" && match.roomCode && (
-                    <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-violet-300 text-[10px] font-bold uppercase">
-                          Room Code
-                        </p>
-                        <p className="text-white font-black text-lg tracking-widest">
-                          {match.roomCode}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(match.roomCode);
-                          setMsg("✅ Room code copied!");
-                        }}
-                        className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95"
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Join button */}
-                  {match.status === "upcoming" && (
-                    isJoined ? (
-                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">
-                        ✅ Already Joined
-                      </div>
-                    ) : isFull ? (
-                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">
-                        ❌ Full
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleJoin(match._id, match.entryFee)}
-                        disabled={joining === match._id}
-                        className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60"
-                        style={{
-                          background: `linear-gradient(135deg, ${mc}, #4f46e5)`,
-                        }}
-                      >
-                        {joining === match._id
-                          ? "Joining..."
-                          : `Join Now • ৳${match.entryFee}`}
-                      </button>
-                    )
-                  )}
-
-                  {match.status === "completed" && (
-                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">
-                      ✅ Completed
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main AppDashboard ────────────────────────────────────────────────────────
- // ─── Main AppDashboard ────────────────────────────────────────────────────────
-const AppDashboard = ({ onLogout }) => {
-  const [tab, setTab] = useState("play");
-  const [screen, setScreen] = useState("home");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [matches, setMatches] = useState([]);
-  const [selectedResult, setSelectedResult] = useState(null);
-  const [resultTab, setResultTab] = useState("leaderboard");
-  const [refreshing, setRefreshing] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const currentToken = localStorage.getItem("token") || "";
-  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
-
-  const getMatchCount = (categoryKey) =>
-    matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
-
-  // Load Matches
-  useEffect(() => {
-    const loadMatches = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/matches`);
-        const data = await res.json();
-        let safeData = Array.isArray(data) ? data : data?.data || data?.matches || [];
-        setMatches(safeData);
-      } catch (err) {
-        setMatches([]);
-      }
-    };
-    loadMatches();
-    const interval = setInterval(loadMatches, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const categories = [
-    { key: "br_match", title: "BR Match", img: "/image/cards/BRMatchcard.png" },
-    { key: "br_survival", title: "BR Survival", img: "/image/cards/solo.png" },
-    { key: "clash_squad", title: "Clash Squad", img: "/image/cards/squard.png" },
-    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/cards/2vs2.png" },
-    { key: "lone_wolf", title: "Lone Wolf", img: "/image/cards/longwolf.png" },
-    { key: "training", title: "Training Match", img: "/image/cards/freematch.png" },
-  ];
-
-  // ✅ Best Mobile + PWA Friendly Slider Data
-  
-const sliderSlides = [
-   {
-    image: "/image/slider/facebook1.png",
-    // title: "Join Our Facebook Group!",
-    // subtitle: "Daily Updates",
-    // description: "Get latest news & offers",
-    // buttonText: "Join Now",
-    link: "/facebook"
-  },
-  {
-    image: "/image/slider/ludo.png",
-    // title: "Ludo Khele Jitun 🔥",
-    // subtitle: "Real Money Tournament",
-    // description: "Win up to ₹10,000",
-    // buttonText: "Play Now",
-    link: "/ludo"
-  },
-  {
-    image: "/image/slider/telegram.png",
-    // title: "Join Our Telegram Group!",
-    // subtitle: "Daily Updates",
-    // description: "Get latest news & offers",
-    // buttonText: "Join Now",
-    link: "/telegram"
-  },
-  {
-    image: "/image/slider/youtube.png",
-    // title: "Join Our YouTube Channel",
-    // subtitle: "Daily Updates",
-    // description: "Get latest news & offers",
-    // buttonText: "Subscribe",
-    link: "https://www.youtube.com/watch?v=7uY-_hskZ4A"
-  },
-];
-
-  // --- NOTIFICATIONS ---
-  if (showNotifications) {
-    return <NotificationsPage onBack={() => setShowNotifications(false)} />;
-  }
-
-  // --- PROFILE TAB ---
-  if (tab === "profile") {
-    if (screen === "wallet") return <Wallet onBack={() => setScreen("home")} />;
-    if (screen === "withdraw") return <Withdraw onBack={() => setScreen("home")} />;
-    if (screen === "all_rules") return <AllRulesPage onBack={() => setScreen("home")} />;
-    if (screen === "my_profile") return <AccountInfo onBack={() => setScreen("home")} />;
-    if (screen === "referral") {
-      return <Referral onBack={() => setScreen("home")} user={currentUser} token={currentToken} />;
-    }
-
+  // ✅ Loading state
+  if (loading) {
     return (
-      <Profile
-        onLogout={onLogout}
-        onWallet={() => setScreen("wallet")}
-        onWithdraw={() => setScreen("withdraw")}
-        onAllRules={() => setScreen("all_rules")}
-        onMyProfile={() => setScreen("my_profile")}
-        onReferral={() => setScreen("referral")}
-      />
+      <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-4 border-orange-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 font-bold text-sm">লোড হচ্ছে...</p>
+      </div>
     );
   }
 
-  // --- OTHER TABS ---
-  if (tab === "matches") return <MyMatch />;
-  if (tab === "results") {
-    if (selectedResult) return <MatchResultsPage {...selectedResult} currentUserUid={currentUserUid} />;
-    return <ResultsListPage onSelectResult={setSelectedResult} currentUserUid={currentUserUid} />;
-  }
-
-  if (screen === "category") {
+  // ✅ Error state
+  if (errorMsg) {
     return (
-      <MatchList
-        category={selectedCategory}
-        title={categories.find(c => c.key === selectedCategory)?.title}
-        onBack={() => { setScreen("home"); setSelectedCategory(""); }}
-        tab={tab} setTab={setTab}
-      />
-    );
-  }
-
-  if (screen === "ludo") {
-    return <LudoTournamentPage currentUser={currentUser} token={currentToken} onBack={() => setScreen("home")} />;
-  }
-
-  // ==================== HOME SCREEN ====================
-  return (
-    <div className="bg-gray-50 min-h-screen mx-auto pb-24">
-      {/* Top Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-white font-black text-lg">
-                {(currentUser?.name || "P")[0].toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <p className="text-white/80 text-[11px] font-medium">Welcome back</p>
-              <p className="text-white font-extrabold text-sm truncate max-w-[150px]">
-                {currentUser?.name || "Player"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
-              <span className="text-yellow-300 text-xs">💰</span>
-              <span className="text-white font-black text-xs">৳{currentUser?.balance || 0}</span>
-            </div>
-            <NotificationBell onOpen={() => setShowNotifications(true)} />
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4">
-        {/* ✅ Best Mobile PWA Slider */}
-        <ClickableSlider slides={sliderSlides} />
-
-        {/* Live Marquee */}
-        <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
-          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
-            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN NOW 🚀
-          </marquee>
-        </div>
-
-        {/* Ludo Banner */}
-        <div
-          onClick={() => setScreen("ludo")}
-          className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
-          style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
+      <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-4 px-8">
+        <p className="text-4xl">😕</p>
+        <p className="text-red-500 font-bold text-center">{errorMsg}</p>
+        <button
+          onClick={onBack}
+          className="bg-orange-500 text-white px-6 py-3 rounded-2xl font-bold"
         >
-          <div className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
-              <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
-            </div>
-            <p className="text-4xl">🎲</p>
-          </div>
-        </div>
-
-        {/* Categories */}
-        <div className="flex items-center justify-between mt-6 px-1">
-          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
-            Free Fire <span className="text-orange-500">Arena</span>
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          {categories.map((cat) => {
-            const count = getMatchCount(cat.key);
-            return (
-              <div
-                key={cat.key}
-                onClick={() => {
-                  setSelectedCategory(cat.key);
-                  setScreen("category");
-                }}
-                className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all"
-              >
-                <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                <div className="absolute bottom-3 left-3 right-3">
-                  <p className="text-white font-extrabold text-sm">{cat.title}</p>
-                  {count > 0 && <p className="text-cyan-400 text-xs font-bold">{count} Live</p>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          ← ফিরে যান
+        </button>
       </div>
-
-      <BottomMenu tab={tab} setTab={setTab} />
-    </div>
-  );
-};
-
-export default AppDashboard;
-
- import React, { useState, useEffect } from "react";
-import axios from "axios";
-import AddMoneyModal from "../../Component/Addmoney/AddMoney";
-import Withdraw from "../../page/Withdraw/Withdraw";
-import BuildYourApp from "../../page/BuildYourApp/BuildYourApp";
-import Referral from "../../page/Referral/Referral";
-const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
-
-const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
-  const [showAddMoney, setShowAddMoney] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
-  const [showBuildApp, setShowBuildApp] = useState(false);
-  const [showReferralPage, setShowReferralPage] = useState(false); // রেফারের জন্য নতুন স্টেট
-  const [balance, setBalance] = useState(0);
-
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const token = localStorage.getItem("token");
-
-  const fetchBalance = async () => {
-    try {
-      const res = await axios.get(`${API}/api/users/balance`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setBalance(res.data.balance || 0);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchBalance();
-    const interval = setInterval(fetchBalance, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const menuItems = [
-    { id: "wallet", label: "Wallet / Add Money", icon: "👛" },
-    { id: "withdraw", label: "Withdraw", icon: "💵" },
-    { id: "referral", label: "Refer & Earn", icon: "🎁" },
-    { id: "my_profile", label: "Account Info", icon: "👤" },
-    { id: "all_rules", label: "All Rules", icon: "📋" },
-    { id: "top_players", label: "Top Players", icon: "📈" },
-    { id: "dev_profile", label: "Build Your App", icon: "🚀" },
-  ];
-
-  const handleNavigate = (id) => {
-    if (id === "wallet") setShowAddMoney(true);
-    if (id === "withdraw") setShowWithdraw(true);
-    if (id === "all_rules") onAllRules();
-    if (id === "my_profile") onMyProfile();
-    if (id === "dev_profile") setShowBuildApp(true);
-    if (id === "referral") setShowReferralPage(true); // ক্লিক করলে রেফারেল পেজ শো করবে
-  };
-
-  // যদি Build Your App ওপেন থাকে
-  if (showBuildApp) {
-    return <BuildYourApp onBack={() => setShowBuildApp(false)} />;
-  }
-
-  // যদি Refer & Earn ওপেন থাকে
-  if (showReferralPage) {
-    return <Referral onBack={() => setShowReferralPage(false)} />;
+    );
   }
 
   return (
     <div className="bg-white min-h-screen pb-10">
-      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
-        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
-          👨‍💻
-        </div>
-        <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
-        <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
+      {/* Header */}
+      <div className="bg-gradient-to-b from-orange-400 to-orange-600 pt-12 pb-8 text-center text-white px-4 relative">
+        <button onClick={onBack} className="absolute left-4 top-12 text-white font-bold text-2xl">←</button>
+        <p className="text-4xl mb-2">🎁</p>
+        <h2 className="text-xl font-black">Refer & Earn</h2>
+        <p className="text-orange-100 text-sm mt-1">বন্ধুদের invite করুন, পয়েন্ট জিতুন!</p>
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
-          <p className="text-xs text-blue-100">ব্যালেন্স</p>
-          <p className="text-2xl font-black">৳ {balance.toLocaleString()}</p>
+          <p className="text-xs text-orange-100">আপনার Points</p>
+          <p className="text-3xl font-black">{points}</p>
+          <p className="text-xs text-orange-100 mt-1">১০০ points = ৳১০০</p>
         </div>
       </div>
 
-      <div className="mt-4 px-2">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => handleNavigate(item.id)}
-            className="w-full flex justify-between items-center p-4 border-b hover:bg-gray-50 transition"
-          >
-            <div className="flex gap-4 items-center">
-              <span className="text-xl">{item.icon}</span>
-              <span className="font-bold text-sm">{item.label}</span>
+      <div className="px-4 mt-6 space-y-4">
+
+        {/* Referral Code */}
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+          <p className="text-xs text-gray-500 font-bold mb-1">আপনার Referral Code</p>
+          <div className="flex items-center justify-between">
+            <p className="text-2xl font-black text-orange-600 tracking-widest">
+              {referralData?.referralCode || "—"}
+            </p>
+            <button
+              onClick={handleShare}
+              className="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold text-sm"
+            >
+              Share 🔗
+            </button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-blue-50 rounded-2xl p-4 text-center">
+            <p className="text-2xl font-black text-blue-600">{referralData?.referralCount || 0}</p>
+            <p className="text-xs text-gray-500 font-bold">মোট Refer</p>
+          </div>
+          <div className="bg-green-50 rounded-2xl p-4 text-center">
+            <p className="text-2xl font-black text-green-600">
+              {referralData?.referralHistory?.filter(r => r.deposited).length || 0}
+            </p>
+            <p className="text-xs text-gray-500 font-bold">Deposit করেছে</p>
+          </div>
+        </div>
+
+        {/* How it works */}
+        <div className="bg-gray-50 rounded-2xl p-4">
+          <p className="font-black text-sm mb-3">কীভাবে কাজ করে?</p>
+          <div className="space-y-2 text-sm">
+            {[
+              "১. আপনার code দিয়ে বন্ধু register করবে",
+              "২. বন্ধু ৳৫০+ deposit করবে",
+              "৩. আপনি ৫ পয়েন্ট পাবেন",
+              "৪. ২০ জন = ১০০ পয়েন্ট = ৳১০০",
+            ].map((text, i) => (
+              <div key={i} className="flex gap-3 items-start">
+                <span className="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">
+                  {i + 1}
+                </span>
+                <p className="text-gray-600">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Pending notice */}
+        {hasPending && (
+          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 16, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 20 }}>⏳</span>
+            <div>
+              <p style={{ fontWeight: 700, fontSize: 13, color: "#92400e", marginBottom: 2 }}>Convert Request Pending</p>
+              <p style={{ fontSize: 12, color: "#b45309" }}>আপনার request Admin এর কাছে পাঠানো হয়েছে। Approve হলে balance এ যোগ হবে।</p>
             </div>
-            <span className="text-gray-400">›</span>
-          </button>
-        ))}
-      </div>
+          </div>
+        )}
 
-      <div className="px-8 mt-12">
+        {/* Message */}
+        {convertMsg && (
+          <div style={{ background: mc.bg, border: `1px solid ${mc.border}`, color: mc.text, padding: "12px 16px", borderRadius: 14, textAlign: "center", fontSize: 13, fontWeight: 600 }}>
+            {convertMsg}
+          </div>
+        )}
+
+        {/* Convert Button */}
         <button
-          onClick={onLogout}
-          className="w-full bg-blue-500 text-white py-3 rounded-full font-bold"
+          onClick={handleConvert}
+          disabled={converting || !canConvert}
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50 transition"
         >
-          Logout
+          {converting
+            ? "হচ্ছে..."
+            : hasPending
+              ? "⏳ Request Pending..."
+              : points < 100
+                ? `Convert করুন (${points} pts — কম আছে)`
+                : `Convert করুন (${points} pts → ৳${Math.floor(points / 100) * 100})`
+          }
         </button>
-      </div>
 
-      <AddMoneyModal
-        isOpen={showAddMoney}
-        onClose={() => {
-          setShowAddMoney(false);
-          fetchBalance();
-        }}
-      />
-      <Withdraw
-        isOpen={showWithdraw}
-        onClose={() => {
-          setShowWithdraw(false);
-          fetchBalance();
-        }}
-      />
+        {/* Referral History */}
+        {referralData?.referralHistory?.length > 0 && (
+          <div>
+            <p className="font-black text-sm mb-3">Referral History</p>
+            <div className="space-y-2">
+              {referralData.referralHistory.map((r, i) => (
+                <div key={i} className="bg-gray-50 rounded-xl p-3 flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">{r.name || "Unknown"}</p>
+                    <p className="text-xs text-gray-500">{r.phone}</p>
+                  </div>
+                  <div>
+                    {r.pointGiven ? (
+                      <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold">+5 pts ✅</span>
+                    ) : r.deposited ? (
+                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">Deposited</span>
+                    ) : (
+                      <span className="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Pending</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };
 
-export default Profile;
+export default Referral;
+
+ // page/Auth/Auth.jsx
+import React, { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
+
+const PasswordInput = ({ placeholder, value, onChange, required, autoComplete, className }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        className={className}
+        required={required}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 active:text-gray-600"
+      >
+        {show ? <EyeOff size={20} /> : <Eye size={20} />}
+      </button>
+    </div>
+  );
+};
+
+const Auth = ({ onLoginSuccess }) => {
+  const [screen, setScreen] = useState("login");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const [loginData, setLoginData] = useState({ phone: "", password: "" });
+  const [regData, setRegData] = useState({
+    name: "", phone: "", password: "", confirm: "",
+    referralCode: ""
+  });
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [forgotStep, setForgotStep] = useState(1);
+
+  // ✅ URL থেকে ?ref=CODE auto-fill — referral link কাজ করবে
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get("ref");
+    if (refCode) {
+      setRegData((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
+      setScreen("register"); // সরাসরি register tab এ নিয়ে যাও
+    }
+  }, []);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: loginData.phone, password: loginData.password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("isAdmin", "false");
+        localStorage.setItem("user", JSON.stringify(data.user));
+        onLoginSuccess();
+      } else {
+        setError(data.message || "Login failed!");
+      }
+    } catch {
+      setError("Server error! Backend চালু আছে?");
+    }
+    setLoading(false);
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!regData.name || !regData.phone || !regData.password) {
+      setError("সব তথ্য পূরণ করুন!"); return;
+    }
+    if (regData.password !== regData.confirm) {
+      setError("পাসওয়ার্ড মিলছে না!"); return;
+    }
+    if (regData.password.length < 6) {
+      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: regData.name,
+          phone: regData.phone,
+          password: regData.password,
+          referralCode: regData.referralCode.trim().toUpperCase() || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("isAdmin", "false");
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        // ✅ Register সফল হলে URL থেকে ?ref param মুছে দাও
+        const url = new URL(window.location.href);
+        url.searchParams.delete("ref");
+        window.history.replaceState({}, "", url.toString());
+
+        onLoginSuccess();
+      } else {
+        setError(data.message || "Registration failed!");
+      }
+    } catch {
+      setError("Server error! Backend চালু আছে?");
+    }
+    setLoading(false);
+  };
+
+  const handleForgotStep1 = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!forgotPhone) { setError("ফোন নাম্বার দিন!"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/check-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: forgotPhone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setForgotStep(2);
+        setSuccess("ফোন নাম্বার পাওয়া গেছে! নতুন পাসওয়ার্ড দিন।");
+      } else {
+        setError("এই ফোন নাম্বার দিয়ে কোনো অ্যাকাউন্ট নেই!");
+      }
+    } catch {
+      setForgotStep(2);
+      setSuccess("নতুন পাসওয়ার্ড দিন।");
+    }
+    setLoading(false);
+  };
+
+  const handleForgotStep2 = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!newPass || newPass.length < 6) { setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: forgotPhone, password: newPass }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে! এখন লগইন করুন।");
+        setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
+      } else {
+        setError(data.message || "Failed!");
+      }
+    } catch {
+      setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে!");
+      setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
+    }
+    setLoading(false);
+  };
+
+  const inputClass = "w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-medium";
+  const switchScreen = (s) => { setScreen(s); setError(""); setSuccess(""); setForgotStep(1); };
+
+  return (
+    <div className="w-full max-w-[450px] min-h-screen bg-white flex flex-col justify-start px-8 mx-auto pt-24">
+
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-black text-slate-800">
+          uth<span className="text-orange-500">iyO</span>
+        </h1>
+        <p className="text-slate-500 mt-1 text-sm">
+          {screen === "login" && "আপনার অ্যাকাউন্টে লগইন করুন"}
+          {screen === "register" && "নতুন অ্যাকাউন্ট তৈরি করুন"}
+          {screen === "forgot" && "পাসওয়ার্ড রিসেট করুন"}
+        </p>
+      </div>
+
+      {screen !== "forgot" && (
+        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+          <button
+            onClick={() => switchScreen("login")}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${screen === "login" ? "bg-white shadow text-slate-800" : "text-gray-400"}`}
+          >
+            লগইন
+          </button>
+          <button
+            onClick={() => switchScreen("register")}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${screen === "register" ? "bg-white shadow text-slate-800" : "text-gray-400"}`}
+          >
+            রেজিস্ট্রেশন
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm font-bold text-center p-3 rounded-xl">
+          ⚠️ {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-600 text-sm font-bold text-center p-3 rounded-xl">
+          ✅ {success}
+        </div>
+      )}
+
+      {/* LOGIN FORM */}
+      {screen === "login" && (
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="text"
+            placeholder="ফোন নাম্বার / Username"
+            className={inputClass}
+            value={loginData.phone}
+            onChange={(e) => setLoginData({ ...loginData, phone: e.target.value })}
+            autoComplete="tel"
+            required
+          />
+          <PasswordInput
+            placeholder="পাসওয়ার্ড"
+            className={`${inputClass} pr-12`}
+            value={loginData.password}
+            onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+            autoComplete="current-password"
+            required
+          />
+          <div className="text-right">
+            <button type="button" onClick={() => switchScreen("forgot")} className="text-orange-500 font-bold text-sm">
+              পাসওয়ার্ড ভুলে গেছেন?
+            </button>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+          >
+            {loading ? "লগইন হচ্ছে..." : "লগইন করুন"}
+          </button>
+        </form>
+      )}
+
+      {/* REGISTER FORM */}
+      {screen === "register" && (
+        <form onSubmit={handleRegister} className="space-y-4">
+          <input
+            type="text"
+            placeholder="আপনার নাম"
+            className={inputClass}
+            value={regData.name}
+            onChange={(e) => setRegData({ ...regData, name: e.target.value })}
+            autoComplete="name"
+            required
+          />
+          <input
+            type="text"
+            placeholder="ফোন নাম্বার"
+            className={inputClass}
+            value={regData.phone}
+            onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
+            autoComplete="tel"
+            required
+          />
+          <PasswordInput
+            placeholder="পাসওয়ার্ড"
+            className={`${inputClass} pr-12`}
+            value={regData.password}
+            onChange={(e) => setRegData({ ...regData, password: e.target.value })}
+            autoComplete="new-password"
+            required
+          />
+          <PasswordInput
+            placeholder="পাসওয়ার্ড আবার লিখুন"
+            className={`${inputClass} pr-12`}
+            value={regData.confirm}
+            onChange={(e) => setRegData({ ...regData, confirm: e.target.value })}
+            autoComplete="new-password"
+            required
+          />
+
+          {/* ✅ REFERRAL CODE — URL থেকে auto-fill, manually-ও দেওয়া যাবে */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="রেফারেল কোড (optional)"
+              className={`${inputClass} ${regData.referralCode ? "border-orange-400 bg-orange-50" : ""}`}
+              value={regData.referralCode}
+              onChange={(e) => setRegData({ ...regData, referralCode: e.target.value.toUpperCase() })}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🎁</span>
+          </div>
+
+          {/* ✅ Referral code confirm banner */}
+          {regData.referralCode && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 font-bold">
+              🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু ৫ পয়েন্ট পাবে!
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+          >
+            {loading ? "হচ্ছে..." : "রেজিস্ট্রেশন করুন"}
+          </button>
+        </form>
+      )}
+
+      {/* FORGOT PASSWORD */}
+      {screen === "forgot" && (
+        <div>
+          <button onClick={() => switchScreen("login")} className="flex items-center gap-2 text-gray-500 font-bold text-sm mb-6">
+            ← লগইনে ফিরে যান
+          </button>
+
+          {forgotStep === 1 && (
+            <form onSubmit={handleForgotStep1} className="space-y-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center mb-2">
+                <p className="text-2xl mb-1">🔐</p>
+                <p className="text-sm font-bold text-orange-700">আপনার রেজিস্ট্রেশন করা ফোন নাম্বার দিন</p>
+              </div>
+              <input
+                type="text"
+                placeholder="ফোন নাম্বার"
+                className={inputClass}
+                value={forgotPhone}
+                onChange={(e) => setForgotPhone(e.target.value)}
+                autoComplete="tel"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-orange-500 text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+              >
+                {loading ? "চেক হচ্ছে..." : "পরবর্তী ধাপ →"}
+              </button>
+            </form>
+          )}
+
+          {forgotStep === 2 && (
+            <form onSubmit={handleForgotStep2} className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center mb-2">
+                <p className="text-2xl mb-1">✅</p>
+                <p className="text-sm font-bold text-green-700">{forgotPhone} — অ্যাকাউন্ট পাওয়া গেছে!</p>
+              </div>
+              <PasswordInput
+                placeholder="নতুন পাসওয়ার্ড"
+                className={`${inputClass} pr-12`}
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+              >
+                {loading ? "হচ্ছে..." : "পাসওয়ার্ড পরিবর্তন করুন"}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      <p className="text-center mt-6 text-xs text-gray-400">
+        ⚠ Only Mobile Devices Allowed
+      </p>
+    </div>
+  );
+};
+
+export default Auth;
+
+
+ import React, { useState, useEffect } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import "./App.css";
+
+import Footer from "./Component/Footer/Footer";
+import Hero from "./Component/HeroSection/HeroSection";
+import Navbar from "./Component/Navbar/Navbar";
+import HomeCard from "./page/HomeCard/HomeCard";
+import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
+import Auth from "./page/Auth/Auth";
+import AdminPanel from "./page/AdminPenal/AdminPanel";
+import Referral from "./page/Referral/Referral";
+
+import { subscribeUserToPush } from "./utils/pushNotification";
+
+const PWA_INSTALL_KEY = "pwa_install_id";
+
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    if (!token || !user) return false;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.exp * 1000 < Date.now()) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        return false;
+      }
+      return true;
+    } catch {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return false;
+    }
+  });
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone;
+
+  // ✅ Referral link redirect
+  // কেউ https://playzo-eight.vercel.app?ref=CODE খুললে
+  // → /app?ref=CODE এ redirect হবে
+  // → Auth.jsx সেখান থেকে code পড়ে register tab খুলবে
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const refCode = params.get("ref");
+    if (refCode && location.pathname === "/") {
+      navigate(`/app?ref=${refCode}`, { replace: true });
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkPWAReinstall = () => {
+      const runningAsStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      if (!runningAsStandalone) return;
+
+      const savedInstallId = localStorage.getItem(PWA_INSTALL_KEY);
+      const currentSessionId = sessionStorage.getItem(PWA_INSTALL_KEY);
+
+      if (!currentSessionId) {
+        const newInstallId = Date.now().toString();
+        sessionStorage.setItem(PWA_INSTALL_KEY, newInstallId);
+
+        if (savedInstallId && savedInstallId !== newInstallId) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("isAdmin");
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminInfo");
+          localStorage.removeItem("user_balance");
+          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
+          setIsLoggedIn(false);
+        } else if (!savedInstallId) {
+          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
+        }
+      }
+    };
+
+    checkPWAReinstall();
+  }, []);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const handleSWMessage = (event) => {
+      if (event.data?.type === "SW_ACTIVATED_CLEAR_AUTH") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("isAdmin");
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminInfo");
+        localStorage.removeItem("user_balance");
+        setIsLoggedIn(false);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleSWMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleSWMessage);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isStandalone && location.pathname === "/") {
+      navigate("/app");
+    }
+  }, [isStandalone, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      subscribeUserToPush();
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    const updateAppIconBadge = async () => {
+      if (!("setAppBadge" in navigator) || !isLoggedIn) return;
+
+      try {
+        const API_BASE =
+          import.meta.env.VITE_API_URL ||
+          "https://playzo-vn8e.onrender.com/api";
+        const res = await fetch(
+          `${API_BASE}/notifications?isRead=false&limit=1`
+        );
+        const data = await res.json();
+
+        const count = data.unreadCount || 0;
+        if (count > 0) {
+          await navigator.setAppBadge(count);
+        } else {
+          await navigator.clearAppBadge();
+        }
+      } catch (err) {
+        console.error("Badge update failed:", err);
+      }
+    };
+
+    updateAppIconBadge();
+    const badgeInterval = setInterval(updateAppIconBadge, 30000);
+    return () => clearInterval(badgeInterval);
+  }, [isLoggedIn]);
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(!!localStorage.getItem("token"));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("isAdmin");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminInfo");
+    localStorage.removeItem("user_balance");
+    setIsLoggedIn(false);
+
+    if ("clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
+
+    navigate("/");
+  };
+
+  return (
+    <Routes>
+      {/* Website Mode */}
+      <Route
+        path="/"
+        element={
+          <div className="website-layout">
+            <Navbar />
+            <Hero />
+            <HomeCard />
+            <Footer />
+          </div>
+        }
+      />
+
+      {/* App Mode */}
+      <Route
+        path="/app"
+        element={
+          <div className="app-container bg-[#fcfaff] min-h-screen">
+            {isLoggedIn ? (
+              <AppDashboard onLogout={handleLogout} />
+            ) : (
+              <Auth onLoginSuccess={handleLoginSuccess} />
+            )}
+          </div>
+        }
+      />
+
+      {/* ✅ Referral Page — user আর token এখন পাঠানো হচ্ছে */}
+      <Route
+        path="/referral"
+        element={
+          isLoggedIn ? (
+            <Referral
+              onBack={() => navigate("/app")}
+              user={JSON.parse(localStorage.getItem("user"))}
+              token={localStorage.getItem("token")}
+            />
+          ) : (
+            <Auth onLoginSuccess={handleLoginSuccess} />
+          )
+        }
+      />
+
+      {/* Admin Panel */}
+      <Route
+        path="/admin/*"
+        element={
+          <div className="min-h-screen bg-gray-950">
+            <AdminPanel
+              onLogout={() => {
+                localStorage.removeItem("adminToken");
+                localStorage.removeItem("adminInfo");
+                navigate("/");
+              }}
+            />
+          </div>
+        }
+      />
+    </Routes>
+  );
+}
+
+export default App;
+
+
+ // routes/walletRoutes.js
+
+const express = require("express");
+const router  = express.Router();
+const Deposit = require("../models/Deposit");
+const User    = require("../models/User");
+
+// ── Referral Constants ──────────────────────────────────────────
+const REFERRAL_DEPOSIT_MIN = 50;   // B কে ন্যূনতম ৳৫০ deposit করতে হবে
+const POINTS_PER_REFERRAL  = 5;    // প্রতি successful refer = 5 points
+const MIN_CONVERT_POINTS   = 20;   // convert করতে minimum 20 points লাগবে
+// ✅ 1 point = 1 টাকা (সরাসরি)
+
+// ─── USER: Deposit Request Submit ────────────────────────────────
+router.post("/deposit", async (req, res) => {
+  try {
+    const { method, amount, trxId, userId, paymentNumber } = req.body;
+
+    if (!method || !amount || !trxId) {
+      return res.status(400).json({
+        success: false,
+        message: "method, amount এবং trxId দিন",
+      });
+    }
+
+    const deposit = await Deposit.create({
+      method,
+      amount: Number(amount),
+      trxId,
+      paymentNumber: paymentNumber || null,
+      userId: userId || null,
+      status: "pending",
+    });
+
+    res.json({ success: true, deposit });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── ADMIN: All Deposits ──────────────────────────────────────────
+router.get("/deposits", async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = status && status !== "all" ? { status } : {};
+    const deposits = await Deposit.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("userId", "name phone");
+    res.json(deposits);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── ADMIN: Approve / Reject Deposit ─────────────────────────────
+router.patch("/deposit/:id", async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "status হবে 'approved' অথবা 'rejected'",
+      });
+    }
+
+    const deposit = await Deposit.findById(req.params.id);
+    if (!deposit) {
+      return res.status(404).json({ success: false, message: "Deposit পাওয়া যায়নি" });
+    }
+
+    if (deposit.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "এই request আগেই process হয়ে গেছে",
+      });
+    }
+
+    deposit.status = status;
+    await deposit.save();
+
+    if (status === "approved" && deposit.userId) {
+      // ── User এর balance বাড়াও ──
+      const user = await User.findByIdAndUpdate(
+        deposit.userId,
+        { $inc: { balance: deposit.amount } },
+        { new: true }
+      );
+
+      // ✅ REFERRAL LOGIC — Step 1: deposit হয়েছে, flag set করো
+      // Point এখনই দেওয়া হবে না — B যখন match join করবে তখন দেওয়া হবে
+      if (
+        deposit.amount >= REFERRAL_DEPOSIT_MIN &&
+        user.referredBy
+      ) {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          const refEntry = referrer.referralHistory.find(
+            (r) => r.userId.toString() === user._id.toString()
+          );
+
+          // শুধু প্রথমবার deposit flag set করো
+          if (refEntry && !refEntry.deposited) {
+            refEntry.deposited = true;
+            await referrer.save();
+            console.log(
+              `💰 [Referral] ${user.name} ৳${deposit.amount} deposit করেছে → deposited=true (match entry pending)`
+            );
+          }
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `✅ Approved! ৳${deposit.amount} user এর balance এ যোগ হয়েছে`,
+        deposit,
+        newBalance: user?.balance,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: status === "approved" ? "✅ Approved!" : "❌ Rejected",
+      deposit,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── REFERRAL INFO ────────────────────────────────────────────────
+router.get("/referral/:userId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).populate(
+      "referralHistory.userId",
+      "name phone"
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        referralCode:    user.referralCode,
+        referralPoints:  user.referralPoints,
+        referralCount:   user.referralCount,
+        referralHistory: user.referralHistory,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── REFERRAL POINTS → BALANCE CONVERT ───────────────────────────
+router.post("/referral/convert", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
+    }
+
+    const currentPoints = user.referralPoints || 0;
+
+    // ✅ Minimum 20 points check
+    if (currentPoints < MIN_CONVERT_POINTS) {
+      return res.json({
+        success: false,
+        message: `Minimum ${MIN_CONVERT_POINTS} points লাগবে। আপনার আছে ${currentPoints} points`,
+      });
+    }
+
+    // ✅ 1 point = 1 টাকা — সব points একসাথে convert
+    const taka = currentPoints; // 1:1 ratio
+
+    user.referralPoints = 0;
+    user.balance = (user.balance || 0) + taka;
+    await user.save();
+
+    console.log(`💸 [Convert] ${user.name}: ${currentPoints} points → ৳${taka}`);
+
+    res.json({
+      success: true,
+      message: `✅ ${currentPoints} points → ৳${taka} balance এ convert হয়েছে!`,
+      newBalance: user.balance,
+      remainingPoints: 0,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
+
+ const express = require("express");
+const router = express.Router();
+const Match = require("../models/Match");
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+const notificationRouter = require("./notifications"); // ✅ ADD
+
+// ================= ADMIN MIDDLEWARE =================
+const protectAdmin = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.json({ success: false, message: "No token found" });
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "admin" && decoded.role !== "super-admin") {
+      return res.json({ success: false, message: "Admin only access" });
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.json({ success: false, message: "Invalid token: " + err.message });
+  }
+};
+
+// ================= TEST ROUTE =================
+router.get("/test", (req, res) => {
+  res.json({ success: true, message: "Match Routes Working ✅" });
+});
+
+// ================= CREATE MATCH =================
+router.post("/create", protectAdmin, async (req, res) => {
+  try {
+    const { startTime, ...rest } = req.body;
+    const expiresAt = startTime
+      ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
+      : new Date(Date.now() + 20 * 60 * 1000);
+
+    const match = await Match.create({
+      ...rest,
+      startTime,
+      expiresAt,
+      joinedPlayers: 0,
+      status: "upcoming",
+    });
+
+    // ✅ Match create হলে সব users কে notification পাঠাও
+    notificationRouter.sendMatchNotification(match, "freefire");
+
+    res.status(201).json({
+      success: true,
+      message: "Match created successfully",
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= SUBMIT MATCH RESULT + PRIZE =================
+router.post("/result", protectAdmin, async (req, res) => {
+  console.log("🔥 Result API Hit!", req.body);
+  try {
+    const { matchId, results } = req.body;
+    if (!matchId || !results || results.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "matchId and results are required",
+      });
+    }
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ success: false, message: "Match not found" });
+    }
+    const finalResults = results.map((player) => {
+      let prize = (player.kills || 0) * (match.perKill || 5);
+      if (player.position == 1)      prize += match.prizes?.first  || 60;
+      else if (player.position == 2) prize += match.prizes?.second || 40;
+      else if (player.position == 3) prize += match.prizes?.third  || 20;
+      return { ...player, prize: Math.floor(prize) };
+    });
+    match.results     = finalResults;
+    match.status      = "completed";
+    match.completedAt = new Date();
+    await match.save();
+    for (const player of finalResults) {
+      if (player.userId && player.prize > 0) {
+        await User.findByIdAndUpdate(player.userId, {
+          $inc: { balance: player.prize },
+          $push: {
+            transactions: {
+              type: "match_prize",
+              amount: player.prize,
+              matchId: match._id,
+              matchTitle: match.title,
+              date: new Date(),
+            },
+          },
+        });
+      }
+    }
+    res.json({
+      success: true,
+      message: "Result submitted & prizes distributed successfully",
+      data: match,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= GET COMPLETED MATCHES (Results) =================
+router.get("/completed", async (req, res) => {
+  try {
+    const matches = await Match.find({ status: "completed" })
+      .sort({ completedAt: -1 })
+      .limit(20);
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= MY MATCHES (USER) =================
+router.get("/my-matches", async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "userId is required" });
+    }
+    const matches = await Match.find({
+      "joinedUsers.userId": userId,
+    }).sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= GET ALL MATCHES =================
+router.get("/", async (req, res) => {
+  try {
+    const matches = await Match.find()
+      .populate("joinedUsers.userId", "name phone")
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= GET SINGLE MATCH =================
+router.get("/:id", async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+    res.json({ success: true, data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= UPDATE ROOM =================
+router.put("/update-room/:id", protectAdmin, async (req, res) => {
+  try {
+    const { roomId, roomPassword } = req.body;
+    const match = await Match.findByIdAndUpdate(
+      req.params.id,
+      { roomId, roomPassword, status: "live", isRoomOpen: true },
+      { returnDocument: "after" }
+    );
+    res.json({
+      success: true,
+      message: "Room updated successfully",
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= JOIN MATCH =================
+router.put("/join/:id", async (req, res) => {
+  try {
+    const { userId, inGameName } = req.body;
+    const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+
+    const alreadyJoined = (match.joinedUsers || []).find(
+      (u) => u.userId.toString() === userId.toString()
+    );
+    if (alreadyJoined) {
+      return res.json({ success: false, message: "আপনি ইতোমধ্যে এই match-এ join করেছেন" });
+    }
+
+    if (match.joinedPlayers >= match.totalPlayers) {
+      return res.json({ success: false, message: "Match is full" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.balance < match.entryFee) {
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+    }
+
+    const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
+    let slotNumber = 1;
+    while (usedSlots.includes(slotNumber)) slotNumber++;
+
+    user.balance -= match.entryFee;
+    if (!user.joinHistory) user.joinHistory = [];
+    user.joinHistory.push({
+      matchId:    match._id,
+      matchTitle: match.title,
+      entryFee:   match.entryFee,
+      joinedAt:   new Date(),
+    });
+    await user.save();
+
+    if (!match.joinedUsers) match.joinedUsers = [];
+    match.joinedUsers.push({ userId, inGameName: inGameName || "", slotNumber });
+    match.joinedPlayers = match.joinedUsers.length;
+    await match.save();
+
+    // ✅ REFERRAL POINT TRIGGER
+    // শর্ত: user referral দিয়ে এসেছে + ৳৫০+ deposit করেছে (deposited=true) + point এখনো পায়নি (pointGiven=false)
+    if (user.referredBy) {
+      try {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          const refEntry = referrer.referralHistory.find(
+            (r) => r.userId.toString() === user._id.toString()
+          );
+          if (refEntry && refEntry.deposited && !refEntry.pointGiven) {
+            refEntry.pointGiven = true;
+            referrer.referralPoints = (referrer.referralPoints || 0) + 5;
+            await referrer.save();
+            console.log(`🎯 [Referral] ${referrer.name} পেলেন 5 points — ${user.name} match join করেছে`);
+          }
+        }
+      } catch (refErr) {
+        // referral error হলেও join সফল থাকবে
+        console.error("Referral point error:", refErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "Match-এ join সফল হয়েছে",
+      newBalance: user.balance,
+      slotNumber,
+      data: match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= DELETE ALL =================
+router.delete("/clear-all", protectAdmin, async (req, res) => {
+  try {
+    const result = await Match.deleteMany({});
+    res.json({
+      success: true,
+      message: `${result.deletedCount} টা match delete হয়েছে`,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+//  pore delte kore dibo
+module.exports = router;
+
+
+ const express = require("express");
+const router = express.Router();
+const User = require("../models/User");
+const { protect } = require("../middleware/auth");
+
+// ⚠️ IMPORTANT: "/convert" route টা "/:userId" এর আগে থাকতে হবে
+// নাহলে Express "convert" কে userId হিসেবে ধরে নেবে
+
+// POST /api/referral/convert
+router.post("/convert", protect, async (req, res) => {
+  try {
+    // ✅ Security fix: body থেকে নয়, auth middleware থেকে userId নাও
+    const user = await User.findById(req.user.id || req.user._id);
+    if (!user) return res.json({ success: false, message: "User not found" });
+
+    const currentPoints = user.referralPoints || 0;
+
+    // ✅ Minimum 20 points (আগে ছিল 100 — ভুল ছিল)
+    if (currentPoints < 20) {
+      return res.json({
+        success: false,
+        message: `কমপক্ষে ২০ পয়েন্ট লাগবে! আপনার আছে ${currentPoints} points`,
+      });
+    }
+
+    // ✅ 1 point = 1 টাকা — সব points convert হবে
+    const taka = currentPoints;
+    user.referralPoints = 0;
+    user.balance = (user.balance || 0) + taka;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `✅ ${currentPoints} পয়েন্ট → ৳${taka} balance-এ যোগ হয়েছে!`,
+      newBalance: user.balance,
+      remainingPoints: 0,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/referral/:userId
+router.get("/:userId", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).populate(
+      "referralHistory.userId",
+      "name phone"
+    );
+    if (!user) return res.json({ success: false, message: "User not found" });
+
+    res.json({
+      success: true,
+      data: {
+        referralCode:    user.referralCode,
+        referralPoints:  user.referralPoints  || 0,
+        referralCount:   user.referralCount   || 0,
+        referralHistory: user.referralHistory || [],
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;
+
+ const express = require("express");
+const router = express.Router();
+const User = require("../models/User");
+const { protect } = require("../middleware/auth");
+
+// ⚠️ IMPORTANT: "/convert" route টা "/:userId" এর আগে থাকতে হবে
+// নাহলে Express "convert" কে userId হিসেবে ধরে নেবে
+
+// POST /api/referral/convert
+router.post("/convert", protect, async (req, res) => {
+  try {
+    // ✅ Security fix: body থেকে নয়, auth middleware থেকে userId নাও
+    const user = await User.findById(req.user.id || req.user._id);
+    if (!user) return res.json({ success: false, message: "User not found" });
+
+    const currentPoints = user.referralPoints || 0;
+
+    // ✅ Minimum 20 points (আগে ছিল 100 — ভুল ছিল)
+    if (currentPoints < 20) {
+      return res.json({
+        success: false,
+        message: `কমপক্ষে ২০ পয়েন্ট লাগবে! আপনার আছে ${currentPoints} points`,
+      });
+    }
+
+    // ✅ 1 point = 1 টাকা — সব points convert হবে
+    const taka = currentPoints;
+    user.referralPoints = 0;
+    user.balance = (user.balance || 0) + taka;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `✅ ${currentPoints} পয়েন্ট → ৳${taka} balance-এ যোগ হয়েছে!`,
+      newBalance: user.balance,
+      remainingPoints: 0,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/referral/:userId
+router.get("/:userId", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).populate(
+      "referralHistory.userId",
+      "name phone"
+    );
+    if (!user) return res.json({ success: false, message: "User not found" });
+
+    res.json({
+      success: true,
+      data: {
+        referralCode:    user.referralCode,
+        referralPoints:  user.referralPoints  || 0,
+        referralCount:   user.referralCount   || 0,
+        referralHistory: user.referralHistory || [],
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;

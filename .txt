@@ -1485,15 +1485,15 @@ module.exports = router;
 
 //adminAuthRoutes.js end 
 
-//authRoutes.js start 
+..........................................authRoutes.js start .....................
 
- const express = require("express");
+  // routes/authRoutes.js
+const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// ================= REFERRAL CODE GENERATOR =================
 function generateReferralCode(name) {
   const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);
   const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -1505,13 +1505,11 @@ router.post("/register", async (req, res) => {
   try {
     const { name, inGameName, email, phone, password, referralCode } = req.body;
 
-    // Phone unique check
     const existingPhone = await User.findOne({ phone });
     if (existingPhone) {
       return res.json({ success: false, message: "এই ফোন নম্বর দিয়ে আগেই একাউন্ট আছে" });
     }
 
-    // Name unique check
     if (name && name.trim()) {
       const existingName = await User.findOne({ name: name.trim() });
       if (existingName) {
@@ -1521,11 +1519,9 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ Unique referral code generate
     let newReferralCode;
     let isUnique = false;
     let attempts = 0;
-
     while (!isUnique && attempts < 15) {
       newReferralCode = generateReferralCode(name);
       const existing = await User.findOne({ referralCode: newReferralCode });
@@ -1533,7 +1529,6 @@ router.post("/register", async (req, res) => {
       attempts++;
     }
 
-    // ✅ Referrer খোঁজো
     let referrer = null;
     if (referralCode && referralCode.trim()) {
       referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
@@ -1552,7 +1547,6 @@ router.post("/register", async (req, res) => {
       referralHistory: [],
     });
 
-    // ✅ Referrer এর history তে add করো
     if (referrer) {
       referrer.referralHistory.push({
         userId:     user._id,
@@ -1560,20 +1554,38 @@ router.post("/register", async (req, res) => {
         phone:      user.phone,
         deposited:  false,
         pointGiven: false,
-        date: new Date()
+        joinedAt:   new Date(),
       });
       referrer.referralCount += 1;
       await referrer.save();
     }
 
-    res.json({ 
-      success: true, 
-      message: "রেজিস্ট্রেশন সফল হয়েছে!", 
-      referralCode: newReferralCode 
+    const token = jwt.sign(
+      { id: user._id, role: user.role, phone: user.phone },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      message: "রেজিস্ট্রেশন সফল হয়েছে!",
+      token,
+      user: {
+        id:             user._id,
+        name:           user.name,
+        inGameName:     user.inGameName,
+        email:          user.email,
+        phone:          user.phone,
+        role:           user.role,
+        balance:        user.balance,
+        referralCode:   user.referralCode,
+        referralPoints: user.referralPoints,
+        referralCount:  user.referralCount,
+      },
     });
   } catch (err) {
     console.error("Register Error:", err);
-    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
   }
 });
 
@@ -1596,14 +1608,29 @@ router.post("/login", async (req, res) => {
       return res.json({ success: false, message: "ফোন নম্বর বা পাসওয়ার্ড ভুল" });
     }
 
+    // ✅ FIX: referralCode না থাকলে এখনই generate করে save করো
+    if (!user.referralCode) {
+      let newCode;
+      let isUnique = false;
+      let attempts = 0;
+      while (!isUnique && attempts < 15) {
+        newCode = generateReferralCode(user.name);
+        const existing = await User.findOne({ referralCode: newCode });
+        if (!existing) isUnique = true;
+        attempts++;
+      }
+      user.referralCode = newCode;
+      console.log(`🔑 [Login] Generated referralCode for ${user.name}: ${newCode}`);
+    }
+
+    user.lastLogin = new Date();
+    await user.save();
+
     const token = jwt.sign(
       { id: user._id, role: user.role, phone: user.phone },
       process.env.JWT_SECRET || "secretkey",
       { expiresIn: "7d" }
     );
-
-    user.lastLogin = new Date();
-    await user.save();
 
     res.json({
       success: true,
@@ -1619,20 +1646,47 @@ router.post("/login", async (req, res) => {
         balance:            user.balance,
         totalMatchesPlayed: user.totalMatchesPlayed,
         totalWins:          user.totalWins,
-        referralCode:       user.referralCode,
+        referralCode:       user.referralCode,  // ✅ এখন সবসময় আসবে
         referralPoints:     user.referralPoints,
         referralCount:      user.referralCount,
       },
     });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
+  }
+});
+
+// ================= CHECK PHONE =================
+router.post("/check-phone", async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const user = await User.findOne({ phone });
+    if (!user) return res.json({ success: false, message: "User not found" });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= RESET PASSWORD =================
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+    const user = await User.findOne({ phone });
+    if (!user) return res.json({ success: false, message: "User not found" });
+    user.password = await bcrypt.hash(password, 10);
+    await user.save();
+    res.json({ success: true, message: "পাসওয়ার্ড পরিবর্তন সফল হয়েছে!" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 module.exports = router;
 
-//authRoutes.js end 
+
+......................................authRoutes.js end........................... 
 
 //deposite.js start 
  // routes/deposit.js
@@ -2371,52 +2425,68 @@ module.exports = router;
 
 //PushRoutes.js end 
 
-//referralRoutes.js  start 
+..................................referralRoutes.js  start ...............................
 
- const express = require("express");
+   // routes/referralRoutes.js
+const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const { protect } = require("../middleware/auth");
 
-// GET /api/referral/:userId
-router.get("/:userId", protect, async (req, res) => {
+// ⚠️ IMPORTANT: "/convert" route টা "/:userId" এর আগে থাকতে হবে
+// নাহলে Express "convert" কে userId হিসেবে ধরে নেবে
+
+// POST /api/referral/convert
+router.post("/convert", protect, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
+    // ✅ Security fix: body থেকে নয়, auth middleware থেকে userId নাও
+    const user = await User.findById(req.user.id || req.user._id);
     if (!user) return res.json({ success: false, message: "User not found" });
+
+    const currentPoints = user.referralPoints || 0;
+
+    // ✅ Minimum 20 points
+    if (currentPoints < 20) {
+      return res.json({
+        success: false,
+        message: `কমপক্ষে ২০ পয়েন্ট লাগবে! আপনার আছে ${currentPoints} points`,
+      });
+    }
+
+    // ✅ 1 point = 1 টাকা — সব points convert হবে
+    const taka = currentPoints;
+    user.referralPoints = 0;
+    user.balance = (user.balance || 0) + taka;
+    await user.save();
 
     res.json({
       success: true,
-      data: {
-        referralCode: user.referralCode,
-        referralPoints: user.referralPoints || 0,
-        referralCount: user.referrals?.length || 0,
-        referralHistory: user.referrals || [],
-      },
+      message: `✅ ${currentPoints} পয়েন্ট → ৳${taka} balance-এ যোগ হয়েছে!`,
+      newBalance: user.balance,
+      remainingPoints: 0,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// POST /api/referral/convert
-router.post("/convert", protect, async (req, res) => {
+// GET /api/referral/:userId
+router.get("/:userId", protect, async (req, res) => {
   try {
-    const { userId } = req.body;
-    const user = await User.findById(userId);
+    const user = await User.findById(req.params.userId).populate(
+      "referralHistory.userId",
+      "name phone"
+    );
     if (!user) return res.json({ success: false, message: "User not found" });
-
-    if ((user.referralPoints || 0) < 100) {
-      return res.json({ success: false, message: "কমপক্ষে ১০০ পয়েন্ট লাগবে!" });
-    }
-
-    const convertAmount = Math.floor(user.referralPoints / 100) * 100;
-    user.referralPoints -= convertAmount;
-    user.balance = (user.balance || 0) + convertAmount;
-    await user.save();
 
     res.json({
       success: true,
-      message: `✅ ${convertAmount} পয়েন্ট → ৳${convertAmount} balance-এ যোগ হয়েছে!`,
+      data: {
+        referralCode:    user.referralCode,
+        referralPoints:  user.referralPoints  || 0,
+        referralCount:   user.referralCount   || 0,
+        referralHistory: user.referralHistory || [],
+      },
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -2425,10 +2495,10 @@ router.post("/convert", protect, async (req, res) => {
 
 module.exports = router;
 
-//referralRoutes.js  end 
+......................................referralRoutes.js  end ...............................
 
 
-//users.js start 
+..................................users.js start...................................... 
 
 
 const express = require("express");
@@ -2523,11 +2593,11 @@ router.get("/:id", async (req, res) => {
 });
 
 module.exports = router;
-//users.js end 
+.............................................users.js end .................................
 
 
 
-//walletRoutes.js start 
+.....................................walletRoutes.js start ...................................
   const express = require("express");
 const router  = express.Router();
 const Deposit = require("../models/Deposit");
@@ -2712,10 +2782,10 @@ router.get("/referral/:userId", async (req, res) => {
 module.exports = router;
 
 
-//walletRoutes.js end 
+..............................walletRoutes.js end ................................
 
 
-//withdrawRoutes.js start 
+.................................withdrawRoutes.js start ..........................
 
  const express = require("express");
 const router = express.Router();
@@ -2749,7 +2819,7 @@ router.put("/admin/reject/:id",   protect, adminOnly, rejectWithdraw);
 
 module.exports = router;
 
-//withdrawRoutes.js end 
+...................................withdrawRoutes.js end ...........................
 
 
 // createAdmins.js start 
@@ -8788,165 +8858,400 @@ export default MatchResultSubmit;
 
  
 
-.......................................................................Auth.jsx start ......................................
- const express = require("express");
-const router = express.Router();
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+..........................................Auth.jsx start ......................................
+   // page/Auth/Auth.jsx
+import React, { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
-function generateReferralCode(name) {
-  const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);
-  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `${clean}${rand}`;
-}
+const PasswordInput = ({ placeholder, value, onChange, required, autoComplete, className }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        className={className}
+        required={required}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 active:text-gray-600"
+      >
+        {show ? <EyeOff size={20} /> : <Eye size={20} />}
+      </button>
+    </div>
+  );
+};
 
-// ================= REGISTER =================
-router.post("/register", async (req, res) => {
-  try {
-    const { name, inGameName, email, phone, password, referralCode } = req.body;
+const Auth = ({ onLoginSuccess }) => {
+  const [screen, setScreen] = useState("login");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    const existingPhone = await User.findOne({ phone });
-    if (existingPhone) {
-      return res.json({ success: false, message: "এই ফোন নম্বর দিয়ে আগেই একাউন্ট আছে" });
+  const [loginData, setLoginData] = useState({ phone: "", password: "" });
+  const [regData, setRegData] = useState({
+    name: "", phone: "", password: "", confirm: "",
+    referralCode: ""
+  });
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [forgotStep, setForgotStep] = useState(1);
+
+  // ✅ FIX: useSearchParams ব্যবহার করা হয়েছে — window.location.search এর চেয়ে নির্ভরযোগ্য
+  // navigate("/app?ref=CODE") এর পরেও এটা ঠিকভাবে কাজ করবে
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const refCode = searchParams.get("ref");
+    if (refCode) {
+      setRegData((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
+      setScreen("register"); // সরাসরি register tab এ নিয়ে যাও
     }
+  }, [searchParams]);
 
-    if (name && name.trim()) {
-      const existingName = await User.findOne({ name: name.trim() });
-      if (existingName) {
-        return res.json({ success: false, message: "এই নামটি ইতিমধ্যে ব্যবহৃত, অন্য নাম দিন" });
-      }
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    let newReferralCode;
-    let isUnique = false;
-    let attempts = 0;
-    while (!isUnique && attempts < 15) {
-      newReferralCode = generateReferralCode(name);
-      const existing = await User.findOne({ referralCode: newReferralCode });
-      if (!existing) isUnique = true;
-      attempts++;
-    }
-
-    let referrer = null;
-    if (referralCode && referralCode.trim()) {
-      referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
-    }
-
-    const user = await User.create({
-      name: name?.trim(),
-      inGameName: inGameName?.trim(),
-      email: email?.trim(),
-      phone,
-      password: hashedPassword,
-      referralCode: newReferralCode,
-      referredBy: referrer ? referrer._id : null,
-      referralCount: 0,
-      referralPoints: 0,
-      referralHistory: [],
-    });
-
-    if (referrer) {
-      referrer.referralHistory.push({
-        userId:     user._id,
-        name:       user.name,
-        phone:      user.phone,
-        deposited:  false,
-        pointGiven: false,
-        joinedAt:   new Date(),
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: loginData.phone, password: loginData.password }),
       });
-      referrer.referralCount += 1;
-      await referrer.save();
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("isAdmin", "false");
+        localStorage.setItem("user", JSON.stringify(data.user));
+        onLoginSuccess();
+      } else {
+        setError(data.message || "Login failed!");
+      }
+    } catch {
+      setError("Server error! Backend চালু আছে?");
     }
+    setLoading(false);
+  };
 
-    // ✅ Token generate করো
-    const token = jwt.sign(
-      { id: user._id, role: user.role, phone: user.phone },
-      process.env.JWT_SECRET || "secretkey",
-      { expiresIn: "7d" }
-    );
-
-    res.json({
-      success: true,
-      message: "রেজিস্ট্রেশন সফল হয়েছে!",
-      token, // ✅ token পাঠাও
-      user: { // ✅ user পাঠাও
-        id:             user._id,
-        name:           user.name,
-        inGameName:     user.inGameName,
-        email:          user.email,
-        phone:          user.phone,
-        role:           user.role,
-        balance:        user.balance,
-        referralCode:   user.referralCode,
-        referralPoints: user.referralPoints,
-        referralCount:  user.referralCount,
-      },
-    });
-  } catch (err) {
-    console.error("Register Error:", err);
-    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
-  }
-});
-
-// ================= LOGIN =================
-router.post("/login", async (req, res) => {
-  try {
-    const { phone, password, deviceType } = req.body;
-
-    if (deviceType && deviceType !== "mobile") {
-      return res.json({ success: false, message: "Only mobile devices allowed 🎮" });
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!regData.name || !regData.phone || !regData.password) {
+      setError("সব তথ্য পূরণ করুন!"); return;
     }
-
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.json({ success: false, message: "ফোন নম্বর বা পাসওয়ার্ড ভুল" });
+    if (regData.password !== regData.confirm) {
+      setError("পাসওয়ার্ড মিলছে না!"); return;
     }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.json({ success: false, message: "ফোন নম্বর বা পাসওয়ার্ড ভুল" });
+    if (regData.password.length < 6) {
+      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return;
     }
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: regData.name,
+          phone: regData.phone,
+          password: regData.password,
+          referralCode: regData.referralCode.trim().toUpperCase() || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("isAdmin", "false");
+        localStorage.setItem("user", JSON.stringify(data.user));
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role, phone: user.phone },
-      process.env.JWT_SECRET || "secretkey",
-      { expiresIn: "7d" }
-    );
+        // ✅ Register সফল হলে URL থেকে ?ref param মুছে দাও
+        const url = new URL(window.location.href);
+        url.searchParams.delete("ref");
+        window.history.replaceState({}, "", url.toString());
 
-    user.lastLogin = new Date();
-    await user.save();
+        onLoginSuccess();
+      } else {
+        setError(data.message || "Registration failed!");
+      }
+    } catch {
+      setError("Server error! Backend চালু আছে?");
+    }
+    setLoading(false);
+  };
 
-    res.json({
-      success: true,
-      message: "Login success",
-      token,
-      user: {
-        id:                 user._id,
-        name:               user.name,
-        inGameName:         user.inGameName,
-        email:              user.email,
-        phone:              user.phone,
-        role:               user.role,
-        balance:            user.balance,
-        totalMatchesPlayed: user.totalMatchesPlayed,
-        totalWins:          user.totalWins,
-        referralCode:       user.referralCode,
-        referralPoints:     user.referralPoints,
-        referralCount:      user.referralCount,
-      },
-    });
-  } catch (err) {
-    console.error("Login Error:", err);
-    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
-  }
-});
+  const handleForgotStep1 = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!forgotPhone) { setError("ফোন নাম্বার দিন!"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/check-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: forgotPhone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setForgotStep(2);
+        setSuccess("ফোন নাম্বার পাওয়া গেছে! নতুন পাসওয়ার্ড দিন।");
+      } else {
+        setError("এই ফোন নাম্বার দিয়ে কোনো অ্যাকাউন্ট নেই!");
+      }
+    } catch {
+      setForgotStep(2);
+      setSuccess("নতুন পাসওয়ার্ড দিন।");
+    }
+    setLoading(false);
+  };
 
-module.exports = router;
- 
-.......................................................................Auth.jsx end .........................................
+  const handleForgotStep2 = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!newPass || newPass.length < 6) { setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: forgotPhone, password: newPass }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে! এখন লগইন করুন।");
+        setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
+      } else {
+        setError(data.message || "Failed!");
+      }
+    } catch {
+      setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে!");
+      setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
+    }
+    setLoading(false);
+  };
+
+  const inputClass = "w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-medium";
+  const switchScreen = (s) => { setScreen(s); setError(""); setSuccess(""); setForgotStep(1); };
+
+  return (
+    <div className="w-full max-w-[450px] min-h-screen bg-white flex flex-col justify-start px-8 mx-auto pt-24">
+
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-black text-slate-800">
+          uth<span className="text-orange-500">iyO</span>
+        </h1>
+        <p className="text-slate-500 mt-1 text-sm">
+          {screen === "login" && "আপনার অ্যাকাউন্টে লগইন করুন"}
+          {screen === "register" && "নতুন অ্যাকাউন্ট তৈরি করুন"}
+          {screen === "forgot" && "পাসওয়ার্ড রিসেট করুন"}
+        </p>
+      </div>
+
+      {/* Tab Switcher */}
+      {screen !== "forgot" && (
+        <div className="flex bg-slate-100 rounded-2xl p-1 mb-6">
+          <button
+            onClick={() => switchScreen("login")}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition ${screen === "login" ? "bg-white shadow text-slate-800" : "text-slate-500"}`}
+          >
+            লগইন
+          </button>
+          <button
+            onClick={() => switchScreen("register")}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition ${screen === "register" ? "bg-white shadow text-slate-800" : "text-slate-500"}`}
+          >
+            রেজিস্ট্রেশন
+          </button>
+        </div>
+      )}
+
+      {/* Error / Success */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-2xl px-4 py-3 text-sm font-bold mb-4 text-center">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-600 rounded-2xl px-4 py-3 text-sm font-bold mb-4 text-center">
+          {success}
+        </div>
+      )}
+
+      {/* LOGIN FORM */}
+      {screen === "login" && (
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="text"
+            placeholder="ফোন নাম্বার"
+            className={inputClass}
+            value={loginData.phone}
+            onChange={(e) => setLoginData({ ...loginData, phone: e.target.value })}
+            autoComplete="tel"
+            required
+          />
+          <PasswordInput
+            placeholder="পাসওয়ার্ড"
+            className={`${inputClass} pr-12`}
+            value={loginData.password}
+            onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+            autoComplete="current-password"
+            required
+          />
+          <div className="text-right">
+            <button type="button" onClick={() => switchScreen("forgot")} className="text-orange-500 font-bold text-sm">
+              পাসওয়ার্ড ভুলে গেছেন?
+            </button>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+          >
+            {loading ? "লগইন হচ্ছে..." : "লগইন করুন"}
+          </button>
+        </form>
+      )}
+
+      {/* REGISTER FORM */}
+      {screen === "register" && (
+        <form onSubmit={handleRegister} className="space-y-4">
+          <input
+            type="text"
+            placeholder="আপনার নাম"
+            className={inputClass}
+            value={regData.name}
+            onChange={(e) => setRegData({ ...regData, name: e.target.value })}
+            autoComplete="name"
+            required
+          />
+          <input
+            type="text"
+            placeholder="ফোন নাম্বার"
+            className={inputClass}
+            value={regData.phone}
+            onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
+            autoComplete="tel"
+            required
+          />
+          <PasswordInput
+            placeholder="পাসওয়ার্ড"
+            className={`${inputClass} pr-12`}
+            value={regData.password}
+            onChange={(e) => setRegData({ ...regData, password: e.target.value })}
+            autoComplete="new-password"
+            required
+          />
+          <PasswordInput
+            placeholder="পাসওয়ার্ড আবার লিখুন"
+            className={`${inputClass} pr-12`}
+            value={regData.confirm}
+            onChange={(e) => setRegData({ ...regData, confirm: e.target.value })}
+            autoComplete="new-password"
+            required
+          />
+
+          {/* ✅ REFERRAL CODE — URL থেকে auto-fill, manually-ও দেওয়া যাবে */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="রেফারেল কোড (optional)"
+              className={`${inputClass} ${regData.referralCode ? "border-orange-400 bg-orange-50" : ""}`}
+              value={regData.referralCode}
+              onChange={(e) => setRegData({ ...regData, referralCode: e.target.value.toUpperCase() })}
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🎁</span>
+          </div>
+
+          {/* ✅ Referral code confirm banner */}
+          {regData.referralCode && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 font-bold">
+              🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু ৫ পয়েন্ট পাবে!
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+          >
+            {loading ? "হচ্ছে..." : "রেজিস্ট্রেশন করুন"}
+          </button>
+        </form>
+      )}
+
+      {/* FORGOT PASSWORD */}
+      {screen === "forgot" && (
+        <div>
+          <button onClick={() => switchScreen("login")} className="flex items-center gap-2 text-gray-500 font-bold text-sm mb-6">
+            ← লগইনে ফিরে যান
+          </button>
+
+          {forgotStep === 1 && (
+            <form onSubmit={handleForgotStep1} className="space-y-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center mb-2">
+                <p className="text-2xl mb-1">🔐</p>
+                <p className="text-sm font-bold text-orange-700">আপনার রেজিস্ট্রেশন করা ফোন নাম্বার দিন</p>
+              </div>
+              <input
+                type="text"
+                placeholder="ফোন নাম্বার"
+                className={inputClass}
+                value={forgotPhone}
+                onChange={(e) => setForgotPhone(e.target.value)}
+                autoComplete="tel"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-orange-500 text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+              >
+                {loading ? "চেক হচ্ছে..." : "পরবর্তী ধাপ →"}
+              </button>
+            </form>
+          )}
+
+          {forgotStep === 2 && (
+            <form onSubmit={handleForgotStep2} className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center mb-2">
+                <p className="text-2xl mb-1">✅</p>
+                <p className="text-sm font-bold text-green-700">{forgotPhone} — অ্যাকাউন্ট পাওয়া গেছে!</p>
+              </div>
+              <PasswordInput
+                placeholder="নতুন পাসওয়ার্ড"
+                className={`${inputClass} pr-12`}
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+              >
+                {loading ? "হচ্ছে..." : "পাসওয়ার্ড পরিবর্তন করুন"}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      <p className="text-center mt-6 text-xs text-gray-400">
+        ⚠ Only Mobile Devices Allowed
+      </p>
+    </div>
+  );
+};
+
+export default Auth;
+
+.........................................Auth.jsx end .........................................
 
 //BottomManu.jsx start 
  import React from "react";
@@ -10691,8 +10996,7 @@ export default Profile;
 
 
  ...................................Referral.jsx start.............................................
-
-    // page/Referral/Referral.jsx
+ // page/Referral/Referral.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
@@ -10706,7 +11010,6 @@ const Referral = ({ onBack, user, token }) => {
   const [loading, setLoading]           = useState(true);
   const [errorMsg, setErrorMsg]         = useState("");
 
-  // ✅ user.id অথবা user._id যেটাই থাকুক কাজ করবে
   const userId = user?.id || user?._id;
 
   useEffect(() => {
@@ -10776,9 +11079,11 @@ const Referral = ({ onBack, user, token }) => {
     }
   };
 
-  const hasPending = referralData?.hasPendingRequest;
+  // ✅ 20 points minimum (আগে ছিল 100 — ভুল)
   const points     = referralData?.referralPoints || 0;
-  const canConvert = points >= 100 && !hasPending;
+  const canConvert = points >= 20;
+  // ✅ 1 point = 1 টাকা (আগে ছিল Math.floor(points/100)*100 — ভুল)
+  const takaAmount = points;
 
   const msgColors = {
     success: { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d" },
@@ -10787,7 +11092,6 @@ const Referral = ({ onBack, user, token }) => {
   };
   const mc = msgColors[msgType];
 
-  // ✅ Loading state
   if (loading) {
     return (
       <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-3">
@@ -10797,7 +11101,6 @@ const Referral = ({ onBack, user, token }) => {
     );
   }
 
-  // ✅ Error state
   if (errorMsg) {
     return (
       <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-4 px-8">
@@ -10824,7 +11127,8 @@ const Referral = ({ onBack, user, token }) => {
         <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
           <p className="text-xs text-orange-100">আপনার Points</p>
           <p className="text-3xl font-black">{points}</p>
-          <p className="text-xs text-orange-100 mt-1">১০০ points = ৳১০০</p>
+          {/* ✅ সঠিক rate */}
+          <p className="text-xs text-orange-100 mt-1">১ point = ১ টাকা (min: ২০ pts)</p>
         </div>
       </div>
 
@@ -10844,6 +11148,10 @@ const Referral = ({ onBack, user, token }) => {
               Share 🔗
             </button>
           </div>
+          {/* ✅ Share link preview */}
+          <p className="text-xs text-gray-400 mt-2 break-all">
+            https://playzo-eight.vercel.app?ref={referralData?.referralCode || "..."}
+          </p>
         </div>
 
         {/* Stats */}
@@ -10854,21 +11162,22 @@ const Referral = ({ onBack, user, token }) => {
           </div>
           <div className="bg-green-50 rounded-2xl p-4 text-center">
             <p className="text-2xl font-black text-green-600">
-              {referralData?.referralHistory?.filter(r => r.deposited).length || 0}
+              {referralData?.referralHistory?.filter(r => r.pointGiven).length || 0}
             </p>
-            <p className="text-xs text-gray-500 font-bold">Deposit করেছে</p>
+            <p className="text-xs text-gray-500 font-bold">Points পেয়েছি</p>
           </div>
         </div>
 
-        {/* How it works */}
+        {/* How it works — ✅ সঠিক তথ্য */}
         <div className="bg-gray-50 rounded-2xl p-4">
           <p className="font-black text-sm mb-3">কীভাবে কাজ করে?</p>
           <div className="space-y-2 text-sm">
             {[
               "১. আপনার code দিয়ে বন্ধু register করবে",
               "২. বন্ধু ৳৫০+ deposit করবে",
-              "৩. আপনি ৫ পয়েন্ট পাবেন",
-              "৪. ২০ জন = ১০০ পয়েন্ট = ৳১০০",
+              "৩. বন্ধু যেকোনো একটি match join করবে",
+              "৪. আপনি ৫ পয়েন্ট পাবেন (১ point = ১ টাকা)",
+              "৫. মাত্র ২০ points হলেই ৳২০ convert করতে পারবেন",
             ].map((text, i) => (
               <div key={i} className="flex gap-3 items-start">
                 <span className="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">
@@ -10880,16 +11189,22 @@ const Referral = ({ onBack, user, token }) => {
           </div>
         </div>
 
-        {/* Pending notice */}
-        {hasPending && (
-          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 16, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <span style={{ fontSize: 20 }}>⏳</span>
-            <div>
-              <p style={{ fontWeight: 700, fontSize: 13, color: "#92400e", marginBottom: 2 }}>Convert Request Pending</p>
-              <p style={{ fontSize: 12, color: "#b45309" }}>আপনার request Admin এর কাছে পাঠানো হয়েছে। Approve হলে balance এ যোগ হবে।</p>
-            </div>
+        {/* Progress bar */}
+        <div className="bg-gray-50 rounded-2xl p-4">
+          <div className="flex justify-between text-xs font-bold text-gray-500 mb-2">
+            <span>Progress</span>
+            <span>{points} / ২০ pts minimum</span>
           </div>
-        )}
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className="bg-orange-500 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min((points / 20) * 100, 100)}%` }}
+            />
+          </div>
+          {canConvert && (
+            <p className="text-xs text-green-600 font-bold mt-2">✅ আপনি convert করতে পারবেন! → ৳{takaAmount}</p>
+          )}
+        </div>
 
         {/* Message */}
         {convertMsg && (
@@ -10898,19 +11213,17 @@ const Referral = ({ onBack, user, token }) => {
           </div>
         )}
 
-        {/* Convert Button */}
+        {/* Convert Button — ✅ সঠিক amount */}
         <button
           onClick={handleConvert}
           disabled={converting || !canConvert}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50 transition"
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50 transition active:scale-95"
         >
           {converting
             ? "হচ্ছে..."
-            : hasPending
-              ? "⏳ Request Pending..."
-              : points < 100
-                ? `Convert করুন (${points} pts — কম আছে)`
-                : `Convert করুন (${points} pts → ৳${Math.floor(points / 100) * 100})`
+            : points < 20
+              ? `Convert করুন (${points} pts — কমপক্ষে ২০ লাগবে)`
+              : `Convert করুন (${points} pts → ৳${takaAmount})`
           }
         </button>
 
@@ -10929,9 +11242,9 @@ const Referral = ({ onBack, user, token }) => {
                     {r.pointGiven ? (
                       <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold">+5 pts ✅</span>
                     ) : r.deposited ? (
-                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">Deposited</span>
+                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-semibold">Match পেন্ডিং ⏳</span>
                     ) : (
-                      <span className="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Pending</span>
+                      <span className="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Deposit পেন্ডিং</span>
                     )}
                   </div>
                 </div>
@@ -10946,6 +11259,7 @@ const Referral = ({ onBack, user, token }) => {
 };
 
 export default Referral;
+   
 ...................................Referral.jsx end .............................................
 
 
