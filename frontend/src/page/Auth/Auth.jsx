@@ -41,13 +41,13 @@ const Auth = ({ onLoginSuccess }) => {
   const [newPass, setNewPass] = useState("");
   const [forgotStep, setForgotStep] = useState(1);
 
-  // ✅ URL থেকে ?ref=CODE auto-fill
+  // ✅ URL থেকে ?ref=CODE auto-fill — referral link কাজ করবে
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const refCode = params.get("ref");
     if (refCode) {
       setRegData((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
-      setScreen("register"); // সরাসরি register এ নিয়ে যাও
+      setScreen("register"); // সরাসরি register tab এ নিয়ে যাও
     }
   }, []);
 
@@ -102,10 +102,15 @@ const Auth = ({ onLoginSuccess }) => {
       });
       const data = await res.json();
       if (data.success) {
-        // ✅ token আর user এখন backend থেকে আসছে
         localStorage.setItem("token", data.token);
         localStorage.setItem("isAdmin", "false");
         localStorage.setItem("user", JSON.stringify(data.user));
+
+        // ✅ Register সফল হলে URL থেকে ?ref param মুছে দাও
+        const url = new URL(window.location.href);
+        url.searchParams.delete("ref");
+        window.history.replaceState({}, "", url.toString());
+
         onLoginSuccess();
       } else {
         setError(data.message || "Registration failed!");
@@ -284,19 +289,19 @@ const Auth = ({ onLoginSuccess }) => {
             required
           />
 
-          {/* ✅ REFERRAL CODE INPUT */}
+          {/* ✅ REFERRAL CODE — URL থেকে auto-fill, manually-ও দেওয়া যাবে */}
           <div className="relative">
             <input
               type="text"
               placeholder="রেফারেল কোড (optional)"
-              className={inputClass}
+              className={`${inputClass} ${regData.referralCode ? "border-orange-400 bg-orange-50" : ""}`}
               value={regData.referralCode}
-              onChange={(e) => setRegData({ ...regData, referralCode: e.target.value })}
+              onChange={(e) => setRegData({ ...regData, referralCode: e.target.value.toUpperCase() })}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🎁</span>
           </div>
 
-          {/* ✅ Referral code দেওয়া থাকলে confirm দেখাও */}
+          {/* ✅ Referral code confirm banner */}
           {regData.referralCode && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 font-bold">
               🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু ৫ পয়েন্ট পাবে!
