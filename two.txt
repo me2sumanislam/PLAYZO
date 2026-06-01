@@ -1,956 +1,1295 @@
-  import React, { useState, useEffect, useCallback } from "react";
  
- const API = "https://playzo-vn8e.onrender.com/api";
- 
- const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
- 
- // ── Countdown Timer ──
- const TimeLeft = ({ startTime }) => {
-   const [time, setTime] = useState("");
- 
-   useEffect(() => {
-     const calc = () => {
-       const diff = new Date(startTime).getTime() - Date.now();
-       if (diff <= 0) { setTime("শুরু হয়েছে"); return; }
-       const h = Math.floor(diff / 3600000);
-       const m = Math.floor((diff % 3600000) / 60000);
-       const s = Math.floor((diff % 60000) / 1000);
-       setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
-     };
-     calc();
-     const t = setInterval(calc, 1000);
-     return () => clearInterval(t);
-   }, [startTime]);
- 
-   return <span>{time}</span>;
- };
- 
- const MyMatch = () => {
-   const [matches, setMatches] = useState([]);
-   const [loading, setLoading] = useState(false);
-   const [openRoom, setOpenRoom] = useState({});
-   const [openPrize, setOpenPrize] = useState({});
- 
-   // user ID localStorage থেকে
-   const user = (() => {
-     try { return JSON.parse(localStorage.getItem("user") || "{}"); }
-     catch { return {}; }
-   })();
-   const userId = user?.id || user?._id;
- 
-   const load = useCallback(async () => {
-     if (!userId) return;
-     setLoading(true);
-     try {
-       // ✅ query parameter দিয়ে call — matchRoutes এর সাথে match করছে
-       const res = await fetch(`${API}/matches/my-matches?userId=${userId}`, {
-         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-       });
-       const d = await res.json();
-       setMatches(Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : []);
-     } catch {
-       setMatches([]);
-     }
-     setLoading(false);
-   }, [userId]);
- 
-   useEffect(() => { load(); }, [load]);
- 
-   // ── slot number বের করা ──
-   const getSlot = (match) => {
-     const entry = (match.joinedUsers || []).find(
-       (u) => u.userId?.toString() === userId?.toString()
-     );
-     return entry?.slotNumber || "—";
-   };
- 
-   const statusStyle = (s) => {
-     if (s === "live")      return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
-     if (s === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
-     return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
-   };
- 
-   if (!userId) {
-     return (
-       <div style={{ padding: 40, textAlign: "center" }}>
-         <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
-         <p style={{ color: "#9ca3af", fontSize: 14 }}>Login করুন</p>
-       </div>
-     );
-   }
- 
-   return (
-     <div style={{ background: "#f3f4f6", minHeight: "100vh", maxWidth: 450, margin: "0 auto", paddingBottom: 100 }}>
- 
-       {/* ── Header ── */}
-       <div style={{
-         background: "#fff", padding: "14px 16px",
-         display: "flex", alignItems: "center", justifyContent: "space-between",
-         borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, zIndex: 10,
-       }}>
-         <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>🎮 My Matches</div>
-         <button
-           onClick={load}
-           disabled={loading}
-           style={{
-             display: "flex", alignItems: "center", gap: 5,
-             padding: "6px 14px",
-             background: loading ? "#f3f4f6" : "#dbeafe",
-             border: "none", borderRadius: 20, fontSize: 12,
-             color: loading ? "#9ca3af" : "#1e40af",
-             cursor: loading ? "not-allowed" : "pointer",
-             fontWeight: 600,
-           }}>
-           <span style={{
-             display: "inline-block",
-             animation: loading ? "spin 1s linear infinite" : "none",
-           }}>🔄</span>
-           {loading ? "Loading..." : "Refresh"}
-         </button>
-       </div>
- 
-       <style>{`
-         @keyframes spin {
-           from { transform: rotate(0deg); }
-           to   { transform: rotate(360deg); }
-         }
-       `}</style>
- 
-       {/* ── Content ── */}
-       <div style={{ padding: "12px 12px 0" }}>
- 
-         {/* Loading */}
-         {loading && matches.length === 0 && (
-           <div style={{ textAlign: "center", padding: 40 }}>
-             <div style={{ fontSize: 32, animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</div>
-             <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 8 }}>Loading...</p>
-           </div>
-         )}
- 
-         {/* Empty State */}
-         {!loading && matches.length === 0 && (
-           <div style={{ textAlign: "center", padding: "60px 20px" }}>
-             <div style={{ fontSize: 52, marginBottom: 12 }}>🎮</div>
-             <div style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-               কোনো match join করা হয়নি
-             </div>
-             <div style={{ fontSize: 13, color: "#9ca3af" }}>
-               Match join করলে এখানে দেখা যাবে
-             </div>
-           </div>
-         )}
- 
-         {/* Match Cards */}
-         {matches.map((m) => {
-           const st = statusStyle(m.status);
-           const joined = Number(m.joinedPlayers || 0);
-           const total  = Number(m.totalPlayers || 0);
-           const fill   = total > 0 ? (joined / total) * 100 : 0;
-           const started = new Date(m.startTime).getTime() <= Date.now();
-           const slotNo  = getSlot(m);
- 
-           return (
-             <div key={m._id} style={{
-               background: "#fff", borderRadius: 16,
-               boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-               overflow: "hidden", marginBottom: 14,
-             }}>
- 
-               {/* ── Top: image + title ── */}
-               <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
-                 <img
-                   src={m.image || "/image/img-1.jpg"}
-                   alt=""
-                   style={{ width: 76, height: 58, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
-                   onError={(e) => { e.target.src = "/image/img-1.jpg"; }}
-                 />
-                 <div style={{ flex: 1 }}>
-                   <div style={{ fontSize: 14, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>
-                     {m.title} | {m.device || "Mobile"} | Regular
-                   </div>
-                   <div style={{ fontSize: 11, color: "#e53935", marginTop: 3, fontWeight: 500 }}>
-                     {m.startTime
-                       ? new Date(m.startTime).toLocaleString("en-BD", {
-                           day: "2-digit", month: "short", year: "numeric",
-                           hour: "2-digit", minute: "2-digit", hour12: true,
-                         })
-                       : "—"}
-                   </div>
-                   <div style={{ marginTop: 5, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                     <span style={{ background: st.bg, color: st.color, fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>
-                       {st.label}
-                     </span>
-                     {slotNo !== "—" && (
-                       <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>
-                         Slot #{slotNo}
-                       </span>
-                     )}
-                   </div>
-                 </div>
-               </div>
- 
-               {/* ── Stats Grid ── */}
-               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "0 14px", rowGap: 12, marginBottom: 12 }}>
-                 {[
-                   { label: "WIN PRIZE",  value: fmt(m.winPrize) },
-                   { label: "ENTRY TYPE", value: (m.category || "").toUpperCase() },
-                   { label: "ENTRY FEE",  value: fmt(m.entryFee) },
-                   { label: "PER KILL",   value: fmt(m.perKill || 0) },
-                   { label: "MAP",        value: m.map || "Bermuda" },
-                   { label: "VERSION",    value: (m.device || "MOBILE").toUpperCase() },
-                 ].map((s, i) => (
-                   <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
-                     <div style={{ fontSize: 9, color: "#888", fontWeight: 600, letterSpacing: 0.5 }}>{s.label}</div>
-                     <div style={{ fontSize: 14, fontWeight: 700, color: "#111", marginTop: 2 }}>{s.value}</div>
-                   </div>
-                 ))}
-               </div>
- 
-               {/* ── Progress Bar ── */}
-               <div style={{ padding: "0 14px 12px" }}>
-                 <div style={{ height: 8, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
-                   <div style={{ height: "100%", width: `${fill}%`, background: "#22c55e", borderRadius: 20, transition: "width 0.5s" }} />
-                 </div>
-                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                   <span style={{ fontSize: 10, color: "#6b7280" }}>Only {total - joined} spots left</span>
-                   <span style={{ fontSize: 10, color: "#6b7280" }}>{joined}/{total}</span>
-                 </div>
-               </div>
- 
-               {/* ── Room + Prize Buttons ── */}
-               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "0 14px 12px" }}>
- 
-                 {/* Room Details */}
-                 <div>
-                   <button
-                     onClick={() => setOpenRoom((p) => ({ ...p, [m._id]: !p[m._id] }))}
-                     style={{
-                       width: "100%", padding: "9px 0", border: "1.5px solid #1e40af",
-                       borderRadius: 8, background: "#fff", color: "#1e40af",
-                       fontWeight: 600, fontSize: 11, cursor: "pointer",
-                       display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                     }}>
-                     🔑 Room Details {openRoom[m._id] ? "▲" : "▼"}
-                   </button>
-                   {openRoom[m._id] && (
-                     <div style={{ marginTop: 6, background: "#f0f9ff", borderRadius: 8, padding: "10px 12px", border: "1px solid #bae6fd" }}>
-                       {m.isRoomOpen && m.roomId ? (
-                         <>
-                           <div style={{ fontSize: 12, color: "#0369a1", marginBottom: 4 }}>
-                             <b>Room ID:</b> {m.roomId}
-                           </div>
-                           <div style={{ fontSize: 12, color: "#0369a1" }}>
-                             <b>Password:</b> {m.roomPassword || "—"}
-                           </div>
-                         </>
-                       ) : (
-                         <div style={{ fontSize: 12, color: "#64748b", textAlign: "center" }}>
-                           ⏳ Room details not available yet
-                         </div>
-                       )}
-                     </div>
-                   )}
-                 </div>
- 
-                 {/* Prize Details */}
-                 <div>
-                   <button
-                     onClick={() => setOpenPrize((p) => ({ ...p, [m._id]: !p[m._id] }))}
-                     style={{
-                       width: "100%", padding: "9px 0", border: "1.5px solid #1e40af",
-                       borderRadius: 8, background: "#fff", color: "#1e40af",
-                       fontWeight: 600, fontSize: 11, cursor: "pointer",
-                       display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                     }}>
-                     🏆 Prize Details {openPrize[m._id] ? "▲" : "▼"}
-                   </button>
-                   {openPrize[m._id] && (
-                     <div style={{ marginTop: 6, background: "#fefce8", borderRadius: 8, padding: "10px 12px", border: "1px solid #fde68a" }}>
-                       {[
-                         { label: "🥇 1st Prize", value: m.prizes?.first  || m.winPrize || 0 },
-                         { label: "🥈 2nd Prize", value: m.prizes?.second || 0 },
-                         { label: "🥉 3rd Prize", value: m.prizes?.third  || 0 },
-                         { label: "4️⃣ 4th Prize", value: m.prizes?.fourth || 0 },
-                         { label: "🔫 Per Kill",  value: m.perKill || 0 },
-                         { label: "🎟 Entry Fee", value: m.entryFee || 0 },
-                       ].map((p, i) => (
-                         <div key={i} style={{
-                           display: "flex", justifyContent: "space-between",
-                           fontSize: 12, color: "#92400e",
-                           paddingBottom: 4, marginBottom: 4,
-                           borderBottom: i < 5 ? "1px solid #fde68a" : "none",
-                         }}>
-                           <span>{p.label}</span>
-                           <b>৳{p.value}</b>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                 </div>
- 
-               </div>
- 
-               {/* ── Footer: countdown or started ── */}
-               <div style={{
-                 background: m.status === "completed" ? "#374151" : "#16a34a",
-                 padding: "11px", textAlign: "center",
-                 color: "#fff", fontWeight: 700, fontSize: 13,
-               }}>
-                 {m.status === "completed" ? (
-                   <span>✅ Match শেষ হয়েছে</span>
-                 ) : started ? (
-                   <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
-                 ) : (
-                   <span>⏰ STARTS IN — <TimeLeft startTime={m.startTime} /></span>
-                 )}
-               </div>
- 
-             </div>
-           );
-         })}
- 
-       </div>
-     </div>
-   );
- };
- 
- export default MyMatch;
-  import React, { useState, useEffect } from "react";
+ import React, { useState, useEffect } from "react";
+import BottomMenu from "../BottomMenu/BottomMenu";
+import NotificationBell from "../NotificationBell/NotificationBell";
+import Profile from "../../page/Profile/profile";
+import Wallet from "../../page/Wallet/Wallet";
+import MatchList from "../../page/MatchList/MatchList";
+import Withdraw from "../../page/Withdraw/Withdraw";
+import AllRulesPage from "../AllRulesPage/AllRulesPage";
+import AccountInfo from "../../page/AccountInfo/AccountInfo";
+import MyMatch from "../../page/MyMatch/MyMatch";
+import Leaderboard from "../../page/Leaderboard/Leaderboard";
+import Referral from "../../page/Referral/Referral";
+import ClickableSlider from "../Slider/ClickableSlider";   // ← নতুন স্লাইডার
 
-const API = import.meta.env.VITE_API_URL?.replace("/api", "") || "https://playzo-vn8e.onrender.com";
 
-const MatchCard = ({ match, onJoinSuccess, totalMatches }) => {
-  const [timeLeft, setTimeLeft]           = useState("");
-  const [isStarted, setIsStarted]         = useState(false);
-  const [showRoom, setShowRoom]           = useState(false);
-  const [showPrize, setShowPrize]         = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [inGameName, setInGameName]       = useState("");
-  const [joinLoading, setJoinLoading]     = useState(false);
-  const [joinError, setJoinError]         = useState("");
-  const [joinSuccess, setJoinSuccess]     = useState(false);
-  const [mySlot, setMySlot]               = useState(null);
+const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 
-  // countdown
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now      = new Date().getTime();
-      const start    = new Date(match.startTime).getTime();
-      const distance = start - now;
-      if (distance <= 0) {
-        setTimeLeft("কাস্টম Ready");
-        setIsStarted(true);
-        clearInterval(timer);
-        return;
-      }
-      const h = Math.floor(distance / (1000 * 60 * 60));
-      const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((distance % (1000 * 60)) / 1000);
-      setTimeLeft(
-        h > 0
-          ? `${h}h ${m}m:${String(s).padStart(2, "0")}s`
-          : `${m}m:${String(s).padStart(2, "0")}s`
-      );
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [match.startTime]);
+// ─── Inline MatchResults Component ────────────────────────────────────────────
 
-  // slot check
-  useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const uid  = user._id || user.id;
-    if (uid && match.joinedUsers) {
-      const found = match.joinedUsers.find(
-        (u) => (u.userId?._id || u.userId)?.toString() === uid.toString()
-      );
-      if (found) setMySlot(found.slotNumber);
-    }
-  }, [match.joinedUsers]);
+const PRIZE_CONFIG = { first: 60, second: 40, third: 20 };
 
-  const joined      = Number(match.joinedPlayers || 0);
-  const total       = Number(match.totalPlayers  || 0);
-  const spotsLeft   = total - joined;
-  const isFull      = joined >= total && total > 0;
-  const fillPercent = total > 0 ? (joined / total) * 100 : 0;
+function getRankMeta(rank) {
+  if (rank === 1)
+    return {
+      icon: "🏆",
+      text: "text-yellow-400",
+      bg: "bg-yellow-500/20",
+      border: "border-yellow-500/30",
+      label: "BOOYAH!",
+    };
+  if (rank === 2)
+    return {
+      icon: "🥈",
+      text: "text-gray-300",
+      bg: "bg-gray-500/20",
+      border: "border-gray-400/30",
+      label: "2nd Place",
+    };
+  if (rank === 3)
+    return {
+      icon: "🥉",
+      text: "text-orange-400",
+      bg: "bg-orange-500/20",
+      border: "border-orange-500/30",
+      label: "3rd Place",
+    };
+  return null;
+}
 
-  const formatTime = (t) => {
-    if (!t) return "";
-    return new Date(t)
-      .toLocaleString("en-BD", {
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", hour12: true,
-      })
-      .replace(",", " at");
-  };
+function MatchResultsPage({
+  matchId,
+  matchTitle,
+  killPrice,
+  results,
+  publishedAt,
+  mapName,
+  currentUserUid,
+}) {
+  const [tab, setTab] = useState("leaderboard");
 
-  const getEntryType = () => {
-    const cat = (match.category || "").toLowerCase();
-    if (cat.includes("solo"))  return "Solo";
-    if (cat.includes("duo"))   return "Duo";
-    if (cat.includes("squad") || cat.includes("4")) return "Squad";
-    return match.category || "Solo";
-  };
+  const sorted = [...(results || [])].sort((a, b) => {
+    if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
+    return (a.rank || 999) - (b.rank || 999);
+  });
 
-  // JOIN
-  const handleJoin = async () => {
-    if (!inGameName.trim()) return;
-    setJoinLoading(true);
-    setJoinError("");
-    setShowJoinModal(false);
-    const user  = JSON.parse(localStorage.getItem("user") || "{}");
-    const token = localStorage.getItem("token");
-    try {
-      const res  = await fetch(`${API}/api/matches/join/${match._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ userId: user._id || user.id, inGameName: inGameName.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const updatedUser = { ...user, balance: data.newBalance };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-        setMySlot(data.slotNumber);
-        setJoinSuccess(true);
-        setInGameName("");
-        if (onJoinSuccess) onJoinSuccess(data.newBalance);
-        setTimeout(() => setJoinSuccess(false), 3000);
-      } else {
-        setJoinError(data.message || "সমস্যা হয়েছে");
-        setTimeout(() => setJoinError(""), 3000);
-      }
-    } catch {
-      setJoinError("Server error, আবার চেষ্টা করুন");
-      setTimeout(() => setJoinError(""), 3000);
-    } finally {
-      setJoinLoading(false);
-    }
-  };
+  const myResult = results?.find((r) => r.uid === currentUserUid);
 
   return (
-    <>
-      <div style={{
-        background: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-        overflow: "hidden",
-        marginBottom: 16,
-        position: "relative",
-      }}>
-
-
-
-        {/* TOP: IMAGE + TITLE + DATE */}
-        <div style={{ display: "flex", gap: 12, padding: "14px 14px 10px" }}>
-          <img
-            src={match.image || "/image/img-1.jpg"} alt=""
-            style={{ width: 80, height: 60, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
-          />
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#111", lineHeight: 1.3 }}>
-              {match.title}
-            </div>
-            <div style={{ fontSize: 12, color: "#e53935", marginTop: 4, fontWeight: 500 }}>
-              {formatTime(match.startTime)}
-            </div>
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/10 to-transparent pointer-events-none" />
+        <div className="px-4 pt-6 pb-4 relative z-10">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">
+              Result Live
+            </span>
           </div>
-        </div>
-
-        {/* STATS GRID */}
-        <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-          padding: "0 14px", rowGap: 14, marginBottom: 14,
-        }}>
-          {[
-            { label: "WIN PRIZE",  value: `${match.winPrize  || 0} TK` },
-            { label: "ENTRY TYPE", value: getEntryType() },
-            { label: "ENTRY FEE",  value: `${match.entryFee  || 0} TK` },
-            { label: "PER KILL",   value: `${match.perKill   || 0} TK` },
-            { label: "MAP",        value: match.map || "Bermuda" },
-            { label: "VERSION",    value: (match.device || "MOBILE").toUpperCase() },
-          ].map((s, i) => (
-            <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
-              <div style={{ fontSize: 10, color: "#888", fontWeight: 600, letterSpacing: 0.5 }}>{s.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#111", marginTop: 2 }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* PROGRESS + JOIN */}
-        <div style={{ padding: "0 14px 10px", display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ height: 10, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
-              <div style={{
-                height: "100%", width: `${fillPercent}%`,
-                background: "#22c55e", borderRadius: 20, transition: "width 0.5s",
-              }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-              <span style={{ fontSize: 11, color: "#6b7280" }}>Only {spotsLeft} spots are left</span>
-              <span style={{ fontSize: 11, color: "#6b7280" }}>{joined}/{total}</span>
-            </div>
-          </div>
-
-          {mySlot ? (
-            <div style={{
-              padding: "7px 14px", background: "#f0fdf4",
-              border: "1.5px solid #22c55e", borderRadius: 8,
-              color: "#16a34a", fontWeight: 700, fontSize: 12, whiteSpace: "nowrap",
-            }}>✅ Slot #{mySlot}</div>
-          ) : isFull ? (
-            <div style={{
-              padding: "8px 16px", border: "1.5px solid #1e40af",
-              borderRadius: 8, color: "#1e40af", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap",
-            }}>Match Full</div>
-          ) : (
-            <button
-              onClick={() => setShowJoinModal(true)}
-              disabled={joinLoading}
-              style={{
-                padding: "8px 20px",
-                background: joinLoading ? "#86efac" : "#22c55e",
-                border: "none", borderRadius: 8, color: "#fff",
-                fontWeight: 700, fontSize: 13, minWidth: 70,
-                cursor: joinLoading ? "not-allowed" : "pointer",
-              }}>
-              {joinLoading ? "..." : "Join"}
-            </button>
-          )}
-        </div>
-
-        {joinError && (
-          <div style={{ margin: "0 14px 10px", background: "#fee2e2", borderRadius: 8, padding: "8px 12px", color: "#dc2626", fontSize: 13 }}>
-            ❌ {joinError}
-          </div>
-        )}
-        {joinSuccess && (
-          <div style={{ margin: "0 14px 10px", background: "#dcfce7", borderRadius: 8, padding: "8px 12px", color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
-            ✅ Joined! Slot #{mySlot} — ৳{match.entryFee} কাটা হয়েছে
-          </div>
-        )}
-
-        {/* ACCORDION BUTTONS */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "0 14px 14px" }}>
-          <button
-            onClick={() => { setShowRoom(!showRoom); setShowPrize(false); }}
-            style={{
-              padding: "10px 0",
-              border: "1.5px solid #1e40af",
-              borderRadius: showRoom ? "10px 10px 0 0" : 10,
-              background: showRoom ? "#1e40af" : "#fff",
-              color: showRoom ? "#fff" : "#1e40af",
-              fontWeight: 600, fontSize: 12, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-              transition: "all 0.2s",
-            }}>
-            🔑 Room Details {showRoom ? "▲" : "▼"}
-          </button>
-          <button
-            onClick={() => { setShowPrize(!showPrize); setShowRoom(false); }}
-            style={{
-              padding: "10px 0",
-              border: "1.5px solid #1e40af",
-              borderRadius: showPrize ? "10px 10px 0 0" : 10,
-              background: showPrize ? "#1e40af" : "#fff",
-              color: showPrize ? "#fff" : "#1e40af",
-              fontWeight: 600, fontSize: 12, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-              transition: "all 0.2s",
-            }}>
-            🏆 Total Prize Details {showPrize ? "▲" : "▼"}
-          </button>
-        </div>
-
-        {/* ROOM DETAILS ACCORDION CONTENT */}
-        {showRoom && (
-          <div style={{ padding: "0 14px 14px" }}>
-            {mySlot && (
-              <div style={{
-                background: "linear-gradient(135deg,#ecfdf5,#d1fae5)",
-                border: "2px solid #22c55e", borderRadius: 12,
-                padding: "12px 16px", marginBottom: 10,
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-              }}>
-                <div>
-                  <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>আপনার Slot Number</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, color: "#15803d" }}>#{mySlot}</div>
-                </div>
-                <span style={{ fontSize: 36 }}>🎮</span>
-              </div>
-            )}
-            {match.isRoomOpen ? (
+          <h1 className="text-white text-2xl font-extrabold">
+            {matchTitle || "Match Result"}
+          </h1>
+          <div className="flex items-center gap-3 mt-1 text-gray-500 text-xs flex-wrap">
+            {mapName && <span>🗺️ {mapName}</span>}
+            {killPrice && (
               <>
-                {[
-                  { label: "Room ID",  value: match.roomId       || "—", icon: "🏠" },
-                  { label: "Password", value: match.roomPassword || "—", icon: "🔒" },
-                ].map((item, i) => (
-                  <div key={i} style={{
-                    background: "#f0f9ff", border: "1px solid #bae6fd",
-                    borderRadius: 12, padding: "12px 16px", marginBottom: 8,
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                  }}>
-                    <div>
-                      <div style={{ fontSize: 11, color: "#0369a1", fontWeight: 600, marginBottom: 3 }}>
-                        {item.icon} {item.label}
-                      </div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: "#0c4a6e", letterSpacing: 1 }}>
-                        {item.value}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => navigator.clipboard?.writeText(item.value)}
-                      style={{
-                        background: "#0369a1", border: "none", borderRadius: 8,
-                        color: "#fff", fontSize: 11, fontWeight: 600,
-                        padding: "6px 12px", cursor: "pointer",
-                      }}>Copy</button>
-                  </div>
-                ))}
+                <span>•</span>
+                <span>⚔️ Kill: ৳{killPrice}</span>
               </>
-            ) : (
-              <div style={{
-                background: "#f8fafc", border: "1px dashed #cbd5e1",
-                borderRadius: 12, padding: "20px", textAlign: "center",
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 6 }}>⏳</div>
-                <div style={{ color: "#64748b", fontWeight: 600, fontSize: 13 }}>
-                  Room details এখনো দেওয়া হয়নি
-                </div>
-                <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 3 }}>
-                  Match শুরুর আগে admin দেবে
-                </div>
-              </div>
             )}
-            {!mySlot && (
-              <div style={{
-                background: "#fffbeb", border: "1px solid #fde68a",
-                borderRadius: 10, padding: "8px 12px", marginTop: 4,
-                color: "#92400e", fontSize: 11, textAlign: "center",
-              }}>
-                ⚠️ Match join করলে আপনার Slot Number এখানে দেখাবে
-              </div>
+            {publishedAt && (
+              <>
+                <span>•</span>
+                <span>{new Date(publishedAt).toLocaleDateString("en-BD")}</span>
+              </>
             )}
           </div>
-        )}
-
-        {/* PRIZE DETAILS ACCORDION CONTENT */}
-        {showPrize && (
-          <div style={{ padding: "0 14px 14px" }}>
-            {[
-              { rank: "🥇", label: "1st Place", value: match.prizes?.first  || match.winPrize || 0, bg: "#fef9c3", border: "#fde68a", color: "#92400e" },
-              { rank: "🥈", label: "2nd Place", value: match.prizes?.second || 0, bg: "#f1f5f9", border: "#e2e8f0", color: "#475569" },
-              { rank: "🥉", label: "3rd Place", value: match.prizes?.third  || 0, bg: "#fff7ed", border: "#fed7aa", color: "#9a3412" },
-              { rank: "4️⃣", label: "4th Place", value: match.prizes?.fourth || 0, bg: "#f8fafc", border: "#e2e8f0", color: "#64748b" },
-              { rank: "🔫", label: "Per Kill",  value: match.perKill  || 0,       bg: "#fef2f2", border: "#fecaca", color: "#dc2626" },
-              { rank: "🎟", label: "Entry Fee", value: match.entryFee || 0,       bg: "#f0fdf4", border: "#bbf7d0", color: "#16a34a" },
-            ].map((p, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: p.bg, border: `1px solid ${p.border}`,
-                borderRadius: 12, padding: "10px 14px", marginBottom: 7,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 18 }}>{p.rank}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: p.color }}>{p.label}</span>
-                </div>
-                <span style={{ fontSize: 15, fontWeight: 800, color: p.color }}>৳{p.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* FOOTER */}
-        <div style={{
-          background: "#16a34a", padding: "12px",
-          textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14,
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-        }}>
-          {isStarted ? (
-            <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
-          ) : (
-            <span>⏰ STARTS IN — <span style={{ fontSize: 16, fontWeight: 800 }}>{timeLeft}</span></span>
-          )}
         </div>
       </div>
 
-      {/* JOIN MODAL */}
-      {showJoinModal && (
-        <div
-          onClick={() => setShowJoinModal(false)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-            zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
-            padding: "0 20px",
-          }}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff", borderRadius: 20,
-              width: "100%", maxWidth: 360, overflow: "hidden",
-              animation: "slideUp 0.25s ease",
-            }}>
-            <div style={{
-              background: "linear-gradient(135deg,#22c55e,#16a34a)",
-              padding: "18px 20px",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-            }}>
-              <div>
-                <div style={{ color: "#fff", fontWeight: 800, fontSize: 16 }}>🎮 Match Join করুন</div>
-                <div style={{ color: "#dcfce7", fontSize: 12, marginTop: 2 }}>{match.title}</div>
+      {sorted.length >= 1 && (
+        <div className="px-4 mb-4">
+          <div className="flex items-end justify-center gap-2">
+            {sorted[1] && (
+              <div className="flex-1 bg-[#111827] border border-gray-400/20 rounded-2xl p-3 text-center pb-4">
+                <p className="text-2xl mb-1">🥈</p>
+                <p className="text-white text-xs font-bold truncate">
+                  {sorted[1].playerName}
+                </p>
+                <p className="text-gray-400 text-[10px]">
+                  {sorted[1].kills} kills
+                </p>
+                <p className="text-gray-200 text-sm font-black mt-1">
+                  ৳{sorted[1].totalPrize}
+                </p>
               </div>
-              <button
-                onClick={() => { setShowJoinModal(false); setInGameName(""); }}
-                style={{
-                  background: "rgba(255,255,255,0.25)", border: "none",
-                  borderRadius: "50%", width: 30, height: 30,
-                  color: "#fff", fontSize: 15, cursor: "pointer",
-                }}>✕</button>
-            </div>
-            <div style={{ padding: "20px" }}>
-              <div style={{
-                background: "#fef3c7", border: "1px solid #fde68a",
-                borderRadius: 10, padding: "10px 14px", marginBottom: 16,
-                fontSize: 13, color: "#92400e", textAlign: "center", fontWeight: 600,
-              }}>
-                ৳{match.entryFee} আপনার wallet থেকে কাটা হবে
+            )}
+            {sorted[0] && (
+              <div className="flex-1 bg-[#111827] border border-yellow-500/30 rounded-2xl p-3 text-center pb-6 -mb-2 shadow-lg shadow-yellow-500/10">
+                <p className="text-3xl mb-1">🏆</p>
+                <p className="text-yellow-400 text-xs font-extrabold truncate">
+                  {sorted[0].playerName}
+                </p>
+                <p className="text-gray-400 text-[10px]">
+                  {sorted[0].kills} kills
+                </p>
+                <p className="text-yellow-400 text-base font-black mt-1">
+                  ৳{sorted[0].totalPrize}
+                </p>
               </div>
-              <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
-                Free Fire Username
-              </label>
-              <input
-                type="text"
-                placeholder="আপনার in-game username লিখুন"
-                value={inGameName}
-                onChange={(e) => setInGameName(e.target.value)}
-                style={{
-                  width: "100%", padding: "12px 14px",
-                  border: "1.5px solid #e5e7eb", borderRadius: 10,
-                  fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 16,
-                }}
-                onFocus={(e) => (e.target.style.borderColor = "#22c55e")}
-                onBlur={(e)  => (e.target.style.borderColor = "#e5e7eb")}
-                onKeyDown={(e) => e.key === "Enter" && inGameName.trim() && handleJoin()}
-              />
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={() => { setShowJoinModal(false); setInGameName(""); }}
-                  style={{
-                    flex: 1, padding: "11px 0",
-                    border: "1.5px solid #e5e7eb", borderRadius: 10,
-                    background: "#fff", color: "#374151",
-                    fontWeight: 600, fontSize: 13, cursor: "pointer",
-                  }}>বাতিল</button>
-                <button
-                  onClick={handleJoin}
-                  disabled={!inGameName.trim()}
-                  style={{
-                    flex: 1, padding: "11px 0",
-                    background: inGameName.trim() ? "#22c55e" : "#86efac",
-                    border: "none", borderRadius: 10, color: "#fff",
-                    fontWeight: 700, fontSize: 13,
-                    cursor: inGameName.trim() ? "pointer" : "not-allowed",
-                  }}>✅ Confirm Join</button>
+            )}
+            {sorted[2] && (
+              <div className="flex-1 bg-[#111827] border border-orange-500/20 rounded-2xl p-3 text-center pb-4">
+                <p className="text-2xl mb-1">🥉</p>
+                <p className="text-white text-xs font-bold truncate">
+                  {sorted[2].playerName}
+                </p>
+                <p className="text-gray-400 text-[10px]">
+                  {sorted[2].kills} kills
+                </p>
+                <p className="text-orange-300 text-sm font-black mt-1">
+                  ৳{sorted[2].totalPrize}
+                </p>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
 
-      <style>{`
-        @keyframes pulse {
-          0%   { box-shadow: 0 0 0 0    rgba(34,197,94,0.4); }
-          70%  { box-shadow: 0 0 0 10px rgba(34,197,94,0);   }
-          100% { box-shadow: 0 0 0 0    rgba(34,197,94,0);   }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(40px); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-      `}</style>
-    </>
+      <div className="px-4 mb-3">
+        <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
+          {[
+            { key: "leaderboard", label: "Leaderboard" },
+            { key: "mine", label: "My Result" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === "leaderboard" && (
+        <div className="px-4 space-y-2">
+          {sorted.length === 0 && (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-gray-500 text-sm">No results yet</p>
+            </div>
+          )}
+          {sorted.map((player, idx) => {
+            const isMe = player.uid === currentUserUid;
+            return (
+              <div
+                key={player.uid + idx}
+                className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
+                      idx === 0
+                        ? "bg-yellow-500/20 text-yellow-400"
+                        : idx === 1
+                          ? "bg-gray-500/20 text-gray-300"
+                          : idx === 2
+                            ? "bg-orange-500/20 text-orange-400"
+                            : "bg-white/5 text-gray-500"
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p
+                        className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}
+                      >
+                        {player.playerName}
+                      </p>
+                      {isMe && (
+                        <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full shrink-0">
+                          YOU
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
+                      {player.rank && <span>#{player.rank} Rank</span>}
+                      <span>⚔️ {player.kills} kills</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p
+                      className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}
+                    >
+                      {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
+                    </p>
+                    {player.totalPrize > 0 && (
+                      <p className="text-[10px] text-gray-600 mt-0.5">
+                        credited
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {player.totalPrize > 0 && (
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    {player.rankPrize > 0 && (
+                      <span className="text-[11px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20">
+                        Rank ৳{player.rankPrize}
+                      </span>
+                    )}
+                    {player.killEarning > 0 && (
+                      <span className="text-[11px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
+                        ⚔️ {player.kills} kills ৳{player.killEarning}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === "mine" && (
+        <div className="px-4">
+          {!currentUserUid ? (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-gray-500 text-sm">Login to see your result</p>
+            </div>
+          ) : !myResult ? (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-3xl mb-3">😔</p>
+              <p className="text-white font-bold mb-1">Not in Results</p>
+              <p className="text-gray-500 text-sm">
+                Your UID was not found in this match result
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div
+                className={`rounded-2xl p-5 border mb-4 ${
+                  myResult.rank === 1
+                    ? "bg-yellow-500/10 border-yellow-500/30"
+                    : myResult.rank === 2
+                      ? "bg-gray-500/10 border-gray-400/30"
+                      : myResult.rank === 3
+                        ? "bg-orange-500/10 border-orange-500/30"
+                        : "bg-[#111827] border-white/5"
+                }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-gray-400 text-xs">Your IGN</p>
+                    <p className="text-white text-xl font-black">
+                      {myResult.playerName}
+                    </p>
+                  </div>
+                  {getRankMeta(myResult.rank) && (
+                    <span
+                      className={`text-xs font-bold px-3 py-1 rounded-full border ${getRankMeta(myResult.rank).bg} ${getRankMeta(myResult.rank).text} ${getRankMeta(myResult.rank).border}`}
+                    >
+                      {getRankMeta(myResult.rank).icon} #{myResult.rank}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-white font-black text-lg">
+                      #{myResult.rank || "—"}
+                    </p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-orange-400 font-black text-lg">
+                      {myResult.kills}
+                    </p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-green-400 font-black text-lg">
+                      ৳{myResult.totalPrize}
+                    </p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
+                  </div>
+                </div>
+                {myResult.totalPrize > 0 ? (
+                  <div className="bg-black/30 rounded-xl p-3">
+                    <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wider">
+                      Prize Breakdown
+                    </p>
+                    <div className="space-y-1.5">
+                      {myResult.rankPrize > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Placement Prize</span>
+                          <span className="text-yellow-400 font-bold">
+                            +৳{myResult.rankPrize}
+                          </span>
+                        </div>
+                      )}
+                      {myResult.killEarning > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">
+                            {myResult.kills} Kills × ৳{killPrice}
+                          </span>
+                          <span className="text-green-400 font-bold">
+                            +৳{myResult.killEarning}
+                          </span>
+                        </div>
+                      )}
+                      <div className="border-t border-white/10 pt-1.5 flex justify-between">
+                        <span className="text-white font-bold text-sm">
+                          Total Credited
+                        </span>
+                        <span className="text-green-400 font-black text-base">
+                          ৳{myResult.totalPrize}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-black/30 rounded-xl p-4 text-center">
+                    <p className="text-gray-500 text-sm">
+                      No prize this match. Better luck next time! 💪
+                    </p>
+                  </div>
+                )}
+              </div>
+              {myResult.totalPrize > 0 && (
+                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+                  <span className="text-green-400">✓</span>
+                  <p className="text-green-400 text-sm">
+                    <strong>৳{myResult.totalPrize}</strong> has been credited to
+                    your wallet
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
-};
+}
 
-export default MatchCard;     import React, { useState, useEffect, useRef } from "react";
-import MatchCard from "../MatchCard/MatchCard";
-import BottomMenu from "../../Component/BottomMenu/BottomMenu";
+// ─── Results List ─────────────────────────────────────────────────────────────
+function ResultsListPage({ onSelectResult, currentUserUid }) {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+  useEffect(() => {
+    const fetchResults = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/matches/completed`);
+        const data = await res.json();
+        setMatches(Array.isArray(data?.data) ? data.data : []);
+      } catch {
+        setMatches([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchResults();
+  }, []);
 
-// ✅ Pull-to-refresh — page change না করে শুধু data reload
-const PullToRefresh = ({ onRefresh, children }) => {
-  const startY = useRef(0);
-  const pulling = useRef(false);
-
-  const onTouchStart = (e) => {
-    startY.current = e.touches[0].clientY;
-    pulling.current = true;
-  };
-
-  const onTouchEnd = (e) => {
-    if (!pulling.current) return;
-    const diff = e.changedTouches[0].clientY - startY.current;
-    if (diff > 80) onRefresh(); // 80px নিচে টানলে refresh
-    pulling.current = false;
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 text-sm">Loading results...</p>
+      </div>
+    );
+  }
 
   return (
-    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      {children}
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      <div className="px-4 pt-6 pb-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+          <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">
+            Match Results
+          </span>
+        </div>
+        <h1 className="text-white text-2xl font-extrabold">Results</h1>
+        <p className="text-gray-500 text-xs mt-1">
+          Tap a match to see full leaderboard
+        </p>
+      </div>
+
+      <div className="px-4 space-y-3">
+        {matches.length === 0 ? (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-3xl mb-3">🎮</p>
+            <p className="text-white font-bold mb-1">No Results Yet</p>
+            <p className="text-gray-500 text-sm">
+              Results will appear here after matches end
+            </p>
+          </div>
+        ) : (
+          matches.map((match) => {
+            const top3 = (match.results || [])
+              .sort((a, b) => a.position - b.position)
+              .slice(0, 3);
+            const myResult = (match.results || []).find(
+              (r) => r.userId?.toString() === currentUserUid?.toString()
+            );
+            const categoryLabel = {
+              br_match: "BR Match",
+              br_survival: "BR Survival",
+              clash_squad: "Clash Squad",
+              cs_2vs2: "CS 2vs2",
+              lone_wolf: "Lone Wolf",
+              training: "Training Match",
+            }[match.category] || match.category;
+            const categoryColor = {
+              br_match: { bg: "#7c3aed20", text: "#a78bfa" },
+              br_survival: { bg: "#dc262620", text: "#f87171" },
+              clash_squad: { bg: "#0284c720", text: "#38bdf8" },
+              cs_2vs2: { bg: "#16a34a20", text: "#4ade80" },
+              lone_wolf: { bg: "#d9770620", text: "#fb923c" },
+              training: { bg: "#64748b20", text: "#94a3b8" },
+            }[match.category] || { bg: "#ffffff10", text: "#fff" };
+            return (
+              <div
+                key={match._id}
+                onClick={() => onSelectResult(match)}
+                className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 20,
+                          background: categoryColor.bg,
+                          color: categoryColor.text,
+                        }}
+                      >
+                        {categoryLabel}
+                      </span>
+                    </div>
+                    <p className="text-white font-bold text-sm truncate">
+                      {match.title}
+                    </p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {match.map || "Free Fire"} • ৳{match.perKill}/kill •{" "}
+                      {match.completedAt
+                        ? new Date(match.completedAt).toLocaleDateString("en-BD")
+                        : ""}
+                    </p>
+                  </div>
+                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">
+                    ✅ Completed
+                  </span>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  {top3.length > 0 ? (
+                    top3.map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1"
+                      >
+                        <span className="text-sm">
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-white text-[11px] font-bold truncate">
+                            {p.inGameName || "—"}
+                          </p>
+                          <p className="text-gray-500 text-[10px]">
+                            ৳{p.prize || 0}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-600 text-xs">No result data</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  {myResult ? (
+                    <div
+                      className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}
+                    >
+                      <span>You:</span>
+                      <span className="font-bold">
+                        #{myResult.position || "—"}
+                      </span>
+                      <span>⚔️ {myResult.kills} kills</span>
+                      {myResult.prize > 0 && (
+                        <span className="font-black">+৳{myResult.prize}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-gray-600 text-xs">
+                      You didn't participate
+                    </span>
+                  )}
+                  <span className="text-orange-400 text-xs font-bold">
+                    View →
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Notifications Page ───────────────────────────────────────────────────────
+function NotificationsPage({ onBack }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/notifications`);
+        const data = await res.json();
+        setNotifications(
+          Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.notifications)
+              ? data.notifications
+              : []
+        );
+      } catch {
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5">
+        <div className="px-4 py-4 flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/10 active:scale-95 transition-all"
+          >
+            <span className="text-white text-lg">←</span>
+          </button>
+          <div className="flex-1">
+            <h1 className="text-white text-xl font-extrabold">Notifications</h1>
+            <p className="text-gray-500 text-xs">All your alerts in one place</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm">Loading notifications...</p>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-4xl mb-3">🔔</p>
+            <p className="text-white font-bold mb-1">No Notifications</p>
+            <p className="text-gray-500 text-sm">
+              You're all caught up! Check back later
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {notifications.map((n, idx) => (
+              <div
+                key={n._id || idx}
+                className={`rounded-2xl p-4 border ${
+                  n.isRead
+                    ? "bg-[#111827] border-white/5"
+                    : "bg-orange-500/10 border-orange-500/30"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                    <span className="text-lg">{n.icon || "🔔"}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-white font-bold text-sm">
+                        {n.title || "Notification"}
+                      </p>
+                      {!n.isRead && (
+                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {n.body || n.message}
+                    </p>
+                    {n.createdAt && (
+                      <p className="text-gray-600 text-[10px] mt-2">
+                        {new Date(n.createdAt).toLocaleString("en-BD")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// 🆕 LUDO TOURNAMENT PAGE
+// ════════════════════════════════════════════════════════════
+function LudoTournamentPage({ currentUser, token, onBack }) {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("upcoming");
+  const [joining, setJoining] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    loadMatches();
+  }, [filter]);
+
+  const loadMatches = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/ludo-tournament?status=${filter}`);
+      const data = await res.json();
+      setMatches(Array.isArray(data?.data) ? data.data : []);
+    } catch {
+      setMatches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoin = async (matchId, entryFee) => {
+    if (!currentUser?.id && !currentUser?._id) {
+      setMsg("আগে login করুন");
+      return;
+    }
+    setJoining(matchId);
+    setMsg("");
+    try {
+      const res = await fetch(`${API_BASE}/ludo-tournament/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          matchId,
+          userId: currentUser?.id || currentUser?._id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg("✅ Successfully joined!");
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            ...stored,
+            balance: data.newBalance ?? stored.balance,
+          })
+        );
+        loadMatches();
+      } else {
+        setMsg("❌ " + (data.message || "Join failed"));
+      }
+    } catch {
+      setMsg("❌ Server error");
+    } finally {
+      setJoining(null);
+    }
+  };
+
+  const FILTERS = [
+    { id: "upcoming", label: "🕐 Upcoming" },
+    { id: "live", label: "🔴 Live" },
+    { id: "completed", label: "✅ Done" },
+  ];
+
+  const modeLabel = { "1v1": "⚔️ 1v1", "2v2": "👥 2v2", "4player": "🎮 4 Player" };
+  const modeColor = { "1v1": "#f59e0b", "2v2": "#3b82f6", "4player": "#10b981" };
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-4 pt-5 pb-5">
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={onBack}
+            className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95"
+          >
+            ←
+          </button>
+          <div>
+            <h1 className="text-white text-xl font-extrabold">🎲 Ludo Tournament</h1>
+            <p className="text-violet-200 text-xs mt-0.5">Play & Win Real Cash</p>
+          </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex gap-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                filter === f.id
+                  ? "bg-white text-violet-600"
+                  : "bg-white/15 text-white/70"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Message */}
+      {msg && (
+        <div
+          className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${
+            msg.startsWith("✅")
+              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+              : "bg-red-500/20 text-red-400 border border-red-500/30"
+          }`}
+        >
+          {msg}
+        </div>
+      )}
+
+      {/* Match list */}
+      <div className="px-4 mt-4 space-y-3">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm">Loading tournaments...</p>
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-4xl mb-3">🎲</p>
+            <p className="text-white font-bold mb-1">কোনো Tournament নেই</p>
+            <p className="text-gray-500 text-sm">
+              এই category তে এখন কোনো match নেই
+            </p>
+          </div>
+        ) : (
+          matches.map((match) => {
+            const mc = modeColor[match.mode] || "#6b7280";
+            const isFull =
+              (match.joinedPlayers || 0) >= (match.totalSlots || 4);
+            const isJoined = match.joinedUsers?.some(
+              (u) =>
+                (u.userId?._id || u.userId) ===
+                (currentUser?.id || currentUser?._id)
+            );
+            return (
+              <div
+                key={match._id}
+                className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden"
+              >
+                {/* color bar */}
+                <div style={{ height: 3, background: mc }} />
+
+                {match.image && (
+                  <img
+                    src={match.image}
+                    alt=""
+                    className="w-full h-28 object-cover"
+                  />
+                )}
+
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          style={{
+                            background: mc + "22",
+                            color: mc,
+                            fontSize: 10,
+                            padding: "2px 8px",
+                            borderRadius: 20,
+                            fontWeight: 700,
+                            border: `1px solid ${mc}55`,
+                          }}
+                        >
+                          {modeLabel[match.mode] || match.mode}
+                        </span>
+                        {match.status === "live" && (
+                          <span className="flex items-center gap-1 text-[10px] text-red-400 font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            LIVE
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white font-bold text-base">
+                        {match.title}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        🗺️ {match.map || "Classic"} • 📱{" "}
+                        {match.device || "Mobile"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-400 text-xs">Entry</p>
+                      <p className="text-white font-black text-lg">
+                        ৳{match.entryFee || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      {
+                        label: "Prize",
+                        value: `৳${match.winPrize || 0}`,
+                        color: "#f59e0b",
+                      },
+                      {
+                        label: "Players",
+                        value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`,
+                        color: isFull ? "#ef4444" : "#22d3ee",
+                      },
+                      {
+                        label: "Start",
+                        value: match.startTime
+                          ? new Date(match.startTime).toLocaleTimeString(
+                              "en-BD",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                              }
+                            )
+                          : "—",
+                        color: "#a78bfa",
+                      },
+                    ].map((s, i) => (
+                      <div key={i} className="bg-black/30 rounded-xl p-2 text-center">
+                        <p className="text-[9px] text-gray-500 font-semibold uppercase">
+                          {s.label}
+                        </p>
+                        <p
+                          className="text-xs font-black mt-0.5"
+                          style={{ color: s.color }}
+                        >
+                          {s.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Room code — live হলে দেখাবে */}
+                  {match.status === "live" && match.roomCode && (
+                    <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-violet-300 text-[10px] font-bold uppercase">
+                          Room Code
+                        </p>
+                        <p className="text-white font-black text-lg tracking-widest">
+                          {match.roomCode}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(match.roomCode);
+                          setMsg("✅ Room code copied!");
+                        }}
+                        className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Join button */}
+                  {match.status === "upcoming" && (
+                    isJoined ? (
+                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">
+                        ✅ Already Joined
+                      </div>
+                    ) : isFull ? (
+                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">
+                        ❌ Full
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleJoin(match._id, match.entryFee)}
+                        disabled={joining === match._id}
+                        className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60"
+                        style={{
+                          background: `linear-gradient(135deg, ${mc}, #4f46e5)`,
+                        }}
+                      >
+                        {joining === match._id
+                          ? "Joining..."
+                          : `Join Now • ৳${match.entryFee}`}
+                      </button>
+                    )
+                  )}
+
+                  {match.status === "completed" && (
+                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">
+                      ✅ Completed
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main AppDashboard ────────────────────────────────────────────────────────
+ // ─── Main AppDashboard ────────────────────────────────────────────────────────
+const AppDashboard = ({ onLogout }) => {
+  const [tab, setTab] = useState("play");
+  const [screen, setScreen] = useState("home");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [matches, setMatches] = useState([]);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [resultTab, setResultTab] = useState("leaderboard");
+  const [refreshing, setRefreshing] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const currentToken = localStorage.getItem("token") || "";
+  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+
+  const getMatchCount = (categoryKey) =>
+    matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
+
+  // Load Matches
+  useEffect(() => {
+    const loadMatches = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/matches`);
+        const data = await res.json();
+        let safeData = Array.isArray(data) ? data : data?.data || data?.matches || [];
+        setMatches(safeData);
+      } catch (err) {
+        setMatches([]);
+      }
+    };
+    loadMatches();
+    const interval = setInterval(loadMatches, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const categories = [
+    { key: "br_match", title: "BR Match", img: "/image/cards/BRMatchcard.png" },
+    { key: "br_survival", title: "BR Survival", img: "/image/cards/solo.png" },
+    { key: "clash_squad", title: "Clash Squad", img: "/image/cards/squard.png" },
+    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/cards/2vs2.png" },
+    { key: "lone_wolf", title: "Lone Wolf", img: "/image/cards/longwolf.png" },
+    { key: "training", title: "Training Match", img: "/image/cards/freematch.png" },
+  ];
+
+  // ✅ Best Mobile + PWA Friendly Slider Data
+  
+const sliderSlides = [
+   {
+    image: "/image/slider/facebook1.png",
+    // title: "Join Our Facebook Group!",
+    // subtitle: "Daily Updates",
+    // description: "Get latest news & offers",
+    // buttonText: "Join Now",
+    link: "/facebook"
+  },
+  {
+    image: "/image/slider/ludo.png",
+    // title: "Ludo Khele Jitun 🔥",
+    // subtitle: "Real Money Tournament",
+    // description: "Win up to ₹10,000",
+    // buttonText: "Play Now",
+    link: "/ludo"
+  },
+  {
+    image: "/image/slider/telegram.png",
+    // title: "Join Our Telegram Group!",
+    // subtitle: "Daily Updates",
+    // description: "Get latest news & offers",
+    // buttonText: "Join Now",
+    link: "/telegram"
+  },
+  {
+    image: "/image/slider/youtube.png",
+    // title: "Join Our YouTube Channel",
+    // subtitle: "Daily Updates",
+    // description: "Get latest news & offers",
+    // buttonText: "Subscribe",
+    link: "https://www.youtube.com/watch?v=7uY-_hskZ4A"
+  },
+];
+
+  // --- NOTIFICATIONS ---
+  if (showNotifications) {
+    return <NotificationsPage onBack={() => setShowNotifications(false)} />;
+  }
+
+  // --- PROFILE TAB ---
+  if (tab === "profile") {
+    if (screen === "wallet") return <Wallet onBack={() => setScreen("home")} />;
+    if (screen === "withdraw") return <Withdraw onBack={() => setScreen("home")} />;
+    if (screen === "all_rules") return <AllRulesPage onBack={() => setScreen("home")} />;
+    if (screen === "my_profile") return <AccountInfo onBack={() => setScreen("home")} />;
+    if (screen === "referral") {
+      return <Referral onBack={() => setScreen("home")} user={currentUser} token={currentToken} />;
+    }
+
+    return (
+      <Profile
+        onLogout={onLogout}
+        onWallet={() => setScreen("wallet")}
+        onWithdraw={() => setScreen("withdraw")}
+        onAllRules={() => setScreen("all_rules")}
+        onMyProfile={() => setScreen("my_profile")}
+        onReferral={() => setScreen("referral")}
+      />
+    );
+  }
+
+  // --- OTHER TABS ---
+  if (tab === "matches") return <MyMatch />;
+  if (tab === "results") {
+    if (selectedResult) return <MatchResultsPage {...selectedResult} currentUserUid={currentUserUid} />;
+    return <ResultsListPage onSelectResult={setSelectedResult} currentUserUid={currentUserUid} />;
+  }
+
+  if (screen === "category") {
+    return (
+      <MatchList
+        category={selectedCategory}
+        title={categories.find(c => c.key === selectedCategory)?.title}
+        onBack={() => { setScreen("home"); setSelectedCategory(""); }}
+        tab={tab} setTab={setTab}
+      />
+    );
+  }
+
+  if (screen === "ludo") {
+    return <LudoTournamentPage currentUser={currentUser} token={currentToken} onBack={() => setScreen("home")} />;
+  }
+
+  // ==================== HOME SCREEN ====================
+  return (
+    <div className="bg-gray-50 min-h-screen mx-auto pb-24">
+      {/* Top Header */}
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+              <span className="text-white font-black text-lg">
+                {(currentUser?.name || "P")[0].toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <p className="text-white/80 text-[11px] font-medium">Welcome back</p>
+              <p className="text-white font-extrabold text-sm truncate max-w-[150px]">
+                {currentUser?.name || "Player"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
+              <span className="text-yellow-300 text-xs">💰</span>
+              <span className="text-white font-black text-xs">৳{currentUser?.balance || 0}</span>
+            </div>
+            <NotificationBell onOpen={() => setShowNotifications(true)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4">
+        {/* ✅ Best Mobile PWA Slider */}
+        <ClickableSlider slides={sliderSlides} />
+
+        {/* Live Marquee */}
+        <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
+          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
+            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN NOW 🚀
+          </marquee>
+        </div>
+
+        {/* Ludo Banner */}
+        <div
+          onClick={() => setScreen("ludo")}
+          className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
+          style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
+        >
+          <div className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
+              <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
+            </div>
+            <p className="text-4xl">🎲</p>
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div className="flex items-center justify-between mt-6 px-1">
+          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
+            Free Fire <span className="text-orange-500">Arena</span>
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          {categories.map((cat) => {
+            const count = getMatchCount(cat.key);
+            return (
+              <div
+                key={cat.key}
+                onClick={() => {
+                  setSelectedCategory(cat.key);
+                  setScreen("category");
+                }}
+                className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all"
+              >
+                <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3">
+                  <p className="text-white font-extrabold text-sm">{cat.title}</p>
+                  {count > 0 && <p className="text-cyan-400 text-xs font-bold">{count} Live</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <BottomMenu tab={tab} setTab={setTab} />
     </div>
   );
 };
 
-const MatchList = ({ category, title, onBack, onJoinSuccess, tab, setTab }) => {
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const isMounted = useRef(true);
+export default AppDashboard;
 
-  useEffect(() => {
-    isMounted.current = true;
-    return () => { isMounted.current = false; };
-  }, []);
+ import React, { useState, useEffect } from "react";
+import axios from "axios";
+import AddMoneyModal from "../../Component/Addmoney/AddMoney";
+import Withdraw from "../../page/Withdraw/Withdraw";
+import BuildYourApp from "../../page/BuildYourApp/BuildYourApp";
+import Referral from "../../page/Referral/Referral";
+const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
-  const fetchMatches = async (isManual = false) => {
-    if (isManual) setRefreshing(true);
+const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showBuildApp, setShowBuildApp] = useState(false);
+  const [showReferralPage, setShowReferralPage] = useState(false); // রেফারের জন্য নতুন স্টেট
+  const [balance, setBalance] = useState(0);
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const token = localStorage.getItem("token");
+
+  const fetchBalance = async () => {
     try {
-      const res = await fetch(`${API_BASE}/matches`);
-      const data = await res.json();
-
-      let allMatches = [];
-      if (Array.isArray(data)) allMatches = data;
-      else if (Array.isArray(data?.data)) allMatches = data.data;
-      else if (Array.isArray(data?.matches)) allMatches = data.matches;
-
-      if (category) {
-        allMatches = allMatches.filter((m) =>
-          (m.category || "").toLowerCase().trim() === category.toLowerCase().trim()
-        );
-      }
-
-      allMatches = allMatches.filter(
-        (m) => m.status !== "completed" && m.status !== "cancelled"
-      );
-
-      if (isMounted.current) {
-        setMatches(allMatches);
-        setLoading(false);
-        setRefreshing(false);
-      }
+      const res = await axios.get(`${API}/api/users/balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBalance(res.data.balance || 0);
     } catch (err) {
-      console.log(err);
-      if (isMounted.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
+      console.error(err);
     }
   };
 
   useEffect(() => {
-    fetchMatches();
-    const interval = setInterval(() => fetchMatches(), 10000);
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 5000);
     return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleJoinSuccess = (matchId, newBalance) => {
-    setMatches((prev) =>
-      prev.map((m) =>
-        m._id === matchId
-          ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
-          : m
-      )
-    );
-    if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
+  const menuItems = [
+    { id: "wallet", label: "Wallet / Add Money", icon: "👛" },
+    { id: "withdraw", label: "Withdraw", icon: "💵" },
+    { id: "referral", label: "Refer & Earn", icon: "🎁" },
+    { id: "my_profile", label: "Account Info", icon: "👤" },
+    { id: "all_rules", label: "All Rules", icon: "📋" },
+    { id: "top_players", label: "Top Players", icon: "📈" },
+    { id: "dev_profile", label: "Build Your App", icon: "🚀" },
+  ];
+
+  const handleNavigate = (id) => {
+    if (id === "wallet") setShowAddMoney(true);
+    if (id === "withdraw") setShowWithdraw(true);
+    if (id === "all_rules") onAllRules();
+    if (id === "my_profile") onMyProfile();
+    if (id === "dev_profile") setShowBuildApp(true);
+    if (id === "referral") setShowReferralPage(true); // ক্লিক করলে রেফারেল পেজ শো করবে
   };
 
-  const handleRefresh = (e) => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    fetchMatches(true); // ✅ শুধু data refresh, page change না
-  };
+  // যদি Build Your App ওপেন থাকে
+  if (showBuildApp) {
+    return <BuildYourApp onBack={() => setShowBuildApp(false)} />;
+  }
+
+  // যদি Refer & Earn ওপেন থাকে
+  if (showReferralPage) {
+    return <Referral onBack={() => setShowReferralPage(false)} />;
+  }
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
-      <div className="bg-gray-100 min-h-screen pb-24" style={{ overscrollBehaviorY: "contain" }}>
-
-        {/* refreshing indicator */}
-        {refreshing && (
-          <div className="flex items-center justify-center py-2 bg-orange-50">
-            <span className="inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2" />
-            <span className="text-xs text-orange-500 font-bold">Updating...</span>
-          </div>
-        )}
-
-        {/* HEADER */}
-        <div className="bg-white p-4 flex items-center justify-between shadow sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <button onClick={onBack} className="text-2xl font-bold">←</button>
-            <div>
-              <h2 className="font-bold uppercase text-gray-800">
-                {title || category?.replace(/_/g, " ") || "Matches"}
-              </h2>
-              <p className="text-xs text-gray-500">Total: {matches.length} matches</p>
-            </div>
-          </div>
-
-          {/* ✅ Refresh button — same page এ থাকবে */}
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 active:scale-95 transition-all disabled:opacity-50"
-          >
-            <span className={refreshing ? "inline-block animate-spin" : ""}>🔄</span>
-            {refreshing ? "Updating..." : "Refresh"}
-          </button>
+    <div className="bg-white min-h-screen pb-10">
+      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
+        <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
+          👨‍💻
         </div>
-
-        {/* CONTENT */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-600 font-bold">Loading matches...</p>
-          </div>
-        ) : (
-          <div className="p-3 space-y-3">
-            {matches.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
-                <p className="text-5xl mb-3">🎮</p>
-                <p className="text-gray-700 font-bold text-lg">No Match Available</p>
-                <p className="text-gray-400 text-sm mt-2">
-                  {category
-                    ? `No ${category.replace(/_/g, " ")} matches found`
-                    : "No matches available"}
-                </p>
-                <p className="text-gray-300 text-xs mt-1">Check back later</p>
-                <button
-                  onClick={handleRefresh}
-                  className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg text-sm font-bold active:scale-95 transition-all"
-                >
-                  🔄 Refresh Now
-                </button>
-              </div>
-            ) : (
-              matches.map((match) => (
-                <MatchCard
-                  key={match._id}
-                  match={match}
-                  totalMatches={null} // ✅ green count badge সরানো হয়েছে
-                  onJoinSuccess={(newBalance) =>
-                    handleJoinSuccess(match._id, newBalance)
-                  }
-                />
-              ))
-            )}
-          </div>
-        )}
-
-        {tab && setTab && <BottomMenu tab={tab} setTab={setTab} />}
+        <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
+        <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
+        <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
+          <p className="text-xs text-blue-100">ব্যালেন্স</p>
+          <p className="text-2xl font-black">৳ {balance.toLocaleString()}</p>
+        </div>
       </div>
-    </PullToRefresh>
+
+      <div className="mt-4 px-2">
+        {menuItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => handleNavigate(item.id)}
+            className="w-full flex justify-between items-center p-4 border-b hover:bg-gray-50 transition"
+          >
+            <div className="flex gap-4 items-center">
+              <span className="text-xl">{item.icon}</span>
+              <span className="font-bold text-sm">{item.label}</span>
+            </div>
+            <span className="text-gray-400">›</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="px-8 mt-12">
+        <button
+          onClick={onLogout}
+          className="w-full bg-blue-500 text-white py-3 rounded-full font-bold"
+        >
+          Logout
+        </button>
+      </div>
+
+      <AddMoneyModal
+        isOpen={showAddMoney}
+        onClose={() => {
+          setShowAddMoney(false);
+          fetchBalance();
+        }}
+      />
+      <Withdraw
+        isOpen={showWithdraw}
+        onClose={() => {
+          setShowWithdraw(false);
+          fetchBalance();
+        }}
+      />
+    </div>
   );
 };
 
-export default MatchList;
+export default Profile;

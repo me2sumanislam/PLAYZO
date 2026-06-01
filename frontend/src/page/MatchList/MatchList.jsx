@@ -2,8 +2,7 @@
 import MatchCard from "../MatchCard/MatchCard";
 import BottomMenu from "../../Component/BottomMenu/BottomMenu";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const API_BASE = ((import.meta.env.VITE_API_URL || 'https://playzo-vn8e.onrender.com') + '/api').replace(/\/api\/api/, '/api');
 
 // ✅ Pull-to-refresh — page change না করে শুধু data reload
 const PullToRefresh = ({ onRefresh, children }) => {
@@ -18,7 +17,7 @@ const PullToRefresh = ({ onRefresh, children }) => {
   const onTouchEnd = (e) => {
     if (!pulling.current) return;
     const diff = e.changedTouches[0].clientY - startY.current;
-    if (diff > 80) onRefresh(); // 80px নিচে টানলে refresh
+    if (diff > 80) onRefresh();
     pulling.current = false;
   };
 
@@ -94,14 +93,13 @@ const MatchList = ({ category, title, onBack, onJoinSuccess, tab, setTab }) => {
 
   const handleRefresh = (e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    fetchMatches(true); // ✅ শুধু data refresh, page change না
+    fetchMatches(true);
   };
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="bg-gray-100 min-h-screen pb-24" style={{ overscrollBehaviorY: "contain" }}>
 
-        {/* refreshing indicator */}
         {refreshing && (
           <div className="flex items-center justify-center py-2 bg-orange-50">
             <span className="inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2" />
@@ -121,7 +119,6 @@ const MatchList = ({ category, title, onBack, onJoinSuccess, tab, setTab }) => {
             </div>
           </div>
 
-          {/* ✅ Refresh button — same page এ থাকবে */}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -162,7 +159,7 @@ const MatchList = ({ category, title, onBack, onJoinSuccess, tab, setTab }) => {
                 <MatchCard
                   key={match._id}
                   match={match}
-                  totalMatches={null} // ✅ green count badge সরানো হয়েছে
+                  totalMatches={null}
                   onJoinSuccess={(newBalance) =>
                     handleJoinSuccess(match._id, newBalance)
                   }
