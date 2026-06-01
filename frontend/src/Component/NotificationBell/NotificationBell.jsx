@@ -5,9 +5,9 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.c
 
 export default function NotificationBell({ onOpen }) {
   const [unreadCount, setUnreadCount] = useState(0);
-  const unreadCountRef = useRef(0); // ✅ FIX: stale closure সমস্যা এড়াতে ref ব্যবহার
+  const unreadCountRef = useRef(0); // stale closure সমস্যা এড়াতে ref
 
-  // ✅ App badge update (mobile home screen icon এ badge দেখায়)
+  // App badge update (mobile home screen icon এ badge দেখায়)
   const updateAppBadge = useCallback((count) => {
     try {
       if ("setAppBadge" in navigator) {
@@ -17,7 +17,7 @@ export default function NotificationBell({ onOpen }) {
           navigator.clearAppBadge().catch(() => {});
         }
       }
-      // ✅ Service Worker কেও জানাও যাতে SW side থেকেও badge ঠিক থাকে
+      // Service Worker কেও জানাও যাতে SW side থেকেও badge ঠিক থাকে
       if (navigator.serviceWorker?.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: "UPDATE_BADGE",
@@ -29,7 +29,7 @@ export default function NotificationBell({ onOpen }) {
     }
   }, []);
 
-  // ✅ API থেকে unread count নিয়ে আসো
+  // API থেকে unread count নিয়ে আসো
   const fetchUnread = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/notifications?isRead=false&limit=1`);
@@ -48,21 +48,21 @@ export default function NotificationBell({ onOpen }) {
     }
   }, [updateAppBadge]);
 
-  // ✅ প্রথমবার load এবং ৩০ সেকেন্ড পরপর refresh
+  // প্রথমবার load এবং ৩০ সেকেন্ড পরপর refresh
   useEffect(() => {
     fetchUnread();
     const interval = setInterval(fetchUnread, 30_000);
     return () => clearInterval(interval);
   }, [fetchUnread]);
 
-  // ✅ Service Worker থেকে message handle করো
+  // Service Worker থেকে message handle করো
   useEffect(() => {
     if (!navigator.serviceWorker) return;
 
     const handler = (event) => {
       const { type, count } = event.data || {};
 
-      // Notification click হলে (SW থেকে)
+      // Notification click হলে (SW থেকে) — fresh count নাও
       if (type === "NOTIFICATION_CLICK") {
         fetchUnread();
       }
@@ -76,10 +76,22 @@ export default function NotificationBell({ onOpen }) {
         updateAppBadge(newCount);
       }
 
-      // Badge updated confirmation (SW থেকে)
-      if (type === "BADGE_UPDATED" || type === "BADGE_CLEARED") {
-        // শুধু log, কিছু করার নেই
-        console.log("Badge status from SW:", type);
+      // ✅ FIX: BADGE_UPDATE message handle করো
+      // (notificationclick এ SW badge আপডেট করার পর React App কে জানায়)
+      if (type === "BADGE_UPDATE") {
+        const newCount = typeof count === "number" ? count : 0;
+        if (newCount !== unreadCountRef.current) {
+          unreadCountRef.current = newCount;
+          setUnreadCount(newCount);
+          // Badge আর updateAppBadge দিয়ে set করতে হবে না,
+          // SW ইতিমধ্যে badge set করে ফেলেছে
+        }
+      }
+
+      // Badge cleared/updated confirmation (SW থেকে)
+      if (type === "BADGE_CLEARED") {
+        unreadCountRef.current = 0;
+        setUnreadCount(0);
       }
     };
 
@@ -87,7 +99,7 @@ export default function NotificationBell({ onOpen }) {
     return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, [fetchUnread, updateAppBadge]);
 
-  // ✅ Bell icon click — সব notification read করো + badge clear
+  // Bell icon click — সব notification read করো + badge clear
   const handleOpen = async () => {
     if (unreadCount > 0) {
       try {
