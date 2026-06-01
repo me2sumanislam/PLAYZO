@@ -1,4 +1,4 @@
- // routes/notification.js
+ // routes/notifications.js
 const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
@@ -36,8 +36,8 @@ router.get("/", async (req, res) => {
 
     const filter = {};
     if (isRead === "false") filter.isRead = false;
-    if (isRead === "true")  filter.isRead = true;
-    if (category)           filter.category = category; // freefire / ludo / general
+    if (isRead === "true") filter.isRead = true;
+    if (category) filter.category = category;
 
     const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
@@ -73,26 +73,25 @@ router.patch("/read-all", async (req, res) => {
 // ================================================================
 router.sendMatchNotification = async (match, category = "general") => {
   try {
-    // ─── গেম অনুযায়ী title/icon/url ───────────────────────────
-    const isLudo     = category === "ludo";
-    const emoji      = isLudo ? "🎲" : "🎮";
-    const gameLabel  = isLudo ? "Ludo Match" : "Free Fire Match";
-    const url        = isLudo
+    const isLudo = category === "ludo";
+    const emoji = isLudo ? "🎲" : "🎮";
+    const gameLabel = isLudo ? "Ludo Match" : "Free Fire Match";
+    const url = isLudo
       ? `/app?tab=ludo`
       : `/app?tab=results&matchId=${match._id}`;
 
-    const notifTitle   = `${emoji} নতুন ${gameLabel} তৈরি হয়েছে!`;
+    const notifTitle = `${emoji} নতুন ${gameLabel} তৈরি হয়েছে!`;
     const notifMessage = `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`;
 
     // ─── ১. DB তে save করো ──────────────────────────────────────
     const unreadBefore = await Notification.countDocuments({ isRead: false });
 
     await Notification.create({
-      title:    notifTitle,
-      message:  notifMessage,
-      matchId:  match._id,
-      category: category,   // ✅ freefire / ludo / general
-      isRead:   false,
+      title: notifTitle,
+      message: notifMessage,
+      matchId: match._id,
+      category: category,
+      isRead: false,
     });
 
     const newUnreadCount = unreadBefore + 1;
@@ -102,15 +101,15 @@ router.sendMatchNotification = async (match, category = "general") => {
     if (subs.length === 0) return;
 
     const payload = JSON.stringify({
-      title:       notifTitle,
-      body:        notifMessage,
-      icon:        "/image/icon/icon-192x192.png",
-      badge:       "/image/icon/icon-72x72.png",
-      tag:         `match-${category}`,       // same tag হলে replace হবে, spam হবে না
-      matchId:     match._id.toString(),
-      category:    category,
-      url:         url,
-      unreadCount: newUnreadCount,            // ✅ badge count
+      title: notifTitle,
+      body: notifMessage,
+      icon: "/image/icon/icon-192x192.png",
+      badge: "/image/icon/icon-72x72.png",
+      tag: `match-${category}`,
+      matchId: match._id.toString(),
+      category: category,
+      url: url,
+      unreadCount: newUnreadCount, // ✅ badge count
     });
 
     const results = await Promise.allSettled(
