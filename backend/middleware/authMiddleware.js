@@ -1,4 +1,4 @@
- const { protect } = require("../middleware/auth"); // path ঠিক করো
+ const { protect } = require("./auth"); // path ঠিক করো
 
 // GET /api/notifications
 router.get("/", protect, async (req, res) => {
