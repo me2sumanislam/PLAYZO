@@ -17,14 +17,20 @@ const notificationSchema = new mongoose.Schema(
     },
     matchId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Match",
+      ref: "LudoTournament",     // ← এটি পরিবর্তন করা হয়েছে
       default: null,
     },
-    // ✅ NEW: কোন গেমের notification সেটা বোঝার জন্য
+    // ✅ কোন গেমের notification সেটা বোঝার জন্য
     category: {
       type: String,
       enum: ["freefire", "ludo", "general"],
       default: "general",
+    },
+    // অপশনাল: নির্দিষ্ট ইউজারের জন্য নোটিফিকেশন
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
   },
   { timestamps: true }
