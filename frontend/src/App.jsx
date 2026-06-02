@@ -38,128 +38,81 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone;
-
-  // ✅ Referral link redirect
-  // কেউ https://playzo-eight.vercel.app?ref=CODE খুললে
-  // → /app?ref=CODE এ redirect হবে
-  // → Auth.jsx সেখান থেকে code পড়ে register tab খুলবে
+  // ================= Referral Link Redirect =================
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const refCode = params.get("ref");
     if (refCode && location.pathname === "/") {
       navigate(`/app?ref=${refCode}`, { replace: true });
     }
-  }, []);
+  }, [location.search, location.pathname, navigate]);
 
+  // ================= PWA Standalone Check =================
   useEffect(() => {
-    const checkPWAReinstall = () => {
-      const runningAsStandalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        window.navigator.standalone === true;
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone;
 
-      if (!runningAsStandalone) return;
-
-      const savedInstallId = localStorage.getItem(PWA_INSTALL_KEY);
-      const currentSessionId = sessionStorage.getItem(PWA_INSTALL_KEY);
-
-      if (!currentSessionId) {
-        const newInstallId = Date.now().toString();
-        sessionStorage.setItem(PWA_INSTALL_KEY, newInstallId);
-
-        if (savedInstallId && savedInstallId !== newInstallId) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          localStorage.removeItem("isAdmin");
-          localStorage.removeItem("adminToken");
-          localStorage.removeItem("adminInfo");
-          localStorage.removeItem("user_balance");
-          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
-          setIsLoggedIn(false);
-        } else if (!savedInstallId) {
-          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
-        }
-      }
-    };
-
-    checkPWAReinstall();
-  }, []);
-
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-
-    const handleSWMessage = (event) => {
-      if (event.data?.type === "SW_ACTIVATED_CLEAR_AUTH") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        localStorage.removeItem("isAdmin");
-        localStorage.removeItem("adminToken");
-        localStorage.removeItem("adminInfo");
-        localStorage.removeItem("user_balance");
-        setIsLoggedIn(false);
-      }
-    };
-
-    navigator.serviceWorker.addEventListener("message", handleSWMessage);
-    return () => {
-      navigator.serviceWorker.removeEventListener("message", handleSWMessage);
-    };
-  }, []);
-
-  useEffect(() => {
     if (isStandalone && location.pathname === "/") {
-      navigate("/app");
+      navigate("/app", { replace: true });
     }
-  }, [isStandalone, location.pathname, navigate]);
+  }, [location.pathname, navigate]);
 
+  // ================= Push Notification =================
   useEffect(() => {
     if (isLoggedIn) {
       subscribeUserToPush();
     }
   }, [isLoggedIn]);
 
+  // ================= App Badge (Notification Count) - FIXED =================
   useEffect(() => {
+    if (!("setAppBadge" in navigator) || !isLoggedIn) return;
+
     const updateAppIconBadge = async () => {
-      if (!("setAppBadge" in navigator) || !isLoggedIn) return;
-
       try {
-        const API_BASE =
-          import.meta.env.VITE_API_URL ||
-          "https://playzo-vn8e.onrender.com/api";
-        const res = await fetch(
-          `${API_BASE}/notifications?isRead=false&limit=1`
-        );
-        const data = await res.json();
+        const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
+        const token = localStorage.getItem("token");
 
+        if (!token) return;
+
+        const res = await fetch(`${API_BASE}/api/notifications?isRead=false&limit=1`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          console.warn(`Badge API Error: ${res.status}`);
+          return;
+        }
+
+        const data = await res.json();
         const count = data.unreadCount || 0;
+
         if (count > 0) {
           await navigator.setAppBadge(count);
         } else {
           await navigator.clearAppBadge();
         }
       } catch (err) {
-        console.error("Badge update failed:", err);
+        console.error("Badge update failed:", err.message);
       }
     };
 
     updateAppIconBadge();
     const badgeInterval = setInterval(updateAppIconBadge, 30000);
+
     return () => clearInterval(badgeInterval);
   }, [isLoggedIn]);
 
+  // ================= Auth Handlers =================
   const handleLoginSuccess = () => {
-    setIsLoggedIn(!!localStorage.getItem("token"));
+    setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isAdmin");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminInfo");
-    localStorage.removeItem("user_balance");
+    localStorage.clear(); // সব ক্লিয়ার করা ভালো
     setIsLoggedIn(false);
 
     if ("clearAppBadge" in navigator) {
@@ -198,14 +151,14 @@ function App() {
         }
       />
 
-      {/* ✅ Referral Page — user আর token এখন পাঠানো হচ্ছে */}
+      {/* Referral Page */}
       <Route
         path="/referral"
         element={
           isLoggedIn ? (
             <Referral
               onBack={() => navigate("/app")}
-              user={JSON.parse(localStorage.getItem("user"))}
+              user={JSON.parse(localStorage.getItem("user") || "{}")}
               token={localStorage.getItem("token")}
             />
           ) : (
