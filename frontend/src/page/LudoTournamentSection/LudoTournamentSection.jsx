@@ -24,25 +24,45 @@ const LudoTimeLeft = ({ startTime }) => {
   return <span>{time}</span>;
 };
 
-// Ludo Card
+// Ludo Card with In-Game Name Modal
 const LudoCard = ({ match, userId, onJoin, joining }) => {
-  const [showRoom, setShowRoom] = useState(false);
-  const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [gameName, setGameName] = useState("");
+  const [joiningThis, setJoiningThis] = useState(false);
 
   const joined = Number(match.joinedPlayers || 0);
   const total = Number(match.totalSlots || match.totalPlayers || 4);
-  const fill = total > 0 ? (joined / total) * 100 : 0;
+  const isFull = joined >= total;
 
   const isMine = (match.joinedUsers || []).some((u) =>
     u.userId?.toString?.() === userId?.toString?.() || u.userId === userId
   );
 
-  const isFull = joined >= total;
+  const mySlot = isMine
+    ? (match.joinedUsers || []).find((u) => 
+        u.userId?.toString?.() === userId?.toString?.() || u.userId === userId
+      )?.slotNumber
+    : null;
+
   const canJoin = !isMine && !isFull && !["completed", "cancelled"].includes(match.status);
 
-  const mySlot = isMine
-    ? (match.joinedUsers || []).find((u) => u.userId?.toString?.() === userId?.toString?.() || u.userId === userId)?.slotNumber
-    : null;
+  const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+  const handleJoinClick = () => {
+    setGameName("");
+    setShowJoinModal(true);
+  };
+
+  const confirmJoin = () => {
+    if (!gameName || gameName.trim().length < 3) {
+      alert("সঠিক In-Game Name দিন (কমপক্ষে ৩ অক্ষর)");
+      return;
+    }
+    setJoiningThis(true);
+    onJoin(match._id, match.entryFee, match.title, gameName.trim());
+    setShowJoinModal(false);
+    setTimeout(() => setJoiningThis(false), 1500);
+  };
 
   return (
     <div style={{
@@ -94,7 +114,7 @@ const LudoCard = ({ match, userId, onJoin, joining }) => {
 
         {canJoin && (
           <button
-            onClick={() => onJoin(match._id, match.entryFee, match.title)}
+            onClick={handleJoinClick}
             disabled={joining === match._id}
             style={{
               width: "100%",
@@ -110,6 +130,50 @@ const LudoCard = ({ match, userId, onJoin, joining }) => {
           >
             {joining === match._id ? "⏳ Joining..." : `Join — ${fmt(match.entryFee)}`}
           </button>
+        )}
+
+        {/* Join Modal */}
+        {showJoinModal && (
+          <div style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(0,0,0,0.65)", display: "flex",
+            alignItems: "center", justifyContent: "center", zIndex: 9999
+          }}>
+            <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: "90%", maxWidth: 400 }}>
+              <h3 style={{ marginBottom: 8 }}>Join {match.title}</h3>
+              <p style={{ color: "#6b7280", marginBottom: 16 }}>আপনার In-Game Name দিন</p>
+              
+              <input
+                type="text"
+                placeholder="যেমন: SapnilFF, RahulOP"
+                value={gameName}
+                onChange={(e) => setGameName(e.target.value)}
+                style={{ 
+                  width: "100%", 
+                  padding: 14, 
+                  borderRadius: 10, 
+                  border: "1.5px solid #e5e7eb", 
+                  fontSize: 16,
+                  marginBottom: 20 
+                }}
+              />
+
+              <div style={{ display: "flex", gap: 12 }}>
+                <button 
+                  onClick={() => setShowJoinModal(false)}
+                  style={{ flex: 1, padding: 14, background: "#e5e7eb", border: "none", borderRadius: 10, fontWeight: 600 }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmJoin}
+                  style={{ flex: 1, padding: 14, background: "#10b981", color: "white", border: "none", borderRadius: 10, fontWeight: 700 }}
+                >
+                  Join Now
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -158,9 +222,12 @@ const LudoTournamentSection = () => {
     loadMatches();
   }, [loadMatches]);
 
-  const handleJoin = async (matchId, entryFee, matchTitle) => {
-    if (!userId) return showToast("আগে Login করুন", "error");
-    if (!window.confirm(`"${matchTitle}" তে Join করবেন? Entry: ৳${entryFee}`)) return;
+  // Join Handler with In-Game Name
+  const handleJoin = async (matchId, entryFee, matchTitle, inGameName) => {
+    if (!userId) {
+      showToast("আগে Login করুন", "error");
+      return;
+    }
 
     setJoining(matchId);
     try {
@@ -170,16 +237,18 @@ const LudoTournamentSection = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, inGameName }),
       });
+
       const d = await res.json();
+
       if (d.success) {
-        showToast(`✅ Join সফল!`);
+        showToast(`✅ Join সফল! Slot #${d.slotNumber}`, "success");
         loadMatches();
       } else {
         showToast(d.message || "Join হয়নি", "error");
       }
-    } catch {
+    } catch (err) {
       showToast("নেটওয়ার্ক সমস্যা", "error");
     }
     setJoining(null);
@@ -223,6 +292,12 @@ const LudoTournamentSection = () => {
             joining={joining}
           />
         ))}
+
+        {filtered.length === 0 && !loading && (
+          <div style={{ textAlign: "center", padding: 40, color: "#9ca3af" }}>
+            কোনো ম্যাচ পাওয়া যায়নি
+          </div>
+        )}
       </div>
     </div>
   );

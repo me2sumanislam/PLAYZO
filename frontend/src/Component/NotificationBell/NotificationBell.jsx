@@ -1,4 +1,5 @@
- import { useState, useEffect, useCallback, useRef } from "react";
+ // components/NotificationBell/NotificationBell.jsx
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const API_BASE = ((import.meta.env.VITE_API_URL || 'https://playzo-vn8e.onrender.com') + '/api').replace(/\/api\/api/, '/api');
 
@@ -6,8 +7,10 @@ export default function NotificationBell({ onOpen }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
 
+  // ─── App Badge update ─────────────────────────────────────────
   const updateAppBadge = useCallback((count) => {
     try {
+      // navigator.setAppBadge — শুধু installed PWA তে কাজ করে
       if ("setAppBadge" in navigator) {
         if (count > 0) {
           navigator.setAppBadge(count).catch(() => {});
@@ -15,6 +18,7 @@ export default function NotificationBell({ onOpen }) {
           navigator.clearAppBadge().catch(() => {});
         }
       }
+      // SW কেও badge আপডেট করতে বলো
       if (navigator.serviceWorker?.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: "UPDATE_BADGE",
@@ -26,6 +30,31 @@ export default function NotificationBell({ onOpen }) {
     }
   }, []);
 
+  // ─── Token + SW কে token পাঠানো ──────────────────────────────
+  // FIX: SW এর notificationclick badge fetch এ token দরকার
+  useEffect(() => {
+    const sendTokenToSW = () => {
+      const token = localStorage.getItem("token") || "";
+      if (token && navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "STORE_TOKEN",
+          token: token,
+        });
+      }
+    };
+
+    // SW ready হলে token পাঠাও
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.ready.then(sendTokenToSW);
+      // controller change হলেও পাঠাও (SW update হলে)
+      navigator.serviceWorker.addEventListener("controllerchange", sendTokenToSW);
+      return () => {
+        navigator.serviceWorker.removeEventListener("controllerchange", sendTokenToSW);
+      };
+    }
+  }, []);
+
+  // ─── API থেকে unread count fetch ─────────────────────────────
   const fetchUnread = useCallback(async () => {
     try {
       const token = localStorage.getItem("token") || "";
@@ -46,24 +75,37 @@ export default function NotificationBell({ onOpen }) {
     }
   }, [updateAppBadge]);
 
-  // প্রথমবার load এবং ৩০ সেকেন্ড পরপর refresh
+  // ─── প্রথম load + ৩০ সেকেন্ড polling ────────────────────────
   useEffect(() => {
     fetchUnread();
     const interval = setInterval(fetchUnread, 30_000);
     return () => clearInterval(interval);
   }, [fetchUnread]);
 
-  // Service Worker থেকে message handle
+  // ─── Page visible হলে আবার fetch (mobile tab switch এ কাজ করে)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        fetchUnread();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchUnread]);
+
+  // ─── Service Worker থেকে message handle ──────────────────────
   useEffect(() => {
     if (!navigator.serviceWorker) return;
 
     const handler = (event) => {
       const { type, count } = event.data || {};
 
+      // notification click হলে fresh fetch
       if (type === "NOTIFICATION_CLICK") {
         fetchUnread();
       }
 
+      // নতুন push notification এলে
       if (type === "PUSH_RECEIVED") {
         const newCount =
           typeof count === "number" ? count : unreadCountRef.current + 1;
@@ -72,6 +114,7 @@ export default function NotificationBell({ onOpen }) {
         updateAppBadge(newCount);
       }
 
+      // SW থেকে badge count update
       if (type === "BADGE_UPDATE") {
         const newCount = typeof count === "number" ? count : 0;
         if (newCount !== unreadCountRef.current) {
@@ -80,6 +123,7 @@ export default function NotificationBell({ onOpen }) {
         }
       }
 
+      // Badge cleared confirmation
       if (type === "BADGE_CLEARED") {
         unreadCountRef.current = 0;
         setUnreadCount(0);
@@ -90,10 +134,11 @@ export default function NotificationBell({ onOpen }) {
     return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, [fetchUnread, updateAppBadge]);
 
-  // Bell click — সব read করো + badge clear
+  // ─── Bell click — read all + badge clear ─────────────────────
   const handleOpen = async () => {
     if (unreadCount > 0) {
       try {
+        // Optimistic: আগেই UI তে 0 করো
         unreadCountRef.current = 0;
         setUnreadCount(0);
         updateAppBadge(0);
@@ -107,10 +152,14 @@ export default function NotificationBell({ onOpen }) {
           },
         });
 
+        // SW কে badge clear করতে বলো
         if (navigator.serviceWorker?.controller) {
-          navigator.serviceWorker.controller.postMessage({ type: "CLEAR_BADGE" });
+          navigator.serviceWorker.controller.postMessage({
+            type: "CLEAR_BADGE",
+          });
         }
       } catch {
+        // API fail হলে আবার fetch করো
         fetchUnread();
       }
     }
@@ -151,4 +200,4 @@ export default function NotificationBell({ onOpen }) {
       )}
     </button>
   );
-}         
+}
