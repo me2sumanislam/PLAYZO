@@ -5,7 +5,7 @@ const pushSubscriptionSchema = new mongoose.Schema({
   endpoint: { 
     type: String, 
     required: true, 
-    unique: true 
+    unique: true          // এটা রাখুন (অটো ইনডেক্স তৈরি করে)
   },
   
   userId: { 
@@ -30,8 +30,9 @@ const pushSubscriptionSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-// Index for faster queries
-pushSubscriptionSchema.index({ endpoint: 1 });
+// ✅ শুধু userId এর ইনডেক্স রাখুন
 pushSubscriptionSchema.index({ userId: 1 });
+
+// endpoint এর জন্য explicit index লাগবে না (unique: true যথেষ্ট)
 
 module.exports = mongoose.model("PushSubscription", pushSubscriptionSchema);
