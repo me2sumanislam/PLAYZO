@@ -20,20 +20,6 @@ const api = async (path, opts = {}) => {
   }
 };
 
-const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
-
-const inp = {
-  width: "100%", 
-  boxSizing: "border-box",
-  padding: "10px 12px", 
-  border: "1.5px solid #e5e7eb",
-  borderRadius: 10, 
-  fontSize: 13, 
-  background: "#f9fafb",
-  outline: "none", 
-  fontFamily: "inherit",
-};
-
 const LUDO_MAPS = ["Classic", "Quick Ludo", "Arrow", "Magic"];
 const MODES = [
   { id: "1v1", label: "⚔️ 1 vs 1 (2 জন)", slots: 2 },
@@ -52,13 +38,11 @@ const CreateLudoForm = ({ onCreated }) => {
   const [msg, setMsg] = useState("");
 
   const f = (key) => ({
-    style: inp,
     value: form[key] || "",
     onChange: (e) => setForm(p => ({ ...p, [key]: e.target.value }))
   });
 
   const fp = (key) => ({
-    style: inp,
     value: form.prizes[key] || "",
     onChange: (e) => setForm(p => ({ ...p, prizes: { ...p.prizes, [key]: e.target.value } }))
   });
@@ -107,6 +91,11 @@ const CreateLudoForm = ({ onCreated }) => {
     }
   };
 
+  const inp = {
+    width: "100%", padding: "10px 12px", border: "1.5px solid #e5e7eb",
+    borderRadius: 10, fontSize: 13, background: "#f9fafb", outline: "none"
+  };
+
   return (
     <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb" }}>
       <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 18, color: "#111" }}>🎲 নতুন Ludo Tournament</div>
@@ -114,7 +103,7 @@ const CreateLudoForm = ({ onCreated }) => {
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
           <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Match Title *</div>
-          <input placeholder="যেমন: Ludo Solo #1" {...f("title")} />
+          <input placeholder="যেমন: Ludo Solo #1" style={inp} {...f("title")} />
         </div>
 
         <div>
@@ -125,13 +114,11 @@ const CreateLudoForm = ({ onCreated }) => {
                 key={m.id}
                 onClick={() => setForm(p => ({ ...p, mode: m.id }))}
                 style={{
-                  padding: "10px 8px",
-                  borderRadius: 10,
+                  padding: "10px 8px", borderRadius: 10,
                   border: `2px solid ${form.mode === m.id ? "#7c3aed" : "#e5e7eb"}`,
                   background: form.mode === m.id ? "#ede9fe" : "#fff",
                   color: form.mode === m.id ? "#5b21b6" : "#6b7280",
-                  fontSize: 11,
-                  fontWeight: 700,
+                  fontSize: 11, fontWeight: 700,
                 }}
               >
                 {m.label}
@@ -142,14 +129,14 @@ const CreateLudoForm = ({ onCreated }) => {
 
         <div>
           <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Start Time *</div>
-          <input type="datetime-local" {...f("startTime")} />
+          <input type="datetime-local" style={inp} {...f("startTime")} />
         </div>
 
         <div>
           <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>Entry & Prize</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <input placeholder="Entry Fee" {...f("entryFee")} type="number" />
-            <input placeholder="Win Prize" {...f("winPrize")} type="number" />
+            <input placeholder="Entry Fee" style={inp} {...f("entryFee")} type="number" />
+            <input placeholder="Win Prize" style={inp} {...f("winPrize")} type="number" />
           </div>
         </div>
 
@@ -176,14 +163,14 @@ const CreateLudoForm = ({ onCreated }) => {
   );
 };
 
-// ================= MAIN COMPONENT =================
+// ================= MAIN ADMIN COMPONENT =================
 const LudoTournamentManager = () => {
   const [tab, setTab] = useState("list");
   const [matches, setMatches] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(false);
 
-  // Result Submission States
+  // Result States
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [results, setResults] = useState([]);
   const [winningTeam, setWinningTeam] = useState("");
@@ -245,7 +232,7 @@ const LudoTournamentManager = () => {
   };
 
   return (
-    <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ padding: 16, maxWidth: 950, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800 }}>🎲 Ludo Tournaments</div>
@@ -313,7 +300,7 @@ const LudoTournamentManager = () => {
         </>
       )}
 
-      {/* ================= RESULT SUBMISSION FORM ================= */}
+      {/* Result Submission Form */}
       {tab === "result" && selectedMatch && (
         <div style={{ background: "#fff", padding: 24, borderRadius: 12, border: "1px solid #e5e7eb" }}>
           <h3>Submit Result — {selectedMatch.title} ({selectedMatch.mode})</h3>
@@ -321,7 +308,7 @@ const LudoTournamentManager = () => {
 
           {selectedMatch.mode === "2v2" && (
             <div style={{ margin: "20px 0" }}>
-              <label style={{ fontWeight: 600 }}>Winning Team:</label>
+              <label>Winning Team:</label>
               <input 
                 type="text" 
                 placeholder="Team A or Team B"
@@ -345,7 +332,7 @@ const LudoTournamentManager = () => {
               {results.map((res, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: 12, fontWeight: 600 }}>
-                    {selectedMatch.joinedUsers[i]?.userId?.name || `Player ${i + 1}`}
+                    {selectedMatch.joinedUsers?.[i]?.inGameName || selectedMatch.joinedUsers?.[i]?.userId?.name || `Player ${i + 1}`}
                   </td>
                   <td style={{ padding: 12 }}>
                     <input 
@@ -395,7 +382,7 @@ const LudoTournamentManager = () => {
               style={{ 
                 background: "#10b981", 
                 color: "white", 
-                padding: "14px 28px", 
+                padding: "14px 32px", 
                 border: "none", 
                 borderRadius: 10, 
                 fontSize: 16,
