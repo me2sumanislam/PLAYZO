@@ -1,11 +1,14 @@
- const express = require("express");
+ // routes/matches.js
+const express = require("express");
 const router = express.Router();
 const Match = require("../models/Match");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
-const notificationRouter = require("./notifications"); // ✅ ADD
+const notificationRouter = require("./notifications");
 
-// ================= ADMIN MIDDLEWARE =================
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN MIDDLEWARE
+// ─────────────────────────────────────────────────────────────────────────────
 const protectAdmin = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -24,15 +27,21 @@ const protectAdmin = (req, res, next) => {
   }
 };
 
-// ================= TEST ROUTE =================
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST ROUTE
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/test", (req, res) => {
   res.json({ success: true, message: "Match Routes Working ✅" });
 });
 
-// ================= CREATE MATCH =================
+// ─────────────────────────────────────────────────────────────────────────────
+// CREATE MATCH
+// POST /api/matches/create
+// ─────────────────────────────────────────────────────────────────────────────
 router.post("/create", protectAdmin, async (req, res) => {
   try {
-    const { startTime, ...rest } = req.body;
+    const { startTime, category = "freefire", ...rest } = req.body;
+
     const expiresAt = startTime
       ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
       : new Date(Date.now() + 20 * 60 * 1000);
@@ -41,12 +50,13 @@ router.post("/create", protectAdmin, async (req, res) => {
       ...rest,
       startTime,
       expiresAt,
+      category,
       joinedPlayers: 0,
       status: "upcoming",
     });
 
-    // ✅ Match create হলে সব users কে notification পাঠাও
-   await notificationRouter.sendMatchNotification(match, "freefire");
+    // ✅ Match create হলে সব users কে push notification পাঠাও
+    await notificationRouter.sendMatchNotification(match, category);
 
     res.status(201).json({
       success: true,
@@ -58,7 +68,10 @@ router.post("/create", protectAdmin, async (req, res) => {
   }
 });
 
-// ================= SUBMIT MATCH RESULT + PRIZE =================
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBMIT MATCH RESULT + PRIZE DISTRIBUTION
+// POST /api/matches/result
+// ─────────────────────────────────────────────────────────────────────────────
 router.post("/result", protectAdmin, async (req, res) => {
   console.log("🔥 Result API Hit!", req.body);
   try {
@@ -69,10 +82,12 @@ router.post("/result", protectAdmin, async (req, res) => {
         message: "matchId and results are required",
       });
     }
+
     const match = await Match.findById(matchId);
     if (!match) {
       return res.status(404).json({ success: false, message: "Match not found" });
     }
+
     const finalResults = results.map((player) => {
       let prize = (player.kills || 0) * (match.perKill || 5);
       if (player.position == 1)      prize += match.prizes?.first  || 60;
@@ -80,10 +95,13 @@ router.post("/result", protectAdmin, async (req, res) => {
       else if (player.position == 3) prize += match.prizes?.third  || 20;
       return { ...player, prize: Math.floor(prize) };
     });
+
     match.results     = finalResults;
     match.status      = "completed";
     match.completedAt = new Date();
     await match.save();
+
+    // Prize distribute করো
     for (const player of finalResults) {
       if (player.userId && player.prize > 0) {
         await User.findByIdAndUpdate(player.userId, {
@@ -100,6 +118,7 @@ router.post("/result", protectAdmin, async (req, res) => {
         });
       }
     }
+
     res.json({
       success: true,
       message: "Result submitted & prizes distributed successfully",
@@ -111,7 +130,10 @@ router.post("/result", protectAdmin, async (req, res) => {
   }
 });
 
-// ================= GET COMPLETED MATCHES (Results) =================
+// ─────────────────────────────────────────────────────────────────────────────
+// GET COMPLETED MATCHES
+// GET /api/matches/completed
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/completed", async (req, res) => {
   try {
     const matches = await Match.find({ status: "completed" })
@@ -123,7 +145,10 @@ router.get("/completed", async (req, res) => {
   }
 });
 
-// ================= MY MATCHES (USER) =================
+// ─────────────────────────────────────────────────────────────────────────────
+// MY MATCHES (USER)
+// GET /api/matches/my-matches?userId=xxx
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/my-matches", async (req, res) => {
   try {
     const userId = req.query.userId;
@@ -139,7 +164,10 @@ router.get("/my-matches", async (req, res) => {
   }
 });
 
-// ================= GET ALL MATCHES =================
+// ─────────────────────────────────────────────────────────────────────────────
+// GET ALL MATCHES
+// GET /api/matches/
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
     const matches = await Match.find()
@@ -151,17 +179,24 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ================= GET SINGLE MATCH =================
+// ─────────────────────────────────────────────────────────────────────────────
+// GET SINGLE MATCH
+// GET /api/matches/:id
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
     const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
     res.json({ success: true, data: match });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ================= UPDATE ROOM =================
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE ROOM (Admin sets room ID & password)
+// PUT /api/matches/update-room/:id
+// ─────────────────────────────────────────────────────────────────────────────
 router.put("/update-room/:id", protectAdmin, async (req, res) => {
   try {
     const { roomId, roomPassword } = req.body;
@@ -180,7 +215,10 @@ router.put("/update-room/:id", protectAdmin, async (req, res) => {
   }
 });
 
-// ================= JOIN MATCH =================
+// ─────────────────────────────────────────────────────────────────────────────
+// JOIN MATCH
+// PUT /api/matches/join/:id
+// ─────────────────────────────────────────────────────────────────────────────
 router.put("/join/:id", async (req, res) => {
   try {
     const { userId, inGameName } = req.body;
@@ -205,10 +243,12 @@ router.put("/join/:id", async (req, res) => {
       return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
     }
 
+    // Slot assign
     const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
     let slotNumber = 1;
     while (usedSlots.includes(slotNumber)) slotNumber++;
 
+    // Balance কাটো
     user.balance -= match.entryFee;
     if (!user.joinHistory) user.joinHistory = [];
     user.joinHistory.push({
@@ -225,7 +265,6 @@ router.put("/join/:id", async (req, res) => {
     await match.save();
 
     // ✅ REFERRAL POINT TRIGGER
-    // শর্ত: user referral দিয়ে এসেছে + ৳৫০+ deposit করেছে (deposited=true) + point এখনো পায়নি (pointGiven=false)
     if (user.referredBy) {
       try {
         const referrer = await User.findById(user.referredBy);
@@ -241,7 +280,6 @@ router.put("/join/:id", async (req, res) => {
           }
         }
       } catch (refErr) {
-        // referral error হলেও join সফল থাকবে
         console.error("Referral point error:", refErr.message);
       }
     }
@@ -258,7 +296,10 @@ router.put("/join/:id", async (req, res) => {
   }
 });
 
-// ================= DELETE ALL =================
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE ALL MATCHES (Admin)
+// DELETE /api/matches/clear-all
+// ─────────────────────────────────────────────────────────────────────────────
 router.delete("/clear-all", protectAdmin, async (req, res) => {
   try {
     const result = await Match.deleteMany({});
@@ -270,5 +311,5 @@ router.delete("/clear-all", protectAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-//  pore delte kore dibo
+
 module.exports = router;
