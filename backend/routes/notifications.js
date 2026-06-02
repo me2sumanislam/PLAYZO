@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const Notification = require("../models/Notification");
-const UserNotification = require("../models/UserNotification"); // ✅ নতুন
+const UserNotification = require("../models/userNotification"); // ✅ নতুন
 const { protect } = require("../middleware/auth"); // ✅ তোমার existing middleware
 const { sendToAll } = require("../utils/sendNotification");
 
