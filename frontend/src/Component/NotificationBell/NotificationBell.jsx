@@ -9,7 +9,7 @@ export default function NotificationBell({ onOpen }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
 
-  // App Badge update
+  // ─── App Badge update ───────────────────────────────────────────────────────
   const updateAppBadge = useCallback((count) => {
     try {
       if ("setAppBadge" in navigator) {
@@ -21,31 +21,38 @@ export default function NotificationBell({ onOpen }) {
       }
     } catch {}
 
-    // ✅ Service Worker কেও badge জানাও
+    // Service Worker কেও badge জানাও
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.active?.postMessage({ type: "UPDATE_BADGE", count });
-      }).catch(() => {});
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          reg.active?.postMessage({ type: "UPDATE_BADGE", count });
+        })
+        .catch(() => {});
     }
   }, []);
 
-  // ✅ SW তে token পাঠাও (app open হলেই)
+  // ─── SW তে token পাঠাও (app open হলেই) ────────────────────────────────────
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        const token = localStorage.getItem("token") || "";
-        if (token) {
-          reg.active?.postMessage({ type: "STORE_TOKEN", token });
-        }
-      }).catch(() => {});
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          const token = localStorage.getItem("token") || "";
+          if (token) {
+            reg.active?.postMessage({ type: "STORE_TOKEN", token });
+          }
+        })
+        .catch(() => {});
     }
   }, []);
 
-  // ✅ OneSignal এ user login করাও (external_id set)
+  // ─── OneSignal এ user login করাও (external_id set) ─────────────────────────
   useEffect(() => {
     const user = (() => {
-      try { return JSON.parse(localStorage.getItem("user") || "{}"); }
-      catch { return {}; }
+      try {
+        return JSON.parse(localStorage.getItem("user") || "{}");
+      } catch {
+        return {};
+      }
     })();
     const userId = user?.id || user?._id;
     if (!userId) return;
@@ -57,7 +64,7 @@ export default function NotificationBell({ onOpen }) {
     }
   }, []);
 
-  // API থেকে unread count fetch
+  // ─── API থেকে unread count fetch ────────────────────────────────────────────
   const fetchUnread = useCallback(async () => {
     try {
       const token = localStorage.getItem("token") || "";
@@ -78,14 +85,14 @@ export default function NotificationBell({ onOpen }) {
     } catch {}
   }, [updateAppBadge]);
 
-  // প্রথম load + ৩০ সেকেন্ড polling
+  // ─── প্রথম load + ৩০ সেকেন্ড polling ─────────────────────────────────────
   useEffect(() => {
     fetchUnread();
     const interval = setInterval(fetchUnread, 30_000);
     return () => clearInterval(interval);
   }, [fetchUnread]);
 
-  // Page visible হলে আবার fetch
+  // ─── Page visible হলে আবার fetch ───────────────────────────────────────────
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible") fetchUnread();
@@ -94,7 +101,7 @@ export default function NotificationBell({ onOpen }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fetchUnread]);
 
-  // ✅ SW থেকে push এলে count update
+  // ─── SW থেকে push এলে count update ────────────────────────────────────────
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const handler = (event) => {
@@ -112,7 +119,7 @@ export default function NotificationBell({ onOpen }) {
     return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, [fetchUnread, updateAppBadge]);
 
-  // OneSignal foreground notification এলে count update
+  // ─── OneSignal foreground notification ─────────────────────────────────────
   useEffect(() => {
     if (!window.OneSignalDeferred) return;
     window.OneSignalDeferred.push((OneSignal) => {
@@ -125,7 +132,7 @@ export default function NotificationBell({ onOpen }) {
     });
   }, [fetchUnread]);
 
-  // Bell click — read all + badge clear
+  // ─── Bell click — read all + badge clear ────────────────────────────────────
   const handleOpen = async () => {
     if (unreadCount > 0) {
       try {
