@@ -176,7 +176,7 @@ const CreateLudoForm = ({ onCreated }) => {
   );
 };
 
-// Main Component
+// ================= MAIN COMPONENT =================
 const LudoTournamentManager = () => {
   const [tab, setTab] = useState("list");
   const [matches, setMatches] = useState([]);
@@ -228,6 +228,7 @@ const LudoTournamentManager = () => {
     if (res.success) {
       alert("✅ Result সফলভাবে সাবমিট হয়েছে এবং Prize বিতরণ করা হয়েছে!");
       setTab("list");
+      setSelectedMatch(null);
       load();
     } else {
       alert("❌ " + (res.message || "Something went wrong"));
@@ -300,34 +301,38 @@ const LudoTournamentManager = () => {
                     marginTop: 10
                   }}
                 >
-                  Submit Result
+                  📝 Submit Result
                 </button>
+              )}
+
+              {m.status === "completed" && m.results?.length > 0 && (
+                <p style={{ color: "#10b981", marginTop: 8 }}>✅ Result Submitted</p>
               )}
             </div>
           ))}
         </>
       )}
 
-      {/* Result Submission Form */}
+      {/* ================= RESULT SUBMISSION FORM ================= */}
       {tab === "result" && selectedMatch && (
-        <div style={{ background: "#fff", padding: 20, borderRadius: 12, border: "1px solid #e5e7eb" }}>
-          <h3>Submit Result — {selectedMatch.title}</h3>
-          <p><strong>Mode:</strong> {selectedMatch.mode}</p>
+        <div style={{ background: "#fff", padding: 24, borderRadius: 12, border: "1px solid #e5e7eb" }}>
+          <h3>Submit Result — {selectedMatch.title} ({selectedMatch.mode})</h3>
+          <p><strong>Players:</strong> {selectedMatch.joinedPlayers}</p>
 
           {selectedMatch.mode === "2v2" && (
-            <div style={{ margin: "15px 0" }}>
-              <label>Winning Team:</label>
+            <div style={{ margin: "20px 0" }}>
+              <label style={{ fontWeight: 600 }}>Winning Team:</label>
               <input 
                 type="text" 
                 placeholder="Team A or Team B"
                 value={winningTeam}
                 onChange={(e) => setWinningTeam(e.target.value)}
-                style={{ width: "100%", padding: 10, marginTop: 5, borderRadius: 8 }}
+                style={{ width: "100%", padding: 12, marginTop: 8, borderRadius: 8 }}
               />
             </div>
           )}
 
-          <table style={{ width: "100%", borderCollapse: "collapse", margin: "15px 0" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", margin: "20px 0" }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
                 <th style={{ padding: 12, textAlign: "left" }}>Player</th>
@@ -339,8 +344,8 @@ const LudoTournamentManager = () => {
             <tbody>
               {results.map((res, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
-                  <td style={{ padding: 12 }}>
-                    {selectedMatch.joinedUsers[i]?.userId?.name || "Player " + (i + 1)}
+                  <td style={{ padding: 12, fontWeight: 600 }}>
+                    {selectedMatch.joinedUsers[i]?.userId?.name || `Player ${i + 1}`}
                   </td>
                   <td style={{ padding: 12 }}>
                     <input 
@@ -352,7 +357,7 @@ const LudoTournamentManager = () => {
                         newResults[i].rank = Number(e.target.value);
                         setResults(newResults);
                       }}
-                      style={{ width: 70, padding: 6 }}
+                      style={{ width: 70, padding: 8 }}
                     />
                   </td>
                   <td style={{ padding: 12 }}>
@@ -364,7 +369,7 @@ const LudoTournamentManager = () => {
                         newResults[i].prize = Number(e.target.value);
                         setResults(newResults);
                       }}
-                      style={{ width: 100, padding: 6 }}
+                      style={{ width: 110, padding: 8 }}
                     />
                   </td>
                   <td style={{ padding: 12 }}>
@@ -376,7 +381,7 @@ const LudoTournamentManager = () => {
                         newResults[i].kills = Number(e.target.value);
                         setResults(newResults);
                       }}
-                      style={{ width: 80, padding: 6 }}
+                      style={{ width: 90, padding: 8 }}
                     />
                   </td>
                 </tr>
@@ -384,24 +389,25 @@ const LudoTournamentManager = () => {
             </tbody>
           </table>
 
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 30 }}>
             <button 
               onClick={submitResult}
               style={{ 
-                background: "#7c3aed", 
+                background: "#10b981", 
                 color: "white", 
-                padding: "12px 24px", 
+                padding: "14px 28px", 
                 border: "none", 
                 borderRadius: 10, 
                 fontSize: 16,
-                marginRight: 10
+                fontWeight: 700,
+                marginRight: 12
               }}
             >
               ✅ Submit Final Result
             </button>
             <button 
               onClick={() => setTab("list")}
-              style={{ padding: "12px 20px", background: "#e5e7eb", border: "none", borderRadius: 10 }}
+              style={{ padding: "14px 24px", background: "#e5e7eb", border: "none", borderRadius: 10 }}
             >
               Cancel
             </button>
@@ -412,4 +418,4 @@ const LudoTournamentManager = () => {
   );
 };
 
-export default LudoTournamentManager
+export default LudoTournamentManager;
