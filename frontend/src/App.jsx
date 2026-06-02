@@ -13,12 +13,12 @@ import Referral from "./page/Referral/Referral";
 
 import { subscribeUserToPush } from "./utils/pushNotification";
 
-const PWA_INSTALL_KEY = "pwa_install_id";
+const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
+    const user  = localStorage.getItem("user");
     if (!token || !user) return false;
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
@@ -35,12 +35,64 @@ function App() {
     }
   });
 
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate  = useNavigate();
+  const location  = useLocation();
+
+  // ================= OneSignal Init =================
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src   = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+    script.defer = true;
+    document.head.appendChild(script);
+
+    script.onload = () => {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        await OneSignal.init({
+          appId: ONESIGNAL_APP_ID,
+          notifyButton:  { enable: false },
+          allowLocalhostAsSecureOrigin: true,
+        });
+
+        // Permission চাওয়া
+        const permission = await OneSignal.Notifications.permissionNative;
+        if (permission === "default") {
+          await OneSignal.Notifications.requestPermission();
+        }
+
+        // User login হলে external ID set করা
+        const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+        const userId = user?.id || user?._id;
+        if (userId) {
+          await OneSignal.login(userId.toString());
+        }
+
+        console.log("✅ OneSignal initialized");
+      });
+    };
+
+    return () => {
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+  }, []);
+
+  // ================= OneSignal User Login (login হলে) =================
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+    const userId = user?.id || user?._id;
+    if (!userId) return;
+
+    if (window.OneSignalDeferred) {
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        await OneSignal.login(userId.toString());
+      });
+    }
+  }, [isLoggedIn]);
 
   // ================= Referral Link Redirect =================
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
+    const params  = new URLSearchParams(location.search);
     const refCode = params.get("ref");
     if (refCode && location.pathname === "/") {
       navigate(`/app?ref=${refCode}`, { replace: true });
@@ -52,42 +104,34 @@ function App() {
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone;
-
     if (isStandalone && location.pathname === "/") {
       navigate("/app", { replace: true });
     }
   }, [location.pathname, navigate]);
 
-  // ================= Push Notification =================
+  // ================= Push Notification (existing) =================
   useEffect(() => {
     if (isLoggedIn) {
       subscribeUserToPush();
     }
   }, [isLoggedIn]);
 
-  // ================= App Badge (Notification Count) - FIXED =================
+  // ================= App Badge (Notification Count) =================
   useEffect(() => {
     if (!("setAppBadge" in navigator) || !isLoggedIn) return;
 
     const updateAppIconBadge = async () => {
       try {
         const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
-        const token = localStorage.getItem("token");
-
+        const token    = localStorage.getItem("token");
         if (!token) return;
 
         const res = await fetch(`${API_BASE}/api/notifications?isRead=false&limit=1`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
+        if (!res.ok) return;
 
-        if (!res.ok) {
-          console.warn(`Badge API Error: ${res.status}`);
-          return;
-        }
-
-        const data = await res.json();
+        const data  = await res.json();
         const count = data.unreadCount || 0;
 
         if (count > 0) {
@@ -102,7 +146,6 @@ function App() {
 
     updateAppIconBadge();
     const badgeInterval = setInterval(updateAppIconBadge, 30000);
-
     return () => clearInterval(badgeInterval);
   }, [isLoggedIn]);
 
@@ -112,7 +155,14 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.clear(); // সব ক্লিয়ার করা ভালো
+    // OneSignal logout
+    if (window.OneSignalDeferred) {
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        await OneSignal.logout();
+      });
+    }
+
+    localStorage.clear();
     setIsLoggedIn(false);
 
     if ("clearAppBadge" in navigator) {
