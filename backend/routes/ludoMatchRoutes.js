@@ -5,10 +5,9 @@ const LudoTournament = require("../models/LudoTournament");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
-// ✅ Notification
 const notificationRouter = require("./notifications");
 
-// ─── ADMIN MIDDLEWARE ──────────────────────────────────────────
+// Admin Middleware
 const protectAdmin = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -21,11 +20,10 @@ const protectAdmin = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
-    return res.json({ success: false, message: "Invalid token: " + err.message });
+    return res.json({ success: false, message: "Invalid token" });
   }
 };
 
-// ─── HELPERS ──────────────────────────────────────────────────
 const slotsForMode = (mode) => {
   if (mode === "1v1") return 2;
   if (mode === "2v2") return 4;
@@ -33,10 +31,7 @@ const slotsForMode = (mode) => {
   return 4;
 };
 
-// ════════════════════════════════════════════════════════════
-// ADMIN: CREATE LUDO TOURNAMENT
-// POST /api/ludo-tournament/create
-// ════════════════════════════════════════════════════════════
+// Create Tournament
 router.post("/create", protectAdmin, async (req, res) => {
   try {
     const { startTime, mode, ...rest } = req.body;
@@ -64,10 +59,80 @@ router.post("/create", protectAdmin, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// ADMIN: SUBMIT RESULT
-// POST /api/ludo-tournament/result/:id
-// ════════════════════════════════════════════════════════════
+// Join with In-Game Name
+router.put("/join/:id", async (req, res) => {
+  try {
+    const { userId, inGameName } = req.body;
+
+    if (!userId) return res.json({ success: false, message: "User ID required" });
+    if (!inGameName || inGameName.trim() === "") {
+      return res.json({ success: false, message: "In-Game Name দিতে হবে" });
+    }
+
+    const match = await LudoTournament.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+
+    if (match.status === "completed" || match.status === "cancelled") {
+      return res.json({ success: false, message: "Match আর join করা যাবে না" });
+    }
+
+    const already = (match.joinedUsers || []).find(u => u.userId?.toString() === userId?.toString());
+    if (already) return res.json({ success: false, message: "ইতোমধ্যে join করেছেন" });
+
+    if (match.joinedPlayers >= match.totalSlots) {
+      return res.json({ success: false, message: "Match ফুল হয়ে গেছে" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (user.balance < match.entryFee) {
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+    }
+
+    const usedSlots = (match.joinedUsers || []).map(u => u.slotNumber);
+    let slot = 1;
+    while (usedSlots.includes(slot)) slot++;
+
+    user.balance -= match.entryFee;
+    if (!user.joinHistory) user.joinHistory = [];
+    user.joinHistory.push({
+      matchId: match._id,
+      matchTitle: match.title,
+      entryFee: match.entryFee,
+      joinedAt: new Date(),
+      gameType: "ludo",
+    });
+    await user.save();
+
+    if (!match.joinedUsers) match.joinedUsers = [];
+    match.joinedUsers.push({ 
+      userId, 
+      slotNumber: slot, 
+      inGameName: inGameName.trim() 
+    });
+    match.joinedPlayers = match.joinedUsers.length;
+
+    if (match.joinedPlayers >= match.totalSlots) {
+      match.status = "live";
+    }
+
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "Join সফল! 🎉",
+      newBalance: user.balance,
+      slotNumber: slot,
+      data: match,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Submit Result
 router.post("/result/:id", protectAdmin, async (req, res) => {
   try {
     const { results, winningTeam } = req.body;
@@ -79,19 +144,14 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
     }
 
     if (results.length !== match.joinedPlayers) {
-      return res.json({ 
-        success: false, 
-        message: `Exactly ${match.joinedPlayers} results needed for this match` 
-      });
+      return res.json({ success: false, message: `Exactly ${match.joinedPlayers} results needed` });
     }
 
-    // Duplicate rank check
     const ranks = results.map(r => r.rank);
     if (new Set(ranks).size !== ranks.length) {
-      return res.json({ success: false, message: "Duplicate ranks are not allowed" });
+      return res.json({ success: false, message: "Duplicate ranks not allowed" });
     }
 
-    // Sequential rank check (1,2,3...)
     const sortedRanks = [...ranks].sort((a, b) => a - b);
     for (let i = 0; i < sortedRanks.length; i++) {
       if (sortedRanks[i] !== i + 1) {
@@ -99,7 +159,6 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
       }
     }
 
-    // Save result
     match.results = results;
     match.status = "completed";
     
@@ -109,7 +168,6 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
 
     await match.save();
 
-    // Prize Distribution
     let totalPrizeDistributed = 0;
     for (const r of results) {
       if (r.userId && r.prize > 0) {
@@ -131,7 +189,6 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
     res.json({ 
       success: true, 
       message: "✅ Result submitted successfully & prizes distributed!",
-      data: match,
       totalPrizeDistributed
     });
 
@@ -149,19 +206,6 @@ router.get("/", async (req, res) => {
     if (mode) filter.mode = mode;
     if (status) filter.status = status;
     const matches = await LudoTournament.find(filter).sort({ createdAt: -1 });
-    res.json({ success: true, data: matches });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-router.get("/my-matches", async (req, res) => {
-  try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ success: false, message: "userId required" });
-    const matches = await LudoTournament
-      .find({ "joinedUsers.userId": userId })
-      .sort({ createdAt: -1 });
     res.json({ success: true, data: matches });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -193,84 +237,10 @@ router.put("/update-room/:id", protectAdmin, async (req, res) => {
   }
 });
 
-router.put("/join/:id", async (req, res) => {
-  try {
-    const { userId } = req.body;
-    const match = await LudoTournament.findById(req.params.id);
-    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
-    if (match.status === "completed" || match.status === "cancelled") {
-      return res.json({ success: false, message: "Match আর join করা যাবে না" });
-    }
-
-    const already = (match.joinedUsers || []).find(
-      (u) => u.userId?.toString() === userId?.toString()
-    );
-    if (already) return res.json({ success: false, message: "ইতোমধ্যে join করেছেন" });
-
-    if (match.joinedPlayers >= match.totalSlots) {
-      return res.json({ success: false, message: "Match ফুল হয়ে গেছে" });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    if (user.balance < match.entryFee) {
-      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
-    }
-
-    const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
-    let slot = 1;
-    while (usedSlots.includes(slot)) slot++;
-
-    user.balance -= match.entryFee;
-    if (!user.joinHistory) user.joinHistory = [];
-    user.joinHistory.push({
-      matchId: match._id,
-      matchTitle: match.title,
-      entryFee: match.entryFee,
-      joinedAt: new Date(),
-      gameType: "ludo",
-    });
-    await user.save();
-
-    if (!match.joinedUsers) match.joinedUsers = [];
-    match.joinedUsers.push({ userId, slotNumber: slot });
-    match.joinedPlayers = match.joinedUsers.length;
-
-    if (match.joinedPlayers >= match.totalSlots) {
-      match.status = "live";
-    }
-
-    await match.save();
-
-    res.json({
-      success: true,
-      message: "Join সফল! 🎉",
-      newBalance: user.balance,
-      slotNumber: slot,
-      data: match,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
 router.delete("/:id", protectAdmin, async (req, res) => {
   try {
     await LudoTournament.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: "Match deleted" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-router.put("/:id", protectAdmin, async (req, res) => {
-  try {
-    const match = await LudoTournament.findByIdAndUpdate(
-      req.params.id,
-      { ...req.body },
-      { new: true }
-    );
-    res.json({ success: true, data: match });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
