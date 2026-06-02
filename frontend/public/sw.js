@@ -5,8 +5,8 @@
 // ─── Workbox precache (vite-plugin-pwa inject করবে) ──────
 // eslint-disable-next-line no-undef
 
-// public/sw.js
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+ 
+ 
 
 
 if (typeof self.__WB_MANIFEST !== "undefined") {
