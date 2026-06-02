@@ -20,22 +20,55 @@ export default function NotificationBell({ onOpen }) {
         }
       }
     } catch {}
+
+    // ✅ Service Worker কেও badge জানাও
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.active?.postMessage({ type: "UPDATE_BADGE", count });
+      }).catch(() => {});
+    }
+  }, []);
+
+  // ✅ SW তে token পাঠাও (app open হলেই)
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        const token = localStorage.getItem("token") || "";
+        if (token) {
+          reg.active?.postMessage({ type: "STORE_TOKEN", token });
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
+  // ✅ OneSignal এ user login করাও (external_id set)
+  useEffect(() => {
+    const user = (() => {
+      try { return JSON.parse(localStorage.getItem("user") || "{}"); }
+      catch { return {}; }
+    })();
+    const userId = user?.id || user?._id;
+    if (!userId) return;
+
+    if (window.OneSignalDeferred) {
+      window.OneSignalDeferred.push((OneSignal) => {
+        OneSignal.login(userId.toString()).catch(() => {});
+      });
+    }
   }, []);
 
   // API থেকে unread count fetch
   const fetchUnread = useCallback(async () => {
     try {
       const token = localStorage.getItem("token") || "";
+      if (!token) return;
       const res = await fetch(
         `${API_BASE}/notifications?isRead=false&limit=1`,
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) return;
       const data = await res.json();
-      const count =
-        typeof data.unreadCount === "number" ? data.unreadCount : 0;
+      const count = typeof data.unreadCount === "number" ? data.unreadCount : 0;
 
       if (count !== unreadCountRef.current) {
         unreadCountRef.current = count;
@@ -61,18 +94,31 @@ export default function NotificationBell({ onOpen }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fetchUnread]);
 
-  // OneSignal notification এলে count update
+  // ✅ SW থেকে push এলে count update
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handler = (event) => {
+      if (event.data?.type === "PUSH_RECEIVED") {
+        fetchUnread();
+      }
+      if (event.data?.type === "BADGE_UPDATE") {
+        const count = event.data.count || 0;
+        unreadCountRef.current = count;
+        setUnreadCount(count);
+        updateAppBadge(count);
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
+  }, [fetchUnread, updateAppBadge]);
+
+  // OneSignal foreground notification এলে count update
   useEffect(() => {
     if (!window.OneSignalDeferred) return;
-
     window.OneSignalDeferred.push((OneSignal) => {
-      OneSignal.Notifications.addEventListener(
-        "foregroundWillDisplay",
-        () => {
-          fetchUnread();
-        }
-      );
-
+      OneSignal.Notifications.addEventListener("foregroundWillDisplay", () => {
+        fetchUnread();
+      });
       OneSignal.Notifications.addEventListener("click", () => {
         fetchUnread();
       });
@@ -99,7 +145,6 @@ export default function NotificationBell({ onOpen }) {
         fetchUnread();
       }
     }
-
     onOpen?.();
   };
 
