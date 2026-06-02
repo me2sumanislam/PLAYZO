@@ -2,11 +2,14 @@
 const express = require("express");
 const router = express.Router();
 const Notification = require("../models/Notification");
-const UserNotification = require("../models/userNotification"); // ✅ নতুন
-const { protect } = require("../middleware/auth"); // ✅ তোমার existing middleware
+const UserNotification = require("../models/userNotification");
+const { protect } = require("../middleware/auth");
 const { sendToAll } = require("../utils/sendNotification");
 
-// GET /api/notifications — এই user এর notifications + unread count
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/notifications
+// এই user এর notifications + unread count
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/", protect, async (req, res) => {
   try {
     const { isRead, limit = 20, category } = req.query;
@@ -16,11 +19,11 @@ router.get("/", protect, async (req, res) => {
     if (isRead === "true") filter.isRead = true;
 
     const userNotifs = await UserNotification.find(filter)
-      .populate("notificationId") // ✅ actual notification data
+      .populate("notificationId")
       .sort({ createdAt: -1 })
       .limit(Number(limit));
 
-    // category filter (populate এর পরে)
+    // populate এর পরে category filter
     const filtered = category
       ? userNotifs.filter((n) => n.notificationId?.category === category)
       : userNotifs;
@@ -33,7 +36,7 @@ router.get("/", protect, async (req, res) => {
     res.json({
       success: true,
       notifications: filtered,
-      unreadCount, // ✅ শুধু এই user এর badge count
+      unreadCount,
       count: filtered.length,
     });
   } catch (err) {
@@ -41,7 +44,10 @@ router.get("/", protect, async (req, res) => {
   }
 });
 
-// PATCH /api/notifications/read-all — শুধু এই user এর সব read করো
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/notifications/read-all
+// এই user এর সব notification read করো
+// ─────────────────────────────────────────────────────────────────────────────
 router.patch("/read-all", protect, async (req, res) => {
   try {
     await UserNotification.updateMany(
@@ -54,7 +60,39 @@ router.patch("/read-all", protect, async (req, res) => {
   }
 });
 
-// Internal helper — match create হলে call করো
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/notifications/read/:id
+// একটা নির্দিষ্ট notification read করো
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/read/:id", protect, async (req, res) => {
+  try {
+    await UserNotification.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { isRead: true }
+    );
+    res.json({ success: true, message: "Marked as read" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/notifications/clear
+// এই user এর সব notification মুছো
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete("/clear", protect, async (req, res) => {
+  try {
+    await UserNotification.deleteMany({ userId: req.user.id });
+    res.json({ success: true, message: "All notifications cleared" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helper — match create হলে matchRoutes থেকে call করা হয়
+// router.sendMatchNotification(match, category)
+// ─────────────────────────────────────────────────────────────────────────────
 router.sendMatchNotification = async (match, category = "general") => {
   try {
     const isLudo = category === "ludo";
@@ -67,16 +105,15 @@ router.sendMatchNotification = async (match, category = "general") => {
     const notifTitle = `${emoji} নতুন ${gameLabel} তৈরি হয়েছে!`;
     const notifMessage = `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`;
 
-    // 1️⃣ একটাই Notification save
+    // 1️⃣ একটাই Notification document save করো
     const notif = await Notification.create({
       title: notifTitle,
       message: notifMessage,
       matchId: match._id,
       category,
-      isRead: false,
     });
 
-    // 2️⃣ সব user এর জন্য UserNotification entry
+    // 2️⃣ সব active user এর জন্য UserNotification entry
     const User = require("../models/User");
     const users = await User.find({}, "_id");
 
@@ -86,14 +123,22 @@ router.sendMatchNotification = async (match, category = "general") => {
       isRead: false,
     }));
 
-    await UserNotification.insertMany(entries); // ✅ bulk insert
+    await UserNotification.insertMany(entries);
 
-    // 3️⃣ OneSignal push
-    await sendToAll({ title: notifTitle, message: notifMessage, url });
+    // 3️⃣ OneSignal push — সবার phone এ notification যাবে
+    await sendToAll({
+      title: notifTitle,
+      message: notifMessage,
+      url,
+      matchId: match._id,
+      category,
+    });
 
-    console.log(`📨 [${category}] Sent to ${users.length} users`);
+    console.log(`📨 [${category}] Match notification sent to ${users.length} users`);
+    return { success: true, count: users.length };
   } catch (err) {
-    console.error("Push notification error:", err.message);
+    console.error("❌ sendMatchNotification error:", err.message);
+    return { success: false, message: err.message };
   }
 };
 

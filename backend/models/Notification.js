@@ -3,34 +3,17 @@ const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema(
   {
-    title: {
-      type: String,
-      required: true,
-    },
-    message: {
-      type: String,
-      required: true,
-    },
-    isRead: {
-      type: Boolean,
-      default: false,
-    },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
     matchId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "LudoTournament",     // ← এটি পরিবর্তন করা হয়েছে
+      ref: "Match",
       default: null,
     },
-    // ✅ কোন গেমের notification সেটা বোঝার জন্য
     category: {
       type: String,
-      enum: ["freefire", "ludo", "general"],
+      enum: ["general", "freefire", "ludo"],
       default: "general",
-    },
-    // অপশনাল: নির্দিষ্ট ইউজারের জন্য নোটিফিকেশন
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
     },
   },
   { timestamps: true }

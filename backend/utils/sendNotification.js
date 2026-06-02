@@ -4,8 +4,8 @@ const axios = require("axios");
 const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
 
-// সব user কে notification
-const sendToAll = async ({ title, message, url = "/" }) => {
+// ─── সব user কে notification ─────────────────────────────────────────────────
+const sendToAll = async ({ title, message, url = "/", matchId = null, category = "general" }) => {
   try {
     const res = await axios.post(
       "https://onesignal.com/api/v1/notifications",
@@ -15,6 +15,12 @@ const sendToAll = async ({ title, message, url = "/" }) => {
         headings: { en: title },
         contents: { en: message },
         url,
+        // ─── extra data (SW এ data হিসেবে পাবে) ──────
+        data: {
+          matchId: matchId ? matchId.toString() : null,
+          category,
+          url,
+        },
         ios_badgeType: "Increase",
         ios_badgeCount: 1,
         priority: 10,
@@ -35,8 +41,8 @@ const sendToAll = async ({ title, message, url = "/" }) => {
   }
 };
 
-// নির্দিষ্ট user কে notification
-const sendToUser = async ({ userId, title, message, url = "/" }) => {
+// ─── নির্দিষ্ট user কে notification ──────────────────────────────────────────
+const sendToUser = async ({ userId, title, message, url = "/", matchId = null, category = "general" }) => {
   try {
     const res = await axios.post(
       "https://onesignal.com/api/v1/notifications",
@@ -47,6 +53,11 @@ const sendToUser = async ({ userId, title, message, url = "/" }) => {
         headings: { en: title },
         contents: { en: message },
         url,
+        data: {
+          matchId: matchId ? matchId.toString() : null,
+          category,
+          url,
+        },
         ios_badgeType: "Increase",
         ios_badgeCount: 1,
         priority: 10,
