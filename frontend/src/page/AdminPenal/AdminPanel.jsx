@@ -754,183 +754,18 @@ const ManageAdmins = () => {
 // ════════════════════════════════════════════════════════════
 // 🆕 LUDO TOURNAMENT MANAGER
 // ════════════════════════════════════════════════════════════
-const LUDO_MODES = [
-  { id: "1v1",     label: "⚔️ 1 vs 1 (2 জন)", slots: 2 },
-  { id: "2v2",     label: "👥 2 vs 2 (4 জন)", slots: 4 },
-  { id: "4player", label: "🎮 4 Player Solo",  slots: 4 },
-];
-const LUDO_MAPS = ["Classic","Quick Ludo","Arrow","Magic"];
-
-const CreateLudoForm = ({ onCreated }) => {
-  const [form, setForm] = useState({ title:"",mode:"4player",entryFee:"",winPrize:"",startTime:"",map:"Classic",device:"Mobile",image:"", prizes:{first:"",second:"",third:"",fourth:""} });
-  const [msg, setMsg] = useState("");
-  const inp = { width:"100%",boxSizing:"border-box",padding:"10px 12px",border:"1.5px solid #e5e7eb",borderRadius:10,fontSize:13,background:"#f9fafb",outline:"none",fontFamily:"inherit" };
-  const f  = (k) => ({ style:inp, value:form[k]||"", onChange:(e)=>setForm(p=>({...p,[k]:e.target.value})) });
-  const fp = (k) => ({ style:{...inp,background:"#fff"}, value:form.prizes[k]||"", onChange:(e)=>setForm(p=>({...p,prizes:{...p.prizes,[k]:e.target.value}})) });
-
-  const handleImage = (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setForm(p=>({...p,image:ev.target.result}));
-    reader.readAsDataURL(file);
-  };
-
-  const submit = async () => {
-    if (!form.title||!form.startTime) { setMsg("❌ Title ও Start Time দিন"); return; }
-    const payload = { ...form, entryFee:Number(form.entryFee||0), winPrize:Number(form.winPrize||0), prizes:{first:Number(form.prizes.first||0),second:Number(form.prizes.second||0),third:Number(form.prizes.third||0),fourth:Number(form.prizes.fourth||0)} };
-    const d = await apiLegacy("/ludo-tournament/create", { method:"POST", body:JSON.stringify(payload) });
-    if (d.success) {
-      setMsg("✅ Ludo tournament created!");
-      setForm({ title:"",mode:"4player",entryFee:"",winPrize:"",startTime:"",map:"Classic",device:"Mobile",image:"",prizes:{first:"",second:"",third:"",fourth:""} });
-      onCreated?.();
-    } else { setMsg("❌ "+d.message); }
-  };
-
-  return (
-    <div style={{ background:"#fff",borderRadius:14,padding:20,border:"1px solid #e5e7eb" }}>
-      <div style={{ fontSize:15,fontWeight:700,marginBottom:18,color:"#111" }}>🎲 নতুন Ludo Tournament</div>
-      <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
-        <div><div style={{ fontSize:11,color:"#6b7280",marginBottom:4,fontWeight:600 }}>Match Title *</div><input placeholder="যেমন: Ludo Solo #1" {...f("title")} /></div>
-        <div>
-          <div style={{ fontSize:11,color:"#6b7280",marginBottom:6,fontWeight:600 }}>Tournament Mode</div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8 }}>
-            {LUDO_MODES.map((m) => (
-              <button key={m.id} onClick={() => setForm(p=>({...p,mode:m.id}))}
-                style={{ padding:"10px 8px",borderRadius:10,cursor:"pointer",border:`2px solid ${form.mode===m.id?"#7c3aed":"#e5e7eb"}`,background:form.mode===m.id?"#ede9fe":"#fff",color:form.mode===m.id?"#5b21b6":"#6b7280",fontSize:11,fontWeight:700,textAlign:"center" }}>
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div><div style={{ fontSize:11,color:"#6b7280",marginBottom:4,fontWeight:600 }}>Start Time *</div><input type="datetime-local" {...f("startTime")} /></div>
-        <div><div style={{ fontSize:11,color:"#6b7280",marginBottom:6,fontWeight:600 }}>Entry & Prize</div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-            <input placeholder="Entry Fee (৳)" {...f("entryFee")} type="number" style={inp} />
-            <input placeholder="Win Prize (৳)" {...f("winPrize")} type="number" style={inp} />
-          </div>
-        </div>
-        <div style={{ background:"#fefce8",border:"1px solid #fde68a",borderRadius:10,padding:14 }}>
-          <div style={{ fontSize:12,fontWeight:700,color:"#92400e",marginBottom:10 }}>🏆 Prize Breakdown</div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-            <div><div style={{ fontSize:10,color:"#92400e",marginBottom:3 }}>🥇 1st Prize (৳)</div><input placeholder="0" {...fp("first")} type="number" /></div>
-            <div><div style={{ fontSize:10,color:"#92400e",marginBottom:3 }}>🥈 2nd Prize (৳)</div><input placeholder="0" {...fp("second")} type="number" /></div>
-            <div><div style={{ fontSize:10,color:"#92400e",marginBottom:3 }}>🥉 3rd Prize (৳)</div><input placeholder="0" {...fp("third")} type="number" /></div>
-            {form.mode==="4player" && <div><div style={{ fontSize:10,color:"#92400e",marginBottom:3 }}>4️⃣ 4th Prize (৳)</div><input placeholder="0" {...fp("fourth")} type="number" /></div>}
-          </div>
-        </div>
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-          <div><div style={{ fontSize:11,color:"#6b7280",marginBottom:4,fontWeight:600 }}>Map</div>
-            <select style={inp} value={form.map} onChange={(e)=>setForm(p=>({...p,map:e.target.value}))}>{LUDO_MAPS.map(m=><option key={m} value={m}>{m}</option>)}</select>
-          </div>
-          <div><div style={{ fontSize:11,color:"#6b7280",marginBottom:4,fontWeight:600 }}>Device</div>
-            <select style={inp} value={form.device} onChange={(e)=>setForm(p=>({...p,device:e.target.value}))}><option value="Mobile">Mobile</option><option value="Emulator">Emulator</option><option value="All">All Device</option></select>
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize:11,color:"#6b7280",marginBottom:4,fontWeight:600 }}>Match Banner</div>
-          <label style={{ display:"block",padding:12,border:"1.5px dashed #d1d5db",borderRadius:8,textAlign:"center",cursor:"pointer",fontSize:13,color:"#6b7280",background:"#f9fafb" }}>
-            📷 Image Upload<input type="file" accept="image/*" onChange={handleImage} style={{ display:"none" }} />
-          </label>
-          {form.image && (<div style={{ marginTop:8,position:"relative" }}><img src={form.image} alt="" style={{ width:"100%",height:100,objectFit:"cover",borderRadius:8 }} /><button onClick={()=>setForm(p=>({...p,image:""}))} style={{ position:"absolute",top:6,right:6,background:"#ef4444",color:"#fff",border:"none",borderRadius:6,padding:"2px 8px",fontSize:11,cursor:"pointer" }}>✕</button></div>)}
-        </div>
-        {msg && <div style={{ fontSize:12,padding:"8px 10px",borderRadius:8,background:msg.startsWith("✅")?"#d1fae5":"#fee2e2",color:msg.startsWith("✅")?"#065f46":"#dc2626" }}>{msg}</div>}
-        <button onClick={submit} style={{ padding:12,background:"linear-gradient(135deg,#7c3aed,#4f46e5)",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer" }}>🎲 Create Ludo Tournament</button>
-      </div>
-    </div>
-  );
-};
-
-const LudoMatchRow = ({ match, onRefresh }) => {
-  const [roomCode, setRoomCode]     = useState(match.roomCode||"");
-  const [showResult, setShowResult] = useState(false);
-  const [results, setResults]       = useState((match.joinedUsers||[]).map(u=>({ userId:u.userId?._id||u.userId, name:u.userId?.name||"", rank:"", prize:0, kills:0 })));
-  const [msg, setMsg] = useState("");
-  const inp = { padding:"9px 12px",border:"1.5px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#f9fafb",outline:"none",fontFamily:"inherit" };
-  const statusBg  = { upcoming:"#dbeafe",live:"#fee2e2",completed:"#d1fae5",cancelled:"#f3f4f6" }[match.status]||"#dbeafe";
-  const statusClr = { upcoming:"#1e40af",live:"#991b1b",completed:"#065f46",cancelled:"#374151" }[match.status]||"#1e40af";
-  const modeClr   = { "1v1":"#f59e0b","2v2":"#3b82f6","4player":"#10b981" }[match.mode]||"#6b7280";
-
-  const updateRoom = async () => {
-    if (!roomCode) return;
-    const d = await apiLegacy(`/ludo-tournament/update-room/${match._id}`, { method:"PUT", body:JSON.stringify({roomCode}) });
-    setMsg(d.success?"✅ Room code set, match is LIVE":"❌ "+d.message);
-    onRefresh();
-  };
-  const submitResult = async () => {
-    const filled = results.filter(r=>r.rank&&r.userId);
-    if (!filled.length) { setMsg("❌ অন্তত একজনের result দিন"); return; }
-    const d = await apiLegacy(`/ludo-tournament/result/${match._id}`, { method:"POST", body:JSON.stringify({ results: filled.map(r=>({...r,rank:Number(r.rank),prize:Number(r.prize),kills:Number(r.kills||0)})) }) });
-    setMsg(d.success?"✅ Result submitted & prizes sent!":"❌ "+d.message);
-    onRefresh();
-  };
-  const deleteMatch = async () => { if (!window.confirm("এই match delete করবেন?")) return; await apiLegacy(`/ludo-tournament/${match._id}`,{method:"DELETE"}); onRefresh(); };
-
-  return (
-    <div style={{ background:"#fff",borderRadius:14,border:"1px solid #e5e7eb",overflow:"hidden",marginBottom:12 }}>
-      <div style={{ height:3,background:modeClr }} />
-      <div style={{ padding:"14px 16px" }}>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
-          <div>
-            <div style={{ fontSize:14,fontWeight:700,color:"#111" }}>🎲 {match.title}</div>
-            <div style={{ display:"flex",gap:6,marginTop:4,flexWrap:"wrap" }}>
-              <span style={{ background:modeClr+"22",color:modeClr,fontSize:10,padding:"2px 8px",borderRadius:20,fontWeight:700,border:`1px solid ${modeClr}55` }}>{match.mode==="1v1"?"⚔️ 1v1":match.mode==="2v2"?"👥 2v2":"🎮 4P"}</span>
-              <span style={{ background:statusBg,color:statusClr,fontSize:10,padding:"2px 8px",borderRadius:20,fontWeight:700 }}>{match.status?.toUpperCase()}</span>
-            </div>
-          </div>
-          <div style={{ textAlign:"right" }}>
-            <div style={{ fontSize:12,color:"#6b7280" }}>৳{match.entryFee||0} entry</div>
-            <div style={{ fontSize:14,fontWeight:700,color:"#f59e0b" }}>৳{match.winPrize||0} prize</div>
-          </div>
-        </div>
-
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:12 }}>
-          {[{label:"Joined",value:`${match.joinedPlayers||0}/${match.totalSlots||4}`},{label:"Map",value:match.map||"Classic"},{label:"Start",value:match.startTime?new Date(match.startTime).toLocaleTimeString("en-BD",{hour:"2-digit",minute:"2-digit",hour12:true}):"—"}].map((s,i)=>(
-            <div key={i} style={{ background:"#f9fafb",borderRadius:8,padding:"6px 8px",textAlign:"center" }}>
-              <div style={{ fontSize:9,color:"#9ca3af",fontWeight:600,textTransform:"uppercase" }}>{s.label}</div>
-              <div style={{ fontSize:12,fontWeight:700,color:"#111" }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {!["completed","cancelled"].includes(match.status) && (
-          <div style={{ display:"flex",gap:8,marginBottom:10 }}>
-            <input style={{ ...inp,flex:1 }} placeholder="Room Code দিন..." value={roomCode} onChange={(e)=>setRoomCode(e.target.value)} />
-            <button onClick={updateRoom} style={{ padding:"9px 14px",background:"#4f46e5",color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>Set Live 🚀</button>
-          </div>
-        )}
-
-        {match.status!=="completed"&&match.joinedPlayers>0&&(
-          <button onClick={()=>setShowResult(!showResult)} style={{ width:"100%",padding:"8px 0",background:showResult?"#fef9c3":"#f9fafb",color:"#374151",border:"1px solid #e5e7eb",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8 }}>
-            {showResult?"🔼 Result বন্ধ করুন":"🏆 Result দিন"}
-          </button>
-        )}
-
-        {showResult && (
-          <div style={{ background:"#f9fafb",borderRadius:10,padding:12,marginBottom:8 }}>
-            <div style={{ fontSize:11,fontWeight:700,color:"#374151",marginBottom:8 }}>Players ({results.length} জন)</div>
-            {results.map((r,i) => (
-              <div key={i} style={{ display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:6,marginBottom:6 }}>
-                <div style={{ fontSize:11,background:"#fff",borderRadius:8,padding:"6px 8px",border:"1px solid #e5e7eb",fontWeight:600,color:"#374151",display:"flex",alignItems:"center" }}>{r.name||`Player ${i+1}`}</div>
-                <input style={{ ...inp,fontSize:11,padding:"6px 8px" }} placeholder="Rank" type="number" value={r.rank} onChange={(e)=>setResults(p=>p.map((x,j)=>j===i?{...x,rank:e.target.value}:x))} />
-                <input style={{ ...inp,fontSize:11,padding:"6px 8px" }} placeholder="Prize ৳" type="number" value={r.prize} onChange={(e)=>setResults(p=>p.map((x,j)=>j===i?{...x,prize:e.target.value}:x))} />
-              </div>
-            ))}
-            <button onClick={submitResult} style={{ width:"100%",padding:10,background:"#10b981",color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",marginTop:6 }}>✅ Result Submit & Prize পাঠান</button>
-          </div>
-        )}
-
-        {msg && <div style={{ fontSize:12,padding:"6px 10px",borderRadius:8,background:msg.startsWith("✅")?"#d1fae5":"#fee2e2",color:msg.startsWith("✅")?"#065f46":"#dc2626",marginBottom:8 }}>{msg}</div>}
-        <button onClick={deleteMatch} style={{ padding:"6px 12px",background:"#fff",color:"#ef4444",border:"1px solid #fca5a5",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer" }}>🗑️ Delete</button>
-      </div>
-    </div>
-  );
-};
+ 
 
 const LudoTournamentManager = () => {
-  const [tab, setTab]         = useState("list");
+  const [tab, setTab] = useState("list");
   const [matches, setMatches] = useState([]);
-  const [filter, setFilter]   = useState("all");
+  const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(false);
+
+  // Result States
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [results, setResults] = useState([]);
+  const [winningTeam, setWinningTeam] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -938,43 +773,213 @@ const LudoTournamentManager = () => {
     setMatches(Array.isArray(d?.data) ? d.data : []);
     setLoading(false);
   }, []);
-  useEffect(() => { load(); }, [load]);
 
-  const filtered = filter==="all" ? matches : matches.filter(m=>m.status===filter);
-  const counts   = { all:matches.length, upcoming:matches.filter(m=>m.status==="upcoming").length, live:matches.filter(m=>m.status==="live").length, completed:matches.filter(m=>m.status==="completed").length };
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Open Result Form
+  const openResultForm = (match) => {
+    console.log("Opening result for:", match); // Debugging
+    setSelectedMatch(match);
+
+    const initialResults = (match.joinedUsers || []).map((player, index) => ({
+      userId: player.userId?._id || player.userId,
+      rank: index + 1,
+      prize: 0,
+      kills: 0,
+    }));
+
+    setResults(initialResults);
+    setWinningTeam("");
+    setTab("result");
+  };
+
+  const submitResult = async () => {
+    if (!selectedMatch) return alert("Match নির্বাচন করুন");
+
+    const payload = {
+      results,
+      ...(selectedMatch.mode === "2v2" && { winningTeam })
+    };
+
+    console.log("Sending payload:", payload);
+
+    const res = await apiLegacy(`/ludo-tournament/result/${selectedMatch._id}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    console.log("Server Response:", res);
+
+    if (res.success) {
+      alert("✅ Result সফলভাবে সাবমিট হয়েছে এবং Prize বিতরণ করা হয়েছে!");
+      setTab("list");
+      setSelectedMatch(null);
+      load();
+    } else {
+      alert("❌ " + (res.message || "Something went wrong"));
+    }
+  };
+
+  const filtered = filter === "all" ? matches : matches.filter(m => m.status === filter);
+  const counts = {
+    all: matches.length,
+    upcoming: matches.filter(m => m.status === "upcoming").length,
+    live: matches.filter(m => m.status === "live").length,
+    completed: matches.filter(m => m.status === "completed").length,
+  };
 
   return (
-    <div style={{ padding:24,maxWidth:800 }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+    <div style={{ padding: 24, maxWidth: 1000 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize:18,fontWeight:800,color:"#111" }}>🎲 Ludo Tournaments</div>
-          <div style={{ fontSize:12,color:"#9ca3af",marginTop:2 }}>Total: {matches.length}</div>
+          <h2 style={{ fontSize: 22, fontWeight: 800 }}>🎲 Ludo Tournaments</h2>
+          <p style={{ fontSize: 13, color: "#6b7280" }}>Total: {matches.length}</p>
         </div>
-        <div style={{ display:"flex",gap:6 }}>
-          <button onClick={()=>setTab("create")} style={{ padding:"8px 14px",background:"linear-gradient(135deg,#7c3aed,#4f46e5)",color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>+ নতুন</button>
-          <button onClick={load} style={{ padding:"8px 12px",background:"#f3f4f6",color:"#374151",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>🔄</button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setTab("create")} style={{ padding: "10px 18px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700 }}>
+            + Create New
+          </button>
+          <button onClick={load} style={{ padding: "10px 16px", background: "#f3f4f6", borderRadius: 10 }}>🔄 Refresh</button>
         </div>
       </div>
 
-      <div style={{ display:"flex",gap:4,marginBottom:14,background:"#f9fafb",borderRadius:12,padding:4 }}>
-        {[{id:"list",label:"📋 List"},{id:"create",label:"➕ Create"}].map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1,padding:"8px 0",border:"none",borderRadius:9,cursor:"pointer",background:tab===t.id?"#fff":"transparent",color:tab===t.id?"#4f46e5":"#9ca3af",fontWeight:700,fontSize:13,boxShadow:tab===t.id?"0 1px 4px rgba(0,0,0,0.08)":"none" }}>{t.label}</button>
+      {/* Filter Buttons */}
+      <div style={{ marginBottom: 16 }}>
+        {["all", "upcoming", "live", "completed"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            style={{
+              marginRight: 8,
+              padding: "8px 16px",
+              borderRadius: 20,
+              background: filter === f ? "#7c3aed" : "#f3f4f6",
+              color: filter === f ? "#fff" : "#374151",
+              border: "none",
+              fontWeight: 600
+            }}
+          >
+            {f.toUpperCase()} ({counts[f]})
+          </button>
         ))}
       </div>
 
-      {tab==="create" && <CreateLudoForm onCreated={()=>{load();setTab("list");}} />}
+      {tab === "create" && <CreateLudoForm onCreated={load} />}
 
-      {tab==="list" && (
-        <>
-          <div style={{ display:"flex",gap:6,marginBottom:12,overflowX:"auto" }}>
-            {[{id:"all",label:`সব (${counts.all})`},{id:"upcoming",label:`🕐 Upcoming (${counts.upcoming})`},{id:"live",label:`🔴 Live (${counts.live})`},{id:"completed",label:`✅ Done (${counts.completed})`}].map(f=>(
-              <button key={f.id} onClick={()=>setFilter(f.id)} style={{ flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.id?"#4f46e5":"#f3f4f6",color:filter===f.id?"#fff":"#6b7280",fontSize:11,fontWeight:700 }}>{f.label}</button>
-            ))}
+      {tab === "list" && (
+        <div>
+          {filtered.map((m) => (
+            <div key={m._id} style={{ background: "#fff", padding: 18, borderRadius: 14, marginBottom: 12, border: "1px solid #e5e7eb" }}>
+              <h3>{m.title}</h3>
+              <p><strong>Mode:</strong> {m.mode} | <strong>Status:</strong> {m.status}</p>
+              <p>Joined: {m.joinedPlayers || 0}/{m.totalSlots || 4}</p>
+
+              {m.status === "live" && (
+                <button 
+                  onClick={() => openResultForm(m)}
+                  style={{ 
+                    background: "#10b981", 
+                    color: "white", 
+                    padding: "12px 24px", 
+                    border: "none", 
+                    borderRadius: 10,
+                    fontWeight: 700,
+                    marginTop: 12
+                  }}
+                >
+                  📝 Submit Result
+                </button>
+              )}
+
+              {m.status === "completed" && <p style={{ color: "#10b981", marginTop: 8 }}>✅ Result Submitted</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ================= RESULT FORM ================= */}
+      {tab === "result" && selectedMatch && (
+        <div style={{ background: "#fff", padding: 24, borderRadius: 14, border: "1px solid #e5e7eb" }}>
+          <h2>Submit Result — {selectedMatch.title}</h2>
+          <p><strong>Mode:</strong> {selectedMatch.mode}</p>
+
+          {selectedMatch.mode === "2v2" && (
+            <div style={{ margin: "20px 0" }}>
+              <label>Winning Team:</label>
+              <input 
+                type="text" 
+                placeholder="Team A or Team B"
+                value={winningTeam}
+                onChange={(e) => setWinningTeam(e.target.value)}
+                style={{ width: "100%", padding: 12, marginTop: 8, borderRadius: 8 }}
+              />
+            </div>
+          )}
+
+          <table style={{ width: "100%", borderCollapse: "collapse", margin: "20px 0" }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                <th style={{ padding: 12, textAlign: "left" }}>Player</th>
+                <th>Rank</th>
+                <th>Prize (৳)</th>
+                <th>Kills</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((res, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: 12, fontWeight: 600 }}>
+                    {selectedMatch.joinedUsers?.[i]?.userId?.name || `Player ${i+1}`}
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input 
+                      type="number" min="1" value={res.rank} 
+                      onChange={(e) => {
+                        const newRes = [...results];
+                        newRes[i].rank = Number(e.target.value);
+                        setResults(newRes);
+                      }}
+                      style={{ width: 80, padding: 8 }}
+                    />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input 
+                      type="number" value={res.prize} 
+                      onChange={(e) => {
+                        const newRes = [...results];
+                        newRes[i].prize = Number(e.target.value);
+                        setResults(newRes);
+                      }}
+                      style={{ width: 120, padding: 8 }}
+                    />
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <input 
+                      type="number" value={res.kills} 
+                      onChange={(e) => {
+                        const newRes = [...results];
+                        newRes[i].kills = Number(e.target.value);
+                        setResults(newRes);
+                      }}
+                      style={{ width: 100, padding: 8 }}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={{ marginTop: 30 }}>
+            <button onClick={submitResult} style={{ background: "#10b981", color: "white", padding: "14px 32px", border: "none", borderRadius: 10, fontSize: 16, fontWeight: 700 }}>
+              ✅ Submit Final Result
+            </button>
+            <button onClick={() => setTab("list")} style={{ marginLeft: 12, padding: "14px 24px", background: "#e5e7eb", border: "none", borderRadius: 10 }}>
+              Cancel
+            </button>
           </div>
-          {loading && <div style={{ textAlign:"center",padding:30,color:"#9ca3af" }}>Loading...</div>}
-          {!loading&&filtered.length===0 && <div style={{ textAlign:"center",padding:40,background:"#fff",borderRadius:14,border:"1px solid #e5e7eb" }}><div style={{ fontSize:40 }}>🎲</div><div style={{ fontSize:14,color:"#6b7280",marginTop:8 }}>কোনো tournament নেই</div></div>}
-          {filtered.map(m=><LudoMatchRow key={m._id} match={m} onRefresh={load} />)}
-        </>
+        </div>
       )}
     </div>
   );
