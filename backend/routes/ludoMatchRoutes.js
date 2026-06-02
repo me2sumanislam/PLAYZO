@@ -1,4 +1,4 @@
- // routes/ludoTournamentRoutes.js
+ // routes/ludoMatchRoutes.js
 const express = require("express");
 const router = express.Router();
 const LudoTournament = require("../models/LudoTournament");
@@ -65,9 +65,8 @@ router.post("/create", protectAdmin, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
-// ADMIN: SUBMIT RESULT (Enhanced for 1v1, 2v2, 4player)
+// ADMIN: SUBMIT RESULT
 // POST /api/ludo-tournament/result/:id
-// body: { results: [{ userId, rank, prize, kills }], winningTeam? }
 // ════════════════════════════════════════════════════════════
 router.post("/result/:id", protectAdmin, async (req, res) => {
   try {
@@ -79,7 +78,6 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
       return res.json({ success: false, message: "Results array is required" });
     }
 
-    // Validate number of results
     if (results.length !== match.joinedPlayers) {
       return res.json({ 
         success: false, 
@@ -87,13 +85,13 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
       });
     }
 
-    // Check for duplicate ranks
+    // Duplicate rank check
     const ranks = results.map(r => r.rank);
     if (new Set(ranks).size !== ranks.length) {
       return res.json({ success: false, message: "Duplicate ranks are not allowed" });
     }
 
-    // Optional: Validate ranks are from 1 to total players
+    // Sequential rank check (1,2,3...)
     const sortedRanks = [...ranks].sort((a, b) => a - b);
     for (let i = 0; i < sortedRanks.length; i++) {
       if (sortedRanks[i] !== i + 1) {
@@ -105,7 +103,6 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
     match.results = results;
     match.status = "completed";
     
-    // For 2v2 mode
     if (match.mode === "2v2" && winningTeam) {
       match.winningTeam = winningTeam;
     }
@@ -144,10 +141,7 @@ router.post("/result/:id", protectAdmin, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// Other Routes (unchanged)
-// ════════════════════════════════════════════════════════════
-
+// Other Routes
 router.get("/", async (req, res) => {
   try {
     const { mode, status } = req.query;
