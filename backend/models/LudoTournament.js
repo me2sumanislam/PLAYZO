@@ -7,6 +7,7 @@ const ludoTournamentSchema = new mongoose.Schema({
   
   entryFee:     { type: Number, default: 0 },
   winPrize:     { type: Number, default: 0 },
+  
   totalSlots:   { type: Number, default: 4 },
   joinedPlayers:{ type: Number, default: 0 },
   
@@ -21,7 +22,7 @@ const ludoTournamentSchema = new mongoose.Schema({
   startTime:    { type: Date, default: null },
   expiresAt:    { type: Date, default: null },
 
-  // 2v2 এর জন্য Winning Team
+  // 2v2 Specific
   winningTeam:  { type: String, default: "" },
 
   prizes: {
@@ -31,10 +32,10 @@ const ludoTournamentSchema = new mongoose.Schema({
     fourth: { type: Number, default: 0 },
   },
 
-  // For 2v2 mode: teams
+  // Teams (mainly for 2v2)
   teams: [
     {
-      teamName:   { type: String, default: "" },
+      teamName: { type: String, default: "" }, // e.g., "Team A"
       players: [
         {
           userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -44,16 +45,14 @@ const ludoTournamentSchema = new mongoose.Schema({
     }
   ],
 
-  // For 1v1 and 4player: individual slots
   joinedUsers: [
     {
       userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       slotNumber: { type: Number },
-      teamId:     { type: String, default: "" }, // for 2v2 pairing
+      teamId:     { type: String, default: "" }, // "A" or "B" for 2v2
     }
   ],
 
-  // Result
   results: [
     {
       userId:   { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -65,7 +64,6 @@ const ludoTournamentSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// Auto-delete 20 min after startTime
 ludoTournamentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model("LudoTournament", ludoTournamentSchema);
