@@ -11,6 +11,23 @@
     <meta name="theme-color" content="#ff8a00" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- OneSignal -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "ad701a0f-8ef4-4d3c-8967-2a028216da99",
+          safari_web_id: "web.onesignal.auto.56dcd4fd-a138-4c52-be69-7f4de2370515",
+          serviceWorkerPath: "/OneSignalSDK.sw.js",
+          notifyButton: {
+            enable: false,
+          },
+        });
+      });
+    </script>
+
     <script type="module" crossorigin src="/assets/index-CH1JASsj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-Bn8H0K2R.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
@@ -27,12 +44,11 @@
         deferredPrompt = e;
       });
 
-      // Global Install Function
       window.installApp = async () => {
         console.log("📌 Install Button Clicked");
 
         if (!deferredPrompt) {
-          alert("⚠️ Install Prompt এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১৫-২০ সেকেন্ড অপেক্ষা করুন।");
+          alert("⚠️ Install Prompt এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১৫-২০ সেকেন্ড অপেক্ষা করুন।");
           return;
         }
 
