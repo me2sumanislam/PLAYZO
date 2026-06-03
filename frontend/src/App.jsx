@@ -58,65 +58,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ================= OneSignal Init =================
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src =
-      "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
-    script.defer = true;
-    document.head.appendChild(script);
 
-    script.onload = () => {
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      window.OneSignalDeferred.push(async (OneSignal) => {
-        await OneSignal.init({
-          appId: ONESIGNAL_APP_ID,
-          notifyButton: { enable: false },
-          allowLocalhostAsSecureOrigin: true,
-          serviceWorkerPath: "/sw.js",
-          serviceWorkerUpdaterPath: "/sw.js",
-        });
-
-        // Permission চাওয়া
-        const permission = await OneSignal.Notifications.permissionNative;
-        if (permission === "default") {
-          await OneSignal.Notifications.requestPermission();
-        }
-
-        // User login হলে external ID set
-        const user = (() => {
-          try {
-            return JSON.parse(localStorage.getItem("user") || "{}");
-          } catch {
-            return {};
-          }
-        })();
-        const userId = user?.id || user?._id;
-        if (userId) {
-          await OneSignal.login(userId.toString());
-        }
-
-        // Foreground notification এলে badge sync করো
-        OneSignal.Notifications.addEventListener(
-          "foregroundWillDisplay",
-          () => {
-            setTimeout(syncBadge, 500);
-          }
-        );
-
-        // Notification click হলে badge sync করো
-        OneSignal.Notifications.addEventListener("click", () => {
-          setTimeout(syncBadge, 500);
-        });
-
-        console.log("✅ OneSignal initialized");
-      });
-    };
-
-    return () => {
-      if (script.parentNode) script.parentNode.removeChild(script);
-    };
-  }, []);
 
   // ================= Login হলে OneSignal user set =================
   useEffect(() => {
