@@ -35,14 +35,11 @@ export default defineConfig({
           }
         ]
       },
-
-      workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
-        cleanupOutdatedCaches: true,
-        // ✅ push handler টা আলাদা sw file এ inject করবো
-        importScripts: ['/sw-push.js'],
-      },
+ workbox: {
+  skipWaiting: true,
+  clientsClaim: true,
+  cleanupOutdatedCaches: true,
+},
 
       devOptions: { enabled: true }
     }),
