@@ -477,27 +477,30 @@ function NotificationsPage({ onBack }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${CLEAN_API_URL}/notifications`);
-        const data = await res.json();
-        setNotifications(
-          Array.isArray(data?.data)
+ useEffect(() => {
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch(`${CLEAN_API_URL}/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setNotifications(
+        Array.isArray(data?.notifications)
+          ? data.notifications
+          : Array.isArray(data?.data)
             ? data.data
-            : Array.isArray(data?.notifications)
-              ? data.notifications
-              : []
-        );
-      } catch {
-        setNotifications([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotifications();
-  }, []);
+            : []
+      );
+    } catch {
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchNotifications();
+}, []);
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
