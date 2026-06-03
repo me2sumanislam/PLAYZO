@@ -11,20 +11,9 @@ const notificationSchema = new mongoose.Schema(
       default: null,
     },
     category: {
-  type: String,
-  enum: [
-    "general",
-    "freefire",
-    "ludo",
-    "br_match",
-    "br_survival",
-    "clash_squad",
-    "cs_2vs2",
-    "lonewolf",
-    "training_match"
-  ],
-  default: "general",
-},
+      type: String,
+      default: "general",
+    },
   },
   { timestamps: true }
 );
