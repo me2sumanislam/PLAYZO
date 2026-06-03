@@ -9,8 +9,9 @@ export default function NotificationBell({ onOpen }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
 
-  // ─── App Badge update ───────────────────────────────────────────────────────
+  // ─── Badge update — App এর context এ navigator use করো ────────────────────
   const updateAppBadge = useCallback((count) => {
+    // 1. App context (React) — navigator
     try {
       if ("setAppBadge" in navigator) {
         if (count > 0) {
@@ -21,31 +22,32 @@ export default function NotificationBell({ onOpen }) {
       }
     } catch {}
 
-    // Service Worker কেও badge জানাও
+    // 2. SW কেও জানাও (SW context এ self.setAppBadge)
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.ready
         .then((reg) => {
-          reg.active?.postMessage({ type: "UPDATE_BADGE", count });
-        })
-        .catch(() => {});
-    }
-  }, []);
-
-  // ─── SW তে token পাঠাও (app open হলেই) ────────────────────────────────────
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready
-        .then((reg) => {
-          const token = localStorage.getItem("token") || "";
-          if (token) {
-            reg.active?.postMessage({ type: "STORE_TOKEN", token });
+          if (reg.active) {
+            reg.active.postMessage({ type: "UPDATE_BADGE", count });
           }
         })
         .catch(() => {});
     }
   }, []);
 
-  // ─── OneSignal এ user login করাও (external_id set) ─────────────────────────
+  // ─── SW তে token পাঠাও ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.ready
+      .then((reg) => {
+        const token = localStorage.getItem("token") || "";
+        if (token && reg.active) {
+          reg.active.postMessage({ type: "STORE_TOKEN", token });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // ─── OneSignal এ user login (external_id) ──────────────────────────────────
   useEffect(() => {
     const user = (() => {
       try {
@@ -69,13 +71,17 @@ export default function NotificationBell({ onOpen }) {
     try {
       const token = localStorage.getItem("token") || "";
       if (!token) return;
+
       const res = await fetch(
         `${API_BASE}/notifications?isRead=false&limit=1`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       if (!res.ok) return;
       const data = await res.json();
-      const count = typeof data.unreadCount === "number" ? data.unreadCount : 0;
+      const count =
+        typeof data.unreadCount === "number" ? data.unreadCount : 0;
 
       if (count !== unreadCountRef.current) {
         unreadCountRef.current = count;
@@ -85,7 +91,7 @@ export default function NotificationBell({ onOpen }) {
     } catch {}
   }, [updateAppBadge]);
 
-  // ─── প্রথম load + ৩০ সেকেন্ড polling ─────────────────────────────────────
+  // ─── প্রথম load + ৩০s polling ──────────────────────────────────────────────
   useEffect(() => {
     fetchUnread();
     const interval = setInterval(fetchUnread, 30_000);
@@ -101,7 +107,7 @@ export default function NotificationBell({ onOpen }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fetchUnread]);
 
-  // ─── SW থেকে push এলে count update ────────────────────────────────────────
+  // ─── SW থেকে push message এলে update ──────────────────────────────────────
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const handler = (event) => {
@@ -109,37 +115,37 @@ export default function NotificationBell({ onOpen }) {
         fetchUnread();
       }
       if (event.data?.type === "BADGE_UPDATE") {
-        const count = event.data.count || 0;
+        const count = event.data.count ?? 0;
         unreadCountRef.current = count;
         setUnreadCount(count);
         updateAppBadge(count);
       }
     };
     navigator.serviceWorker.addEventListener("message", handler);
-    return () => navigator.serviceWorker.removeEventListener("message", handler);
+    return () =>
+      navigator.serviceWorker.removeEventListener("message", handler);
   }, [fetchUnread, updateAppBadge]);
 
-  // ─── OneSignal foreground notification ─────────────────────────────────────
+  // ─── OneSignal foreground ───────────────────────────────────────────────────
   useEffect(() => {
     if (!window.OneSignalDeferred) return;
     window.OneSignalDeferred.push((OneSignal) => {
-      OneSignal.Notifications.addEventListener("foregroundWillDisplay", () => {
-        fetchUnread();
-      });
-      OneSignal.Notifications.addEventListener("click", () => {
-        fetchUnread();
-      });
+      OneSignal.Notifications.addEventListener(
+        "foregroundWillDisplay",
+        fetchUnread
+      );
+      OneSignal.Notifications.addEventListener("click", fetchUnread);
     });
   }, [fetchUnread]);
 
-  // ─── Bell click — read all + badge clear ────────────────────────────────────
+  // ─── Bell click — read all + badge clear ───────────────────────────────────
   const handleOpen = async () => {
     if (unreadCount > 0) {
-      try {
-        unreadCountRef.current = 0;
-        setUnreadCount(0);
-        updateAppBadge(0);
+      unreadCountRef.current = 0;
+      setUnreadCount(0);
+      updateAppBadge(0);
 
+      try {
         const token = localStorage.getItem("token") || "";
         await fetch(`${API_BASE}/notifications/read-all`, {
           method: "PATCH",
@@ -177,10 +183,10 @@ export default function NotificationBell({ onOpen }) {
         />
       </svg>
 
-      {/* Unread Badge */}
+      {/* Badge */}
       {unreadCount > 0 && (
         <span
-          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shadow-red-500/50 animate-pulse"
+          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-lg animate-pulse"
           aria-hidden="true"
         >
           {unreadCount > 99 ? "99+" : unreadCount}
