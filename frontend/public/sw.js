@@ -1,12 +1,25 @@
- 
+ // public/sw.js — PWA Service Worker (Mobile Fixed ✅)
 
-// ─── Workbox precache (vite-plugin-pwa inject করবে) ──────────────────────────
 if (typeof self.__WB_MANIFEST !== "undefined") {
   // workbox precacheAndRoute এখানে inject হয়
 }
 
-// ─── Global token store (NotificationBell থেকে পাঠানো হয়) ────────────────────
 self.__token = "";
+
+// =============================================================================
+// ✅ BADGE HELPER — SW context এ self use করতে হয়, navigator নয়
+// =============================================================================
+function setBadge(count) {
+  try {
+    if ("setAppBadge" in self) {
+      if (count > 0) {
+        self.setAppBadge(count).catch(() => {});
+      } else {
+        self.clearAppBadge().catch(() => {});
+      }
+    }
+  } catch (e) {}
+}
 
 // =============================================================================
 // PUSH NOTIFICATION RECEIVE
@@ -23,7 +36,6 @@ self.addEventListener("push", (event) => {
     };
   }
 
-  // Category অনুযায়ী সঠিক URL
   const targetUrl =
     data.category === "ludo"
       ? `/app?tab=ludo`
@@ -60,7 +72,7 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     Promise.all([
-      // 1️⃣ Notification দেখাও (duplicate থাকলে আগেরটা বন্ধ করো)
+      // 1️⃣ Notification দেখাও
       self.registration.getNotifications().then((existing) => {
         existing.forEach((n) => {
           if (n.tag === options.tag) n.close();
@@ -68,12 +80,10 @@ self.addEventListener("push", (event) => {
         return self.registration.showNotification(data.title || "uthiYO", options);
       }),
 
-      // 2️⃣ App Icon Badge — navigator ব্যবহার করো (self.navigator নয়)
-      typeof navigator !== "undefined" && "setAppBadge" in navigator
-        ? navigator.setAppBadge(data.unreadCount || 1).catch(() => {})
-        : Promise.resolve(),
+      // 2️⃣ ✅ FIXED: self.setAppBadge (navigator নয়)
+      setBadge(data.unreadCount || 1),
 
-      // 3️⃣ React App কে message পাঠাও (NotificationBell update হবে)
+      // 3️⃣ React App কে message পাঠাও
       self.clients
         .matchAll({ type: "window", includeUncontrolled: true })
         .then((clients) => {
@@ -91,7 +101,7 @@ self.addEventListener("push", (event) => {
           });
         }),
 
-      // 4️⃣ Background sync (offline এর জন্য)
+      // 4️⃣ Background sync
       self.registration.sync
         ? self.registration.sync.register("sync-notifications").catch(() => {})
         : Promise.resolve(),
@@ -134,7 +144,7 @@ self.addEventListener("notificationclick", (event) => {
           }
         }),
 
-      // 2️⃣ API থেকে fresh unread count নিয়ে badge আপডেট করো
+      // 2️⃣ Fresh unread count নিয়ে badge update
       fetch(
         "https://playzo-vn8e.onrender.com/api/notifications?isRead=false&limit=1",
         {
@@ -150,14 +160,10 @@ self.addEventListener("notificationclick", (event) => {
           const count =
             typeof resData.unreadCount === "number" ? resData.unreadCount : 0;
 
-          const badgePromise =
-            typeof navigator !== "undefined" && "setAppBadge" in navigator
-              ? count > 0
-                ? navigator.setAppBadge(count).catch(() => {})
-                : navigator.clearAppBadge().catch(() => {})
-              : Promise.resolve();
+          // ✅ FIXED: setBadge helper use করো (navigator নয়)
+          setBadge(count);
 
-          const msgPromise = self.clients
+          return self.clients
             .matchAll({ type: "window", includeUncontrolled: true })
             .then((clients) => {
               clients.forEach((client) => {
@@ -168,8 +174,6 @@ self.addEventListener("notificationclick", (event) => {
                 });
               });
             });
-
-          return Promise.all([badgePromise, msgPromise]);
         })
         .catch(() => {}),
     ])
@@ -211,30 +215,25 @@ async function syncNotifications() {
 self.addEventListener("message", (event) => {
   // Badge Clear
   if (event.data?.type === "CLEAR_BADGE") {
-    if (typeof navigator !== "undefined" && "clearAppBadge" in navigator) {
-      navigator.clearAppBadge().catch(() => {});
-    }
+    // ✅ FIXED: setBadge(0) use করো
+    setBadge(0);
     event.source?.postMessage({ type: "BADGE_CLEARED", success: true });
   }
 
   // Badge Update
   if (event.data?.type === "UPDATE_BADGE") {
     const count = event.data.count || 0;
-    if (typeof navigator !== "undefined" && "setAppBadge" in navigator) {
-      const p = count > 0
-        ? navigator.setAppBadge(count)
-        : navigator.clearAppBadge();
-      p.catch(() => {});
-    }
+    // ✅ FIXED: setBadge helper use করো
+    setBadge(count);
     event.source?.postMessage({ type: "BADGE_UPDATED", count, success: true });
   }
 
-  // Token store (NotificationBell.jsx থেকে পাঠানো হয়)
+  // Token store
   if (event.data?.type === "STORE_TOKEN") {
     self.__token = event.data.token || "";
   }
 
-  // Skip waiting (নতুন SW version এলে)
+  // Skip waiting
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
@@ -255,7 +254,7 @@ self.addEventListener("message", (event) => {
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open("uthiyo-v1").then((cache) =>
+    caches.open("uthiyo-v2").then((cache) =>
       cache.addAll([
         "/",
         "/app",
@@ -263,7 +262,7 @@ self.addEventListener("install", (event) => {
         "/manifest.json",
         "/image/icon/icon-192x192.png",
         "/image/icon/icon-72x72.png",
-      ])
+      ]).catch(() => {})
     )
   );
 });
@@ -274,11 +273,10 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     Promise.all([
-      // পুরনো cache মুছো
       caches.keys().then((cacheNames) =>
         Promise.all(
           cacheNames.map((name) => {
-            if (name !== "uthiyo-v1") return caches.delete(name);
+            if (name !== "uthiyo-v2") return caches.delete(name);
           })
         )
       ),
@@ -291,13 +289,14 @@ self.addEventListener("activate", (event) => {
 // FETCH (Offline fallback)
 // =============================================================================
 self.addEventListener("fetch", (event) => {
+  if (event.request.url.includes("/api/")) return;
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );
 });
 
 // =============================================================================
-// HELPER FUNCTIONS (IndexedDB for offline notifications)
+// HELPER FUNCTIONS (IndexedDB)
 // =============================================================================
 function openDB() {
   return new Promise((resolve, reject) => {
