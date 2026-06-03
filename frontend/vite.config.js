@@ -35,11 +35,13 @@ export default defineConfig({
           }
         ]
       },
- workbox: {
-  skipWaiting: true,
-  clientsClaim: true,
-  cleanupOutdatedCaches: true,
-},
+
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        importScripts: ['/sw-push.js'],
+      },
 
       devOptions: { enabled: true }
     }),
