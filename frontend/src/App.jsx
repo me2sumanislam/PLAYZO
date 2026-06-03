@@ -15,7 +15,6 @@ const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 const API_BASE =
   (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api";
 
-// ── Badge helper (app যেকোনো জায়গা থেকে call করা যাবে) ──
 async function syncBadge() {
   try {
     if (!("setAppBadge" in navigator)) return;
@@ -58,7 +57,49 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ================= OneSignal Init =================
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+    script.defer = true;
+    document.head.appendChild(script);
 
+    script.onload = () => {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        await OneSignal.init({
+          appId: ONESIGNAL_APP_ID,
+          notifyButton: { enable: false },
+          allowLocalhostAsSecureOrigin: true,
+        });
+
+        const permission = await OneSignal.Notifications.permissionNative;
+        if (permission === "default") {
+          await OneSignal.Notifications.requestPermission();
+        }
+
+        const user = (() => {
+          try { return JSON.parse(localStorage.getItem("user") || "{}"); }
+          catch { return {}; }
+        })();
+        const userId = user?.id || user?._id;
+        if (userId) await OneSignal.login(userId.toString());
+
+        OneSignal.Notifications.addEventListener("foregroundWillDisplay", () => {
+          setTimeout(syncBadge, 500);
+        });
+        OneSignal.Notifications.addEventListener("click", () => {
+          setTimeout(syncBadge, 500);
+        });
+
+        console.log("✅ OneSignal initialized");
+      });
+    };
+
+    return () => {
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+  }, []);
 
   // ================= Login হলে OneSignal user set =================
   useEffect(() => {
@@ -80,7 +121,7 @@ function App() {
     }
   }, [isLoggedIn]);
 
-  // ================= Badge sync — login হলে ও প্রতি ৩০ সেকেন্ডে =================
+  // ================= Badge sync =================
   useEffect(() => {
     if (!isLoggedIn) return;
     syncBadge();
@@ -118,7 +159,6 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  // ================= Auth Handlers =================
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
   };
@@ -129,20 +169,16 @@ function App() {
         await OneSignal.logout();
       });
     }
-
     localStorage.clear();
     setIsLoggedIn(false);
-
     if ("clearAppBadge" in navigator) {
       navigator.clearAppBadge().catch(() => {});
     }
-
     navigate("/");
   };
 
   return (
     <Routes>
-      {/* Website Mode */}
       <Route
         path="/"
         element={
@@ -154,8 +190,6 @@ function App() {
           </div>
         }
       />
-
-      {/* App Mode */}
       <Route
         path="/app"
         element={
@@ -168,8 +202,6 @@ function App() {
           </div>
         }
       />
-
-      {/* Referral Page */}
       <Route
         path="/referral"
         element={
@@ -184,8 +216,6 @@ function App() {
           )
         }
       />
-
-      {/* Admin Panel */}
       <Route
         path="/admin/*"
         element={
