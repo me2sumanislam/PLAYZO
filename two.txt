@@ -1,1090 +1,291 @@
-  // page/Referral/Referral.jsx
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-
-const API = import.meta.env.VITE_API_URL || "";
-
-const Referral = ({ onBack, user, token }) => {
-  const [referralData, setReferralData] = useState(null);
-  const [converting, setConverting]     = useState(false);
-  const [convertMsg, setConvertMsg]     = useState("");
-  const [msgType, setMsgType]           = useState("success");
-  const [loading, setLoading]           = useState(true);
-  const [errorMsg, setErrorMsg]         = useState("");
-
-  // ✅ user.id অথবা user._id যেটাই থাকুক কাজ করবে
-  const userId = user?.id || user?._id;
-
-  useEffect(() => {
-    if (userId) {
-      fetchReferral();
-    } else {
-      setErrorMsg("User তথ্য পাওয়া যায়নি। আবার লগইন করুন।");
-      setLoading(false);
-    }
-  }, [userId]);
-
-  const fetchReferral = async () => {
-    setLoading(true);
-    setErrorMsg("");
-    try {
-      const res = await axios.get(`${API}/api/wallet/referral/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.data.success) {
-        setReferralData(res.data.data);
-      } else {
-        setErrorMsg("ডেটা লোড হয়নি।");
-      }
-    } catch (err) {
-      console.error("Referral fetch error:", err);
-      setErrorMsg("সার্ভার থেকে ডেটা আনতে পারেনি।");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConvert = async () => {
-    setConverting(true);
-    setConvertMsg("");
-    try {
-      const res = await axios.post(
-        `${API}/api/wallet/referral/convert`,
-        { userId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setConvertMsg(res.data.message || "সফল হয়েছে!");
-      setMsgType(res.data.success ? "success" : "error");
-      if (res.data.success) fetchReferral();
-    } catch {
-      setConvertMsg("এরর হয়েছে! আবার চেষ্টা করুন।");
-      setMsgType("error");
-    } finally {
-      setConverting(false);
-    }
-  };
-
-  const handleShare = () => {
-    const code = referralData?.referralCode;
-    if (!code) {
-      setConvertMsg("⚠️ Referral code লোড হয়নি, একটু অপেক্ষা করুন।");
-      setMsgType("error");
-      return;
-    }
-    const link = `https://playzo-eight.vercel.app?ref=${code}`;
-    const text = `আমার referral code: ${code}\n${link}`;
-    if (navigator.share) {
-      navigator.share({ title: "Playzo তে যোগ দাও!", text: `আমার referral code: ${code}`, url: link });
-    } else {
-      navigator.clipboard.writeText(text);
-      setConvertMsg("✅ লিংক কপি হয়েছে!");
-      setMsgType("info");
-    }
-  };
-
-  const hasPending = referralData?.hasPendingRequest;
-  const points     = referralData?.referralPoints || 0;
-  const canConvert = points >= 100 && !hasPending;
-
-  const msgColors = {
-    success: { bg: "#f0fdf4", border: "#bbf7d0", text: "#15803d" },
-    error:   { bg: "#fff1f2", border: "#fecdd3", text: "#be123c" },
-    info:    { bg: "#eff6ff", border: "#bfdbfe", text: "#1d4ed8" },
-  };
-  const mc = msgColors[msgType];
-
-  // ✅ Loading state
-  if (loading) {
-    return (
-      <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 border-4 border-orange-400 border-t-transparent rounded-full animate-spin" />
-        <p className="text-gray-500 font-bold text-sm">লোড হচ্ছে...</p>
-      </div>
-    );
-  }
-
-  // ✅ Error state
-  if (errorMsg) {
-    return (
-      <div className="bg-white min-h-screen flex flex-col items-center justify-center gap-4 px-8">
-        <p className="text-4xl">😕</p>
-        <p className="text-red-500 font-bold text-center">{errorMsg}</p>
-        <button
-          onClick={onBack}
-          className="bg-orange-500 text-white px-6 py-3 rounded-2xl font-bold"
-        >
-          ← ফিরে যান
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white min-h-screen pb-10">
-      {/* Header */}
-      <div className="bg-gradient-to-b from-orange-400 to-orange-600 pt-12 pb-8 text-center text-white px-4 relative">
-        <button onClick={onBack} className="absolute left-4 top-12 text-white font-bold text-2xl">←</button>
-        <p className="text-4xl mb-2">🎁</p>
-        <h2 className="text-xl font-black">Refer & Earn</h2>
-        <p className="text-orange-100 text-sm mt-1">বন্ধুদের invite করুন, পয়েন্ট জিতুন!</p>
-        <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
-          <p className="text-xs text-orange-100">আপনার Points</p>
-          <p className="text-3xl font-black">{points}</p>
-          <p className="text-xs text-orange-100 mt-1">১০০ points = ৳১০০</p>
-        </div>
-      </div>
-
-      <div className="px-4 mt-6 space-y-4">
-
-        {/* Referral Code */}
-        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
-          <p className="text-xs text-gray-500 font-bold mb-1">আপনার Referral Code</p>
-          <div className="flex items-center justify-between">
-            <p className="text-2xl font-black text-orange-600 tracking-widest">
-              {referralData?.referralCode || "—"}
-            </p>
-            <button
-              onClick={handleShare}
-              className="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold text-sm"
-            >
-              Share 🔗
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-blue-50 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-black text-blue-600">{referralData?.referralCount || 0}</p>
-            <p className="text-xs text-gray-500 font-bold">মোট Refer</p>
-          </div>
-          <div className="bg-green-50 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-black text-green-600">
-              {referralData?.referralHistory?.filter(r => r.deposited).length || 0}
-            </p>
-            <p className="text-xs text-gray-500 font-bold">Deposit করেছে</p>
-          </div>
-        </div>
-
-        {/* How it works */}
-        <div className="bg-gray-50 rounded-2xl p-4">
-          <p className="font-black text-sm mb-3">কীভাবে কাজ করে?</p>
-          <div className="space-y-2 text-sm">
-            {[
-              "১. আপনার code দিয়ে বন্ধু register করবে",
-              "২. বন্ধু ৳৫০+ deposit করবে",
-              "৩. আপনি ৫ পয়েন্ট পাবেন",
-              "৪. ২০ জন = ১০০ পয়েন্ট = ৳১০০",
-            ].map((text, i) => (
-              <div key={i} className="flex gap-3 items-start">
-                <span className="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">
-                  {i + 1}
-                </span>
-                <p className="text-gray-600">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Pending notice */}
-        {hasPending && (
-          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 16, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <span style={{ fontSize: 20 }}>⏳</span>
-            <div>
-              <p style={{ fontWeight: 700, fontSize: 13, color: "#92400e", marginBottom: 2 }}>Convert Request Pending</p>
-              <p style={{ fontSize: 12, color: "#b45309" }}>আপনার request Admin এর কাছে পাঠানো হয়েছে। Approve হলে balance এ যোগ হবে।</p>
-            </div>
-          </div>
-        )}
-
-        {/* Message */}
-        {convertMsg && (
-          <div style={{ background: mc.bg, border: `1px solid ${mc.border}`, color: mc.text, padding: "12px 16px", borderRadius: 14, textAlign: "center", fontSize: 13, fontWeight: 600 }}>
-            {convertMsg}
-          </div>
-        )}
-
-        {/* Convert Button */}
-        <button
-          onClick={handleConvert}
-          disabled={converting || !canConvert}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-black text-lg disabled:opacity-50 transition"
-        >
-          {converting
-            ? "হচ্ছে..."
-            : hasPending
-              ? "⏳ Request Pending..."
-              : points < 100
-                ? `Convert করুন (${points} pts — কম আছে)`
-                : `Convert করুন (${points} pts → ৳${Math.floor(points / 100) * 100})`
-          }
-        </button>
-
-        {/* Referral History */}
-        {referralData?.referralHistory?.length > 0 && (
-          <div>
-            <p className="font-black text-sm mb-3">Referral History</p>
-            <div className="space-y-2">
-              {referralData.referralHistory.map((r, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl p-3 flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">{r.name || "Unknown"}</p>
-                    <p className="text-xs text-gray-500">{r.phone}</p>
-                  </div>
-                  <div>
-                    {r.pointGiven ? (
-                      <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold">+5 pts ✅</span>
-                    ) : r.deposited ? (
-                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">Deposited</span>
-                    ) : (
-                      <span className="bg-gray-200 text-gray-500 text-xs px-3 py-1 rounded-full">Pending</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-};
-
-export default Referral;
-
- // page/Auth/Auth.jsx
-import React, { useState, useEffect } from "react";
-import { Eye, EyeOff } from "lucide-react";
-
-const PasswordInput = ({ placeholder, value, onChange, required, autoComplete, className }) => {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="relative">
-      <input
-        type={show ? "text" : "password"}
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        autoComplete={autoComplete}
-        className={className}
-        required={required}
-      />
-      <button
-        type="button"
-        onClick={() => setShow(!show)}
-        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 active:text-gray-600"
-      >
-        {show ? <EyeOff size={20} /> : <Eye size={20} />}
-      </button>
-    </div>
-  );
-};
-
-const Auth = ({ onLoginSuccess }) => {
-  const [screen, setScreen] = useState("login");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const [loginData, setLoginData] = useState({ phone: "", password: "" });
-  const [regData, setRegData] = useState({
-    name: "", phone: "", password: "", confirm: "",
-    referralCode: ""
-  });
-  const [forgotPhone, setForgotPhone] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [forgotStep, setForgotStep] = useState(1);
-
-  // ✅ URL থেকে ?ref=CODE auto-fill — referral link কাজ করবে
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const refCode = params.get("ref");
-    if (refCode) {
-      setRegData((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
-      setScreen("register"); // সরাসরি register tab এ নিয়ে যাও
-    }
-  }, []);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: loginData.phone, password: loginData.password }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("isAdmin", "false");
-        localStorage.setItem("user", JSON.stringify(data.user));
-        onLoginSuccess();
-      } else {
-        setError(data.message || "Login failed!");
-      }
-    } catch {
-      setError("Server error! Backend চালু আছে?");
-    }
-    setLoading(false);
-  };
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!regData.name || !regData.phone || !regData.password) {
-      setError("সব তথ্য পূরণ করুন!"); return;
-    }
-    if (regData.password !== regData.confirm) {
-      setError("পাসওয়ার্ড মিলছে না!"); return;
-    }
-    if (regData.password.length < 6) {
-      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: regData.name,
-          phone: regData.phone,
-          password: regData.password,
-          referralCode: regData.referralCode.trim().toUpperCase() || null,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("isAdmin", "false");
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        // ✅ Register সফল হলে URL থেকে ?ref param মুছে দাও
-        const url = new URL(window.location.href);
-        url.searchParams.delete("ref");
-        window.history.replaceState({}, "", url.toString());
-
-        onLoginSuccess();
-      } else {
-        setError(data.message || "Registration failed!");
-      }
-    } catch {
-      setError("Server error! Backend চালু আছে?");
-    }
-    setLoading(false);
-  };
-
-  const handleForgotStep1 = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!forgotPhone) { setError("ফোন নাম্বার দিন!"); return; }
-    setLoading(true);
-    try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/check-phone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: forgotPhone }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setForgotStep(2);
-        setSuccess("ফোন নাম্বার পাওয়া গেছে! নতুন পাসওয়ার্ড দিন।");
-      } else {
-        setError("এই ফোন নাম্বার দিয়ে কোনো অ্যাকাউন্ট নেই!");
-      }
-    } catch {
-      setForgotStep(2);
-      setSuccess("নতুন পাসওয়ার্ড দিন।");
-    }
-    setLoading(false);
-  };
-
-  const handleForgotStep2 = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!newPass || newPass.length < 6) { setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return; }
-    setLoading(true);
-    try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: forgotPhone, password: newPass }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে! এখন লগইন করুন।");
-        setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
-      } else {
-        setError(data.message || "Failed!");
-      }
-    } catch {
-      setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে!");
-      setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
-    }
-    setLoading(false);
-  };
-
-  const inputClass = "w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-medium";
-  const switchScreen = (s) => { setScreen(s); setError(""); setSuccess(""); setForgotStep(1); };
-
-  return (
-    <div className="w-full max-w-[450px] min-h-screen bg-white flex flex-col justify-start px-8 mx-auto pt-24">
-
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-black text-slate-800">
-          uth<span className="text-orange-500">iyO</span>
-        </h1>
-        <p className="text-slate-500 mt-1 text-sm">
-          {screen === "login" && "আপনার অ্যাকাউন্টে লগইন করুন"}
-          {screen === "register" && "নতুন অ্যাকাউন্ট তৈরি করুন"}
-          {screen === "forgot" && "পাসওয়ার্ড রিসেট করুন"}
-        </p>
-      </div>
-
-      {screen !== "forgot" && (
-        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
-          <button
-            onClick={() => switchScreen("login")}
-            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${screen === "login" ? "bg-white shadow text-slate-800" : "text-gray-400"}`}
-          >
-            লগইন
-          </button>
-          <button
-            onClick={() => switchScreen("register")}
-            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${screen === "register" ? "bg-white shadow text-slate-800" : "text-gray-400"}`}
-          >
-            রেজিস্ট্রেশন
-          </button>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm font-bold text-center p-3 rounded-xl">
-          ⚠️ {error}
-        </div>
-      )}
-      {success && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-600 text-sm font-bold text-center p-3 rounded-xl">
-          ✅ {success}
-        </div>
-      )}
-
-      {/* LOGIN FORM */}
-      {screen === "login" && (
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input
-            type="text"
-            placeholder="ফোন নাম্বার / Username"
-            className={inputClass}
-            value={loginData.phone}
-            onChange={(e) => setLoginData({ ...loginData, phone: e.target.value })}
-            autoComplete="tel"
-            required
-          />
-          <PasswordInput
-            placeholder="পাসওয়ার্ড"
-            className={`${inputClass} pr-12`}
-            value={loginData.password}
-            onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-            autoComplete="current-password"
-            required
-          />
-          <div className="text-right">
-            <button type="button" onClick={() => switchScreen("forgot")} className="text-orange-500 font-bold text-sm">
-              পাসওয়ার্ড ভুলে গেছেন?
-            </button>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
-          >
-            {loading ? "লগইন হচ্ছে..." : "লগইন করুন"}
-          </button>
-        </form>
-      )}
-
-      {/* REGISTER FORM */}
-      {screen === "register" && (
-        <form onSubmit={handleRegister} className="space-y-4">
-          <input
-            type="text"
-            placeholder="আপনার নাম"
-            className={inputClass}
-            value={regData.name}
-            onChange={(e) => setRegData({ ...regData, name: e.target.value })}
-            autoComplete="name"
-            required
-          />
-          <input
-            type="text"
-            placeholder="ফোন নাম্বার"
-            className={inputClass}
-            value={regData.phone}
-            onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
-            autoComplete="tel"
-            required
-          />
-          <PasswordInput
-            placeholder="পাসওয়ার্ড"
-            className={`${inputClass} pr-12`}
-            value={regData.password}
-            onChange={(e) => setRegData({ ...regData, password: e.target.value })}
-            autoComplete="new-password"
-            required
-          />
-          <PasswordInput
-            placeholder="পাসওয়ার্ড আবার লিখুন"
-            className={`${inputClass} pr-12`}
-            value={regData.confirm}
-            onChange={(e) => setRegData({ ...regData, confirm: e.target.value })}
-            autoComplete="new-password"
-            required
-          />
-
-          {/* ✅ REFERRAL CODE — URL থেকে auto-fill, manually-ও দেওয়া যাবে */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="রেফারেল কোড (optional)"
-              className={`${inputClass} ${regData.referralCode ? "border-orange-400 bg-orange-50" : ""}`}
-              value={regData.referralCode}
-              onChange={(e) => setRegData({ ...regData, referralCode: e.target.value.toUpperCase() })}
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🎁</span>
-          </div>
-
-          {/* ✅ Referral code confirm banner */}
-          {regData.referralCode && (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 font-bold">
-              🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু ৫ পয়েন্ট পাবে!
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
-          >
-            {loading ? "হচ্ছে..." : "রেজিস্ট্রেশন করুন"}
-          </button>
-        </form>
-      )}
-
-      {/* FORGOT PASSWORD */}
-      {screen === "forgot" && (
-        <div>
-          <button onClick={() => switchScreen("login")} className="flex items-center gap-2 text-gray-500 font-bold text-sm mb-6">
-            ← লগইনে ফিরে যান
-          </button>
-
-          {forgotStep === 1 && (
-            <form onSubmit={handleForgotStep1} className="space-y-4">
-              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center mb-2">
-                <p className="text-2xl mb-1">🔐</p>
-                <p className="text-sm font-bold text-orange-700">আপনার রেজিস্ট্রেশন করা ফোন নাম্বার দিন</p>
-              </div>
-              <input
-                type="text"
-                placeholder="ফোন নাম্বার"
-                className={inputClass}
-                value={forgotPhone}
-                onChange={(e) => setForgotPhone(e.target.value)}
-                autoComplete="tel"
-                required
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-orange-500 text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
-              >
-                {loading ? "চেক হচ্ছে..." : "পরবর্তী ধাপ →"}
-              </button>
-            </form>
-          )}
-
-          {forgotStep === 2 && (
-            <form onSubmit={handleForgotStep2} className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center mb-2">
-                <p className="text-2xl mb-1">✅</p>
-                <p className="text-sm font-bold text-green-700">{forgotPhone} — অ্যাকাউন্ট পাওয়া গেছে!</p>
-              </div>
-              <PasswordInput
-                placeholder="নতুন পাসওয়ার্ড"
-                className={`${inputClass} pr-12`}
-                value={newPass}
-                onChange={(e) => setNewPass(e.target.value)}
-                autoComplete="new-password"
-                required
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
-              >
-                {loading ? "হচ্ছে..." : "পাসওয়ার্ড পরিবর্তন করুন"}
-              </button>
-            </form>
-          )}
-        </div>
-      )}
-
-      <p className="text-center mt-6 text-xs text-gray-400">
-        ⚠ Only Mobile Devices Allowed
-      </p>
-    </div>
-  );
-};
-
-export default Auth;
-
-
- import React, { useState, useEffect } from "react";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import "./App.css";
-
-import Footer from "./Component/Footer/Footer";
-import Hero from "./Component/HeroSection/HeroSection";
-import Navbar from "./Component/Navbar/Navbar";
-import HomeCard from "./page/HomeCard/HomeCard";
-import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
-import Auth from "./page/Auth/Auth";
-import AdminPanel from "./page/AdminPenal/AdminPanel";
-import Referral from "./page/Referral/Referral";
-
-import { subscribeUserToPush } from "./utils/pushNotification";
-
-const PWA_INSTALL_KEY = "pwa_install_id";
-
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
-    if (!token || !user) return false;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      if (payload.exp * 1000 < Date.now()) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        return false;
-      }
-      return true;
-    } catch {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      return false;
-    }
-  });
-
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone;
-
-  // ✅ Referral link redirect
-  // কেউ https://playzo-eight.vercel.app?ref=CODE খুললে
-  // → /app?ref=CODE এ redirect হবে
-  // → Auth.jsx সেখান থেকে code পড়ে register tab খুলবে
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const refCode = params.get("ref");
-    if (refCode && location.pathname === "/") {
-      navigate(`/app?ref=${refCode}`, { replace: true });
-    }
-  }, []);
-
-  useEffect(() => {
-    const checkPWAReinstall = () => {
-      const runningAsStandalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        window.navigator.standalone === true;
-
-      if (!runningAsStandalone) return;
-
-      const savedInstallId = localStorage.getItem(PWA_INSTALL_KEY);
-      const currentSessionId = sessionStorage.getItem(PWA_INSTALL_KEY);
-
-      if (!currentSessionId) {
-        const newInstallId = Date.now().toString();
-        sessionStorage.setItem(PWA_INSTALL_KEY, newInstallId);
-
-        if (savedInstallId && savedInstallId !== newInstallId) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          localStorage.removeItem("isAdmin");
-          localStorage.removeItem("adminToken");
-          localStorage.removeItem("adminInfo");
-          localStorage.removeItem("user_balance");
-          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
-          setIsLoggedIn(false);
-        } else if (!savedInstallId) {
-          localStorage.setItem(PWA_INSTALL_KEY, newInstallId);
-        }
-      }
-    };
-
-    checkPWAReinstall();
-  }, []);
-
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-
-    const handleSWMessage = (event) => {
-      if (event.data?.type === "SW_ACTIVATED_CLEAR_AUTH") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        localStorage.removeItem("isAdmin");
-        localStorage.removeItem("adminToken");
-        localStorage.removeItem("adminInfo");
-        localStorage.removeItem("user_balance");
-        setIsLoggedIn(false);
-      }
-    };
-
-    navigator.serviceWorker.addEventListener("message", handleSWMessage);
-    return () => {
-      navigator.serviceWorker.removeEventListener("message", handleSWMessage);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isStandalone && location.pathname === "/") {
-      navigate("/app");
-    }
-  }, [isStandalone, location.pathname, navigate]);
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      subscribeUserToPush();
-    }
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    const updateAppIconBadge = async () => {
-      if (!("setAppBadge" in navigator) || !isLoggedIn) return;
-
-      try {
-        const API_BASE =
-          import.meta.env.VITE_API_URL ||
-          "https://playzo-vn8e.onrender.com/api";
-        const res = await fetch(
-          `${API_BASE}/notifications?isRead=false&limit=1`
-        );
-        const data = await res.json();
-
-        const count = data.unreadCount || 0;
-        if (count > 0) {
-          await navigator.setAppBadge(count);
-        } else {
-          await navigator.clearAppBadge();
-        }
-      } catch (err) {
-        console.error("Badge update failed:", err);
-      }
-    };
-
-    updateAppIconBadge();
-    const badgeInterval = setInterval(updateAppIconBadge, 30000);
-    return () => clearInterval(badgeInterval);
-  }, [isLoggedIn]);
-
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(!!localStorage.getItem("token"));
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isAdmin");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminInfo");
-    localStorage.removeItem("user_balance");
-    setIsLoggedIn(false);
-
-    if ("clearAppBadge" in navigator) {
-      navigator.clearAppBadge().catch(() => {});
-    }
-
-    navigate("/");
-  };
-
-  return (
-    <Routes>
-      {/* Website Mode */}
-      <Route
-        path="/"
-        element={
-          <div className="website-layout">
-            <Navbar />
-            <Hero />
-            <HomeCard />
-            <Footer />
-          </div>
-        }
-      />
-
-      {/* App Mode */}
-      <Route
-        path="/app"
-        element={
-          <div className="app-container bg-[#fcfaff] min-h-screen">
-            {isLoggedIn ? (
-              <AppDashboard onLogout={handleLogout} />
-            ) : (
-              <Auth onLoginSuccess={handleLoginSuccess} />
-            )}
-          </div>
-        }
-      />
-
-      {/* ✅ Referral Page — user আর token এখন পাঠানো হচ্ছে */}
-      <Route
-        path="/referral"
-        element={
-          isLoggedIn ? (
-            <Referral
-              onBack={() => navigate("/app")}
-              user={JSON.parse(localStorage.getItem("user"))}
-              token={localStorage.getItem("token")}
-            />
-          ) : (
-            <Auth onLoginSuccess={handleLoginSuccess} />
-          )
-        }
-      />
-
-      {/* Admin Panel */}
-      <Route
-        path="/admin/*"
-        element={
-          <div className="min-h-screen bg-gray-950">
-            <AdminPanel
-              onLogout={() => {
-                localStorage.removeItem("adminToken");
-                localStorage.removeItem("adminInfo");
-                navigate("/");
-              }}
-            />
-          </div>
-        }
-      />
-    </Routes>
-  );
-}
-
-export default App;
-
-
- // routes/walletRoutes.js
-
-const express = require("express");
-const router  = express.Router();
-const Deposit = require("../models/Deposit");
-const User    = require("../models/User");
-
-// ── Referral Constants ──────────────────────────────────────────
-const REFERRAL_DEPOSIT_MIN = 50;   // B কে ন্যূনতম ৳৫০ deposit করতে হবে
-const POINTS_PER_REFERRAL  = 5;    // প্রতি successful refer = 5 points
-const MIN_CONVERT_POINTS   = 20;   // convert করতে minimum 20 points লাগবে
-// ✅ 1 point = 1 টাকা (সরাসরি)
-
-// ─── USER: Deposit Request Submit ────────────────────────────────
-router.post("/deposit", async (req, res) => {
+ // models/Notification.js
+const mongoose = require("mongoose");
+
+const notificationSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    matchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Match",
+      default: null,
+    },
+    category: {
+      type: String,
+      enum: ["general", "freefire", "ludo"],
+      default: "general",
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Notification", notificationSchema);
+
+// models/userNotification.js
+const mongoose = require("mongoose");
+
+const userNotificationSchema = new mongoose.Schema(
+  {
+    notificationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Notification",
+      required: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    isRead: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+// Index for fast per-user queries
+userNotificationSchema.index({ userId: 1, isRead: 1 });
+userNotificationSchema.index({ userId: 1, createdAt: -1 });
+
+module.exports = mongoose.model("UserNotification", userNotificationSchema);
+
+// backend/utils/sendNotification.js
+const axios = require("axios");
+
+const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
+const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
+
+// ─── সব user কে notification ─────────────────────────────────────────────────
+const sendToAll = async ({ title, message, url = "/", matchId = null, category = "general" }) => {
   try {
-    const { method, amount, trxId, userId, paymentNumber } = req.body;
-
-    if (!method || !amount || !trxId) {
-      return res.status(400).json({
-        success: false,
-        message: "method, amount এবং trxId দিন",
-      });
-    }
-
-    const deposit = await Deposit.create({
-      method,
-      amount: Number(amount),
-      trxId,
-      paymentNumber: paymentNumber || null,
-      userId: userId || null,
-      status: "pending",
-    });
-
-    res.json({ success: true, deposit });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ─── ADMIN: All Deposits ──────────────────────────────────────────
-router.get("/deposits", async (req, res) => {
-  try {
-    const { status } = req.query;
-    const filter = status && status !== "all" ? { status } : {};
-    const deposits = await Deposit.find(filter)
-      .sort({ createdAt: -1 })
-      .populate("userId", "name phone");
-    res.json(deposits);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// ─── ADMIN: Approve / Reject Deposit ─────────────────────────────
-router.patch("/deposit/:id", async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    if (!["approved", "rejected"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "status হবে 'approved' অথবা 'rejected'",
-      });
-    }
-
-    const deposit = await Deposit.findById(req.params.id);
-    if (!deposit) {
-      return res.status(404).json({ success: false, message: "Deposit পাওয়া যায়নি" });
-    }
-
-    if (deposit.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "এই request আগেই process হয়ে গেছে",
-      });
-    }
-
-    deposit.status = status;
-    await deposit.save();
-
-    if (status === "approved" && deposit.userId) {
-      // ── User এর balance বাড়াও ──
-      const user = await User.findByIdAndUpdate(
-        deposit.userId,
-        { $inc: { balance: deposit.amount } },
-        { new: true }
-      );
-
-      // ✅ REFERRAL LOGIC — Step 1: deposit হয়েছে, flag set করো
-      // Point এখনই দেওয়া হবে না — B যখন match join করবে তখন দেওয়া হবে
-      if (
-        deposit.amount >= REFERRAL_DEPOSIT_MIN &&
-        user.referredBy
-      ) {
-        const referrer = await User.findById(user.referredBy);
-        if (referrer) {
-          const refEntry = referrer.referralHistory.find(
-            (r) => r.userId.toString() === user._id.toString()
-          );
-
-          // শুধু প্রথমবার deposit flag set করো
-          if (refEntry && !refEntry.deposited) {
-            refEntry.deposited = true;
-            await referrer.save();
-            console.log(
-              `💰 [Referral] ${user.name} ৳${deposit.amount} deposit করেছে → deposited=true (match entry pending)`
-            );
-          }
-        }
-      }
-
-      return res.json({
-        success: true,
-        message: `✅ Approved! ৳${deposit.amount} user এর balance এ যোগ হয়েছে`,
-        deposit,
-        newBalance: user?.balance,
-      });
-    }
-
-    res.json({
-      success: true,
-      message: status === "approved" ? "✅ Approved!" : "❌ Rejected",
-      deposit,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// ─── REFERRAL INFO ────────────────────────────────────────────────
-router.get("/referral/:userId", async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId).populate(
-      "referralHistory.userId",
-      "name phone"
-    );
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        referralCode:    user.referralCode,
-        referralPoints:  user.referralPoints,
-        referralCount:   user.referralCount,
-        referralHistory: user.referralHistory,
+    const res = await axios.post(
+      "https://onesignal.com/api/v1/notifications",
+      {
+        app_id: ONESIGNAL_APP_ID,
+        included_segments: ["All"],
+        headings: { en: title },
+        contents: { en: message },
+        url,
+        // ─── extra data (SW এ data হিসেবে পাবে) ──────
+        data: {
+          matchId: matchId ? matchId.toString() : null,
+          category,
+          url,
+        },
+        ios_badgeType: "Increase",
+        ios_badgeCount: 1,
+        priority: 10,
+        ttl: 86400,
       },
-    });
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${ONESIGNAL_API_KEY}`,
+        },
+      }
+    );
+    console.log("✅ Notification sent to all:", res.data);
+    return { success: true, data: res.data };
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error("❌ Notification error:", err.response?.data || err.message);
+    return { success: false, message: err.message };
   }
-});
+};
 
-// ─── REFERRAL POINTS → BALANCE CONVERT ───────────────────────────
-router.post("/referral/convert", async (req, res) => {
+// ─── নির্দিষ্ট user কে notification ──────────────────────────────────────────
+const sendToUser = async ({ userId, title, message, url = "/", matchId = null, category = "general" }) => {
   try {
-    const { userId } = req.body;
+    const res = await axios.post(
+      "https://onesignal.com/api/v1/notifications",
+      {
+        app_id: ONESIGNAL_APP_ID,
+        include_aliases: { external_id: [userId.toString()] },
+        target_channel: "push",
+        headings: { en: title },
+        contents: { en: message },
+        url,
+        data: {
+          matchId: matchId ? matchId.toString() : null,
+          category,
+          url,
+        },
+        ios_badgeType: "Increase",
+        ios_badgeCount: 1,
+        priority: 10,
+        ttl: 86400,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Key ${ONESIGNAL_API_KEY}`,
+        },
+      }
+    );
+    console.log("✅ Notification sent to user:", userId);
+    return { success: true, data: res.data };
+  } catch (err) {
+    console.error("❌ Notification error:", err.response?.data || err.message);
+    return { success: false, message: err.message };
+  }
+};
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
-    }
+module.exports = { sendToAll, sendToUser };
+// routes/notifications.js
+const express = require("express");
+const router = express.Router();
+const Notification = require("../models/Notification");
+const UserNotification = require("../models/userNotification");
+const { protect } = require("../middleware/auth");
+const { sendToAll } = require("../utils/sendNotification");
 
-    const currentPoints = user.referralPoints || 0;
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/notifications
+// এই user এর notifications + unread count
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/", protect, async (req, res) => {
+  try {
+    const { isRead, limit = 20, category } = req.query;
 
-    // ✅ Minimum 20 points check
-    if (currentPoints < MIN_CONVERT_POINTS) {
-      return res.json({
-        success: false,
-        message: `Minimum ${MIN_CONVERT_POINTS} points লাগবে। আপনার আছে ${currentPoints} points`,
-      });
-    }
+    const filter = { userId: req.user.id };
+    if (isRead === "false") filter.isRead = false;
+    if (isRead === "true") filter.isRead = true;
 
-    // ✅ 1 point = 1 টাকা — সব points একসাথে convert
-    const taka = currentPoints; // 1:1 ratio
+    const userNotifs = await UserNotification.find(filter)
+      .populate("notificationId")
+      .sort({ createdAt: -1 })
+      .limit(Number(limit));
 
-    user.referralPoints = 0;
-    user.balance = (user.balance || 0) + taka;
-    await user.save();
+    // populate এর পরে category filter
+    const filtered = category
+      ? userNotifs.filter((n) => n.notificationId?.category === category)
+      : userNotifs;
 
-    console.log(`💸 [Convert] ${user.name}: ${currentPoints} points → ৳${taka}`);
+    const unreadCount = await UserNotification.countDocuments({
+      userId: req.user.id,
+      isRead: false,
+    });
 
     res.json({
       success: true,
-      message: `✅ ${currentPoints} points → ৳${taka} balance এ convert হয়েছে!`,
-      newBalance: user.balance,
-      remainingPoints: 0,
+      notifications: filtered,
+      unreadCount,
+      count: filtered.length,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/notifications/read-all
+// এই user এর সব notification read করো
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/read-all", protect, async (req, res) => {
+  try {
+    await UserNotification.updateMany(
+      { userId: req.user.id, isRead: false },
+      { isRead: true }
+    );
+    res.json({ success: true, message: "All marked as read" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/notifications/read/:id
+// একটা নির্দিষ্ট notification read করো
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/read/:id", protect, async (req, res) => {
+  try {
+    await UserNotification.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { isRead: true }
+    );
+    res.json({ success: true, message: "Marked as read" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/notifications/clear
+// এই user এর সব notification মুছো
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete("/clear", protect, async (req, res) => {
+  try {
+    await UserNotification.deleteMany({ userId: req.user.id });
+    res.json({ success: true, message: "All notifications cleared" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helper — match create হলে matchRoutes থেকে call করা হয়
+// router.sendMatchNotification(match, category)
+// ─────────────────────────────────────────────────────────────────────────────
+router.sendMatchNotification = async (match, category = "general") => {
+  try {
+    const isLudo = category === "ludo";
+    const emoji = isLudo ? "🎲" : "🎮";
+    const gameLabel = isLudo ? "Ludo Match" : "Free Fire Match";
+    const url = isLudo
+      ? `/app?tab=ludo`
+      : `/app?tab=results&matchId=${match._id}`;
+
+    const notifTitle = `${emoji} নতুন ${gameLabel} তৈরি হয়েছে!`;
+    const notifMessage = `${match.title} — Entry: ৳${match.entryFee} | Prize: ৳${match.winPrize}`;
+
+    // 1️⃣ একটাই Notification document save করো
+    const notif = await Notification.create({
+      title: notifTitle,
+      message: notifMessage,
+      matchId: match._id,
+      category,
+    });
+
+    // 2️⃣ সব active user এর জন্য UserNotification entry
+    const User = require("../models/User");
+    const users = await User.find({}, "_id");
+
+    const entries = users.map((user) => ({
+      notificationId: notif._id,
+      userId: user._id,
+      isRead: false,
+    }));
+
+    await UserNotification.insertMany(entries);
+
+    // 3️⃣ OneSignal push — সবার phone এ notification যাবে
+    await sendToAll({
+      title: notifTitle,
+      message: notifMessage,
+      url,
+      matchId: match._id,
+      category,
+    });
+
+    console.log(`📨 [${category}] Match notification sent to ${users.length} users`);
+    return { success: true, count: users.length };
+  } catch (err) {
+    console.error("❌ sendMatchNotification error:", err.message);
+    return { success: false, message: err.message };
+  }
+};
 
 module.exports = router;
 
- const express = require("express");
+
+// routes/matches.js
+const express = require("express");
 const router = express.Router();
 const Match = require("../models/Match");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
-const notificationRouter = require("./notifications"); // ✅ ADD
+const notificationRouter = require("./notifications");
 
-// ================= ADMIN MIDDLEWARE =================
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN MIDDLEWARE
+// ─────────────────────────────────────────────────────────────────────────────
 const protectAdmin = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -1103,15 +304,21 @@ const protectAdmin = (req, res, next) => {
   }
 };
 
-// ================= TEST ROUTE =================
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST ROUTE
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/test", (req, res) => {
   res.json({ success: true, message: "Match Routes Working ✅" });
 });
 
-// ================= CREATE MATCH =================
+// ─────────────────────────────────────────────────────────────────────────────
+// CREATE MATCH
+// POST /api/matches/create
+// ─────────────────────────────────────────────────────────────────────────────
 router.post("/create", protectAdmin, async (req, res) => {
   try {
-    const { startTime, ...rest } = req.body;
+    const { startTime, category = "freefire", ...rest } = req.body;
+
     const expiresAt = startTime
       ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
       : new Date(Date.now() + 20 * 60 * 1000);
@@ -1120,12 +327,13 @@ router.post("/create", protectAdmin, async (req, res) => {
       ...rest,
       startTime,
       expiresAt,
+      category,
       joinedPlayers: 0,
       status: "upcoming",
     });
 
-    // ✅ Match create হলে সব users কে notification পাঠাও
-    notificationRouter.sendMatchNotification(match, "freefire");
+    // ✅ Match create হলে সব users কে push notification পাঠাও
+    await notificationRouter.sendMatchNotification(match, category);
 
     res.status(201).json({
       success: true,
@@ -1137,7 +345,10 @@ router.post("/create", protectAdmin, async (req, res) => {
   }
 });
 
-// ================= SUBMIT MATCH RESULT + PRIZE =================
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBMIT MATCH RESULT + PRIZE DISTRIBUTION
+// POST /api/matches/result
+// ─────────────────────────────────────────────────────────────────────────────
 router.post("/result", protectAdmin, async (req, res) => {
   console.log("🔥 Result API Hit!", req.body);
   try {
@@ -1148,10 +359,12 @@ router.post("/result", protectAdmin, async (req, res) => {
         message: "matchId and results are required",
       });
     }
+
     const match = await Match.findById(matchId);
     if (!match) {
       return res.status(404).json({ success: false, message: "Match not found" });
     }
+
     const finalResults = results.map((player) => {
       let prize = (player.kills || 0) * (match.perKill || 5);
       if (player.position == 1)      prize += match.prizes?.first  || 60;
@@ -1159,10 +372,13 @@ router.post("/result", protectAdmin, async (req, res) => {
       else if (player.position == 3) prize += match.prizes?.third  || 20;
       return { ...player, prize: Math.floor(prize) };
     });
+
     match.results     = finalResults;
     match.status      = "completed";
     match.completedAt = new Date();
     await match.save();
+
+    // Prize distribute করো
     for (const player of finalResults) {
       if (player.userId && player.prize > 0) {
         await User.findByIdAndUpdate(player.userId, {
@@ -1179,6 +395,7 @@ router.post("/result", protectAdmin, async (req, res) => {
         });
       }
     }
+
     res.json({
       success: true,
       message: "Result submitted & prizes distributed successfully",
@@ -1190,7 +407,10 @@ router.post("/result", protectAdmin, async (req, res) => {
   }
 });
 
-// ================= GET COMPLETED MATCHES (Results) =================
+// ─────────────────────────────────────────────────────────────────────────────
+// GET COMPLETED MATCHES
+// GET /api/matches/completed
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/completed", async (req, res) => {
   try {
     const matches = await Match.find({ status: "completed" })
@@ -1202,7 +422,10 @@ router.get("/completed", async (req, res) => {
   }
 });
 
-// ================= MY MATCHES (USER) =================
+// ─────────────────────────────────────────────────────────────────────────────
+// MY MATCHES (USER)
+// GET /api/matches/my-matches?userId=xxx
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/my-matches", async (req, res) => {
   try {
     const userId = req.query.userId;
@@ -1218,7 +441,10 @@ router.get("/my-matches", async (req, res) => {
   }
 });
 
-// ================= GET ALL MATCHES =================
+// ─────────────────────────────────────────────────────────────────────────────
+// GET ALL MATCHES
+// GET /api/matches/
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
     const matches = await Match.find()
@@ -1230,17 +456,24 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ================= GET SINGLE MATCH =================
+// ─────────────────────────────────────────────────────────────────────────────
+// GET SINGLE MATCH
+// GET /api/matches/:id
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
     const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
     res.json({ success: true, data: match });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ================= UPDATE ROOM =================
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE ROOM (Admin sets room ID & password)
+// PUT /api/matches/update-room/:id
+// ─────────────────────────────────────────────────────────────────────────────
 router.put("/update-room/:id", protectAdmin, async (req, res) => {
   try {
     const { roomId, roomPassword } = req.body;
@@ -1259,7 +492,10 @@ router.put("/update-room/:id", protectAdmin, async (req, res) => {
   }
 });
 
-// ================= JOIN MATCH =================
+// ─────────────────────────────────────────────────────────────────────────────
+// JOIN MATCH
+// PUT /api/matches/join/:id
+// ─────────────────────────────────────────────────────────────────────────────
 router.put("/join/:id", async (req, res) => {
   try {
     const { userId, inGameName } = req.body;
@@ -1284,10 +520,12 @@ router.put("/join/:id", async (req, res) => {
       return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
     }
 
+    // Slot assign
     const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
     let slotNumber = 1;
     while (usedSlots.includes(slotNumber)) slotNumber++;
 
+    // Balance কাটো
     user.balance -= match.entryFee;
     if (!user.joinHistory) user.joinHistory = [];
     user.joinHistory.push({
@@ -1304,7 +542,6 @@ router.put("/join/:id", async (req, res) => {
     await match.save();
 
     // ✅ REFERRAL POINT TRIGGER
-    // শর্ত: user referral দিয়ে এসেছে + ৳৫০+ deposit করেছে (deposited=true) + point এখনো পায়নি (pointGiven=false)
     if (user.referredBy) {
       try {
         const referrer = await User.findById(user.referredBy);
@@ -1320,7 +557,6 @@ router.put("/join/:id", async (req, res) => {
           }
         }
       } catch (refErr) {
-        // referral error হলেও join সফল থাকবে
         console.error("Referral point error:", refErr.message);
       }
     }
@@ -1337,7 +573,10 @@ router.put("/join/:id", async (req, res) => {
   }
 });
 
-// ================= DELETE ALL =================
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE ALL MATCHES (Admin)
+// DELETE /api/matches/clear-all
+// ─────────────────────────────────────────────────────────────────────────────
 router.delete("/clear-all", protectAdmin, async (req, res) => {
   try {
     const result = await Match.deleteMany({});
@@ -1349,140 +588,532 @@ router.delete("/clear-all", protectAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-//  pore delte kore dibo
+
 module.exports = router;
 
+// public/sw.js — PWA Service Worker
 
- const express = require("express");
-const router = express.Router();
-const User = require("../models/User");
-const { protect } = require("../middleware/auth");
+// ─── Workbox precache (vite-plugin-pwa inject করবে) ──────────────────────────
+if (typeof self.__WB_MANIFEST !== "undefined") {
+  // workbox precacheAndRoute এখানে inject হয়
+}
 
-// ⚠️ IMPORTANT: "/convert" route টা "/:userId" এর আগে থাকতে হবে
-// নাহলে Express "convert" কে userId হিসেবে ধরে নেবে
+// ─── Global token store (NotificationBell থেকে পাঠানো হয়) ────────────────────
+self.__token = "";
 
-// POST /api/referral/convert
-router.post("/convert", protect, async (req, res) => {
+// =============================================================================
+// PUSH NOTIFICATION RECEIVE
+// =============================================================================
+self.addEventListener("push", (event) => {
+  let data = {};
   try {
-    // ✅ Security fix: body থেকে নয়, auth middleware থেকে userId নাও
-    const user = await User.findById(req.user.id || req.user._id);
-    if (!user) return res.json({ success: false, message: "User not found" });
+    data = event.data.json();
+  } catch {
+    data = {
+      title: "uthiYO",
+      body: "You have a new notification",
+      unreadCount: 1,
+    };
+  }
 
-    const currentPoints = user.referralPoints || 0;
+  // Category অনুযায়ী সঠিক URL
+  const targetUrl =
+    data.category === "ludo"
+      ? `/app?tab=ludo`
+      : data.matchId
+      ? `/app?tab=results&matchId=${data.matchId}`
+      : data.url || "/app";
 
-    // ✅ Minimum 20 points (আগে ছিল 100 — ভুল ছিল)
-    if (currentPoints < 20) {
-      return res.json({
-        success: false,
-        message: `কমপক্ষে ২০ পয়েন্ট লাগবে! আপনার আছে ${currentPoints} points`,
+  const options = {
+    body: data.body || data.message || "New notification",
+    icon: data.icon || "/image/icon/icon-192x192.png",
+    badge: data.badge || "/image/icon/icon-72x72.png",
+    vibrate: [200, 100, 200, 100, 200],
+    tag: data.tag || `notification-${data.notificationId || Date.now()}`,
+    renotify: true,
+    data: {
+      url: targetUrl,
+      matchId: data.matchId || null,
+      notificationId: data.notificationId || null,
+      category: data.category || "general",
+    },
+    actions: [
+      {
+        action: "open",
+        title: "Open App",
+        icon: "/image/icon/icon-192x192.png",
+      },
+      {
+        action: "close",
+        title: "Close",
+        icon: "/image/icon/icon-72x72.png",
+      },
+    ],
+  };
+
+  event.waitUntil(
+    Promise.all([
+      // 1️⃣ Notification দেখাও (duplicate থাকলে আগেরটা বন্ধ করো)
+      self.registration.getNotifications().then((existing) => {
+        existing.forEach((n) => {
+          if (n.tag === options.tag) n.close();
+        });
+        return self.registration.showNotification(data.title || "uthiYO", options);
+      }),
+
+      // 2️⃣ App Icon Badge — navigator ব্যবহার করো (self.navigator নয়)
+      typeof navigator !== "undefined" && "setAppBadge" in navigator
+        ? navigator.setAppBadge(data.unreadCount || 1).catch(() => {})
+        : Promise.resolve(),
+
+      // 3️⃣ React App কে message পাঠাও (NotificationBell update হবে)
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((clients) => {
+          clients.forEach((client) => {
+            client.postMessage({
+              type: "PUSH_RECEIVED",
+              count: data.unreadCount || 1,
+              category: data.category || "general",
+              notification: {
+                title: data.title,
+                body: data.body,
+                id: data.notificationId,
+              },
+            });
+          });
+        }),
+
+      // 4️⃣ Background sync (offline এর জন্য)
+      self.registration.sync
+        ? self.registration.sync.register("sync-notifications").catch(() => {})
+        : Promise.resolve(),
+    ])
+  );
+});
+
+// =============================================================================
+// NOTIFICATION CLICK
+// =============================================================================
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const notifData = event.notification.data || {};
+  const targetUrl = notifData.url || "/app";
+  const matchId = notifData.matchId || null;
+  const notificationId = notifData.notificationId || null;
+
+  if (event.action === "close") return;
+
+  event.waitUntil(
+    Promise.all([
+      // 1️⃣ App focus বা নতুন window খোলো
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((windowClients) => {
+          for (const client of windowClients) {
+            if ("focus" in client) {
+              client.postMessage({
+                type: "NOTIFICATION_CLICK",
+                matchId: matchId,
+                notificationId: notificationId,
+                url: targetUrl,
+              });
+              return client.focus();
+            }
+          }
+          if (self.clients.openWindow) {
+            return self.clients.openWindow(targetUrl);
+          }
+        }),
+
+      // 2️⃣ API থেকে fresh unread count নিয়ে badge আপডেট করো
+      fetch(
+        "https://playzo-vn8e.onrender.com/api/notifications?isRead=false&limit=1",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(self.__token ? { Authorization: `Bearer ${self.__token}` } : {}),
+          },
+        }
+      )
+        .then((res) => res.json())
+        .then((resData) => {
+          const count =
+            typeof resData.unreadCount === "number" ? resData.unreadCount : 0;
+
+          const badgePromise =
+            typeof navigator !== "undefined" && "setAppBadge" in navigator
+              ? count > 0
+                ? navigator.setAppBadge(count).catch(() => {})
+                : navigator.clearAppBadge().catch(() => {})
+              : Promise.resolve();
+
+          const msgPromise = self.clients
+            .matchAll({ type: "window", includeUncontrolled: true })
+            .then((clients) => {
+              clients.forEach((client) => {
+                client.postMessage({
+                  type: "BADGE_UPDATE",
+                  count: count,
+                  notificationId: notificationId,
+                });
+              });
+            });
+
+          return Promise.all([badgePromise, msgPromise]);
+        })
+        .catch(() => {}),
+    ])
+  );
+});
+
+// =============================================================================
+// BACKGROUND SYNC
+// =============================================================================
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-notifications") {
+    event.waitUntil(syncNotifications());
+  }
+});
+
+async function syncNotifications() {
+  try {
+    const db = await openDB();
+    const offlineNotifications = await getOfflineNotifications(db);
+    for (const notification of offlineNotifications) {
+      try {
+        await self.registration.showNotification(
+          notification.title,
+          notification.options
+        );
+      } catch (err) {
+        console.error("Failed to show offline notification:", err);
+      }
+    }
+    await clearOfflineNotifications(db);
+  } catch (err) {
+    console.error("Sync failed:", err);
+  }
+}
+
+// =============================================================================
+// MESSAGE HANDLER
+// =============================================================================
+self.addEventListener("message", (event) => {
+  // Badge Clear
+  if (event.data?.type === "CLEAR_BADGE") {
+    if (typeof navigator !== "undefined" && "clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
+    event.source?.postMessage({ type: "BADGE_CLEARED", success: true });
+  }
+
+  // Badge Update
+  if (event.data?.type === "UPDATE_BADGE") {
+    const count = event.data.count || 0;
+    if (typeof navigator !== "undefined" && "setAppBadge" in navigator) {
+      const p = count > 0
+        ? navigator.setAppBadge(count)
+        : navigator.clearAppBadge();
+      p.catch(() => {});
+    }
+    event.source?.postMessage({ type: "BADGE_UPDATED", count, success: true });
+  }
+
+  // Token store (NotificationBell.jsx থেকে পাঠানো হয়)
+  if (event.data?.type === "STORE_TOKEN") {
+    self.__token = event.data.token || "";
+  }
+
+  // Skip waiting (নতুন SW version এলে)
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+
+  // Cache clear
+  if (event.data?.type === "CLEAR_CACHE") {
+    event.waitUntil(
+      caches.keys().then((cacheNames) =>
+        Promise.all(cacheNames.map((name) => caches.delete(name)))
+      )
+    );
+  }
+});
+
+// =============================================================================
+// INSTALL
+// =============================================================================
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open("uthiyo-v1").then((cache) =>
+      cache.addAll([
+        "/",
+        "/app",
+        "/index.html",
+        "/manifest.json",
+        "/image/icon/icon-192x192.png",
+        "/image/icon/icon-72x72.png",
+      ])
+    )
+  );
+});
+
+// =============================================================================
+// ACTIVATE
+// =============================================================================
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    Promise.all([
+      // পুরনো cache মুছো
+      caches.keys().then((cacheNames) =>
+        Promise.all(
+          cacheNames.map((name) => {
+            if (name !== "uthiyo-v1") return caches.delete(name);
+          })
+        )
+      ),
+      self.clients.claim(),
+    ])
+  );
+});
+
+// =============================================================================
+// FETCH (Offline fallback)
+// =============================================================================
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(event.request))
+  );
+});
+
+// =============================================================================
+// HELPER FUNCTIONS (IndexedDB for offline notifications)
+// =============================================================================
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("uthiyo-notifications", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("offline-notifications")) {
+        db.createObjectStore("offline-notifications", { keyPath: "id" });
+      }
+    };
+  });
+}
+
+async function getOfflineNotifications(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(["offline-notifications"], "readonly");
+    const store = tx.objectStore("offline-notifications");
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function clearOfflineNotifications(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(["offline-notifications"], "readwrite");
+    const store = tx.objectStore("offline-notifications");
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// components/NotificationBell/NotificationBell.jsx
+import { useState, useEffect, useCallback, useRef } from "react";
+
+const API_BASE = (
+  (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api"
+).replace(/\/api\/api/, "/api");
+
+export default function NotificationBell({ onOpen }) {
+  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCountRef = useRef(0);
+
+  // ─── App Badge update ───────────────────────────────────────────────────────
+  const updateAppBadge = useCallback((count) => {
+    try {
+      if ("setAppBadge" in navigator) {
+        if (count > 0) {
+          navigator.setAppBadge(count).catch(() => {});
+        } else {
+          navigator.clearAppBadge().catch(() => {});
+        }
+      }
+    } catch {}
+
+    // Service Worker কেও badge জানাও
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          reg.active?.postMessage({ type: "UPDATE_BADGE", count });
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  // ─── SW তে token পাঠাও (app open হলেই) ────────────────────────────────────
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          const token = localStorage.getItem("token") || "";
+          if (token) {
+            reg.active?.postMessage({ type: "STORE_TOKEN", token });
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  // ─── OneSignal এ user login করাও (external_id set) ─────────────────────────
+  useEffect(() => {
+    const user = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("user") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+    const userId = user?.id || user?._id;
+    if (!userId) return;
+
+    if (window.OneSignalDeferred) {
+      window.OneSignalDeferred.push((OneSignal) => {
+        OneSignal.login(userId.toString()).catch(() => {});
       });
     }
+  }, []);
 
-    // ✅ 1 point = 1 টাকা — সব points convert হবে
-    const taka = currentPoints;
-    user.referralPoints = 0;
-    user.balance = (user.balance || 0) + taka;
-    await user.save();
+  // ─── API থেকে unread count fetch ────────────────────────────────────────────
+  const fetchUnread = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token") || "";
+      if (!token) return;
+      const res = await fetch(
+        `${API_BASE}/notifications?isRead=false&limit=1`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const count = typeof data.unreadCount === "number" ? data.unreadCount : 0;
 
-    res.json({
-      success: true,
-      message: `✅ ${currentPoints} পয়েন্ট → ৳${taka} balance-এ যোগ হয়েছে!`,
-      newBalance: user.balance,
-      remainingPoints: 0,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+      if (count !== unreadCountRef.current) {
+        unreadCountRef.current = count;
+        setUnreadCount(count);
+        updateAppBadge(count);
+      }
+    } catch {}
+  }, [updateAppBadge]);
 
-// GET /api/referral/:userId
-router.get("/:userId", protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId).populate(
-      "referralHistory.userId",
-      "name phone"
-    );
-    if (!user) return res.json({ success: false, message: "User not found" });
+  // ─── প্রথম load + ৩০ সেকেন্ড polling ─────────────────────────────────────
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchUnread]);
 
-    res.json({
-      success: true,
-      data: {
-        referralCode:    user.referralCode,
-        referralPoints:  user.referralPoints  || 0,
-        referralCount:   user.referralCount   || 0,
-        referralHistory: user.referralHistory || [],
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+  // ─── Page visible হলে আবার fetch ───────────────────────────────────────────
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchUnread();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchUnread]);
 
-module.exports = router;
+  // ─── SW থেকে push এলে count update ────────────────────────────────────────
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handler = (event) => {
+      if (event.data?.type === "PUSH_RECEIVED") {
+        fetchUnread();
+      }
+      if (event.data?.type === "BADGE_UPDATE") {
+        const count = event.data.count || 0;
+        unreadCountRef.current = count;
+        setUnreadCount(count);
+        updateAppBadge(count);
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
+  }, [fetchUnread, updateAppBadge]);
 
- const express = require("express");
-const router = express.Router();
-const User = require("../models/User");
-const { protect } = require("../middleware/auth");
-
-// ⚠️ IMPORTANT: "/convert" route টা "/:userId" এর আগে থাকতে হবে
-// নাহলে Express "convert" কে userId হিসেবে ধরে নেবে
-
-// POST /api/referral/convert
-router.post("/convert", protect, async (req, res) => {
-  try {
-    // ✅ Security fix: body থেকে নয়, auth middleware থেকে userId নাও
-    const user = await User.findById(req.user.id || req.user._id);
-    if (!user) return res.json({ success: false, message: "User not found" });
-
-    const currentPoints = user.referralPoints || 0;
-
-    // ✅ Minimum 20 points (আগে ছিল 100 — ভুল ছিল)
-    if (currentPoints < 20) {
-      return res.json({
-        success: false,
-        message: `কমপক্ষে ২০ পয়েন্ট লাগবে! আপনার আছে ${currentPoints} points`,
+  // ─── OneSignal foreground notification ─────────────────────────────────────
+  useEffect(() => {
+    if (!window.OneSignalDeferred) return;
+    window.OneSignalDeferred.push((OneSignal) => {
+      OneSignal.Notifications.addEventListener("foregroundWillDisplay", () => {
+        fetchUnread();
       });
+      OneSignal.Notifications.addEventListener("click", () => {
+        fetchUnread();
+      });
+    });
+  }, [fetchUnread]);
+
+  // ─── Bell click — read all + badge clear ────────────────────────────────────
+  const handleOpen = async () => {
+    if (unreadCount > 0) {
+      try {
+        unreadCountRef.current = 0;
+        setUnreadCount(0);
+        updateAppBadge(0);
+
+        const token = localStorage.getItem("token") || "";
+        await fetch(`${API_BASE}/notifications/read-all`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+      } catch {
+        fetchUnread();
+      }
     }
+    onOpen?.();
+  };
 
-    // ✅ 1 point = 1 টাকা — সব points convert হবে
-    const taka = currentPoints;
-    user.referralPoints = 0;
-    user.balance = (user.balance || 0) + taka;
-    await user.save();
+  return (
+    <button
+      onClick={handleOpen}
+      aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+      className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/10 active:scale-95 transition-all"
+    >
+      {/* Bell Icon */}
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-5 h-5 text-white"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+        />
+      </svg>
 
-    res.json({
-      success: true,
-      message: `✅ ${currentPoints} পয়েন্ট → ৳${taka} balance-এ যোগ হয়েছে!`,
-      newBalance: user.balance,
-      remainingPoints: 0,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// GET /api/referral/:userId
-router.get("/:userId", protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId).populate(
-      "referralHistory.userId",
-      "name phone"
-    );
-    if (!user) return res.json({ success: false, message: "User not found" });
-
-    res.json({
-      success: true,
-      data: {
-        referralCode:    user.referralCode,
-        referralPoints:  user.referralPoints  || 0,
-        referralCount:   user.referralCount   || 0,
-        referralHistory: user.referralHistory || [],
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-module.exports = router;
+      {/* Unread Badge */}
+      {unreadCount > 0 && (
+        <span
+          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shadow-red-500/50 animate-pulse"
+          aria-hidden="true"
+        >
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
+    </button>
+  );
+}
