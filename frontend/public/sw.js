@@ -1,4 +1,4 @@
- // public/sw.js — PWA Service Worker
+ 
 
 // ─── Workbox precache (vite-plugin-pwa inject করবে) ──────────────────────────
 if (typeof self.__WB_MANIFEST !== "undefined") {
