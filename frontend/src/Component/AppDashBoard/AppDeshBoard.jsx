@@ -473,34 +473,34 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 }
 
 // ─── Notifications Page ───────────────────────────────────────────────────────
-function NotificationsPage({ onBack }) {
+ function NotificationsPage({ onBack }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
- useEffect(() => {
-  const fetchNotifications = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("token") || "";
-      const res = await fetch(`${CLEAN_API_URL}/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setNotifications(
-        Array.isArray(data?.notifications)
-          ? data.notifications
-          : Array.isArray(data?.data)
-            ? data.data
-            : []
-      );
-    } catch {
-      setNotifications([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchNotifications();
-}, []);
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token") || "";
+        const res = await fetch(`${CLEAN_API_URL}/notifications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setNotifications(
+          Array.isArray(data?.notifications)
+            ? data.notifications
+            : Array.isArray(data?.data)
+              ? data.data
+              : []
+        );
+      } catch {
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
@@ -518,46 +518,119 @@ function NotificationsPage({ onBack }) {
           </div>
         </div>
       </div>
+
       <div className="px-4 pt-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500 text-sm">Loading notifications...</p>
+            <p className="text-gray-500 text-sm">Loading...</p>
           </div>
         ) : notifications.length === 0 ? (
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-4xl mb-3">🔔</p>
             <p className="text-white font-bold mb-1">No Notifications</p>
-            <p className="text-gray-500 text-sm">You're all caught up! Check back later</p>
+            <p className="text-gray-500 text-sm">You're all caught up!</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {notifications.map((n, idx) => (
-              <div
-                key={n._id || idx}
-                className={`rounded-2xl p-4 border ${
-                  n.isRead ? "bg-[#111827] border-white/5" : "bg-orange-500/10 border-orange-500/30"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-lg">{n.icon || "🔔"}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-white font-bold text-sm">{n.title || "Notification"}</p>
-                      {!n.isRead && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />}
+          <div className="space-y-3">
+            {notifications.map((n, idx) => {
+              const notif = n.notificationId || n;
+              const match = notif?.matchId;
+              const categoryLabel = {
+                br_match: "BR Match",
+                br_survival: "BR Survival",
+                clash_squad: "Clash Squad",
+                cs_2vs2: "CS 2vs2",
+                lone_wolf: "Lone Wolf",
+                training: "Training Match",
+                ludo: "Ludo",
+                general: "General",
+              }[notif?.category] || notif?.category || "General";
+
+              return (
+                <div
+                  key={n._id || idx}
+                  className={`rounded-2xl p-4 border ${
+                    n.isRead
+                      ? "bg-[#111827] border-white/5"
+                      : "bg-orange-500/10 border-orange-500/30"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                      <span className="text-lg">🎮</span>
                     </div>
-                    <p className="text-gray-400 text-xs mt-1">{n.body || n.message}</p>
-                    {n.createdAt && (
-                      <p className="text-gray-600 text-[10px] mt-2">
-                        {new Date(n.createdAt).toLocaleString("en-BD")}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-white font-bold text-sm">
+                          {notif?.title || "New Match"}
+                        </p>
+                        {!n.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
+                        )}
+                      </div>
+                      <p className="text-gray-400 text-xs mt-1">
+                        {notif?.message || ""}
                       </p>
-                    )}
+
+                      {/* Category Badge */}
+                      <span className="inline-block mt-1 text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
+                        {categoryLabel}
+                      </span>
+
+                      {/* Match Details */}
+                      {match && (
+                        <div className="mt-2 bg-black/30 rounded-xl p-3 space-y-1.5">
+                          {match.title && (
+                            <p className="text-white text-xs font-bold">{match.title}</p>
+                          )}
+                          <div className="flex gap-3 flex-wrap">
+                            {match.entryFee !== undefined && (
+                              <div className="text-xs">
+                                <span className="text-gray-500">Entry </span>
+                                <span className="text-orange-400 font-bold">৳{match.entryFee}</span>
+                              </div>
+                            )}
+                            {match.winPrize !== undefined && (
+                              <div className="text-xs">
+                                <span className="text-gray-500">Prize </span>
+                                <span className="text-green-400 font-bold">৳{match.winPrize}</span>
+                              </div>
+                            )}
+                            {match.perKill !== undefined && (
+                              <div className="text-xs">
+                                <span className="text-gray-500">Per Kill </span>
+                                <span className="text-blue-400 font-bold">৳{match.perKill}</span>
+                              </div>
+                            )}
+                            {match.totalPlayers !== undefined && (
+                              <div className="text-xs">
+                                <span className="text-gray-500">Players </span>
+                                <span className="text-purple-400 font-bold">{match.totalPlayers}</span>
+                              </div>
+                            )}
+                          </div>
+                          {match.startTime && (
+                            <div className="text-xs">
+                              <span className="text-gray-500">Start </span>
+                              <span className="text-yellow-400 font-bold">
+                                {new Date(match.startTime).toLocaleString("en-BD")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {notif?.createdAt && (
+                        <p className="text-gray-600 text-[10px] mt-2">
+                          {new Date(notif.createdAt).toLocaleString("en-BD")}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
