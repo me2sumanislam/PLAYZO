@@ -2,7 +2,7 @@
 
 const matchSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true },
+    title:    { type: String, required: true },
     category: { type: String, required: true },
 
     entryFee: { type: Number, required: true, default: 0 },
@@ -30,7 +30,7 @@ const matchSchema = new mongoose.Schema(
     joinedUsers: [
       {
         userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        inGameName: { type: String, default: "" },
+        inGameName: { type: String, default: "" },  // ← game এ যে নামে খেলে
         slotNumber: { type: Number },
         joinedAt:   { type: Date, default: Date.now },
       },
@@ -52,8 +52,17 @@ const matchSchema = new mongoose.Schema(
       },
     ],
 
+    // ───────── OCR Screenshot Result ─────────
+    // ResultSubmission model এ match এর _id দিয়ে link থাকবে
+    // resultSubmissionId এখানে track করা হয় (optional)
+    resultSubmissionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ResultSubmission",
+      default: null,
+    },
+
     completedAt: { type: Date },
-    deleteAt:    { type: Date }, // ← result submit এর পর auto delete time
+    deleteAt:    { type: Date },
 
     // ───────── Status ─────────
     status: { type: String, default: "upcoming" },
