@@ -13,7 +13,6 @@ const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const Match = require("./models/Match");
 
-// ================= LUDO ROUTES =================
 const ludoMatchRoutes = require("./routes/ludoMatchRoutes");
 
 const app = express();
@@ -44,6 +43,7 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -82,6 +82,9 @@ app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/ludo-matches", ludoMatchRoutes);
 app.use("/api/ludo-tournament", ludoMatchRoutes);
 
+// ✅ OCR Result System — নতুন route
+app.use("/api/result", require("./routes/resultRoutes"));
+
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
@@ -100,7 +103,6 @@ connectDB()
   .then(() => {
     console.log("✅ MongoDB Connected Successfully".bgGreen.black);
 
-    // Auto delete completed matches
     setInterval(async () => {
       try {
         const deleted = await Match.deleteMany({
@@ -109,8 +111,7 @@ connectDB()
         });
         if (deleted.deletedCount > 0) {
           console.log(
-            `🗑️ ${deleted.deletedCount} completed match(es) auto deleted`.bgRed
-              .white
+            `🗑️ ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white
           );
         }
       } catch (err) {
@@ -118,7 +119,6 @@ connectDB()
       }
     }, 60 * 1000);
 
-    // Server শুধু DB connect হওয়ার পরেই চালু হবে
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`.bgCyan.black);
     });
