@@ -14,7 +14,7 @@ const BottomMenu = ({ tab, setTab }) => {
       icon: <ClipboardList size={24} strokeWidth={2.2} />,
     },
     {
-      id: "results",
+      id: "leaderboard",
       label: "Results",
       icon: <BarChart3 size={24} strokeWidth={2.2} />,
     },
@@ -35,13 +35,17 @@ const BottomMenu = ({ tab, setTab }) => {
               key={item.id}
               onClick={() => setTab(item.id)}
               className={`flex flex-col items-center justify-center py-3 px-4 rounded-xl transition-all flex-1 active:scale-95 ${
-                isActive 
-                  ? "text-orange-500" 
+                isActive
+                  ? "text-orange-500"
                   : "text-gray-500 hover:text-gray-700"
               }`}
               aria-label={item.label}
             >
-              <div className={`transition-all duration-200 ${isActive ? "scale-110 -translate-y-0.5" : ""}`}>
+              <div
+                className={`transition-all duration-200 ${
+                  isActive ? "scale-110 -translate-y-0.5" : ""
+                }`}
+              >
                 {item.icon}
               </div>
               <span className="text-[10px] mt-1 font-medium">{item.label}</span>
