@@ -14,7 +14,6 @@ import Leaderboard from "../../page/Leaderboard/Leaderboard";
 import Referral from "../../page/Referral/Referral";
 import ClickableSlider from "../Slider/ClickableSlider";
 
- 
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
@@ -361,7 +360,9 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
-      <div className="px-4 pt-6 pb-4">
+
+      {/* ── Header with back info ── */}
+      <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5 px-4 py-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
           <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">
@@ -372,7 +373,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
         <p className="text-gray-500 text-xs mt-1">Tap a match to see full leaderboard</p>
       </div>
 
-      <div className="px-4 space-y-3">
+      <div className="px-4 mt-4 space-y-3">
         {matches.length === 0 ? (
           <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
             <p className="text-3xl mb-3">🎮</p>
@@ -473,7 +474,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
 }
 
 // ─── Notifications Page ───────────────────────────────────────────────────────
- function NotificationsPage({ onBack }) {
+function NotificationsPage({ onBack }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -572,13 +573,9 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                       <p className="text-gray-400 text-xs mt-1">
                         {notif?.message || ""}
                       </p>
-
-                      {/* Category Badge */}
                       <span className="inline-block mt-1 text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
                         {categoryLabel}
                       </span>
-
-                      {/* Match Details */}
                       {match && (
                         <div className="mt-2 bg-black/30 rounded-xl p-3 space-y-1.5">
                           {match.title && (
@@ -620,7 +617,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
                           )}
                         </div>
                       )}
-
                       {notif?.createdAt && (
                         <p className="text-gray-600 text-[10px] mt-2">
                           {new Date(notif.createdAt).toLocaleString("en-BD")}
@@ -908,10 +904,39 @@ const AppDashboard = ({ onLogout }) => {
   }
 
   if (tab === "matches") return <MyMatch />;
-  if (tab === "results") {
-    if (selectedResult) return <MatchResultsPage {...selectedResult} currentUserUid={currentUserUid} />;
-    return <ResultsListPage onSelectResult={setSelectedResult} currentUserUid={currentUserUid} />;
+
+  // ─── Results / Leaderboard Tab ───────────────────────────────────────────
+  if (tab === "leaderboard") {
+    if (selectedResult) {
+      return (
+        <div className="min-h-screen bg-[#0a0e1a]">
+          {/* Back Button */}
+          <div className="sticky top-0 z-50 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5 px-4 py-3 flex items-center gap-3">
+            <button
+              onClick={() => setSelectedResult(null)}
+              className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white text-base active:scale-95 transition-all"
+            >
+              ←
+            </button>
+            <div>
+              <p className="text-white font-extrabold text-sm leading-tight">
+                {selectedResult.title || "Match Result"}
+              </p>
+              <p className="text-gray-500 text-[11px]">Back to Results</p>
+            </div>
+          </div>
+          <MatchResultsPage {...selectedResult} currentUserUid={currentUserUid} />
+        </div>
+      );
+    }
+    return (
+      <ResultsListPage
+        onSelectResult={setSelectedResult}
+        currentUserUid={currentUserUid}
+      />
+    );
   }
+
   if (screen === "category") {
     return (
       <MatchList
@@ -963,14 +988,14 @@ const AppDashboard = ({ onLogout }) => {
         {/* Slider */}
         <ClickableSlider slides={sliderSlides} />
 
-        {/* ✅ Live Marquee */}
+        {/* Live Marquee */}
         <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
           <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
             🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN NOW 🚀
           </marquee>
         </div>
 
-        {/* ✅ Ludo Banner */}
+        {/* Ludo Banner */}
         <div
           onClick={() => setScreen("ludo")}
           className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
@@ -1020,7 +1045,6 @@ const AppDashboard = ({ onLogout }) => {
 };
 
 // ─── Profile Component ────────────────────────────────────────────────────────
- // ─── Profile Component ────────────────────────────────────────────────────────
 const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
   const [balance, setBalance] = useState(0);
   const [showAddMoney, setShowAddMoney] = useState(false);
@@ -1124,4 +1148,5 @@ const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
     </>
   );
 };
+
 export default AppDashboard;
