@@ -1,5 +1,5 @@
  import React, { useState, useEffect, useCallback } from "react";
-import AdminResultReview from "./AdminResultReview";
+// import AdminResultReview from "../../page/Admin/AdminResultReview/AdminResultReview";
 const API = "https://playzo-vn8e.onrender.com/api";
 
 const fmt = (n) => "৳" + Number(n || 0).toLocaleString("bn-BD");
@@ -1113,7 +1113,7 @@ const AdminPanel = () => {
         {page === "dashboard" && <Dashboard />}
         {page === "create-match" && <CreateMatch />}
         {page === "match-results" && <MatchResults />}
-        {page === "ocr-results" && <AdminResultReview />}
+        {/* {page === "ocr-results" && <AdminResultReview />} */}
         {page === "ludo-tournament" && <LudoTournamentManager />}
         {page === "deposit-requests" && <DepositRequests adminName={admin.name || admin.phone} refresh={loadBadges} />}
         {page === "withdraw-requests" && <WithdrawRequests adminName={admin.name || admin.phone} refresh={loadBadges} />}
