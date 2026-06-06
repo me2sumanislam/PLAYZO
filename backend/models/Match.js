@@ -26,22 +26,20 @@ const matchSchema = new mongoose.Schema(
     totalPlayers:  { type: Number, default: 48 },
     joinedPlayers: { type: Number, default: 0 },
 
-    // ───────── Joined Players List ─────────
     joinedUsers: [
       {
         userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        inGameName: { type: String, default: "" },  // ← game এ যে নামে খেলে
+        inGameName: { type: String, default: "" },
+        gameName:   { type: String, default: "" }, // ✅ নতুন
         slotNumber: { type: Number },
         joinedAt:   { type: Date, default: Date.now },
       },
     ],
 
-    // ───────── Room Info ─────────
     roomId:       { type: String, default: "" },
     roomPassword: { type: String, default: "" },
     isRoomOpen:   { type: Boolean, default: false },
 
-    // ───────── Result System ─────────
     results: [
       {
         userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -49,12 +47,10 @@ const matchSchema = new mongoose.Schema(
         position:   { type: Number },
         kills:      { type: Number },
         prize:      { type: Number },
+        rank:       { type: Number }, // ✅ নতুন
       },
     ],
 
-    // ───────── OCR Screenshot Result ─────────
-    // ResultSubmission model এ match এর _id দিয়ে link থাকবে
-    // resultSubmissionId এখানে track করা হয় (optional)
     resultSubmissionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ResultSubmission",
@@ -64,7 +60,6 @@ const matchSchema = new mongoose.Schema(
     completedAt: { type: Date },
     deleteAt:    { type: Date },
 
-    // ───────── Status ─────────
     status: { type: String, default: "upcoming" },
   },
   { timestamps: true }
