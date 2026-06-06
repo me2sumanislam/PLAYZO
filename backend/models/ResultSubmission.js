@@ -1,11 +1,11 @@
- // models/ResultSubmission.js  ← নতুন ফাইল, models/ folder এ রাখুন
+ // models/ResultSubmission.js
 const mongoose = require("mongoose");
 
 const playerSchema = new mongoose.Schema({
   inGameName:    { type: String, required: true },
   kills:         { type: Number, default: 0 },
   rank:          { type: Number, default: 0 },
-  isMatched:     { type: Boolean, default: false }, // joined list এর সাথে match হয়েছে?
+  isMatched:     { type: Boolean, default: false },
   matchedUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   prizeAwarded:  { type: Number, default: 0 },
 }, { _id: false });
@@ -15,7 +15,7 @@ const resultSubmissionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Match",
     required: true,
-    unique: true, // একটা match এ একটাই submission
+    // unique: true  ← REMOVED: এখন একটা match এ multiple screenshot হবে
   },
   submittedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -27,8 +27,8 @@ const resultSubmissionSchema = new mongoose.Schema({
     publicId: { type: String, required: true },
   },
   ocrRawText:   { type: String, default: "" },
-  ocrPlayers:   [playerSchema], // OCR যা detect করেছে
-  finalPlayers: [playerSchema], // admin edit করার পরের final version
+  ocrPlayers:   [playerSchema],
+  finalPlayers: [playerSchema],
 
   status: {
     type: String,
