@@ -260,7 +260,11 @@ router.put("/join/:id", async (req, res) => {
     await user.save();
 
     if (!match.joinedUsers) match.joinedUsers = [];
-    match.joinedUsers.push({ userId, inGameName: inGameName || "", slotNumber });
+       match.joinedUsers.push({ 
+       userId: user._id, 
+      slotNumber: slot,
+  gameName: req.body.userName || req.body.gameName || ""  // ← এটা যোগ করুন
+});
     match.joinedPlayers = match.joinedUsers.length;
     await match.save();
 
