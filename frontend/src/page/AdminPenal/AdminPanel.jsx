@@ -1,5 +1,5 @@
  import React, { useState, useEffect, useCallback } from "react";
-
+import AdminResultReview from "./AdminResultReview";
 const API = "https://playzo-vn8e.onrender.com/api";
 
 const fmt = (n) => "৳" + Number(n || 0).toLocaleString("bn-BD");
@@ -53,6 +53,7 @@ const NAV = [
   { key: "dashboard",         label: "Dashboard",         icon: "⊞",  roles: ["super-admin","admin","finance"] },
   { key: "create-match",      label: "Create match",      icon: "＋",  roles: ["super-admin","admin"] },
   { key: "match-results",     label: "Match results",     icon: "🏆", roles: ["super-admin","admin"] },
+  { key: "ocr-results",       label: "OCR Results",       icon: "📸", roles: ["super-admin","admin"] },
   { key: "ludo-tournament",   label: "Ludo Tournament",   icon: "🎲", roles: ["super-admin","admin"] },
   { key: "deposit-requests",  label: "Deposit requests",  icon: "↓",  badge: "deposit",  roles: ["super-admin","finance"] },
   { key: "withdraw-requests", label: "Withdraw requests", icon: "↑",  badge: "withdraw", roles: ["super-admin","finance"] },
@@ -1023,83 +1024,107 @@ const Login = ({ onLogin }) => {
   );
 };
 
-// ─── AdminPanel (main) ────────────────────────────────────────────────────────
+ 
 const AdminPanel = () => {
-  const [admin, setAdmin]   = useState(null);
-  const [page, setPage]     = useState("dashboard");
-  // 🆕 point badge যোগ হয়েছে
+  const [admin, setAdmin] = useState(null);
+  const [page, setPage] = useState("dashboard");
   const [badges, setBadges] = useState({ deposit: 0, withdraw: 0, point: 0 });
 
   const loadBadges = useCallback(() => {
-    apiLegacy("/admin/deposits?status=pending").then((d) => {
-      const arr = Array.isArray(d)?d:Array.isArray(d?.data)?d.data:[];
-      setBadges(p=>({...p,deposit:arr.length}));
-    }).catch(()=>{});
+    apiLegacy("/admin/deposits?status=pending").then(d => {
+      const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+      setBadges(p => ({...p, deposit: arr.length}));
+    }).catch(() => {});
 
-    apiLegacy("/withdraw/admin/all?status=pending").then((d) => {
-      const arr = Array.isArray(d)?d:Array.isArray(d?.data)?d.data:[];
-      setBadges(p=>({...p,withdraw:arr.length}));
-    }).catch(()=>{});
+    apiLegacy("/withdraw/admin/all?status=pending").then(d => {
+      const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+      setBadges(p => ({...p, withdraw: arr.length}));
+    }).catch(() => {});
 
-    // 🆕 Point requests badge
-    api("/wallet/referral/convert-requests?status=pending").then((d) => {
+    api("/wallet/referral/convert-requests?status=pending").then(d => {
       const arr = Array.isArray(d?.requests) ? d.requests : [];
-      setBadges(p=>({...p,point:arr.length}));
-    }).catch(()=>{});
+      setBadges(p => ({...p, point: arr.length}));
+    }).catch(() => {});
   }, []);
 
+  // Initial Load Effect (Fixed)
   useEffect(() => {
-    const token      = localStorage.getItem("adminToken");
+    const token = localStorage.getItem("adminToken");
     const savedAdmin = localStorage.getItem("adminInfo");
-    if (token && savedAdmin) {
-      try { const adminData = JSON.parse(savedAdmin); setAdmin(adminData); loadBadges(); }
-      catch { localStorage.removeItem("adminToken"); localStorage.removeItem("adminInfo"); setAdmin(null); }
-    } else { setAdmin(null); }
-  }, [loadBadges]);
 
-  const handleLogin  = (a) => { setAdmin(a); loadBadges(); };
-  const handleLogout = () => { localStorage.removeItem("adminToken"); localStorage.removeItem("adminInfo"); setAdmin(null); setPage("dashboard"); };
+    if (token && savedAdmin) {
+      try {
+        const adminData = JSON.parse(savedAdmin);
+        setAdmin(adminData);
+      } catch {
+        localStorage.clear();
+        setAdmin(null);
+      }
+    } else {
+      setAdmin(null);
+    }
+  }, []);   // ← এখানে শুধু [] রাখা হয়েছে
+
+  // Load badges when admin changes
+  useEffect(() => {
+    if (admin) {
+      loadBadges();
+    }
+  }, [admin, loadBadges]);
+
+  const handleLogin = (a) => {
+    setAdmin(a);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminInfo");
+    setAdmin(null);
+    setPage("dashboard");
+  };
 
   if (!admin) return <Login onLogin={handleLogin} />;
 
   const titles = {
-    dashboard:          ["Dashboard",          "Overview of all activity"],
-    "create-match":     ["Create match",        "Add a new tournament match"],
-    "match-results":    ["Match results",       "Set Room ID/Password & Winner"],
-    "ludo-tournament":  ["Ludo Tournament",     "Ludo match create, room & result"],
-    "deposit-requests": ["Deposit requests",    "Approve or reject incoming deposits"],
-    "withdraw-requests":["Withdraw requests",   "Process user withdrawal requests"],
-    "point-requests":   ["Point Requests",      "Referral point convert requests"],   // 🆕
-    "money-overview":   ["Money overview",      "Full financial summary"],
-    "deposit-history":  ["Deposit history",     "All deposit transactions"],
-    "withdraw-history": ["Withdraw history",    "All withdrawal transactions"],
-    users:              ["Users",               "Manage all users"],
-    "activity-log":     ["Activity log",        "All admin actions"],
-    "manage-admins":    ["Manage admins",       "Add or manage admin accounts"],
-    "payment-numbers":  ["Payment Numbers",     "Deposit number manage করুন"],
+    dashboard: ["Dashboard", "Overview of all activity"],
+    "create-match": ["Create match", "Add a new tournament match"],
+    "match-results": ["Match results", "Set Room ID/Password & Winner"],
+    "ocr-results": ["OCR Results", "Screenshot দেখে result approve করুন"],
+    "ludo-tournament": ["Ludo Tournament", "Ludo match create, room & result"],
+    "deposit-requests": ["Deposit requests", "Approve or reject incoming deposits"],
+    "withdraw-requests": ["Withdraw requests", "Process user withdrawal requests"],
+    "point-requests": ["Point Requests", "Referral point convert requests"],
+    "money-overview": ["Money overview", "Full financial summary"],
+    "deposit-history": ["Deposit history", "All deposit transactions"],
+    "withdraw-history": ["Withdraw history", "All withdrawal transactions"],
+    users: ["Users", "Manage all users"],
+    "activity-log": ["Activity log", "All admin actions"],
+    "manage-admins": ["Manage admins", "Add or manage admin accounts"],
+    "payment-numbers": ["Payment Numbers", "Deposit number manage করুন"],
   };
 
-  const [title, sub] = titles[page] || ["Admin Panel",""];
+  const [title, sub] = titles[page] || ["Admin Panel", ""];
 
   return (
-    <div style={{ display:"flex",minHeight:"100vh",background:"#f9fafb",fontFamily:"'Inter',sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f9fafb", fontFamily: "'Inter', sans-serif" }}>
       <Sidebar page={page} setPage={setPage} admin={admin} onLogout={handleLogout} badges={badges} />
-      <main style={{ flex:1,overflowY:"auto" }}>
-        <Topbar title={title} sub={sub} onRefresh={()=>window.location.reload()} />
-        {page==="dashboard"           && <Dashboard />}
-        {page==="create-match"        && <CreateMatch />}
-        {page==="match-results"       && <MatchResults />}
-        {page==="ludo-tournament"     && <LudoTournamentManager />}
-        {page==="deposit-requests"    && <DepositRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
-        {page==="withdraw-requests"   && <WithdrawRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
-        {page==="point-requests"      && <PointRequests adminName={admin.name||admin.phone} refresh={loadBadges} />}
-        {page==="money-overview"      && <MoneyOverview />}
-        {page==="deposit-history"     && <History type="deposit" />}
-        {page==="withdraw-history"    && <History type="withdraw" />}
-        {page==="users"               && <Users />}
-        {page==="activity-log"        && <ActivityLog />}
-        {page==="manage-admins"       && <ManageAdmins />}
-        {page==="payment-numbers"     && <PaymentNumbers />}
+      <main style={{ flex: 1, overflowY: "auto" }}>
+        <Topbar title={title} sub={sub} onRefresh={() => window.location.reload()} />
+        {page === "dashboard" && <Dashboard />}
+        {page === "create-match" && <CreateMatch />}
+        {page === "match-results" && <MatchResults />}
+        {page === "ocr-results" && <AdminResultReview />}
+        {page === "ludo-tournament" && <LudoTournamentManager />}
+        {page === "deposit-requests" && <DepositRequests adminName={admin.name || admin.phone} refresh={loadBadges} />}
+        {page === "withdraw-requests" && <WithdrawRequests adminName={admin.name || admin.phone} refresh={loadBadges} />}
+        {page === "point-requests" && <PointRequests adminName={admin.name || admin.phone} refresh={loadBadges} />}
+        {page === "money-overview" && <MoneyOverview />}
+        {page === "deposit-history" && <History type="deposit" />}
+        {page === "withdraw-history" && <History type="withdraw" />}
+        {page === "users" && <Users />}
+        {page === "activity-log" && <ActivityLog />}
+        {page === "manage-admins" && <ManageAdmins />}
+        {page === "payment-numbers" && <PaymentNumbers />}
       </main>
     </div>
   );

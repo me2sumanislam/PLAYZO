@@ -1,19 +1,16 @@
-// admin/AdminResultReview.jsx
-// Admin panel এ এই page add করুন — OCR result দেখা, edit করা, approve/reject/publish
+ import React, { useState, useEffect, useCallback } from "react";
 
-import React, { useState, useEffect, useCallback } from "react";
-
-const API = process.env.REACT_APP_API_URL || "";
+const API = "https://playzo-vn8e.onrender.com";
 
 const AdminResultReview = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading]         = useState(false);
   const [filter, setFilter]           = useState("pending_review");
-  const [selected, setSelected]       = useState(null); // detail view
+  const [selected, setSelected]       = useState(null);
   const [saving, setSaving]           = useState(false);
   const [toast, setToast]             = useState("");
 
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,7 +31,6 @@ const AdminResultReview = () => {
     setTimeout(() => setToast(""), 3000);
   };
 
-  // OCR player row edit করা
   const updatePlayer = (idx, field, value) => {
     const updated = [...selected.finalPlayers];
     updated[idx] = { ...updated[idx], [field]: field === "kills" ? parseInt(value) || 0 : value };
@@ -91,7 +87,6 @@ const AdminResultReview = () => {
     setSaving(false);
   };
 
-  // ── Detail view ─────────────────────────────────────────────────────────
   if (selected) {
     return (
       <div style={styles.wrap}>
@@ -104,7 +99,6 @@ const AdminResultReview = () => {
         </div>
 
         <div style={styles.twoCol}>
-          {/* Screenshot */}
           <div style={styles.imgBox}>
             <div style={styles.sectionLabel}>Screenshot</div>
             <img
@@ -116,7 +110,6 @@ const AdminResultReview = () => {
             <p style={styles.hint}>Click করলে full-size দেখবেন</p>
           </div>
 
-          {/* OCR players — editable */}
           <div style={{ flex: 1 }}>
             <div style={styles.sectionLabel}>
               OCR Result
@@ -171,7 +164,6 @@ const AdminResultReview = () => {
 
             <button style={styles.addBtn} onClick={addPlayer}>+ Player যোগ করুন</button>
 
-            {/* Admin note */}
             <div style={{ marginTop: 12 }}>
               <div style={styles.sectionLabel}>Admin Note</div>
               <textarea
@@ -183,7 +175,6 @@ const AdminResultReview = () => {
               />
             </div>
 
-            {/* OCR raw text (collapsible) */}
             <details style={{ marginTop: 10 }}>
               <summary style={{ fontSize: 12, color: "#9ca3af", cursor: "pointer" }}>
                 OCR Raw Text দেখুন
@@ -193,32 +184,19 @@ const AdminResultReview = () => {
               </pre>
             </details>
 
-            {/* Action buttons */}
             <div style={styles.actions}>
               {selected.status === "pending_review" && (
                 <>
-                  <button
-                    style={styles.rejectBtn}
-                    disabled={saving}
-                    onClick={() => handleReview("reject")}
-                  >
+                  <button style={styles.rejectBtn} disabled={saving} onClick={() => handleReview("reject")}>
                     Reject
                   </button>
-                  <button
-                    style={styles.approveBtn}
-                    disabled={saving}
-                    onClick={() => handleReview("approve")}
-                  >
+                  <button style={styles.approveBtn} disabled={saving} onClick={() => handleReview("approve")}>
                     {saving ? "..." : "Approve করুন"}
                   </button>
                 </>
               )}
               {selected.status === "approved" && (
-                <button
-                  style={styles.publishBtn}
-                  disabled={saving}
-                  onClick={handlePublish}
-                >
+                <button style={styles.publishBtn} disabled={saving} onClick={handlePublish}>
                   {saving ? "..." : "Publish + Prize Distribute"}
                 </button>
               )}
@@ -229,7 +207,6 @@ const AdminResultReview = () => {
     );
   }
 
-  // ── List view ────────────────────────────────────────────────────────────
   return (
     <div style={styles.wrap}>
       {toast && <div style={styles.toast}>{toast}</div>}
@@ -241,8 +218,7 @@ const AdminResultReview = () => {
         </button>
       </div>
 
-      {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["pending_review", "approved", "rejected", "published", "processing"].map((s) => (
           <button
             key={s}
@@ -295,41 +271,37 @@ const AdminResultReview = () => {
 };
 
 const styles = {
-  wrap:   { padding: "16px", maxWidth: 960, margin: "0 auto" },
-  header: { display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" },
-  title:  { fontSize: 20, fontWeight: 700, margin: 0, flex: 1 },
-  backBtn: { background: "none", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 },
+  wrap:       { padding: "16px", maxWidth: 960, margin: "0 auto" },
+  header:     { display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" },
+  title:      { fontSize: 20, fontWeight: 700, margin: 0, flex: 1 },
+  backBtn:    { background: "none", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 },
   refreshBtn: { background: "#f3f4f6", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13 },
   badge: (s) => ({
     padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
     background: { pending_review: "#dbeafe", approved: "#d1fae5", rejected: "#fee2e2", published: "#ede9fe", processing: "#fef3c7" }[s] || "#f3f4f6",
-    color: { pending_review: "#1e40af", approved: "#065f46", rejected: "#991b1b", published: "#5b21b6", processing: "#92400e" }[s] || "#374151",
+    color:      { pending_review: "#1e40af", approved: "#065f46", rejected: "#991b1b", published: "#5b21b6", processing: "#92400e" }[s] || "#374151",
   }),
-  tab: { padding: "6px 12px", borderRadius: 20, border: "1px solid #e5e7eb", background: "#fff", fontSize: 12, cursor: "pointer", textTransform: "capitalize" },
+  tab:       { padding: "6px 12px", borderRadius: 20, border: "1px solid #e5e7eb", background: "#fff", fontSize: 12, cursor: "pointer", textTransform: "capitalize" },
   tabActive: { background: "#7c3aed", color: "#fff", border: "1px solid #7c3aed" },
-  card: { background: "#fff", border: "1px solid #f3f4f6", borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer", transition: "box-shadow .15s" },
+  card:      { background: "#fff", border: "1px solid #f3f4f6", borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer" },
   cardTitle: { fontWeight: 700, fontSize: 15 },
   cardSub:   { fontSize: 12, color: "#9ca3af", marginTop: 3 },
-  twoCol: { display: "flex", gap: 20, flexWrap: "wrap" },
-  imgBox: { width: 280, flexShrink: 0 },
+  twoCol:    { display: "flex", gap: 20, flexWrap: "wrap" },
+  imgBox:    { width: 280, flexShrink: 0 },
   sectionLabel: { fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", marginBottom: 8 },
-  hint: { fontSize: 11, color: "#9ca3af", marginTop: 4 },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
-  th: { textAlign: "left", padding: "6px 8px", background: "#f9fafb", fontWeight: 600, fontSize: 12, color: "#6b7280" },
-  td: { padding: "6px 8px", borderBottom: "1px solid #f3f4f6" },
-  input: { border: "1px solid #e5e7eb", borderRadius: 6, padding: "4px 8px", fontSize: 13, width: "100%", background: "#fff" },
-  addBtn: { marginTop: 8, fontSize: 12, color: "#7c3aed", background: "none", border: "1px dashed #c4b5fd", borderRadius: 6, padding: "5px 12px", cursor: "pointer" },
+  hint:    { fontSize: 11, color: "#9ca3af", marginTop: 4 },
+  table:   { width: "100%", borderCollapse: "collapse", fontSize: 13 },
+  th:      { textAlign: "left", padding: "6px 8px", background: "#f9fafb", fontWeight: 600, fontSize: 12, color: "#6b7280" },
+  td:      { padding: "6px 8px", borderBottom: "1px solid #f3f4f6" },
+  input:   { border: "1px solid #e5e7eb", borderRadius: 6, padding: "4px 8px", fontSize: 13, width: "100%", background: "#fff" },
+  addBtn:  { marginTop: 8, fontSize: 12, color: "#7c3aed", background: "none", border: "1px dashed #c4b5fd", borderRadius: 6, padding: "5px 12px", cursor: "pointer" },
   textarea: { width: "100%", border: "1px solid #e5e7eb", borderRadius: 6, padding: "6px 10px", fontSize: 13, resize: "vertical", boxSizing: "border-box" },
-  actions: { display: "flex", gap: 10, marginTop: 16 },
+  actions:    { display: "flex", gap: 10, marginTop: 16 },
   rejectBtn:  { flex: 1, padding: "10px 0", borderRadius: 8, background: "#fee2e2", color: "#991b1b", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 14 },
   approveBtn: { flex: 2, padding: "10px 0", borderRadius: 8, background: "#059669", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 14 },
   publishBtn: { flex: 1, padding: "10px 0", borderRadius: 8, background: "#7c3aed", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 14 },
   delBtn: { background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 14, padding: "0 4px" },
-  toast: { position: "sticky", top: 10, background: "#1f2937", color: "#fff", padding: "10px 16px", borderRadius: 8, marginBottom: 12, fontSize: 13, fontWeight: 600 },
+  toast:  { position: "sticky", top: 10, background: "#1f2937", color: "#fff", padding: "10px 16px", borderRadius: 8, marginBottom: 12, fontSize: 13, fontWeight: 600 },
 };
 
 export default AdminResultReview;
-
-// ─── Admin Router এ add করুন ─────────────────────────────────────────────
-// import AdminResultReview from "./admin/AdminResultReview";
-// <Route path="/admin/results" element={<AdminResultReview />} />

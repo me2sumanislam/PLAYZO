@@ -4,7 +4,7 @@
 
 import React, { useState, useRef } from "react";
 
-const API = process.env.REACT_APP_API_URL || "";
+ const API = "https://playzo-vn8e.onrender.com";
 
 const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
   const [file, setFile]         = useState(null);
