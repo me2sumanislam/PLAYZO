@@ -1,4 +1,4 @@
- import React, { useState, useEffect, useCallback, useRef } from "react";
+ import React, { useState, useEffect, useCallback } from "react";
 
   const API = "https://playzo-vn8e.onrender.com/api";
 
@@ -35,20 +35,7 @@ const api = async (path, opts = {}) => {
   }
 };
 
-const apiMultipart = async (path, formData) => {
-  const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
-  try {
-    const res = await fetch(`${API}${path}`, {
-      method: "POST",
-      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-      body: formData,
-    });
-    if (!res.ok) return { success: false };
-    return await res.json();
-  } catch {
-    return { success: false };
-  }
-};
+
 
 const Badge = ({ color, children }) => {
   const map = {
@@ -464,9 +451,6 @@ const MatchResults = () => {
   // Image section state
   const [screenshots, setScreenshots]     = useState([]); // এই match এর সব uploaded screenshots
   const [zoomedImg, setZoomedImg]         = useState(null); // zoom modal
-  const [uploading, setUploading]         = useState(false);
-  const [uploadMsg, setUploadMsg]         = useState("");
-  const fileRef                           = useRef();
 
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
 
@@ -521,7 +505,6 @@ const MatchResults = () => {
     setSelectedMatch(match || null);
     setResults([]);
     setScreenshots([]);
-    setUploadMsg("");
     if (id) loadScreenshots(id);
     const joined = (match?.joinedUsers || []).map((p) => ({
       ...p,
@@ -530,24 +513,7 @@ const MatchResults = () => {
     setPlayers(joined);
   };
 
-  // Admin নিজে screenshot upload করতে পারবে
-  const handleAdminUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedMatch) return;
-    setUploading(true);
-    setUploadMsg("");
-    const formData = new FormData();
-    formData.append("screenshot", file);
-    const data = await apiMultipart(`/result/upload/${selectedMatch._id}`, formData);
-    if (data.success) {
-      setUploadMsg("✅ Image upload সফল!");
-      setTimeout(() => loadScreenshots(selectedMatch._id), 2000);
-    } else {
-      setUploadMsg("❌ " + (data.message || "Upload failed"));
-    }
-    setUploading(false);
-    e.target.value = "";
-  };
+
 
   const addAllPlayers = () => {
     setResults(players.map((p) => ({ userId: p.userId, inGameName: p.inGameName, position: "", kills: 0 })));
@@ -693,31 +659,6 @@ const MatchResults = () => {
               </span>
             </div>
 
-            {/* Admin Upload Button */}
-            <label style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "9px 12px", border: "1.5px dashed #94a3b8", borderRadius: 8,
-              cursor: uploading ? "not-allowed" : "pointer",
-              background: "#f8fafc", fontSize: 12, color: "#64748b", marginBottom: 12,
-              opacity: uploading ? 0.6 : 1,
-            }}>
-              {uploading ? "⏳ Uploading..." : "📸 Screenshot Upload করুন"}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handleAdminUpload}
-                disabled={uploading}
-              />
-            </label>
-            {uploadMsg && (
-              <div style={{
-                fontSize: 11, padding: "5px 8px", borderRadius: 6, marginBottom: 10,
-                background: uploadMsg.startsWith("✅") ? "#d1fae5" : "#fee2e2",
-                color: uploadMsg.startsWith("✅") ? "#065f46" : "#991b1b",
-              }}>{uploadMsg}</div>
-            )}
 
             {/* Screenshots Grid */}
             {screenshots.length === 0 ? (
