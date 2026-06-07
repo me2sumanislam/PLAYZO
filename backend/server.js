@@ -77,7 +77,7 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/withdraw", require("./routes/withdrawRoutes"));
 app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
 app.use("/api/notifications", require("./routes/notifications"));
-
+app.use("/api/ludo-result", require("./routes/ludoResultRoutes"));
 // Ludo Routes
 app.use("/api/ludo-matches", ludoMatchRoutes);
 app.use("/api/ludo-tournament", ludoMatchRoutes);
