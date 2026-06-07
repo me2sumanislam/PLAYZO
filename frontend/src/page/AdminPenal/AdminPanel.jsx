@@ -249,7 +249,17 @@ const CreateMatch = () => {
           <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Match Title *</div><input placeholder="যেমন: BR Match #1" {...f("title")} /></div>
           <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Category</div>
             <select style={inp} value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}>
-              {[{ key: "br_match", label: "BR Match" }, { key: "br_survival", label: "BR Survival" }, { key: "clash_squad", label: "Clash Squad" }, { key: "cs_2vs2", label: "CS 2vs2" }, { key: "lone_wolf", label: "Lone Wolf" }, { key: "training", label: "Training Match" }].map((c) => (<option key={c.key} value={c.key}>{c.label}</option>))}
+              {[
+                { key: "br_solo",     label: "BR Solo (48 players)" },
+                { key: "br_survival", label: "BR Survival (48 players)" },
+                { key: "br_duo",      label: "BR Duo 2vs2 (48 players)" },
+                { key: "br_squad",    label: "BR Squad 4vs4 (48 players)" },
+                { key: "clash_squad", label: "Clash Squad 4vs4 (8 players)" },
+                { key: "cs_2vs2",     label: "CS 2vs2 (4 players)" },
+                { key: "lone_wolf",   label: "Lone Wolf 1vs1 (2 players)" },
+                { key: "tdm_6v6",     label: "TDM 6vs6 (12 players)" },
+                { key: "training",    label: "Training Match (48 players)" },
+              ].map((c) => (<option key={c.key} value={c.key}>{c.label}</option>))}
             </select>
           </div>
           <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Start Time *</div><input type="datetime-local" {...f("startTime")} /></div>
@@ -438,7 +448,35 @@ const Users = () => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // HYBRID MATCH RESULTS — Image viewer (বাম) + Kill/Position entry (ডান)
+// Solo: Position + Kill prize  |  Team: Winner team select করলে prize pool ÷ teamSize
 // ══════════════════════════════════════════════════════════════════════════════
+
+// Match mode config — frontend এ match type বোঝার জন্য
+const MODE_CONFIG = {
+  br_solo:      { matchType: "solo", teamSize: 1, label: "BR Solo" },
+  br_survival:  { matchType: "solo", teamSize: 1, label: "BR Survival" },
+  br_duo:       { matchType: "team", teamSize: 2, label: "BR Duo 2vs2" },
+  br_squad:     { matchType: "team", teamSize: 4, label: "BR Squad 4vs4" },
+  clash_squad:  { matchType: "team", teamSize: 4, label: "Clash Squad 4vs4" },
+  cs_2vs2:      { matchType: "team", teamSize: 2, label: "CS 2vs2" },
+  lone_wolf:    { matchType: "team", teamSize: 1, label: "Lone Wolf 1vs1" },
+  tdm_6v6:      { matchType: "team", teamSize: 6, label: "TDM 6vs6" },
+  training:     { matchType: "solo", teamSize: 1, label: "Training" },
+  // পুরনো keys backward compat
+  br_match:     { matchType: "solo", teamSize: 1, label: "BR Match" },
+};
+
+const getMatchMode = (match) => {
+  const cat = match?.category || "br_solo";
+  const cfg = MODE_CONFIG[cat] || MODE_CONFIG.br_solo;
+  // যদি match এ matchType সরাসরি আসে (নতুন Match.js) সেটা প্রাধান্য দাও
+  return {
+    matchType: match?.matchType || cfg.matchType,
+    teamSize:  match?.teamSize  || cfg.teamSize,
+    label:     cfg.label,
+  };
+};
+
 const MatchResults = () => {
   const [matches, setMatches]             = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
@@ -449,8 +487,11 @@ const MatchResults = () => {
   const [message, setMessage]             = useState({});
 
   // Image section state
-  const [screenshots, setScreenshots]     = useState([]); // এই match এর সব uploaded screenshots
-  const [zoomedImg, setZoomedImg]         = useState(null); // zoom modal
+  const [screenshots, setScreenshots]     = useState([]);
+  const [zoomedImg, setZoomedImg]         = useState(null);
+
+  // Team match state
+  const [winnerTeam, setWinnerTeam]       = useState("A");
 
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
 
@@ -463,8 +504,6 @@ const MatchResults = () => {
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
-  // Match select হলে screenshots ও load করি
-  // এই match এর সব user screenshots load করি — max 48 জন
   const loadScreenshots = useCallback(async (matchId) => {
     try {
       const res = await fetch(
@@ -483,6 +522,7 @@ const MatchResults = () => {
     setSelectedMatch(match || null);
     setResults([]);
     setScreenshots([]);
+    setWinnerTeam("A");
     if (id) loadScreenshots(id);
     const joined = (match?.joinedUsers || []).map((p) => ({
       ...p,
@@ -491,16 +531,17 @@ const MatchResults = () => {
     setPlayers(joined);
   };
 
-
-
+  // ── Solo mode helpers ──────────────────────────────────────────────────────
   const addAllPlayers = () => {
-    setResults(players.map((p) => ({ userId: p.userId, inGameName: p.inGameName, position: "", kills: 0 })));
+    setResults(players.map((p) => ({
+      userId: p.userId, inGameName: p.inGameName, position: "", kills: 0,
+    })));
   };
-  const addPlayerResult = () => { setResults([...results, { userId: "", inGameName: "", position: "", kills: 0 }]); };
+  const addPlayerResult  = () => setResults([...results, { userId: "", inGameName: "", position: "", kills: 0 }]);
   const handlePlayerSelect = (index, userId) => {
-    const player = players.find((p) => p.userId === userId);
+    const player  = players.find((p) => p.userId === userId);
     const updated = [...results];
-    updated[index].userId = userId;
+    updated[index].userId     = userId;
     updated[index].inGameName = player?.inGameName || "";
     setResults(updated);
   };
@@ -509,7 +550,7 @@ const MatchResults = () => {
     updated[index][field] = value;
     setResults(updated);
   };
-  const removePlayer = (index) => { setResults(results.filter((_, i) => i !== index)); };
+  const removePlayer = (index) => setResults(results.filter((_, i) => i !== index));
 
   const calculatePrize = (position, kills) => {
     if (!selectedMatch) return 0;
@@ -524,16 +565,21 @@ const MatchResults = () => {
   const isAlreadyAdded = (userId, currentIndex) =>
     results.some((r, i) => i !== currentIndex && r.userId === userId);
 
-  const totalPrize = results.reduce((sum, r) => sum + calculatePrize(r.position, r.kills), 0);
+  const totalSoloPrize = results.reduce((sum, r) => sum + calculatePrize(r.position, r.kills), 0);
 
-  // Prize pool = position prizes + (max possible kills * perKill) — আমরা শুধু position prizes sum দিয়ে check করব
   const prizePool = selectedMatch
-    ? (selectedMatch.prizes?.first || 0) +
-      (selectedMatch.prizes?.second || 0) +
-      (selectedMatch.prizes?.third || 0) +
-      (selectedMatch.prizes?.fourth || 0)
+    ? (selectedMatch.prizes?.first  || 0) + (selectedMatch.prizes?.second || 0) +
+      (selectedMatch.prizes?.third  || 0) + (selectedMatch.prizes?.fourth || 0)
     : 0;
-  const isOverBudget = prizePool > 0 && totalPrize > prizePool;
+  const isOverBudget = prizePool > 0 && totalSoloPrize > prizePool;
+
+  // ── Team mode helpers ──────────────────────────────────────────────────────
+  const teamPool    = selectedMatch?.prizePool || selectedMatch?.winPrize || 0;
+  const teamSize    = selectedMatch ? (getMatchMode(selectedMatch).teamSize || 1) : 1;
+  const teamAPlayers = players.filter((p) => (p.team || "A") === "A");
+  const teamBPlayers = players.filter((p) => (p.team || "A") === "B");
+  const winnerCount  = winnerTeam === "A" ? teamAPlayers.length : teamBPlayers.length;
+  const prizeEach    = winnerCount > 0 ? Math.floor(teamPool / winnerCount) : Math.floor(teamPool / teamSize);
 
   const updateRoom = async (id) => {
     const d = await api(`/matches/update-room/${id}`, { method: "PUT", body: JSON.stringify(roomData[id] || {}) });
@@ -541,14 +587,15 @@ const MatchResults = () => {
     if (d.success) loadMatches();
   };
 
-  const submitResult = async () => {
-    if (!selectedMatch)       return alert("Match সিলেক্ট করুন");
+  // ── Submit (Solo) ──────────────────────────────────────────────────────────
+  const submitSoloResult = async () => {
+    if (!selectedMatch) return alert("Match সিলেক্ট করুন");
     if (results.length === 0) return alert("কমপক্ষে ১ জন player যোগ করুন");
     if (results.some((r) => !r.userId)) return alert("সব player select করুন");
     const positions = results.map((r) => Number(r.position)).filter((p) => p > 0);
     if (positions.length !== new Set(positions).size) return alert("একই position দুজনকে দেওয়া যাবে না");
     if (isOverBudget) {
-      const ok = window.confirm(`⚠️ Total prize ৳${totalPrize} prize pool ৳${prizePool} এর বেশি! তবুও submit করবেন?`);
+      const ok = window.confirm(`⚠️ Total prize ৳${totalSoloPrize} prize pool ৳${prizePool} এর বেশি! তবুও submit করবেন?`);
       if (!ok) return;
     }
     setLoading(true);
@@ -557,19 +604,14 @@ const MatchResults = () => {
         method: "PUT",
         body: JSON.stringify({
           results: results.map((r) => ({
-            userId:     r.userId,
-            inGameName: r.inGameName,
-            position:   Number(r.position) || 0,
-            kills:      Number(r.kills)    || 0,
+            userId: r.userId, inGameName: r.inGameName,
+            position: Number(r.position) || 0, kills: Number(r.kills) || 0,
           })),
         }),
       });
       if (response.success) {
         alert("✅ Result submit হয়েছে!");
-        setResults([]);
-        setSelectedMatch(null);
-        setPlayers([]);
-        setScreenshots([]);
+        setResults([]); setSelectedMatch(null); setPlayers([]); setScreenshots([]);
         loadMatches();
       } else {
         alert("❌ " + (response.message || "Failed"));
@@ -578,28 +620,40 @@ const MatchResults = () => {
     setLoading(false);
   };
 
+  // ── Submit (Team) ──────────────────────────────────────────────────────────
+  const submitTeamResult = async () => {
+    if (!selectedMatch) return alert("Match সিলেক্ট করুন");
+    if (!winnerTeam) return alert("Winner team select করুন");
+    setLoading(true);
+    try {
+      const response = await api(`/admin/matches/${selectedMatch._id}/result`, {
+        method: "PUT",
+        body: JSON.stringify({ results: [], winnerTeam }),
+      });
+      if (response.success) {
+        alert("✅ " + response.message);
+        setSelectedMatch(null); setPlayers([]); setScreenshots([]);
+        loadMatches();
+      } else {
+        alert("❌ " + (response.message || "Failed"));
+      }
+    } catch { alert("Server Error"); }
+    setLoading(false);
+  };
+
+  const mode = selectedMatch ? getMatchMode(selectedMatch) : null;
+  const isTeamMatch = mode?.matchType === "team";
+
   return (
     <div style={{ padding: 16 }}>
       {/* Zoom Modal */}
       {zoomedImg && (
         <div
           onClick={() => setZoomedImg(null)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)",
-            zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "zoom-out",
-          }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}
         >
-          <img
-            src={zoomedImg}
-            alt="zoomed"
-            style={{ maxWidth: "92vw", maxHeight: "92vh", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.6)" }}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            onClick={() => setZoomedImg(null)}
-            style={{ position: "absolute", top: 20, right: 24, background: "#fff", border: "none", borderRadius: "50%", width: 36, height: 36, fontSize: 18, cursor: "pointer", fontWeight: 700 }}
-          >✕</button>
+          <img src={zoomedImg} alt="zoomed" style={{ maxWidth: "92vw", maxHeight: "92vh", borderRadius: 8 }} onClick={(e) => e.stopPropagation()} />
+          <button onClick={() => setZoomedImg(null)} style={{ position: "absolute", top: 20, right: 24, background: "#fff", border: "none", borderRadius: "50%", width: 36, height: 36, fontSize: 18, cursor: "pointer", fontWeight: 700 }}>✕</button>
         </div>
       )}
 
@@ -611,103 +665,54 @@ const MatchResults = () => {
           style={{ width: "100%", maxWidth: 500, padding: "11px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14, outline: "none" }}
         >
           <option value="">-- Match select করুন --</option>
-          {matches.map((m) => (
-            <option key={m._id} value={m._id}>
-              {m.title} • {m.status} • {m.joinedPlayers || 0}/{m.totalPlayers}
-            </option>
-          ))}
+          {matches.map((m) => {
+            const cfg = getMatchMode(m);
+            return (
+              <option key={m._id} value={m._id}>
+                {m.title} • {cfg.label} • {m.status} • {m.joinedPlayers || 0}/{m.totalPlayers}
+              </option>
+            );
+          })}
         </select>
       </div>
 
       {selectedMatch && (
-        // ── Split Screen Layout ──
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
 
           {/* ══ বাম: Image Section ══ */}
-          <div style={{
-            width: 320, minWidth: 280, flexShrink: 0,
-            background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14,
-            padding: 16, position: "sticky", top: 16,
-          }}>
-            {/* Match Name Header */}
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 300, minWidth: 260, flexShrink: 0, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 16, position: "sticky", top: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
               📁 {selectedMatch.title}
-              <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af", marginLeft: 4 }}>
-                ({screenshots.length} image)
+              <span style={{ fontSize: 11, fontWeight: 500, color: "#7c3aed", background: "#ede9fe", padding: "1px 7px", borderRadius: 10 }}>
+                {mode?.label}
               </span>
             </div>
-
-
-            {/* Screenshots Grid */}
+            <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 10 }}>
+              {screenshots.length} screenshot • click করলে zoom হবে
+            </div>
             {screenshots.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "24px 0", color: "#9ca3af", fontSize: 12 }}>
-                এখনো কোনো screenshot নেই
-              </div>
+              <div style={{ textAlign: "center", padding: "20px 0", color: "#d1d5db", fontSize: 12 }}>কোনো screenshot নেই</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {screenshots.map((sub, idx) => (
                   <div key={sub._id || idx} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
                     <img
-                      src={sub.screenshot?.url}
-                      alt={`screenshot ${idx + 1}`}
-                      style={{ width: "100%", display: "block", cursor: "zoom-in", maxHeight: 200, objectFit: "cover" }}
+                      src={sub.screenshot?.url} alt=""
+                      style={{ width: "100%", display: "block", cursor: "zoom-in", maxHeight: 180, objectFit: "cover" }}
                       onClick={() => setZoomedImg(sub.screenshot?.url)}
                     />
-                    <div style={{ padding: "6px 8px", background: "#f9fafb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "#6b7280" }}>
-                        Screenshot {idx + 1} · {sub.submittedBy?.name || sub.submittedBy?.phone || "User"}
-                      </span>
-                      <span style={{
-                        fontSize: 9, padding: "2px 6px", borderRadius: 10, fontWeight: 600,
-                        background: sub.status === "pending_review" ? "#dbeafe" : sub.status === "published" ? "#ede9fe" : "#f3f4f6",
-                        color: sub.status === "pending_review" ? "#1e40af" : sub.status === "published" ? "#5b21b6" : "#374151",
-                      }}>
-                        {sub.status?.replace("_", " ")}
-                      </span>
+                    <div style={{ padding: "5px 8px", background: "#f9fafb", fontSize: 10, color: "#6b7280" }}>
+                      #{idx + 1} · {sub.submittedBy?.name || sub.submittedBy?.phone || "User"}
                     </div>
                   </div>
                 ))}
               </div>
             )}
-
-            <p style={{ fontSize: 10, color: "#9ca3af", marginTop: 10, textAlign: "center" }}>
-              Click করলে zoom হবে
-            </p>
           </div>
 
           {/* ══ ডান: Result Entry Section ══ */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-
-              {/* Prize Info */}
-              <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12, fontWeight: 600 }}>
-                <span>🥇 1st: ৳{selectedMatch.prizes?.first || 0}</span>
-                <span>🥈 2nd: ৳{selectedMatch.prizes?.second || 0}</span>
-                <span>🥉 3rd: ৳{selectedMatch.prizes?.third || 0}</span>
-                <span>4️⃣ 4th: ৳{selectedMatch.prizes?.fourth || 0}</span>
-                <span>🔫 Per Kill: ৳{selectedMatch.perKill || 0}</span>
-                {prizePool > 0 && (
-                  <span style={{ color: "#7c3aed", marginLeft: "auto" }}>
-                    Prize Pool: ৳{prizePool}
-                  </span>
-                )}
-              </div>
-
-              {/* Joined Players */}
-              {players.length > 0 && (
-                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                  <div style={{ fontWeight: 700, color: "#15803d", marginBottom: 8, fontSize: 12 }}>
-                    📋 Joined Players ({players.length} জন)
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {players.map((p, i) => (
-                      <span key={i} style={{ background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 600, color: "#166534" }}>
-                        {p.inGameName ? `${p.inGameName} — Slot #${p.slotNumber}` : `Slot #${p.slotNumber}`}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Room Details */}
               <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: 14, marginBottom: 16 }}>
@@ -715,137 +720,211 @@ const MatchResults = () => {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                   <div>
                     <div style={{ fontSize: 11, marginBottom: 4, color: "#6b7280" }}>Room ID</div>
-                    <input
-                      placeholder="Room ID"
-                      defaultValue={selectedMatch.roomId || ""}
+                    <input placeholder="Room ID" defaultValue={selectedMatch.roomId || ""}
                       onChange={(e) => setRoomData((p) => ({ ...p, [selectedMatch._id]: { ...p[selectedMatch._id], roomId: e.target.value } }))}
-                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #bae6fd", boxSizing: "border-box", fontSize: 13 }}
-                    />
+                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #bae6fd", boxSizing: "border-box", fontSize: 13 }} />
                   </div>
                   <div>
                     <div style={{ fontSize: 11, marginBottom: 4, color: "#6b7280" }}>Password</div>
-                    <input
-                      placeholder="Room Password"
-                      defaultValue={selectedMatch.roomPassword || ""}
+                    <input placeholder="Room Password" defaultValue={selectedMatch.roomPassword || ""}
                       onChange={(e) => setRoomData((p) => ({ ...p, [selectedMatch._id]: { ...p[selectedMatch._id], roomPassword: e.target.value } }))}
-                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #bae6fd", boxSizing: "border-box", fontSize: 13 }}
-                    />
+                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #bae6fd", boxSizing: "border-box", fontSize: 13 }} />
                   </div>
                 </div>
-                <button
-                  onClick={() => updateRoom(selectedMatch._id)}
-                  style={{ width: "100%", padding: 9, background: "#0284c7", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-                >
+                <button onClick={() => updateRoom(selectedMatch._id)}
+                  style={{ width: "100%", padding: 9, background: "#0284c7", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                   Update Room Details
                 </button>
-                {message[selectedMatch._id] && (
-                  <p style={{ marginTop: 6, color: "#0369a1", fontWeight: 600, fontSize: 12 }}>{message[selectedMatch._id]}</p>
-                )}
+                {message[selectedMatch._id] && <p style={{ marginTop: 6, color: "#0369a1", fontWeight: 600, fontSize: 12 }}>{message[selectedMatch._id]}</p>}
               </div>
 
-              {/* Player Results */}
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🎮 Player Results</div>
-              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                <button
-                  onClick={addAllPlayers}
-                  disabled={players.length === 0 || results.length === players.length}
-                  style={{ padding: "9px 16px", background: "#8b5cf6", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13, opacity: players.length === 0 || results.length === players.length ? 0.5 : 1 }}
-                >
-                  ⚡ Add All {players.length} Players
-                </button>
-                <button
-                  onClick={addPlayerResult}
-                  style={{ padding: "9px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13 }}
-                >
-                  + Add Player
-                </button>
-              </div>
-
-              {results.map((res, index) => (
-                <div key={index} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, marginBottom: 8 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 110px 90px 100px 40px", gap: 8, alignItems: "center" }}>
-                    <div>
-                      <select
-                        value={res.userId}
-                        onChange={(e) => handlePlayerSelect(index, e.target.value)}
-                        style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
-                      >
-                        <option value="">-- Select --</option>
-                        {players.map((p) => (
-                          <option key={p.userId} value={p.userId} disabled={isAlreadyAdded(p.userId, index)}>
-                            {p.inGameName ? `${p.inGameName} — Slot #${p.slotNumber}` : `Slot #${p.slotNumber}`}
-                          </option>
-                        ))}
-                      </select>
-                      {res.inGameName && (
-                        <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600, marginTop: 3 }}>✅ {res.inGameName}</div>
-                      )}
-                    </div>
-                    <select
-                      value={res.position}
-                      onChange={(e) => handleResultChange(index, "position", e.target.value)}
-                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
-                    >
-                      <option value="">Pos</option>
-                      {Array.from({ length: 48 }, (_, i) => i + 1).map((n) => (<option key={n} value={n}>{n}</option>))}
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      value={res.kills}
-                      onChange={(e) => handleResultChange(index, "kills", parseInt(e.target.value) || 0)}
-                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
-                      placeholder="Kills"
-                    />
-                    <div style={{ textAlign: "center", fontWeight: 700, fontSize: 14, color: calculatePrize(res.position, res.kills) > 0 ? "#16a34a" : "#9ca3af" }}>
-                      ৳{calculatePrize(res.position, res.kills)}
-                    </div>
-                    <button
-                      onClick={() => removePlayer(index)}
-                      style={{ background: "#fee2e2", border: "none", borderRadius: 6, color: "#dc2626", fontWeight: 700, padding: "7px 10px", cursor: "pointer", fontSize: 13 }}
-                    >✕</button>
+              {/* ══ TEAM MATCH UI ══ */}
+              {isTeamMatch && (
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+                    🏆 Team Match Result — {mode.label}
                   </div>
-                </div>
-              ))}
 
-              {/* Total Prize + Prize Pool Check */}
-              {results.length > 0 && (
-                <div style={{
-                  borderRadius: 10, padding: 14, marginTop: 8,
-                  background: isOverBudget ? "#fef2f2" : "#f0fdf4",
-                  border: `1px solid ${isOverBudget ? "#fecaca" : "#bbf7d0"}`,
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontWeight: 600, color: isOverBudget ? "#b91c1c" : "#15803d", fontSize: 13 }}>
-                      Total Prize Distribution
-                    </span>
-                    <span style={{ fontWeight: 800, fontSize: 20, color: isOverBudget ? "#b91c1c" : "#15803d" }}>
-                      ৳{totalPrize}
-                    </span>
-                  </div>
-                  {prizePool > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: isOverBudget ? "#b91c1c" : "#6b7280" }}>
-                      {isOverBudget
-                        ? `⚠️ Prize Pool ৳${prizePool} — বেশি হয়ে গেছে ৳${totalPrize - prizePool}!`
-                        : `✅ Prize Pool ৳${prizePool} — বাকি আছে ৳${prizePool - totalPrize}`
-                      }
+                  {/* Prize Info */}
+                  <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>💰 Prize Pool</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#92400e" }}>৳{teamPool}</div>
+                    <div style={{ fontSize: 12, color: "#a16207", marginTop: 4 }}>
+                      Team Size: {mode.teamSize} জন · Winner team এর সবাই পাবে: ৳{prizeEach} each
                     </div>
-                  )}
+                  </div>
+
+                  {/* Team A / Team B players */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                    {["A", "B"].map((team) => {
+                      const teamPlayers = players.filter((p) => (p.team || "A") === team);
+                      const isWinner = winnerTeam === team;
+                      return (
+                        <div key={team} style={{
+                          borderRadius: 10, padding: 12, border: `2px solid ${isWinner ? "#22c55e" : "#e5e7eb"}`,
+                          background: isWinner ? "#f0fdf4" : "#f9fafb",
+                        }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: isWinner ? "#16a34a" : "#374151", marginBottom: 8 }}>
+                            {isWinner ? "✅ " : ""}Team {team}
+                            <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
+                              ({teamPlayers.length} জন)
+                            </span>
+                          </div>
+                          {teamPlayers.length === 0 ? (
+                            <div style={{ fontSize: 11, color: "#d1d5db" }}>কেউ join করেনি</div>
+                          ) : (
+                            teamPlayers.map((p, i) => (
+                              <div key={i} style={{ fontSize: 12, padding: "3px 0", borderBottom: "1px solid #f3f4f6", color: "#374151" }}>
+                                {p.inGameName || p.gameName || `Slot #${p.slotNumber}`}
+                              </div>
+                            ))
+                          )}
+                          {isWinner && teamPlayers.length > 0 && (
+                            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#16a34a" }}>
+                              প্রতিজন পাবে: ৳{prizeEach}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Winner Team Select */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#374151" }}>Winner Team Select করুন:</div>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      {["A", "B"].map((team) => (
+                        <button key={team} onClick={() => setWinnerTeam(team)}
+                          style={{
+                            flex: 1, padding: "14px 0", borderRadius: 10, border: "none",
+                            background: winnerTeam === team ? "#22c55e" : "#f3f4f6",
+                            color: winnerTeam === team ? "#fff" : "#374151",
+                            fontWeight: 700, fontSize: 16, cursor: "pointer",
+                          }}>
+                          🏆 Team {team} {winnerTeam === team ? "✅" : ""}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Prize Summary */}
+                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                    <div style={{ fontWeight: 700, color: "#15803d", fontSize: 13, marginBottom: 4 }}>Prize Summary</div>
+                    <div style={{ fontSize: 13, color: "#374151" }}>
+                      Team {winnerTeam} এর {winnerCount} জন × ৳{prizeEach} = ৳{prizeEach * winnerCount}
+                    </div>
+                    {teamPool !== prizeEach * winnerCount && (
+                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 3 }}>
+                        (Prize pool ৳{teamPool} — {winnerCount} জনের মধ্যে ভাগ)
+                      </div>
+                    )}
+                  </div>
+
+                  <button onClick={submitTeamResult} disabled={loading || !winnerTeam}
+                    style={{ width: "100%", padding: 14, background: loading ? "#9ca3af" : "#22c55e", color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+                    {loading ? "Submitting..." : `✅ Team ${winnerTeam} Winner — Submit করুন`}
+                  </button>
                 </div>
               )}
 
-              <button
-                onClick={submitResult}
-                disabled={loading || results.length === 0}
-                style={{
-                  marginTop: 14, width: "100%", padding: 14,
-                  background: loading ? "#9ca3af" : isOverBudget ? "#dc2626" : "#22c55e",
-                  color: "white", border: "none", borderRadius: 12,
-                  fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
-                }}
-              >
-                {loading ? "Submitting..." : `✅ Submit Result (${results.length} players)`}
-              </button>
+              {/* ══ SOLO MATCH UI ══ */}
+              {!isTeamMatch && (
+                <div>
+                  {/* Prize Info */}
+                  <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12, fontWeight: 600 }}>
+                    <span>🥇 1st: ৳{selectedMatch.prizes?.first || 0}</span>
+                    <span>🥈 2nd: ৳{selectedMatch.prizes?.second || 0}</span>
+                    <span>🥉 3rd: ৳{selectedMatch.prizes?.third || 0}</span>
+                    <span>4️⃣ 4th: ৳{selectedMatch.prizes?.fourth || 0}</span>
+                    <span>🔫 Per Kill: ৳{selectedMatch.perKill || 0}</span>
+                    {prizePool > 0 && <span style={{ color: "#7c3aed", marginLeft: "auto" }}>Prize Pool: ৳{prizePool}</span>}
+                  </div>
+
+                  {/* Joined Players */}
+                  {players.length > 0 && (
+                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+                      <div style={{ fontWeight: 700, color: "#15803d", marginBottom: 8, fontSize: 12 }}>
+                        📋 Joined Players ({players.length} জন)
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {players.map((p, i) => (
+                          <span key={i} style={{ background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 600, color: "#166534" }}>
+                            {p.inGameName || `Slot #${p.slotNumber}`}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Player Results */}
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🎮 Player Results</div>
+                  <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                    <button onClick={addAllPlayers} disabled={players.length === 0 || results.length === players.length}
+                      style={{ padding: "9px 16px", background: "#8b5cf6", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13, opacity: players.length === 0 ? 0.5 : 1 }}>
+                      ⚡ Add All {players.length} Players
+                    </button>
+                    <button onClick={addPlayerResult}
+                      style={{ padding: "9px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+                      + Add Player
+                    </button>
+                  </div>
+
+                  {results.map((res, index) => (
+                    <div key={index} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 110px 90px 100px 40px", gap: 8, alignItems: "center" }}>
+                        <div>
+                          <select value={res.userId} onChange={(e) => handlePlayerSelect(index, e.target.value)}
+                            style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}>
+                            <option value="">-- Select --</option>
+                            {players.map((p) => (
+                              <option key={p.userId} value={p.userId} disabled={isAlreadyAdded(p.userId, index)}>
+                                {p.inGameName || `Slot #${p.slotNumber}`}
+                              </option>
+                            ))}
+                          </select>
+                          {res.inGameName && <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600, marginTop: 3 }}>✅ {res.inGameName}</div>}
+                        </div>
+                        <select value={res.position} onChange={(e) => handleResultChange(index, "position", e.target.value)}
+                          style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}>
+                          <option value="">Pos</option>
+                          {Array.from({ length: 48 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        <input type="number" min="0" value={res.kills}
+                          onChange={(e) => handleResultChange(index, "kills", parseInt(e.target.value) || 0)}
+                          style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
+                          placeholder="Kills" />
+                        <div style={{ textAlign: "center", fontWeight: 700, fontSize: 14, color: calculatePrize(res.position, res.kills) > 0 ? "#16a34a" : "#9ca3af" }}>
+                          ৳{calculatePrize(res.position, res.kills)}
+                        </div>
+                        <button onClick={() => removePlayer(index)}
+                          style={{ background: "#fee2e2", border: "none", borderRadius: 6, color: "#dc2626", fontWeight: 700, padding: "7px 10px", cursor: "pointer", fontSize: 13 }}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Total Prize + Prize Pool Check */}
+                  {results.length > 0 && (
+                    <div style={{ borderRadius: 10, padding: 14, marginTop: 8, background: isOverBudget ? "#fef2f2" : "#f0fdf4", border: `1px solid ${isOverBudget ? "#fecaca" : "#bbf7d0"}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontWeight: 600, color: isOverBudget ? "#b91c1c" : "#15803d", fontSize: 13 }}>Total Prize Distribution</span>
+                        <span style={{ fontWeight: 800, fontSize: 20, color: isOverBudget ? "#b91c1c" : "#15803d" }}>৳{totalSoloPrize}</span>
+                      </div>
+                      {prizePool > 0 && (
+                        <div style={{ marginTop: 6, fontSize: 12, color: isOverBudget ? "#b91c1c" : "#6b7280" }}>
+                          {isOverBudget
+                            ? `⚠️ Prize Pool ৳${prizePool} — বেশি হয়ে গেছে ৳${totalSoloPrize - prizePool}!`
+                            : `✅ Prize Pool ৳${prizePool} — বাকি আছে ৳${prizePool - totalSoloPrize}`}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button onClick={submitSoloResult} disabled={loading || results.length === 0}
+                    style={{ marginTop: 14, width: "100%", padding: 14, background: loading ? "#9ca3af" : isOverBudget ? "#dc2626" : "#22c55e", color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+                    {loading ? "Submitting..." : `✅ Submit Result (${results.length} players)`}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -854,7 +933,6 @@ const MatchResults = () => {
   );
 };
 // ══════════════════════════════════════════════════════════════════════════════
-
 const PaymentNumbers = () => {
   const [list, setList] = useState([]);
   const [form, setForm] = useState({ method: "bkash", number: "", limit: "", active: true });
