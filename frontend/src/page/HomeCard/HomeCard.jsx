@@ -16,7 +16,7 @@ const HomeCard = () => {
         `}
       </style>
 
-      {/* --- Section 1: Features (ID: features added) --- */}
+      {/* Features Section */}
       <section id="features" className="bg-[#f8fafc] py-16 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -37,7 +37,7 @@ const HomeCard = () => {
         </div>
       </section>
 
-      {/* --- Section 2: Live Tournaments (ID: tournaments added) --- */}
+      {/* Live Tournaments Section */}
       <section id="tournaments" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] py-16 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -78,30 +78,39 @@ const HomeCard = () => {
         </div>
       </section>
 
-      {/* --- Section 3: Membership (ID: membership added) --- */}
+      {/* === Updated Membership Section === */}
       <section id="membership" className="bg-white py-20 px-6 overflow-hidden scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
-              { title: 'দ্রুত পেমেন্ট', icon: '🚀', color: 'border-orange-200' },
-              { title: '২৪/৭ সাপোর্ট', icon: '📞', color: 'border-indigo-200' },
-              { title: 'নিরাপদ গেমিং', icon: '🛡️', color: 'border-green-200' }
+              { 
+                title: 'দ্রুত পেমেন্ট', 
+                icon: '🚀', 
+                color: 'border-orange-200',
+                desc: 'ইনস্ট্যান্ট ডিপোজিট ও উইথড্র। কোনো অপেক্ষা নয়, মুহূর্তেই টাকা জমা ও তুলুন!'
+              },
+              { 
+                title: '২৪/৭ লাইভ সাপোর্ট', 
+                icon: '📞', 
+                color: 'border-indigo-200',
+                desc: 'যেকোনো সময়, দিন-রাত — আমাদের টিম সবসময় রেডি। তাৎক্ষণিক সাহায্য পাবেন!'
+              },
+              { 
+                title: 'নিরাপদ গেমিং', 
+                icon: '🛡️', 
+                color: 'border-green-200',
+                desc: 'অত্যাধুনিক সিকিউরিটি দিয়ে ১০০% সুরক্ষিত। নিশ্চিন্তে খেলুন, কোনো ঝুঁকি নেই!'
+              }
             ].map((card, index) => (
               <div 
                 key={index} 
-                className={`animate-card-float bg-white border-2 ${card.color} p-10 rounded-[2.5rem] text-center shadow-xl shadow-slate-100`}
-                style={{ animationDelay: `${index * 0.5}s` }}
+                className={`animate-card-float bg-white border-2 ${card.color} p-10 rounded-[2.5rem] text-center shadow-xl shadow-slate-100 hover:shadow-2xl transition-all duration-300`}
+                style={{ animationDelay: `${index * 0.4}s` }}
               >
-                <div className="text-5xl mb-6">{card.icon}</div>
-                <h3 className="text-2xl font-black text-slate-800 mb-4">{card.title}</h3>
-                <p className="text-slate-500">
-                   ইনস্ট্যান্ট ডিপোজিট ও উইথড্র। কোনো অপেক্ষা নয়, মুহূর্তেই টাকা জমা ও তুলুন!
-                </p>
-                <p className="text-slate-500">
-                  আমরা নিশ্চিত করি আপনার গেমিং অভিজ্ঞাতা যেন হয় একদম নিরবচ্ছিন্ন।
-                </p>
-                <p className="text-slate-500">
-                  আমরা নিশ্চিত করি আপনার গেমিং অভিজ্ঞাতা যেন হয় একদম নিরবচ্ছিন্ন।
+                <div className="text-6xl mb-6">{card.icon}</div>
+                <h3 className="text-2xl font-black text-slate-800 mb-5">{card.title}</h3>
+                <p className="text-slate-600 leading-relaxed text-[15.5px]">
+                  {card.desc}
                 </p>
               </div>
             ))}
