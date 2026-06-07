@@ -1,12 +1,10 @@
- // routes/resultRoutes.js  ← নতুন ফাইল, routes/ folder এ রাখুন
-// npm install cloudinary multer multer-storage-cloudinary tesseract.js
+ // routes/resultRoutes.js
 
 const express        = require("express");
 const multer         = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary     = require("cloudinary").v2;
 const jwt            = require("jsonwebtoken");
-const { createWorker } = require("tesseract.js");
 const router         = express.Router();
 
 const Match            = require("../models/Match");
@@ -39,7 +37,7 @@ const upload = multer({
   },
 });
 
-// ─── Auth middleware (আপনার existing JWT logic এর মতোই) ──────────────────────
+// ─── Auth middleware ───────────────────────────────────────────────────────────
 const protect = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
@@ -59,268 +57,155 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-// ─── OCR helper ───────────────────────────────────────────────────────────────
-async function runOCR(imageUrl, joinedGameNames = []) {
-  const worker = await createWorker("eng");
-  try {
-    const { data } = await worker.recognize(imageUrl);
-    const rawText  = data.text || "";
-
-    // joined name গুলো lowercase map এ রাখি
-    const nameMap = {};
-    for (const n of joinedGameNames) {
-      if (n) nameMap[n.toLowerCase().trim()] = n;
-    }
-
-    const players = [];
-    const lines   = rawText.split("\n").map((l) => l.trim()).filter(Boolean);
-
-    for (const line of lines) {
-      const killMatch = line.match(/\b(\d{1,2})\b/g); // 0–99 range kills
-      const rankMatch = line.match(/#\s*(\d+)/i);
-      if (!killMatch) continue;
-
-      const kills = parseInt(killMatch[killMatch.length - 1], 10);
-      const rank  = rankMatch ? parseInt(rankMatch[1], 10) : 0;
-
-      const nameRaw = line
-        .replace(/#\s*\d+/gi, "")
-        .replace(/\b\d{1,2}\b/g, "")
-        .replace(/[^a-zA-Z0-9_.\- ]/g, "")
-        .trim();
-
-      if (!nameRaw || nameRaw.length < 2 || kills > 60) continue;
-
-      const lower = nameRaw.toLowerCase();
-      let isMatched = false;
-      let finalName = nameRaw;
-
-      for (const [key, original] of Object.entries(nameMap)) {
-        if (key === lower || key.includes(lower) || lower.includes(key)) {
-          isMatched = true;
-          finalName = original;
-          break;
-        }
-      }
-
-      players.push({ inGameName: finalName, kills, rank, isMatched, matchedUserId: null });
-    }
-
-    players.sort((a, b) => b.kills - a.kills);
-    return { rawText, players };
-  } finally {
-    await worker.terminate();
-  }
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
 // USER: Screenshot upload
 // POST /api/result/upload/:matchId
 // field name: "screenshot"
+// একজন user একটা match এ শুধু ১টাই upload করতে পারবে
 // ═════════════════════════════════════════════════════════════════════════════
 router.post("/upload/:matchId", protect, upload.single("screenshot"), async (req, res) => {
   try {
     const { matchId } = req.params;
+    const userId = req.user.id || req.user._id;
 
     if (!req.file) {
-      return res.status(400).json({ message: "Screenshot upload করুন" });
+      return res.status(400).json({ success: false, message: "Screenshot upload করুন" });
     }
 
     const match = await Match.findById(matchId);
-    if (!match) return res.status(404).json({ message: "Match পাওয়া যায়নি" });
+    if (!match) return res.status(404).json({ success: false, message: "Match পাওয়া যায়নি" });
 
-    // ইতিমধ্যে আছে কিনা
-    const existing = await ResultSubmission.findOne({ match: matchId });
+    // এই user কি এই match এ joined?
+    const isJoined = (match.joinedUsers || []).some((u) => {
+      const uid = u.userId?._id?.toString() || u.userId?.toString();
+      return uid === userId.toString();
+    });
+    if (!isJoined) {
+      return res.status(403).json({ success: false, message: "আপনি এই match এ join করেননি" });
+    }
+
+    // এই user কি আগেই এই match এ upload করেছে?
+    const existing = await ResultSubmission.findOne({
+      match:       matchId,
+      submittedBy: userId,
+    });
     if (existing) {
-      return res.status(400).json({ message: "এই match এর screenshot ইতিমধ্যে submit হয়েছে" });
+      return res.status(400).json({
+        success: false,
+        message: "আপনি এই match এ ইতিমধ্যে screenshot submit করেছেন",
+      });
     }
 
     const screenshotUrl      = req.file.path;
     const screenshotPublicId = req.file.filename;
 
-    // Joined players এর inGameName list
-    const joinedGameNames = (match.joinedUsers || [])
-      .map((u) => u.inGameName)
-      .filter(Boolean);
-
-    // Submission তৈরি করে user কে সাথে সাথে response দিই
     const submission = await ResultSubmission.create({
       match:       matchId,
-      submittedBy: req.user.id || req.user._id,
+      submittedBy: userId,
       screenshot:  { url: screenshotUrl, publicId: screenshotPublicId },
-      status:      "processing",
+      status:      "pending_review",
     });
 
     res.status(201).json({
       success:      true,
-      message:      "Screenshot upload সফল! OCR processing শুরু হয়েছে...",
+      message:      "Screenshot upload সফল! Admin review করবে।",
       submissionId: submission._id,
     });
 
-    // Background এ OCR চালাই
-    try {
-      const { rawText, players } = await runOCR(screenshotUrl, joinedGameNames);
-      await ResultSubmission.findByIdAndUpdate(submission._id, {
-        ocrRawText:   rawText,
-        ocrPlayers:   players,
-        finalPlayers: players,
-        status:       "pending_review",
-      });
-    } catch (ocrErr) {
-      console.error("OCR Error:", ocrErr.message);
-      await ResultSubmission.findByIdAndUpdate(submission._id, {
-        ocrRawText: "OCR failed — admin manually review করুন",
-        status:     "pending_review",
+  } catch (err) {
+    // Duplicate key error (extra safety)
+    if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "আপনি এই match এ ইতিমধ্যে screenshot submit করেছেন",
       });
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("Upload error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// USER: নিজের match এর result status দেখা
+// USER: নিজের submission status দেখা
 // GET /api/result/my/:matchId
 // ═════════════════════════════════════════════════════════════════════════════
 router.get("/my/:matchId", protect, async (req, res) => {
   try {
-    const submission = await ResultSubmission.findOne({ match: req.params.matchId })
-      .select("status finalPlayers screenshot adminNote createdAt");
+    const userId = req.user.id || req.user._id;
+    const submission = await ResultSubmission.findOne({
+      match:       req.params.matchId,
+      submittedBy: userId,
+    }).select("status screenshot adminNote createdAt");
 
     if (!submission) {
-      return res.status(404).json({ message: "এই match এর result এখনো submit হয়নি" });
+      return res.status(404).json({ success: false, message: "এই match এ কোনো screenshot submit হয়নি" });
     }
     res.json({ success: true, data: submission });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// ADMIN: pending submissions list
+// ADMIN: একটা match এর সব submissions দেখা
+// GET /api/result/admin/match/:matchId
+// সর্বোচ্চ 48 জন user এর 48টা screenshot
+// ═════════════════════════════════════════════════════════════════════════════
+router.get("/admin/match/:matchId", protect, adminOnly, async (req, res) => {
+  try {
+    const submissions = await ResultSubmission.find({ match: req.params.matchId })
+      .populate("submittedBy", "name phone")
+      .sort({ createdAt: -1 })
+      .limit(48); // max 48 players
+
+    res.json({ success: true, count: submissions.length, data: submissions });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ADMIN: সব pending submissions (সব match এর)
 // GET /api/result/admin/submissions?status=pending_review
 // ═════════════════════════════════════════════════════════════════════════════
 router.get("/admin/submissions", protect, adminOnly, async (req, res) => {
   try {
-    const { status = "pending_review" } = req.query;
-    const submissions = await ResultSubmission.find({ status })
+    const { status = "pending_review", matchId } = req.query;
+
+    const filter = {};
+    if (status !== "all") filter.status = status;
+    if (matchId) filter.match = matchId;
+
+    const submissions = await ResultSubmission.find(filter)
       .populate("match", "title category entryFee winPrize perKill prizes")
       .populate("submittedBy", "name phone")
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, data: submissions });
+    res.json({ success: true, count: submissions.length, data: submissions });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// ADMIN: OCR result review — approve / reject
-// PUT /api/result/admin/review/:submissionId
-// body: { action: "approve"|"reject", finalPlayers: [...], adminNote: "" }
+// ADMIN: Submission reject (fake screenshot)
+// PUT /api/result/admin/reject/:submissionId
 // ═════════════════════════════════════════════════════════════════════════════
-router.put("/admin/review/:submissionId", protect, adminOnly, async (req, res) => {
+router.put("/admin/reject/:submissionId", protect, adminOnly, async (req, res) => {
   try {
-    const { action, finalPlayers, adminNote = "" } = req.body;
-
-    if (!["approve", "reject"].includes(action)) {
-      return res.status(400).json({ message: "action হবে approve অথবা reject" });
-    }
-
+    const { adminNote = "" } = req.body;
     const submission = await ResultSubmission.findById(req.params.submissionId);
-    if (!submission) return res.status(404).json({ message: "Submission পাওয়া যায়নি" });
+    if (!submission) return res.status(404).json({ success: false, message: "Submission পাওয়া যায়নি" });
 
-    submission.status     = action === "approve" ? "approved" : "rejected";
+    submission.status     = "rejected";
     submission.adminNote  = adminNote;
     submission.reviewedBy = req.user.id || req.user._id;
     submission.reviewedAt = new Date();
-
-    if (action === "approve" && Array.isArray(finalPlayers) && finalPlayers.length > 0) {
-      submission.finalPlayers = finalPlayers;
-    }
     await submission.save();
 
-    res.json({ success: true, message: `${action === "approve" ? "Approved" : "Rejected"} successfully` });
+    res.json({ success: true, message: "Submission reject করা হয়েছে" });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ADMIN: Result publish + prize distribute
-// POST /api/result/admin/publish/:submissionId
-// ═════════════════════════════════════════════════════════════════════════════
-router.post("/admin/publish/:submissionId", protect, adminOnly, async (req, res) => {
-  try {
-    const submission = await ResultSubmission.findById(req.params.submissionId)
-      .populate("match");
-
-    if (!submission) return res.status(404).json({ message: "Submission পাওয়া যায়নি" });
-    if (submission.status !== "approved") {
-      return res.status(400).json({ message: "আগে approve করুন" });
-    }
-
-    const match  = submission.match;
-    const sorted = [...submission.finalPlayers].sort((a, b) => b.kills - a.kills);
-
-    // Prize distribution (আপনার existing prize logic এর মতো)
-    for (let i = 0; i < sorted.length; i++) {
-      const player = sorted[i];
-      if (!player.matchedUserId) continue;
-
-      let prize = (player.kills || 0) * (match.perKill || 0);
-      if (i === 0) prize += match.prizes?.first  || match.winPrize || 0;
-      else if (i === 1) prize += match.prizes?.second || 0;
-      else if (i === 2) prize += match.prizes?.third  || 0;
-      else if (i === 3) prize += match.prizes?.fourth || 0;
-
-      prize = Math.floor(prize);
-      sorted[i].prizeAwarded = prize;
-
-      if (prize > 0) {
-        await User.findByIdAndUpdate(player.matchedUserId, {
-          $inc: { balance: prize },
-          $push: {
-            transactions: {
-              type:        "match_prize",
-              amount:      prize,
-              matchId:     match._id,
-              matchTitle:  match.title,
-              description: `${match.title} - ${player.kills} kills`,
-              date:        new Date(),
-            },
-          },
-        });
-      }
-    }
-
-    submission.finalPlayers = sorted;
-    submission.status       = "published";
-
-    match.results = sorted.map((p, i) => ({
-      inGameName: p.inGameName,
-      kills:      p.kills,
-      position:   i + 1,
-      prize:      p.prizeAwarded || 0,
-    }));
-    match.status            = "completed";
-    match.completedAt       = new Date();
-    match.resultSubmissionId = submission._id;
-    // auto-delete 24 ঘণ্টা পরে
-    match.deleteAt          = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await submission.save();
-    await match.save();
-
-    res.json({
-      success: true,
-      message: "Result publish সফল! Prize distribute হয়েছে।",
-      results: match.results,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
