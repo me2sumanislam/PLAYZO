@@ -464,39 +464,17 @@ const MatchResults = () => {
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
   // Match select হলে screenshots ও load করি
+  // এই match এর সব user screenshots load করি — max 48 জন
   const loadScreenshots = useCallback(async (matchId) => {
     try {
       const res = await fetch(
-        `${API}/result/admin/submissions?status=pending_review&matchId=${matchId}`,
+        `${API}/result/admin/match/${matchId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      // সব status এর screenshots দেখাবো এই match এর
-      const res2 = await fetch(
-        `${API}/result/admin/submissions?status=all`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data2 = await res2.json();
-      const allSubs = data2?.data || data?.data || [];
-      const matchSubs = allSubs.filter((s) => {
-        const sid = s.match?._id || s.match;
-        return sid?.toString() === matchId;
-      });
-      setScreenshots(matchSubs);
+      setScreenshots(data?.data || []);
     } catch {
-      // fallback: pending_review only
-      try {
-        const res = await fetch(
-          `${API}/result/admin/submissions?status=pending_review`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        const subs = (data?.data || []).filter((s) => {
-          const sid = s.match?._id || s.match;
-          return sid?.toString() === matchId;
-        });
-        setScreenshots(subs);
-      } catch { setScreenshots([]); }
+      setScreenshots([]);
     }
   }, [token]);
 
