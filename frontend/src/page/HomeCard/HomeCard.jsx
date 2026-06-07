@@ -16,7 +16,7 @@ const HomeCard = () => {
         `}
       </style>
 
-      {/* Features Section */}
+      {/* === Features Section - আলাদা আলাদা কার্ড === */}
       <section id="features" className="bg-[#f8fafc] py-16 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -25,14 +25,55 @@ const HomeCard = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-                <h3 className="text-xl font-bold text-slate-800 mb-3">সেরা সার্ভিস {item}</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  আমরা দিচ্ছি বাংলাদেশের সবচেয়ে দ্রুত পেমেন্ট সিস্টেম এবং ২৪/৭ কাস্টমার সাপোর্ট।
-                </p>
-              </div>
-            ))}
+
+            {/* সেরা সার্ভিস ১ */}
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ১</h3>
+              <p className="text-slate-600 leading-relaxed">
+                ১০০% Honest প্ল্যাটফর্ম। আমরা কথা দিলে কথা রাখি। কোনো প্রতারণা নয়, শুধু স্বচ্ছ ও নির্ভরযোগ্য সার্ভিস।
+              </p>
+            </div>
+
+            {/* সেরা সার্ভিস ২ */}
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ২</h3>
+              <p className="text-slate-600 leading-relaxed">
+                দ্রুত পেমেন্ট সিস্টেম। বিকাশ, নগদ, রকেট, ব্যাংক — সব মাধ্যমে ইনস্ট্যান্ট ডিপোজিট ও উইথড্রয়াল।
+              </p>
+            </div>
+
+            {/* সেরা সার্ভিস ৩ */}
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৩</h3>
+              <p className="text-slate-600 leading-relaxed">
+                ২৪/৭ লাইভ সাপোর্ট। আমাদের টিম সবসময় অনলাইনে। যেকোনো সমস্যায় তাৎক্ষণিক রেসপন্স পাবেন।
+              </p>
+            </div>
+
+            {/* সেরা সার্ভিস ৪ */}
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৪</h3>
+              <p className="text-slate-600 leading-relaxed">
+                সবসময় Active Community। আমাদের টেলিগ্রাম ও ফেসবুক গ্রুপ ২৪ ঘণ্টা সক্রিয়। আপডেট, টিপস ও সাপোর্ট পাবেন সবসময়।
+              </p>
+            </div>
+
+            {/* সেরা সার্ভিস ৫ */}
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৫</h3>
+              <p className="text-slate-600 leading-relaxed">
+                নিরাপদ ও সুরক্ষিত গেমিং। অত্যাধুনিক সিকিউরিটি দিয়ে আপনার অ্যাকাউন্ট ও টাকা সম্পূর্ণ সুরক্ষিত।
+              </p>
+            </div>
+
+            {/* সেরা সার্ভিস ৬ */}
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৬</h3>
+              <p className="text-slate-600 leading-relaxed">
+                নিয়মিত আকর্ষণীয় টুর্নামেন্ট ও বড় প্রাইজপুল। Honest-এর সাথে ভালো রিওয়ার্ড পান প্রতিদিন।
+              </p>
+            </div>
+
           </div>
         </div>
       </section>
@@ -78,7 +119,7 @@ const HomeCard = () => {
         </div>
       </section>
 
-      {/* === Updated Membership Section === */}
+      {/* Membership Section */}
       <section id="membership" className="bg-white py-20 px-6 overflow-hidden scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -87,19 +128,19 @@ const HomeCard = () => {
                 title: 'দ্রুত পেমেন্ট', 
                 icon: '🚀', 
                 color: 'border-orange-200',
-                desc: 'ইনস্ট্যান্ট ডিপোজিট ও উইথড্র। কোনো অপেক্ষা নয়, মুহূর্তেই টাকা জমা ও তুলুন!'
+                desc: 'ইনস্ট্যান্ট ডিপোজিট ও উইথড্রয়াল সুবিধা। ব্যাংক, বিকাশ, নগদ, রকেট — সব মাধ্যমে তাৎক্ষণিক লেনদেন। কোনো অপেক্ষা নেই!'
               },
               { 
                 title: '২৪/৭ লাইভ সাপোর্ট', 
                 icon: '📞', 
                 color: 'border-indigo-200',
-                desc: 'যেকোনো সময়, দিন-রাত — আমাদের টিম সবসময় রেডি। তাৎক্ষণিক সাহায্য পাবেন!'
+                desc: 'দিন-রাত ২৪ ঘণ্টা লাইভ সাপোর্ট টিম। যেকোনো সমস্যায় তাৎক্ষণিক হেল্প পাবেন। কখনো একা থাকবেন না!'
               },
               { 
                 title: 'নিরাপদ গেমিং', 
                 icon: '🛡️', 
                 color: 'border-green-200',
-                desc: 'অত্যাধুনিক সিকিউরিটি দিয়ে ১০০% সুরক্ষিত। নিশ্চিন্তে খেলুন, কোনো ঝুঁকি নেই!'
+                desc: 'অত্যাধুনিক এনক্রিপশন ও সিকিউরিটি সিস্টেম। আপনার অ্যাকাউন্ট, তথ্য ও টাকা সম্পূর্ণ সুরক্ষিত। নিরাপদে খেলুন!'
               }
             ].map((card, index) => (
               <div 
