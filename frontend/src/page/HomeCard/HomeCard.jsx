@@ -95,6 +95,12 @@ const HomeCard = () => {
                 <div className="text-5xl mb-6">{card.icon}</div>
                 <h3 className="text-2xl font-black text-slate-800 mb-4">{card.title}</h3>
                 <p className="text-slate-500">
+                   ইনস্ট্যান্ট ডিপোজিট ও উইথড্র। কোনো অপেক্ষা নয়, মুহূর্তেই টাকা জমা ও তুলুন!
+                </p>
+                <p className="text-slate-500">
+                  আমরা নিশ্চিত করি আপনার গেমিং অভিজ্ঞাতা যেন হয় একদম নিরবচ্ছিন্ন।
+                </p>
+                <p className="text-slate-500">
                   আমরা নিশ্চিত করি আপনার গেমিং অভিজ্ঞাতা যেন হয় একদম নিরবচ্ছিন্ন।
                 </p>
               </div>
