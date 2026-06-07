@@ -38,15 +38,15 @@ const Footer = () => {
               </a>
             </li>
             <li>
-              <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
-                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">LinkedIn</span>
-                <span className="text-sm">uthiYO Official</span>
+              <a href="https://www.youtube.com/@Uthiyo-i5l" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
+                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">YouTube</span>
+                <span className="text-sm">uthiYO OfficialYouTubeChanel</span>
               </a>
             </li>
             <li>
-              <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
+              <a href="https://www.facebook.com/share/p/1B4qzJjBJR/" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
                 <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">Facebook</span>
-                <span className="text-sm">facebook.com/uthiyo</span>
+                <span className="text-sm">facebookPage</span>
               </a>
             </li>
           </ul>

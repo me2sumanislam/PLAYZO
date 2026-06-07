@@ -3,20 +3,57 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ClickableSlider = ({ slides }) => {
+const ClickableSlider = () => {
+  const navigate = useNavigate();
+
+  // ================== Beautiful YouTube Slides ==================
+  const slides = [
+    {
+      image: "https://img.youtube.com/vi/8z5f2z5z5z0/maxresdefault.jpg",
+      title: "Free Fire Solo Pro League",
+      subtitle: "LIVE TOURNAMENT",
+      description: "আজ রাত ৯:৩০ | প্রাইজপুল ১৫,০০০৳ | যোগ দিন এখনই",
+      buttonText: "ভিডিও দেখুন",
+      link: "https://youtube.com/watch?v=8z5f2z5z5z0"
+    },
+    {
+      image: "https://img.youtube.com/vi/9bZkp7q19f0/maxresdefault.jpg",
+      title: "Rank Push Tips 2026",
+      subtitle: "PRO GUIDE",
+      description: "হিরোইক থেকে গ্র্যান্ড মাস্টারে যাওয়ার সেরা টেকনিক",
+      buttonText: "টিপস শিখুন",
+      link: "https://youtube.com/watch?v=9bZkp7q19f0"
+    },
+    {
+      image: "https://img.youtube.com/vi/dQw4w9wgxcq/maxresdefault.jpg",
+      title: "Grand Final Booyah Moments",
+      subtitle: "EPIC HIGHLIGHTS",
+      description: "গতকালের ফাইনাল ম্যাচের সেরা ক্লিপস",
+      buttonText: "হাইলাইটস দেখুন",
+      link: "https://youtube.com/watch?v=dQw4w9wgxcq"
+    },
+    {
+      image: "https://img.youtube.com/vi/3JZ_D3ELwOQ/maxresdefault.jpg",
+      title: "Funny Fails & Best Kills",
+      subtitle: "ENTERTAINMENT",
+      description: "মজার মুহূর্ত ও ওয়ান ট্যাপ কিল কম্পাইলেশন",
+      buttonText: "মজা দেখুন",
+      link: "https://youtube.com/watch?v=3JZ_D3ELwOQ"
+    }
+  ];
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [translateX, setTranslateX] = useState(0);
 
-  const navigate = useNavigate();
   const autoSlideRef = useRef(null);
 
   const resetAutoSlide = useCallback(() => {
     if (autoSlideRef.current) clearInterval(autoSlideRef.current);
     autoSlideRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 4500); // 4.5 সেকেন্ড পর পর স্লাইড
   }, [slides.length]);
 
   useEffect(() => {
@@ -30,32 +67,29 @@ const ClickableSlider = ({ slides }) => {
     setTranslateX(0);
   }, []);
 
-  const handleTouchMove = useCallback(
-    (e) => {
-      if (!isDragging) return;
-      setTranslateX(e.touches[0].clientX - startX);
-    },
-    [isDragging, startX]
-  );
+  const handleTouchMove = useCallback((e) => {
+    if (!isDragging) return;
+    setTranslateX(e.touches[0].clientX - startX);
+  }, [isDragging, startX]);
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging) return;
-    if (translateX > 60) {
+
+    if (translateX > 70) {
       setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-    } else if (translateX < -60) {
+    } else if (translateX < -70) {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
     }
+
     setIsDragging(false);
     setTranslateX(0);
     resetAutoSlide();
   }, [translateX, isDragging, slides.length, resetAutoSlide]);
 
   const handleClick = (slide) => {
-    if (Math.abs(translateX) > 10) return;
+    if (Math.abs(translateX) > 15) return; // drag হলে ক্লিক হবে না
     if (slide.link) {
-      slide.link.startsWith("http")
-        ? window.open(slide.link, "_blank")
-        : navigate(slide.link);
+      window.open(slide.link, "_blank");
     }
   };
 
@@ -65,7 +99,7 @@ const ClickableSlider = ({ slides }) => {
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl shadow-xl bg-black">
+    <div className="relative w-full overflow-hidden rounded-3xl shadow-2xl bg-black">
       {/* Slider Track */}
       <div
         className="flex"
@@ -73,7 +107,7 @@ const ClickableSlider = ({ slides }) => {
           transform: `translateX(calc(-${currentIndex * 100}% + ${translateX}px))`,
           transition: isDragging
             ? "none"
-            : "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+            : "transform 0.6s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -87,7 +121,7 @@ const ClickableSlider = ({ slides }) => {
           >
             <img
               src={slide.image}
-              alt={slide.title || `Slide ${index + 1}`}
+              alt={slide.title}
               className="w-full block"
               style={{
                 aspectRatio: "16/7",
@@ -98,46 +132,46 @@ const ClickableSlider = ({ slides }) => {
               loading={index === 0 ? "eager" : "lazy"}
             />
 
-            {/* Text overlay — শুধু text থাকলে দেখাবে */}
-            {(slide.title || slide.subtitle || slide.description || slide.buttonText) && (
-              <>
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-black/90" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10">
-                  {slide.subtitle && (
-                    <p className="text-yellow-300 text-sm sm:text-base font-medium tracking-widest mb-1">
-                      {slide.subtitle}
-                    </p>
-                  )}
-                  {slide.title && (
-                    <h2 className="text-white text-2xl sm:text-3xl md:text-4xl font-bold leading-tight mb-3 drop-shadow-2xl">
-                      {slide.title}
-                    </h2>
-                  )}
-                  {slide.description && (
-                    <p className="text-white/90 text-sm sm:text-base max-w-xs mb-4 leading-snug">
-                      {slide.description}
-                    </p>
-                  )}
-                  {slide.buttonText && (
-                    <button className="bg-white hover:bg-yellow-400 text-black font-bold px-8 py-3 rounded-2xl text-base shadow-xl transition-all active:scale-95">
-                      {slide.buttonText}
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/70 to-black/90" />
+
+            {/* Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10">
+              {slide.subtitle && (
+                <p className="text-orange-400 text-sm sm:text-base font-bold tracking-[2px] mb-2">
+                  {slide.subtitle}
+                </p>
+              )}
+              {slide.title && (
+                <h2 className="text-white text-2xl sm:text-3xl md:text-4xl font-black leading-tight mb-4 drop-shadow-2xl">
+                  {slide.title}
+                </h2>
+              )}
+              {slide.description && (
+                <p className="text-white/90 text-base sm:text-lg max-w-lg mb-6 leading-relaxed">
+                  {slide.description}
+                </p>
+              )}
+              {slide.buttonText && (
+                <button className="bg-white hover:bg-orange-500 hover:text-white text-black font-bold px-10 py-3.5 rounded-2xl text-lg shadow-xl transition-all active:scale-95">
+                  {slide.buttonText}
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Dot Indicators */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-30">
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-3 z-30">
         {slides.map((_, idx) => (
           <button
             key={idx}
             onClick={() => goToSlide(idx)}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              currentIndex === idx ? "w-8 bg-white" : "w-2 bg-white/50"
+            className={`h-3 rounded-full transition-all duration-300 ${
+              currentIndex === idx 
+                ? "w-10 bg-white shadow-md" 
+                : "w-3 bg-white/50 hover:bg-white/70"
             }`}
           />
         ))}
