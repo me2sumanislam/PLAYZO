@@ -9,36 +9,36 @@ const ClickableSlider = () => {
   // ================== Beautiful YouTube Slides ==================
   const slides = [
     {
-      image: "https://img.youtube.com/vi/8z5f2z5z5z0/maxresdefault.jpg",
-      title: "Free Fire Solo Pro League",
-      subtitle: "LIVE TOURNAMENT",
-      description: "আজ রাত ৯:৩০ | প্রাইজপুল ১৫,০০০৳ | যোগ দিন এখনই",
-      buttonText: "ভিডিও দেখুন",
-      link: "https://youtube.com/watch?v=8z5f2z5z5z0"
+      image: "/frontend/public/image/slider/facebook1.png",
+      title: "",
+      subtitle: "",
+      description: "",
+      buttonText: "",
+      link: "https://www.facebook.com/share/p/1B4qzJjBJR/"
     },
     {
-      image: "https://img.youtube.com/vi/9bZkp7q19f0/maxresdefault.jpg",
-      title: "Rank Push Tips 2026",
-      subtitle: "PRO GUIDE",
-      description: "হিরোইক থেকে গ্র্যান্ড মাস্টারে যাওয়ার সেরা টেকনিক",
-      buttonText: "টিপস শিখুন",
-      link: "https://youtube.com/watch?v=9bZkp7q19f0"
+      image: "/frontend/public/image/slider/ludo.png",
+      // title: "Rank Push Tips 2026",
+      // subtitle: "PRO GUIDE",
+      // description: "হিরোইক থেকে গ্র্যান্ড মাস্টারে যাওয়ার সেরা টেকনিক",
+      // buttonText: "টিপস শিখুন",
+      link: "#"
     },
     {
-      image: "https://img.youtube.com/vi/dQw4w9wgxcq/maxresdefault.jpg",
-      title: "Grand Final Booyah Moments",
-      subtitle: "EPIC HIGHLIGHTS",
-      description: "গতকালের ফাইনাল ম্যাচের সেরা ক্লিপস",
-      buttonText: "হাইলাইটস দেখুন",
-      link: "https://youtube.com/watch?v=dQw4w9wgxcq"
+      image: "/frontend/public/image/slider/telegram.png",
+      // title: "Grand Final Booyah Moments",
+      // subtitle: "EPIC HIGHLIGHTS",
+      // description: "গতকালের ফাইনাল ম্যাচের সেরা ক্লিপস",
+      // buttonText: "হাইলাইটস দেখুন",
+      link: ""
     },
     {
-      image: "https://img.youtube.com/vi/3JZ_D3ELwOQ/maxresdefault.jpg",
-      title: "Funny Fails & Best Kills",
-      subtitle: "ENTERTAINMENT",
-      description: "মজার মুহূর্ত ও ওয়ান ট্যাপ কিল কম্পাইলেশন",
-      buttonText: "মজা দেখুন",
-      link: "https://youtube.com/watch?v=3JZ_D3ELwOQ"
+      image: "/frontend/public/image/slider/youtube.png",
+      // title: "Funny Fails & Best Kills",
+      // subtitle: "ENTERTAINMENT",
+      // description: "মজার মুহূর্ত ও ওয়ান ট্যাপ কিল কম্পাইলেশন",
+      // buttonText: "মজা দেখুন",
+      link: "https://www.youtube.com/@Uthiyo-i5l"
     }
   ];
 
