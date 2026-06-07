@@ -1,45 +1,59 @@
- import { useState, useEffect } from "react";
+ import { useState, useEffect, useRef } from "react";
 
 const InstallButton = () => {
   const [show, setShow] = useState(false);
+  const [installed, setInstalled] = useState(false);
+  const deferredPrompt = useRef(null);
 
   useEffect(() => {
-    console.log("Install Button Mounted");
-
-    const timer = setTimeout(() => {
-      setShow(true);   // Force দেখানোর জন্য (টেস্টের জন্য)
-    }, 3000);
+    // Already installed as PWA?
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setInstalled(true);
+      return;
+    }
 
     const handler = (e) => {
-      console.log("🔥 beforeinstallprompt FIRED!");
       e.preventDefault();
+      deferredPrompt.current = e; // ✅ Save করা হলো
       setShow(true);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
 
+    window.addEventListener("appinstalled", () => {
+      setInstalled(true);
+      setShow(false);
+      deferredPrompt.current = null;
+    });
+
     return () => {
-      clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", handler);
     };
   }, []);
 
-  const handleClick = () => {
-    alert("📲 Install Prompt চেক করা হচ্ছে...\n\nConsole খুলে দেখো কী আসছে");
-    console.log("Install Button Clicked");
+  const handleInstall = async () => {
+    if (!deferredPrompt.current) return;
+    deferredPrompt.current.prompt(); // ✅ Trigger করা হলো
+    const { outcome } = await deferredPrompt.current.userChoice;
+    if (outcome === "accepted") {
+      setInstalled(true);
+      setShow(false);
+    }
+    deferredPrompt.current = null;
   };
 
-  if (!show) return null;
+  if (installed || !show) return null;
 
   return (
-    // <button
-    //   onClick={handleClick}
-    //   className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] 
-    //              bg-orange-600 hover:bg-orange-700 text-white 
-    //              font-bold text-lg py-4 px-10 rounded-2xl shadow-2xl"
-    // >
-    //   📲 এখনই uthiYO অ্যাপ ইনস্টল করুন
-    // </button>
+    <button
+      onClick={handleInstall}
+      className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999]
+                 bg-orange-600 hover:bg-orange-700 active:scale-95
+                 text-white font-bold text-base py-3 px-8
+                 rounded-2xl shadow-2xl transition-all"
+    >
+      📲 uthiYO App ইনস্টল করুন
+    </button>
   );
 };
 

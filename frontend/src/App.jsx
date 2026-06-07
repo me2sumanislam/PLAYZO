@@ -10,6 +10,7 @@ import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
 import Referral from "./page/Referral/Referral";
+import InstallPage from "./page/InstallPage/InstallPage"; // ✅ নতুন
 
 const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 const API_BASE =
@@ -190,6 +191,10 @@ function App() {
           </div>
         }
       />
+
+      {/* ✅ নতুন — Referral install landing page */}
+      <Route path="/install" element={<InstallPage />} />
+
       <Route
         path="/app"
         element={
