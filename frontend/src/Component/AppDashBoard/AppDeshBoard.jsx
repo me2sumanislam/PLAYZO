@@ -866,14 +866,18 @@ const AppDashboard = ({ onLogout }) => {
     const interval = setInterval(loadMatches, 15000);
     return () => clearInterval(interval);
   }, []);
-
+ 
   const categories = [
-    { key: "br_match", title: "BR Match", img: "/image/cards/BRMatchcard.png" },
-    { key: "br_survival", title: "BR Survival", img: "/image/cards/solo.png" },
-    { key: "clash_squad", title: "Clash Squad", img: "/image/cards/squard.png" },
-    { key: "cs_2vs2", title: "CS 2vs2", img: "/image/cards/2vs2.png" },
-    { key: "lone_wolf", title: "Lone Wolf", img: "/image/cards/longwolf.png" },
-    { key: "training", title: "Training Match", img: "/image/cards/freematch.png" },
+    { key: "br_solo",     title: "BR Solo",         img: "/image/cards/BRMatchcard.png" },
+    { key: "br_match",    title: "BR Match",         img: "/image/cards/BRMatchcard.png" },
+    { key: "br_survival", title: "BR Survival",      img: "/image/cards/solo.png" },
+    { key: "br_duo",      title: "BR Duo (2vs2)",    img: "/image/cards/2vs2.png" },
+    { key: "br_squad",    title: "BR Squad (4vs4)",  img: "/image/cards/squard.png" },
+    { key: "clash_squad", title: "Clash Squad 4vs4", img: "/image/cards/squard.png" },
+    { key: "cs_2vs2",     title: "CS 2vs2",          img: "/image/cards/2vs2.png" },
+    { key: "lone_wolf",   title: "Lone Wolf (1vs1)", img: "/image/cards/longwolf.png" },
+    { key: "tdm_6v6",     title: "TDM 6vs6",         img: "/image/cards/squard.png" },
+    { key: "training",    title: "Training Match",   img: "/image/cards/freematch.png" },
   ];
 
   const sliderSlides = [
