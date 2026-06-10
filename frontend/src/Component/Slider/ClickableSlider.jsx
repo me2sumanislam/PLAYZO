@@ -19,7 +19,7 @@ const ClickableSlider = () => {
     {
       image: "/frontend/public/image/slider/ludo.png",
       // title: "Rank Push Tips 2026",
-      // subtitle: "PRO GUIDE",
+      // subtitle: "PRO GUIDE", 
       // description: "হিরোইক থেকে গ্র্যান্ড মাস্টারে যাওয়ার সেরা টেকনিক",
       // buttonText: "টিপস শিখুন",
       link: "#"
