@@ -1,16 +1,17 @@
- const express = require("express");
-const router = express.Router();
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+ // routes/admin.js
+const express = require("express");
+const router  = express.Router();
+const bcrypt  = require("bcryptjs");
+const jwt     = require("jsonwebtoken");
 
-const User = require("../models/User");
-const Deposit = require("../models/Deposit");
-const Withdraw = require("../models/withdraw");
-const Match = require("../models/Match");
-const ActivityLog = require("../models/ActivityLog");
+const User          = require("../models/User");
+const Deposit       = require("../models/Deposit");
+const Withdraw      = require("../models/withdraw");
+const Match         = require("../models/Match");
+const ActivityLog   = require("../models/ActivityLog");
 const PaymentNumber = require("../models/PaymentNumber");
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
+const JWT_SECRET  = process.env.JWT_SECRET || "your_secret_key";
 const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
 const authAdmin = async (req, res, next) => {
@@ -32,7 +33,7 @@ const authAdmin = async (req, res, next) => {
 const log = (adminName, action, target, type) =>
   ActivityLog.create({ adminName, action, target, type }).catch(() => {});
 
-// STATS
+// ── STATS ─────────────────────────────────────────────────────────────────────
 router.get("/stats", authAdmin, async (req, res) => {
   try {
     const [
@@ -50,13 +51,12 @@ router.get("/stats", authAdmin, async (req, res) => {
       User.countDocuments(),
       Match.countDocuments(),
     ]);
-
     res.json({
       success: true,
       data: {
-        totalDeposit: totalDeposit[0]?.sum || 0,
-        totalWithdraw: totalWithdraw[0]?.sum || 0,
-        pendingDepositAmount: pendingDepositAmount[0]?.sum || 0,
+        totalDeposit:         totalDeposit[0]?.sum         || 0,
+        totalWithdraw:        totalWithdraw[0]?.sum        || 0,
+        pendingDepositAmount:  pendingDepositAmount[0]?.sum || 0,
         pendingWithdrawAmount: pendingWithdrawAmount[0]?.sum || 0,
         pendingDeposit,
         pendingWithdraw,
@@ -69,22 +69,16 @@ router.get("/stats", authAdmin, async (req, res) => {
   }
 });
 
-// DEPOSITS
+// ── DEPOSITS ──────────────────────────────────────────────────────────────────
 router.get("/deposits", authAdmin, async (req, res) => {
   try {
     const { status, limit = 50 } = req.query;
     const query = status && status !== "all" ? { status } : {};
-    const data = await Deposit.find(query)
+    const data  = await Deposit.find(query)
       .populate("userId", "name phone")
       .sort({ createdAt: -1 })
       .limit(Number(limit));
-
-    // frontend এ user field expect করে তাই map করি
-    const mapped = data.map(d => ({
-      ...d.toObject(),
-      user: d.userId,
-    }));
-
+    const mapped = data.map((d) => ({ ...d.toObject(), user: d.userId }));
     res.json({ success: true, data: mapped });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -96,15 +90,12 @@ router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
     const dep = await Deposit.findById(req.params.id).populate("userId");
     if (!dep) return res.json({ success: false, message: "Not found" });
     if (dep.status !== "pending") return res.json({ success: false, message: "Already processed" });
-
-    dep.status = "approved";
+    dep.status     = "approved";
     dep.approvedBy = req.admin.name;
     await dep.save();
-
     await User.findByIdAndUpdate(dep.userId._id || dep.userId, {
       $inc: { balance: dep.amount, totalDeposit: dep.amount },
     });
-
     log(req.admin.name, `approved deposit of ৳${dep.amount}`, dep.userId?.name || "user", "approve");
     res.json({ success: true, message: "Deposit approved" });
   } catch (e) {
@@ -126,12 +117,12 @@ router.put("/deposits/:id/reject", authAdmin, async (req, res) => {
   }
 });
 
-// WITHDRAWALS
+// ── WITHDRAWALS ───────────────────────────────────────────────────────────────
 router.get("/withdraws", authAdmin, async (req, res) => {
   try {
     const { status, limit = 50 } = req.query;
     const query = status && status !== "all" ? { status } : {};
-    const data = await Withdraw.find(query)
+    const data  = await Withdraw.find(query)
       .populate("user", "name phone")
       .sort({ createdAt: -1 })
       .limit(Number(limit));
@@ -143,21 +134,17 @@ router.get("/withdraws", authAdmin, async (req, res) => {
 
 router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
   try {
-    const wit = await Withdraw.findById(req.params.id).populate("user");
+    const wit  = await Withdraw.findById(req.params.id).populate("user");
     if (!wit) return res.json({ success: false, message: "Not found" });
     if (wit.status !== "pending") return res.json({ success: false, message: "Already processed" });
-
     const user = await User.findById(wit.user._id);
-    if (user.balance < wit.amount) return res.json({ success: false, message: "User has insufficient balance" });
-
-    wit.status = "approved";
+    if (user.balance < wit.amount) return res.json({ success: false, message: "Insufficient balance" });
+    wit.status     = "approved";
     wit.approvedBy = req.admin.name;
     await wit.save();
-
     await User.findByIdAndUpdate(wit.user._id, {
       $inc: { balance: -wit.amount, totalWithdraw: wit.amount },
     });
-
     log(req.admin.name, `approved withdraw of ৳${wit.amount}`, wit.user.name, "approve");
     res.json({ success: true, message: "Withdraw approved & balance deducted" });
   } catch (e) {
@@ -179,7 +166,7 @@ router.put("/withdraws/:id/reject", authAdmin, async (req, res) => {
   }
 });
 
-// USERS
+// ── USERS ─────────────────────────────────────────────────────────────────────
 router.get("/users", authAdmin, async (req, res) => {
   try {
     const data = await User.find({}, "name phone balance totalDeposit totalWithdraw banned").sort({ createdAt: -1 });
@@ -209,7 +196,7 @@ router.put("/users/:id/unban", authAdmin, async (req, res) => {
   }
 });
 
-// PAYMENT NUMBERS
+// ── PAYMENT NUMBERS ───────────────────────────────────────────────────────────
 router.get("/payment-numbers", authAdmin, async (req, res) => {
   try {
     const data = await PaymentNumber.find().sort({ createdAt: -1 });
@@ -233,9 +220,7 @@ router.post("/payment-numbers", authAdmin, async (req, res) => {
 
 router.put("/payment-numbers/:id", authAdmin, async (req, res) => {
   try {
-    const updated = await PaymentNumber.findByIdAndUpdate(
-      req.params.id, { ...req.body }, { new: true }
-    );
+    const updated = await PaymentNumber.findByIdAndUpdate(req.params.id, { ...req.body }, { new: true });
     if (!updated) return res.json({ success: false, message: "Not found" });
     log(req.admin.name, `updated payment number ${updated.number}`, updated.method, "create");
     res.json({ success: true, data: updated });
@@ -255,12 +240,176 @@ router.delete("/payment-numbers/:id", authAdmin, async (req, res) => {
   }
 });
 
-// ACTIVITY LOG
+// ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
 router.get("/logs", authAdmin, async (req, res) => {
   try {
     const data = await ActivityLog.find().sort({ createdAt: -1 }).limit(100);
     res.json({ success: true, data });
   } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── ADMIN MANAGEMENT ──────────────────────────────────────────────────────────
+router.get("/admins", authAdmin, async (req, res) => {
+  try {
+    const data = await User.find({ role: { $in: ADMIN_ROLES } }, "name phone role createdAt").sort({ createdAt: -1 });
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.post("/admins/create", authAdmin, async (req, res) => {
+  try {
+    if (req.admin.role !== "super-admin")
+      return res.json({ success: false, message: "Only super admin can create admins" });
+    const { name, phone, password, role } = req.body;
+    const exists = await User.findOne({ phone });
+    if (exists) return res.json({ success: false, message: "Phone already registered" });
+    const hash  = await bcrypt.hash(password, 10);
+    const admin = await User.create({ name, phone, password: hash, role });
+    log(req.admin.name, `created new admin ${name}`, phone, "create");
+    res.json({ success: true, admin });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// MATCH RESULT — PUT /api/admin/matches/:id/result
+//
+// Type 1 (Solo):  { results: [{userId, inGameName, position, kills}] }
+//   → position prize + kill prize individual player পায়
+//
+// Type 2 (Team):  { results: [], winnerTeam: "A" | "B" }
+//   → winner team এর সবাই floor(prizePool ÷ teamCount) পায়
+// ════════════════════════════════════════════════════════════════════════════════
+router.put("/matches/:id/result", authAdmin, async (req, res) => {
+  try {
+    const { results, winnerTeam } = req.body;
+
+    const match = await Match.findById(req.params.id);
+    if (!match) return res.json({ success: false, message: "Match not found" });
+
+    // ── TYPE 1: SOLO ──────────────────────────────────────────────────────────
+    if (match.matchType === "solo" || !match.matchType) {
+
+      if (!results || results.length === 0)
+        return res.json({ success: false, message: "results array required" });
+
+      const finalResults = results.map((p) => {
+        let prize = (Number(p.kills) || 0) * (match.perKill || 0);
+        const pos = Number(p.position) || 0;
+        if (pos === 1)      prize += match.prizes?.first  || 0;
+        else if (pos === 2) prize += match.prizes?.second || 0;
+        else if (pos === 3) prize += match.prizes?.third  || 0;
+        else if (pos === 4) prize += match.prizes?.fourth || 0;
+        return {
+          userId:     p.userId,
+          inGameName: p.inGameName || "",
+          position:   pos,
+          kills:      Number(p.kills) || 0,
+          prize:      Math.floor(prize),
+          rank:       pos,
+        };
+      });
+
+      match.results     = finalResults;
+      match.status      = "completed";
+      match.completedAt = new Date();
+      await match.save();
+
+      for (const player of finalResults) {
+        if (player.userId && player.prize > 0) {
+          await User.findByIdAndUpdate(player.userId, {
+            $inc: { balance: player.prize },
+            $push: {
+              transactions: {
+                type: "match_prize", amount: player.prize,
+                matchId: match._id, matchTitle: match.title, date: new Date(),
+              },
+            },
+          });
+        }
+      }
+
+      const totalPrize = finalResults.reduce((s, p) => s + p.prize, 0);
+      log(req.admin.name, `Solo result: ${finalResults.length} players, ৳${totalPrize} distributed`, match.title, "create");
+
+      return res.json({
+        success: true,
+        message: `Solo result submitted! ${finalResults.length} players — ৳${totalPrize} distributed.`,
+        data: match,
+      });
+    }
+
+    // ── TYPE 2: TEAM ──────────────────────────────────────────────────────────
+    if (match.matchType === "team") {
+
+      if (!winnerTeam)
+        return res.json({ success: false, message: "winnerTeam ('A' or 'B') required" });
+
+      const pool   = match.prizePool || match.winPrize || 0;
+
+      // Winner team এর joined players
+      const winnerPlayers = (match.joinedUsers || []).filter(
+        (u) => (u.team || "A") === winnerTeam
+      );
+      const tSize      = match.teamSize || winnerPlayers.length || 1;
+      const actualCount = winnerPlayers.length || tSize;
+      const prizeEach   = Math.floor(pool / actualCount);
+
+      // সব joined players এর result তৈরি করি
+      const finalResults = (match.joinedUsers || []).map((u) => ({
+        userId:     u.userId,
+        inGameName: u.inGameName || u.gameName || "",
+        position:   (u.team || "A") === winnerTeam ? 1 : 2,
+        kills:      0,
+        prize:      (u.team || "A") === winnerTeam ? prizeEach : 0,
+        rank:       (u.team || "A") === winnerTeam ? 1 : 2,
+        team:       u.team || "A",
+      }));
+
+      match.results     = finalResults;
+      match.winnerTeam  = winnerTeam;
+      match.status      = "completed";
+      match.completedAt = new Date();
+      await match.save();
+
+      // Winner team এ prize দাও
+      for (const player of finalResults) {
+        if (player.prize > 0 && player.userId) {
+          await User.findByIdAndUpdate(player.userId, {
+            $inc: { balance: player.prize },
+            $push: {
+              transactions: {
+                type: "match_prize", amount: player.prize,
+                matchId: match._id, matchTitle: match.title, date: new Date(),
+              },
+            },
+          });
+        }
+      }
+
+      log(
+        req.admin.name,
+        `Team result: Team ${winnerTeam} wins — ${actualCount} players × ৳${prizeEach}`,
+        match.title,
+        "create"
+      );
+
+      return res.json({
+        success: true,
+        message: `✅ Team ${winnerTeam} winner! ${actualCount} জন × ৳${prizeEach} = ৳${prizeEach * actualCount} distributed.`,
+        data: match,
+      });
+    }
+
+    return res.json({ success: false, message: "Unknown matchType" });
+
+  } catch (e) {
+    console.error("Result error:", e);
     res.status(500).json({ success: false, message: e.message });
   }
 });
