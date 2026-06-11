@@ -1,3 +1,5 @@
+ ===== E:\Playzo\frontend\src\Component\AppDashBoard\AppDeshBoard.jsx =====
+
  // AppDashboard.jsx
 
 import React, { useState, useEffect } from "react";
@@ -389,20 +391,40 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
               (r) => r.userId?.toString() === currentUserUid?.toString()
             );
             const categoryLabel = {
-              br_match: "BR Match",
-              br_survival: "BR Survival",
-              clash_squad: "Clash Squad",
-              cs_2vs2: "CS 2vs2",
-              lone_wolf: "Lone Wolf",
-              training: "Training Match",
+              br_solo:    "BR Solo",
+              br_duo:     "BR Duo",
+              br_squad:   "BR Squad",
+              cs_solo:    "CS Solo",
+              cs_duo:     "CS Duo",
+              cs_squad:   "Clash Squad",
+              cs_6vs6:    "CS 6vs6",
+              lw_solo:    "LW Solo",
+              lw_duo:     "LW Duo",
+              // backward compat
+              br_match:   "BR Match",
+              br_survival:"BR Survival",
+              clash_squad:"Clash Squad",
+              cs_2vs2:    "CS 2vs2",
+              lone_wolf:  "Lone Wolf",
+              training:   "Training Match",
             }[match.category] || match.category;
             const categoryColor = {
-              br_match: { bg: "#7c3aed20", text: "#a78bfa" },
-              br_survival: { bg: "#dc262620", text: "#f87171" },
-              clash_squad: { bg: "#0284c720", text: "#38bdf8" },
-              cs_2vs2: { bg: "#16a34a20", text: "#4ade80" },
-              lone_wolf: { bg: "#d9770620", text: "#fb923c" },
-              training: { bg: "#64748b20", text: "#94a3b8" },
+              br_solo:    { bg: "#7c3aed20", text: "#a78bfa" },
+              br_duo:     { bg: "#7c3aed20", text: "#a78bfa" },
+              br_squad:   { bg: "#7c3aed20", text: "#a78bfa" },
+              cs_solo:    { bg: "#0284c720", text: "#38bdf8" },
+              cs_duo:     { bg: "#0284c720", text: "#38bdf8" },
+              cs_squad:   { bg: "#0284c720", text: "#38bdf8" },
+              cs_6vs6:    { bg: "#16a34a20", text: "#4ade80" },
+              lw_solo:    { bg: "#d9770620", text: "#fb923c" },
+              lw_duo:     { bg: "#d9770620", text: "#fb923c" },
+              // backward compat
+              br_match:   { bg: "#7c3aed20", text: "#a78bfa" },
+              br_survival:{ bg: "#dc262620", text: "#f87171" },
+              clash_squad:{ bg: "#0284c720", text: "#38bdf8" },
+              cs_2vs2:    { bg: "#16a34a20", text: "#4ade80" },
+              lone_wolf:  { bg: "#d9770620", text: "#fb923c" },
+              training:   { bg: "#64748b20", text: "#94a3b8" },
             }[match.category] || { bg: "#ffffff10", text: "#fff" };
             return (
               <div
@@ -538,14 +560,13 @@ function NotificationsPage({ onBack }) {
               const notif = n.notificationId || n;
               const match = notif?.matchId;
               const categoryLabel = {
-                br_match: "BR Match",
-                br_survival: "BR Survival",
-                clash_squad: "Clash Squad",
-                cs_2vs2: "CS 2vs2",
-                lone_wolf: "Lone Wolf",
-                training: "Training Match",
-                ludo: "Ludo",
-                general: "General",
+                br_solo: "BR Solo", br_duo: "BR Duo", br_squad: "BR Squad",
+                cs_solo: "CS Solo", cs_duo: "CS Duo", cs_squad: "Clash Squad",
+                cs_6vs6: "CS 6vs6", lw_solo: "LW Solo", lw_duo: "LW Duo",
+                br_match: "BR Match", br_survival: "BR Survival",
+                clash_squad: "Clash Squad", cs_2vs2: "CS 2vs2",
+                lone_wolf: "Lone Wolf", training: "Training Match",
+                ludo: "Ludo", general: "General",
               }[notif?.category] || notif?.category || "General";
 
               return (
@@ -866,18 +887,17 @@ const AppDashboard = ({ onLogout }) => {
     const interval = setInterval(loadMatches, 15000);
     return () => clearInterval(interval);
   }, []);
- 
+
   const categories = [
-    { key: "br_solo",     title: "BR Solo",         img: "/image/cards/BRMatchcard.png" },
-    { key: "br_match",    title: "BR Match",         img: "/image/cards/BRMatchcard.png" },
-    { key: "br_survival", title: "BR Survival",      img: "/image/cards/solo.png" },
-    { key: "br_duo",      title: "BR Duo (2vs2)",    img: "/image/cards/2vs2.png" },
-    { key: "br_squad",    title: "BR Squad (4vs4)",  img: "/image/cards/squard.png" },
-    { key: "clash_squad", title: "Clash Squad 4vs4", img: "/image/cards/squard.png" },
-    { key: "cs_2vs2",     title: "CS 2vs2",          img: "/image/cards/2vs2.png" },
-    { key: "lone_wolf",   title: "Lone Wolf (1vs1)", img: "/image/cards/longwolf.png" },
-    { key: "tdm_6v6",     title: "TDM 6vs6",         img: "/image/cards/squard.png" },
-    { key: "training",    title: "Training Match",   img: "/image/cards/freematch.png" },
+    { key: "br_solo",     title: "Battle Royale Solo",    img: "/image/cards/BRMatchcard.png" },
+    { key: "br_duo",      title: "Battle Royale Duo",     img: "/image/cards/2vs2.png" },
+    { key: "br_squad",    title: "Battle Royale Squad",   img: "/image/cards/squard.png" },
+    { key: "cs_solo",     title: "Clash Squad Solo",      img: "/image/cards/solo.png" },
+    { key: "cs_duo",      title: "Clash Squad Duo",       img: "/image/cards/2vs2.png" },
+    { key: "cs_squad",    title: "Clash Squad",           img: "/image/cards/squard.png" },
+    { key: "cs_6vs6",     title: "Clash Squad 6vs6",      img: "/image/cards/squard.png" },
+    { key: "lw_solo",     title: "Lone Wolf Solo",        img: "/image/cards/longwolf.png" },
+    { key: "lw_duo",      title: "Lone Wolf Duo",         img: "/image/cards/longwolf.png" },
   ];
 
   const sliderSlides = [
