@@ -38,6 +38,7 @@ const CATEGORY_CONFIG = {
   cs_2vs2:    { matchType: "team",      teamSize: 2,  logic: "team_only",  killPrize: false },
   lone_wolf:  { matchType: "solo",      teamSize: 1,  logic: "solo_pos",   killPrize: false },
   training:   { matchType: "solo",      teamSize: 1,  logic: "solo_kill",  killPrize: true  },
+  free_match: { matchType: "solo", teamSize: 1, logic: "solo_kill", killPrize: true },
 };
 
 const authAdmin = async (req, res, next) => {
