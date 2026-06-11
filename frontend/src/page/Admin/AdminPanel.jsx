@@ -470,6 +470,7 @@ const MODE_CONFIG = {
   cs_2vs2:    { logic: "team_only",  teamSize: 2, label: "CS 2vs2"     },
   lone_wolf:  { logic: "solo_pos",   teamSize: 1, label: "Lone Wolf"   },
   training:   { logic: "solo_kill",  teamSize: 1, label: "Training"    },
+  free_match: { logic: "solo_kill", teamSize: 1, label: "Free Match" },
 };
 
 const getMatchMode = (match) => {

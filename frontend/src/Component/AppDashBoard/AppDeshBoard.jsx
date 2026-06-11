@@ -895,6 +895,7 @@ const AppDashboard = ({ onLogout }) => {
     { key: "cs_6vs6",     title: "Clash Squad 6vs6",      img: "/image/cards/squard.png" },
     { key: "lw_solo",     title: "Lone Wolf Solo",        img: "/image/cards/longwolf.png" },
     { key: "lw_duo",      title: "Lone Wolf Duo",         img: "/image/cards/longwolf.png" },
+    { key: "free_match",  title: "Free Match",            img: "/image/cards/freematch.png" },
   ];
 
   const sliderSlides = [
