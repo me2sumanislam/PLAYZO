@@ -1,6 +1,4 @@
- // components/ScreenshotUpload.jsx
-// Match card এর ভেতরে এই component add করুন
-// Props: matchId, matchTitle, matchStatus
+ 
 
 import React, { useState, useRef } from "react";
 
