@@ -249,16 +249,17 @@ const CreateMatch = () => {
           <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Match Title *</div><input placeholder="যেমন: BR Match #1" {...f("title")} /></div>
           <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Category</div>
             <select style={inp} value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}>
-              {[
+           {[
                 { key: "br_solo",     label: "BR Solo (48 players)" },
-                { key: "br_survival", label: "BR Survival (48 players)" },
                 { key: "br_duo",      label: "BR Duo 2vs2 (48 players)" },
                 { key: "br_squad",    label: "BR Squad 4vs4 (48 players)" },
-                { key: "clash_squad", label: "Clash Squad 4vs4 (8 players)" },
-                { key: "cs_2vs2",     label: "CS 2vs2 (4 players)" },
-                { key: "lone_wolf",   label: "Lone Wolf 1vs1 (2 players)" },
-                { key: "tdm_6v6",     label: "TDM 6vs6 (12 players)" },
-                { key: "training",    label: "Training Match (48 players)" },
+                { key: "cs_solo",     label: "Clash Squad Solo (16 players)" },
+                { key: "cs_duo",      label: "Clash Squad Duo (8 players)" },
+                { key: "cs_squad",    label: "Clash Squad 4vs4 (8 players)" },
+                { key: "cs_6vs6",     label: "Clash Squad 6vs6 (12 players)" },
+                { key: "lw_solo",     label: "Lone Wolf Solo (16 players)" },
+                { key: "lw_duo",      label: "Lone Wolf Duo (8 players)" },
+                { key: "free_match",  label: "Free Match (48 players)" },
               ].map((c) => (<option key={c.key} value={c.key}>{c.label}</option>))}
             </select>
           </div>
@@ -452,18 +453,24 @@ const Users = () => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Match mode config — frontend এ match type বোঝার জন্য
-const MODE_CONFIG = {
+ const MODE_CONFIG = {
   br_solo:      { matchType: "solo", teamSize: 1, label: "BR Solo" },
-  br_survival:  { matchType: "solo", teamSize: 1, label: "BR Survival" },
   br_duo:       { matchType: "team", teamSize: 2, label: "BR Duo 2vs2" },
   br_squad:     { matchType: "team", teamSize: 4, label: "BR Squad 4vs4" },
-  clash_squad:  { matchType: "team", teamSize: 4, label: "Clash Squad 4vs4" },
-  cs_2vs2:      { matchType: "team", teamSize: 2, label: "CS 2vs2" },
-  lone_wolf:    { matchType: "team", teamSize: 1, label: "Lone Wolf 1vs1" },
-  tdm_6v6:      { matchType: "team", teamSize: 6, label: "TDM 6vs6" },
+  cs_solo:      { matchType: "solo", teamSize: 1, label: "Clash Squad Solo" },
+  cs_duo:       { matchType: "team", teamSize: 2, label: "Clash Squad Duo" },
+  cs_squad:     { matchType: "team", teamSize: 4, label: "Clash Squad 4vs4" },
+  cs_6vs6:      { matchType: "team", teamSize: 6, label: "Clash Squad 6vs6" },
+  lw_solo:      { matchType: "solo", teamSize: 1, label: "Lone Wolf Solo" },
+  lw_duo:       { matchType: "team", teamSize: 2, label: "Lone Wolf Duo" },
+  free_match:   { matchType: "solo", teamSize: 1, label: "Free Match" },
   training:     { matchType: "solo", teamSize: 1, label: "Training" },
-  // পুরনো keys backward compat
+  // backward compat
   br_match:     { matchType: "solo", teamSize: 1, label: "BR Match" },
+  br_survival:  { matchType: "solo", teamSize: 1, label: "BR Survival" },
+  clash_squad:  { matchType: "team", teamSize: 4, label: "Clash Squad" },
+  cs_2vs2:      { matchType: "team", teamSize: 2, label: "CS 2vs2" },
+  lone_wolf:    { matchType: "solo", teamSize: 1, label: "Lone Wolf" },
 };
 
 const getMatchMode = (match) => {
