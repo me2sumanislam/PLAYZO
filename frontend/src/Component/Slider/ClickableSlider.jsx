@@ -126,7 +126,7 @@ const ClickableSlider = () => {
               style={{
                 // aspectRatio: "16/7",
                 width: "100%",
-                height: "260px",
+               height: "clamp(180px, 25vw, 260px)",
                 objectFit: "cover",
                 objectPosition: "center",
               }}
