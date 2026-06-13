@@ -91,4 +91,24 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// ✅ UPDATE game name (Free Fire in-game name)
+router.put("/game-name", protect, async (req, res) => {
+  try {
+    const { inGameName } = req.body;
+    if (!inGameName || !inGameName.trim()) {
+      return res.status(400).json({ success: false, message: "Game name দিন" });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user.id || req.user._id,
+      { inGameName: inGameName.trim() },
+      { new: true }
+    ).select("inGameName name phone balance");
+
+    res.json({ success: true, message: "Game name সেভ হয়েছে!", user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
 module.exports = router;
