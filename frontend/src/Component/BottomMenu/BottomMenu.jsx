@@ -15,7 +15,7 @@ const BottomMenu = ({ tab, setTab }) => {
     },
     {
       id: "matches",
-      label: "My Match...",
+      label: "MyMatch",
       icon: <ClipboardList size={24} className="text-orange-500" strokeWidth={2.2} />,
     },
     {
