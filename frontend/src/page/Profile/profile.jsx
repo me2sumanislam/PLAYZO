@@ -7,7 +7,7 @@ import Referral from "../../page/Referral/Referral";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
-const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
+const Profile = ({ onLogout, onAllRules, onMyProfile, onBack }) => {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showBuildApp, setShowBuildApp] = useState(false);
@@ -53,22 +53,45 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
     if (id === "referral")   setShowReferralPage(true);
   };
 
-  // BuildYourApp full page
   if (showBuildApp) {
     return <BuildYourApp onBack={() => setShowBuildApp(false)} />;
   }
 
-  // Referral full page
   if (showReferralPage) {
     return <Referral onBack={() => setShowReferralPage(false)} />;
   }
 
-  // মূল Profile — modal দুটো সবসময় এখানে থাকবে
   return (
     <div className="bg-white min-h-screen pb-10">
 
       {/* Top Header */}
-      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
+      <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white relative">
+
+        {/* ✅ Back Button */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              background: "rgba(255,255,255,0.25)",
+              border: "none",
+              borderRadius: "50%",
+              width: 38,
+              height: 38,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+              cursor: "pointer",
+              color: "#fff",
+            }}
+          >
+            ←
+          </button>
+        )}
+
         <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl shadow-md">
           👨‍💻
         </div>
@@ -112,7 +135,6 @@ const Profile = ({ onLogout, onAllRules, onMyProfile }) => {
         </button>
       </div>
 
-      {/* ✅ Modal দুটো এখানে — সবসময় render হবে */}
       <AddMoneyModal
         isOpen={showAddMoney}
         onClose={() => {

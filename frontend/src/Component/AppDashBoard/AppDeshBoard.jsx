@@ -925,10 +925,10 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-  if (tab === "matches") return <MyMatch />;
+   if (tab === "matches") return <MyMatch onBack={() => setTab("play")} />;
 
   // ─── Results / Leaderboard Tab ───────────────────────────────────────────
-  if (tab === "leaderboard") {
+  if (tab === "results") {
     if (selectedResult) {
       return (
         <div className="min-h-screen bg-[#0a0e1a]">
