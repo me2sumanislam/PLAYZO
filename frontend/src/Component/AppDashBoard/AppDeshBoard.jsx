@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+ import React, { useState, useEffect } from "react";
 import BottomMenu from "../BottomMenu/BottomMenu";
 import NotificationBell from "../NotificationBell/NotificationBell";
 import Wallet from "../../page/Wallet/Wallet";
@@ -328,7 +327,7 @@ function MatchResultsPage({
 }
 
 // ─── Results List ─────────────────────────────────────────────────────────────
-function ResultsListPage({ onSelectResult, currentUserUid }) {
+function ResultsListPage({ onSelectResult, currentUserUid, onBack }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -360,7 +359,7 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
   return (
     <div className="min-h-screen bg-[#0a0e1a] pb-24">
 
-      {/* ── Header with back info ── */}
+      {/* ── Header ── */}
       <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5 px-4 py-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -368,7 +367,18 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
             Match Results
           </span>
         </div>
-        <h1 className="text-white text-2xl font-extrabold">Results</h1>
+        {/* ✅ Back Button + Title */}
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white text-lg active:scale-95 transition-all"
+            >
+              ←
+            </button>
+          )}
+          <h1 className="text-white text-2xl font-extrabold">Results</h1>
+        </div>
         <p className="text-gray-500 text-xs mt-1">Tap a match to see full leaderboard</p>
       </div>
 
@@ -397,7 +407,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
               cs_6vs6:    "CS 6vs6",
               lw_solo:    "LW Solo",
               lw_duo:     "LW Duo",
-              // backward compat
               br_match:   "BR Match",
               br_survival:"BR Survival",
               clash_squad:"Clash Squad",
@@ -415,7 +424,6 @@ function ResultsListPage({ onSelectResult, currentUserUid }) {
               cs_6vs6:    { bg: "#16a34a20", text: "#4ade80" },
               lw_solo:    { bg: "#d9770620", text: "#fb923c" },
               lw_duo:     { bg: "#d9770620", text: "#fb923c" },
-              // backward compat
               br_match:   { bg: "#7c3aed20", text: "#a78bfa" },
               br_survival:{ bg: "#dc262620", text: "#f87171" },
               clash_squad:{ bg: "#0284c720", text: "#38bdf8" },
@@ -916,6 +924,7 @@ const AppDashboard = ({ onLogout }) => {
     return (
       <Profile
         onLogout={onLogout}
+        onBack={() => setTab("play")}
         onWallet={() => setScreen("wallet")}
         onWithdraw={() => setScreen("withdraw")}
         onAllRules={() => setScreen("all_rules")}
@@ -925,14 +934,14 @@ const AppDashboard = ({ onLogout }) => {
     );
   }
 
-   if (tab === "matches") return <MyMatch onBack={() => setTab("play")} />;
+  // ✅ MyMatch — onBack যোগ করা হয়েছে
+  if (tab === "matches") return <MyMatch onBack={() => setTab("play")} />;
 
-  // ─── Results / Leaderboard Tab ───────────────────────────────────────────
+  // ─── Results Tab ───────────────────────────────────────────────────────────
   if (tab === "results") {
     if (selectedResult) {
       return (
         <div className="min-h-screen bg-[#0a0e1a]">
-          {/* Back Button */}
           <div className="sticky top-0 z-50 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5 px-4 py-3 flex items-center gap-3">
             <button
               onClick={() => setSelectedResult(null)}
@@ -955,6 +964,7 @@ const AppDashboard = ({ onLogout }) => {
       <ResultsListPage
         onSelectResult={setSelectedResult}
         currentUserUid={currentUserUid}
+        onBack={() => setTab("play")}
       />
     );
   }
@@ -1067,7 +1077,7 @@ const AppDashboard = ({ onLogout }) => {
 };
 
 // ─── Profile Component ────────────────────────────────────────────────────────
-const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
+const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral, onBack }) => {
   const [balance, setBalance] = useState(0);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -1113,7 +1123,31 @@ const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral }) => {
   return (
     <>
       <div className="bg-white min-h-screen pb-10">
-        <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white">
+        {/* ✅ Back Button যোগ করা হয়েছে */}
+        <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white relative">
+          {onBack && (
+            <button
+              onClick={onBack}
+              style={{
+                position: "absolute",
+                top: 16,
+                left: 16,
+                background: "rgba(255,255,255,0.25)",
+                border: "none",
+                borderRadius: "50%",
+                width: 38,
+                height: 38,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 20,
+                cursor: "pointer",
+                color: "#fff",
+              }}
+            >
+              ←
+            </button>
+          )}
           <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">
             👨‍💻
           </div>
