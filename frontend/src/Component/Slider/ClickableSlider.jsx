@@ -124,10 +124,11 @@ const ClickableSlider = () => {
               alt={slide.title}
               className="w-full block"
               style={{
-                aspectRatio: "16/7",
+                // aspectRatio: "16/7",
+                width: "100%",
+                height: "260px",
                 objectFit: "cover",
                 objectPosition: "center",
-                 height: "320px",
               }}
               draggable={false}
               loading={index === 0 ? "eager" : "lazy"}
