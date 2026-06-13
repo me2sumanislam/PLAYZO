@@ -1,6 +1,6 @@
- import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
-  const API = "https://playzo-vn8e.onrender.com/api";
+const API = "https://playzo-vn8e.onrender.com/api";
 
 const fmt = (n) => "৳" + Number(n || 0).toLocaleString("bn-BD");
 
@@ -14,7 +14,8 @@ const timeAgo = (d) => {
 };
 
 const api = async (path, opts = {}) => {
-  const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
+  const token =
+    localStorage.getItem("adminToken") || localStorage.getItem("token");
   try {
     const res = await fetch(`${API}${path}`, {
       headers: {
@@ -35,8 +36,6 @@ const api = async (path, opts = {}) => {
   }
 };
 
-
-
 const Badge = ({ color, children }) => {
   const map = {
     green: { bg: "#d1fae5", color: "#065f46" },
@@ -47,94 +46,370 @@ const Badge = ({ color, children }) => {
   };
   const s = map[color] || map.gray;
   return (
-    <span style={{ ...s, fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 500 }}>
+    <span
+      style={{
+        ...s,
+        fontSize: 10,
+        padding: "2px 8px",
+        borderRadius: 20,
+        fontWeight: 500,
+      }}
+    >
       {children}
     </span>
   );
 };
 
 const NAV = [
-  { key: "dashboard", label: "Dashboard", icon: "⊞", roles: ["super-admin", "admin", "finance"] },
-  { key: "create-match", label: "Create match", icon: "＋", roles: ["super-admin", "admin"] },
-  { key: "deposit-requests", label: "Deposit requests", icon: "↓", badge: "deposit", roles: ["super-admin", "finance"] },
-  { key: "withdraw-requests", label: "Withdraw requests", icon: "↑", badge: "withdraw", roles: ["super-admin", "finance"] },
-  { key: "money-overview", label: "Money overview", icon: "₹", roles: ["super-admin", "finance"] },
-  { key: "deposit-history", label: "Deposit history", icon: "◷", roles: ["super-admin", "finance"] },
-  { key: "withdraw-history", label: "Withdraw history", icon: "◷", roles: ["super-admin", "finance"] },
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    icon: "⊞",
+    roles: ["super-admin", "admin", "finance"],
+  },
+  {
+    key: "create-match",
+    label: "Create match",
+    icon: "＋",
+    roles: ["super-admin", "admin"],
+  },
+  {
+    key: "deposit-requests",
+    label: "Deposit requests",
+    icon: "↓",
+    badge: "deposit",
+    roles: ["super-admin", "finance"],
+  },
+  {
+    key: "withdraw-requests",
+    label: "Withdraw requests",
+    icon: "↑",
+    badge: "withdraw",
+    roles: ["super-admin", "finance"],
+  },
+  {
+    key: "money-overview",
+    label: "Money overview",
+    icon: "₹",
+    roles: ["super-admin", "finance"],
+  },
+  {
+    key: "deposit-history",
+    label: "Deposit history",
+    icon: "◷",
+    roles: ["super-admin", "finance"],
+  },
+  {
+    key: "withdraw-history",
+    label: "Withdraw history",
+    icon: "◷",
+    roles: ["super-admin", "finance"],
+  },
   { key: "users", label: "Users", icon: "👥", roles: ["super-admin", "admin"] },
-  { key: "match-results", label: "Match results", icon: "🏆", roles: ["super-admin", "admin"] },
-  { key: "payment-numbers", label: "Payment Numbers", icon: "💳", roles: ["super-admin", "finance"] },
-  { key: "activity-log", label: "Activity log", icon: "📋", roles: ["super-admin", "admin"] },
-  { key: "manage-admins", label: "Manage admins", icon: "🔐", roles: ["super-admin"] },
+  {
+    key: "match-results",
+    label: "Match results",
+    icon: "🏆",
+    roles: ["super-admin", "admin"],
+  },
+  {
+    key: "payment-numbers",
+    label: "Payment Numbers",
+    icon: "💳",
+    roles: ["super-admin", "finance"],
+  },
+  {
+    key: "activity-log",
+    label: "Activity log",
+    icon: "📋",
+    roles: ["super-admin", "admin"],
+  },
+  {
+    key: "manage-admins",
+    label: "Manage admins",
+    icon: "🔐",
+    roles: ["super-admin"],
+  },
 ];
 
 const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
-  <aside style={{ width: 210, minWidth: 210, background: "#0f172a", display: "flex", flexDirection: "column", height: "100vh", position: "sticky", top: 0 }}>
-    <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid #1e293b" }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc", letterSpacing: 1 }}>🎮 FF ADMIN</div>
-      <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Free Fire Tournament</div>
+  <aside
+    style={{
+      width: 210,
+      minWidth: 210,
+      background: "#0f172a",
+      display: "flex",
+      flexDirection: "column",
+      height: "100vh",
+      position: "sticky",
+      top: 0,
+    }}
+  >
+    <div
+      style={{ padding: "20px 16px 14px", borderBottom: "1px solid #1e293b" }}
+    >
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#f8fafc",
+          letterSpacing: 1,
+        }}
+      >
+        🎮 FF ADMIN
+      </div>
+      <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+        Free Fire Tournament
+      </div>
     </div>
-    <div style={{ margin: "12px 12px 8px", background: "#1e293b", borderRadius: 10, padding: "8px 10px", display: "flex", gap: 8, alignItems: "center" }}>
-      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>
+    <div
+      style={{
+        margin: "12px 12px 8px",
+        background: "#1e293b",
+        borderRadius: 10,
+        padding: "8px 10px",
+        display: "flex",
+        gap: 8,
+        alignItems: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: "50%",
+          background: "#3b82f6",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#fff",
+        }}
+      >
         {(admin?.name || admin?.phone || "A").charAt(0).toUpperCase()}
       </div>
       <div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{admin?.name || admin?.phone || "Admin"}</div>
-        <div style={{ fontSize: 10, color: "#64748b" }}>{admin?.role || "Admin"}</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>
+          {admin?.name || admin?.phone || "Admin"}
+        </div>
+        <div style={{ fontSize: 10, color: "#64748b" }}>
+          {admin?.role || "Admin"}
+        </div>
       </div>
     </div>
     <nav style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
       {NAV.filter((n) => n.roles.includes(admin?.role)).map((n) => {
-        const cnt = n.badge === "deposit" ? badges.deposit : n.badge === "withdraw" ? badges.withdraw : 0;
+        const cnt =
+          n.badge === "deposit"
+            ? badges.deposit
+            : n.badge === "withdraw"
+              ? badges.withdraw
+              : 0;
         return (
-          <div key={n.key} onClick={() => setPage(n.key)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 14px", fontSize: 12.5, cursor: "pointer", borderLeft: page === n.key ? "3px solid #3b82f6" : "3px solid transparent", background: page === n.key ? "#1e293b" : "transparent", color: page === n.key ? "#f1f5f9" : "#94a3b8", transition: "all 0.12s" }}>
+          <div
+            key={n.key}
+            onClick={() => setPage(n.key)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+              padding: "8px 14px",
+              fontSize: 12.5,
+              cursor: "pointer",
+              borderLeft:
+                page === n.key ? "3px solid #3b82f6" : "3px solid transparent",
+              background: page === n.key ? "#1e293b" : "transparent",
+              color: page === n.key ? "#f1f5f9" : "#94a3b8",
+              transition: "all 0.12s",
+            }}
+          >
             <span style={{ fontSize: 13 }}>{n.icon}</span>
             <span style={{ flex: 1 }}>{n.label}</span>
-            {cnt > 0 && <span style={{ background: "#ef4444", color: "#fff", fontSize: 9, padding: "1px 5px", borderRadius: 20 }}>{cnt}</span>}
+            {cnt > 0 && (
+              <span
+                style={{
+                  background: "#ef4444",
+                  color: "#fff",
+                  fontSize: 9,
+                  padding: "1px 5px",
+                  borderRadius: 20,
+                }}
+              >
+                {cnt}
+              </span>
+            )}
           </div>
         );
       })}
     </nav>
     <div style={{ padding: 12, borderTop: "1px solid #1e293b" }}>
-      <button onClick={onLogout} style={{ width: "100%", padding: "7px", background: "#1e293b", border: "none", borderRadius: 8, color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>Sign out</button>
+      <button
+        onClick={onLogout}
+        style={{
+          width: "100%",
+          padding: "7px",
+          background: "#1e293b",
+          border: "none",
+          borderRadius: 8,
+          color: "#94a3b8",
+          fontSize: 12,
+          cursor: "pointer",
+        }}
+      >
+        Sign out
+      </button>
     </div>
   </aside>
 );
 
 const Topbar = ({ title, sub, onRefresh }) => (
-  <div style={{ padding: "14px 24px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff" }}>
+  <div
+    style={{
+      padding: "14px 24px",
+      borderBottom: "1px solid #e5e7eb",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      background: "#fff",
+    }}
+  >
     <div>
-      <div style={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>{title}</div>
-      {sub && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 1 }}>{sub}</div>}
+      <div style={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>
+        {title}
+      </div>
+      {sub && (
+        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 1 }}>
+          {sub}
+        </div>
+      )}
     </div>
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ fontSize: 11, color: "#9ca3af" }}>{new Date().toLocaleDateString("en-BD", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</div>
-      <button onClick={onRefresh} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🔄 Refresh</button>
+      <div style={{ fontSize: 11, color: "#9ca3af" }}>
+        {new Date().toLocaleDateString("en-BD", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}
+      </div>
+      <button
+        onClick={onRefresh}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "8px 16px",
+          background: "#3b82f6",
+          color: "white",
+          border: "none",
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        🔄 Refresh
+      </button>
     </div>
   </div>
 );
 
 const StatCard = ({ label, value, color, sub }) => (
-  <div style={{ background: "#f9fafb", borderRadius: 12, padding: "14px 16px", border: "1px solid #e5e7eb" }}>
-    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>{label}</div>
-    <div style={{ fontSize: 22, fontWeight: 700, color: color || "#111827" }}>{value}</div>
-    {sub && <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>{sub}</div>}
+  <div
+    style={{
+      background: "#f9fafb",
+      borderRadius: 12,
+      padding: "14px 16px",
+      border: "1px solid #e5e7eb",
+    }}
+  >
+    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: 22, fontWeight: 700, color: color || "#111827" }}>
+      {value}
+    </div>
+    {sub && (
+      <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>{sub}</div>
+    )}
   </div>
 );
 
 const ReqRow = ({ r, onApprove, onReject, actionLabel = "Approve" }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#1e40af" }}>
-      {(r.user?.name || r.user?.phone || r.userName || "U").charAt(0).toUpperCase()}
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      padding: "10px 0",
+      borderBottom: "1px solid #f3f4f6",
+    }}
+  >
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: "50%",
+        background: "#dbeafe",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "#1e40af",
+      }}
+    >
+      {(r.user?.name || r.user?.phone || r.userName || "U")
+        .charAt(0)
+        .toUpperCase()}
     </div>
     <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{r.user?.name || r.user?.phone || r.userName || "Unknown"}</div>
-      <div style={{ fontSize: 11, color: "#6b7280" }}>{r.method || "bKash"} · {r.accountNo || ""} · {timeAgo(r.createdAt)}</div>
-      {r.trxId && <div style={{ fontSize: 10, color: "#3b82f6", marginTop: 1 }}>TRX: {r.trxId}</div>}
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+        {r.user?.name || r.user?.phone || r.userName || "Unknown"}
+      </div>
+      <div style={{ fontSize: 11, color: "#6b7280" }}>
+        {r.method || "bKash"} · {r.accountNo || ""} · {timeAgo(r.createdAt)}
+      </div>
+      {r.trxId && (
+        <div style={{ fontSize: 10, color: "#3b82f6", marginTop: 1 }}>
+          TRX: {r.trxId}
+        </div>
+      )}
     </div>
-    <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{fmt(r.amount)}</div>
-    <button onClick={() => onApprove(r._id)} style={{ fontSize: 11, padding: "4px 10px", background: "#d1fae5", color: "#065f46", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>{actionLabel}</button>
-    <button onClick={() => onReject(r._id)} style={{ fontSize: 11, padding: "4px 10px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>Reject</button>
+    <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>
+      {fmt(r.amount)}
+    </div>
+    <button
+      onClick={() => onApprove(r._id)}
+      style={{
+        fontSize: 11,
+        padding: "4px 10px",
+        background: "#d1fae5",
+        color: "#065f46",
+        border: "none",
+        borderRadius: 6,
+        cursor: "pointer",
+        fontWeight: 600,
+      }}
+    >
+      {actionLabel}
+    </button>
+    <button
+      onClick={() => onReject(r._id)}
+      style={{
+        fontSize: 11,
+        padding: "4px 10px",
+        background: "#fee2e2",
+        color: "#991b1b",
+        border: "none",
+        borderRadius: 6,
+        cursor: "pointer",
+        fontWeight: 600,
+      }}
+    >
+      Reject
+    </button>
   </div>
 );
 
@@ -146,21 +421,67 @@ const STATUS_MAP = {
 
 const HistRow = ({ h }) => {
   const s = STATUS_MAP[h.status] || STATUS_MAP.pending;
-  const formatDate = (d) => new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const formatDate = (d) =>
+    new Date(d).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "12px 0", borderBottom: "1px solid #f3f4f6" }}>
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 0",
+        borderBottom: "1px solid #f3f4f6",
+      }}
+    >
       <div style={{ minWidth: 120, flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{h.user?.name || h.user?.phone || "Unknown"}</div>
-        {h.user?.name && <div style={{ fontSize: 11, color: "#6b7280" }}>{h.user?.phone}</div>}
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+          {h.user?.name || h.user?.phone || "Unknown"}
+        </div>
+        {h.user?.name && (
+          <div style={{ fontSize: 11, color: "#6b7280" }}>{h.user?.phone}</div>
+        )}
       </div>
-      <div style={{ minWidth: 80, fontWeight: 700, fontSize: 14, color: "#1e3a8a" }}>৳ {Number(h.amount).toLocaleString()}</div>
+      <div
+        style={{
+          minWidth: 80,
+          fontWeight: 700,
+          fontSize: 14,
+          color: "#1e3a8a",
+        }}
+      >
+        ৳ {Number(h.amount).toLocaleString()}
+      </div>
       <div style={{ minWidth: 130 }}>
         <div style={{ fontSize: 13, fontWeight: 600 }}>{h.method || "—"}</div>
-        <div style={{ fontSize: 11, color: "#6b7280" }}>{h.accountNo || h.trxId || "—"}</div>
+        <div style={{ fontSize: 11, color: "#6b7280" }}>
+          {h.accountNo || h.trxId || "—"}
+        </div>
       </div>
-      <div style={{ minWidth: 100, fontSize: 12, color: "#059669" }}>{h.trxId ? `TrxID: ${h.trxId}` : "—"}</div>
-      <div style={{ minWidth: 110, fontSize: 11, color: "#9ca3af" }}>{formatDate(h.createdAt)}</div>
-      <span style={{ background: s.bg, color: s.color, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{s.label}</span>
+      <div style={{ minWidth: 100, fontSize: 12, color: "#059669" }}>
+        {h.trxId ? `TrxID: ${h.trxId}` : "—"}
+      </div>
+      <div style={{ minWidth: 110, fontSize: 11, color: "#9ca3af" }}>
+        {formatDate(h.createdAt)}
+      </div>
+      <span
+        style={{
+          background: s.bg,
+          color: s.color,
+          padding: "3px 10px",
+          borderRadius: 20,
+          fontSize: 11,
+          fontWeight: 700,
+        }}
+      >
+        {s.label}
+      </span>
     </div>
   );
 };
@@ -171,38 +492,118 @@ const Dashboard = () => {
   const [recentWithdraws, setRecentWithdraws] = useState([]);
 
   useEffect(() => {
-    api("/admin/stats").then((d) => setStats(d?.data || d || {})).catch(() => {});
-    api("/admin/deposits?status=approved&limit=3").then((d) => { setRecentDeposits(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
-    api("/admin/withdraws?status=pending&limit=3").then((d) => { setRecentWithdraws(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
+    api("/admin/stats")
+      .then((d) => setStats(d?.data || d || {}))
+      .catch(() => {});
+    api("/admin/deposits?status=approved&limit=3")
+      .then((d) => {
+        setRecentDeposits(
+          Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [],
+        );
+      })
+      .catch(() => {});
+    api("/admin/withdraws?status=pending&limit=3")
+      .then((d) => {
+        setRecentWithdraws(
+          Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [],
+        );
+      })
+      .catch(() => {});
   }, []);
 
   const balance = (stats?.totalDeposit || 0) - (stats?.totalWithdraw || 0);
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total deposited" value={fmt(stats?.totalDeposit)} color="#059669" sub="All time" />
-        <StatCard label="Total withdrawn" value={fmt(stats?.totalWithdraw)} color="#dc2626" sub="All time" />
-        <StatCard label="Balance" value={fmt(balance)} color={balance >= 0 ? "#059669" : "#dc2626"} sub="Deposit − Withdraw" />
-        <StatCard label="Pending requests" value={(stats?.pendingDeposit || 0) + (stats?.pendingWithdraw || 0)} color="#d97706" sub="Needs action" />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4,1fr)",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        <StatCard
+          label="Total deposited"
+          value={fmt(stats?.totalDeposit)}
+          color="#059669"
+          sub="All time"
+        />
+        <StatCard
+          label="Total withdrawn"
+          value={fmt(stats?.totalWithdraw)}
+          color="#dc2626"
+          sub="All time"
+        />
+        <StatCard
+          label="Balance"
+          value={fmt(balance)}
+          color={balance >= 0 ? "#059669" : "#dc2626"}
+          sub="Deposit − Withdraw"
+        />
+        <StatCard
+          label="Pending requests"
+          value={(stats?.pendingDeposit || 0) + (stats?.pendingWithdraw || 0)}
+          color="#d97706"
+          sub="Needs action"
+        />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Recent approved deposits</div>
-          {recentDeposits.length === 0 ? <p style={{ fontSize: 12, color: "#9ca3af" }}>No data</p> : recentDeposits.map((h) => <HistRow key={h._id} h={h} />)}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 14,
+            padding: 16,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+            Recent approved deposits
+          </div>
+          {recentDeposits.length === 0 ? (
+            <p style={{ fontSize: 12, color: "#9ca3af" }}>No data</p>
+          ) : (
+            recentDeposits.map((h) => <HistRow key={h._id} h={h} />)
+          )}
         </div>
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Pending withdraw requests</div>
-          {recentWithdraws.length === 0 ? <p style={{ fontSize: 12, color: "#9ca3af" }}>No pending</p> : recentWithdraws.map((r) => (
-            <div key={r._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>{r.user?.name || r.user?.phone || "Unknown"}</div>
-                <div style={{ fontSize: 11, color: "#6b7280" }}>{r.method || ""} · {timeAgo(r.createdAt)}</div>
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 14,
+            padding: 16,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+            Pending withdraw requests
+          </div>
+          {recentWithdraws.length === 0 ? (
+            <p style={{ fontSize: 12, color: "#9ca3af" }}>No pending</p>
+          ) : (
+            recentWithdraws.map((r) => (
+              <div
+                key={r._id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 0",
+                  borderBottom: "1px solid #f3f4f6",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                    {r.user?.name || r.user?.phone || "Unknown"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>
+                    {r.method || ""} · {timeAgo(r.createdAt)}
+                  </div>
+                </div>
+                <div style={{ fontWeight: 700 }}>{fmt(r.amount)}</div>
+                <Badge color="amber">Pending</Badge>
               </div>
-              <div style={{ fontWeight: 700 }}>{fmt(r.amount)}</div>
-              <Badge color="amber">Pending</Badge>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -210,7 +611,19 @@ const Dashboard = () => {
 };
 
 const CreateMatch = () => {
-  const [form, setForm] = useState({ title: "", category: "br_match", entryFee: "", winPrize: "", totalPlayers: "", startTime: "", perKill: "", map: "", device: "Mobile", image: "", prizes: { first: "", second: "", third: "", fourth: "" } });
+  const [form, setForm] = useState({
+    title: "",
+    category: "br_match",
+    entryFee: "",
+    winPrize: "",
+    totalPlayers: "",
+    startTime: "",
+    perKill: "",
+    map: "",
+    device: "Mobile",
+    image: "",
+    prizes: { first: "", second: "", third: "", fourth: "" },
+  });
   const [msg, setMsg] = useState("");
 
   const handleImage = (e) => {
@@ -231,62 +644,276 @@ const CreateMatch = () => {
   };
 
   const submit = async () => {
-    if (!form.title || !form.startTime) { setMsg("❌ Title আর Start Time অবশ্যই দিন"); return; }
-    const d = await api("/matches/create", { method: "POST", body: JSON.stringify(form) });
+    if (!form.title || !form.startTime) {
+      setMsg("❌ Title আর Start Time অবশ্যই দিন");
+      return;
+    }
+    const d = await api("/matches/create", {
+      method: "POST",
+      body: JSON.stringify(form),
+    });
     setMsg(d.success ? "✅ Match created!" : "❌ " + (d.message || "Failed"));
-    if (d.success) setForm({ title: "", category: "br_match", entryFee: "", winPrize: "", totalPlayers: "", startTime: "", perKill: "", map: "", device: "Mobile", image: "", prizes: { first: "", second: "", third: "", fourth: "" } });
+    if (d.success)
+      setForm({
+        title: "",
+        category: "br_match",
+        entryFee: "",
+        winPrize: "",
+        totalPlayers: "",
+        startTime: "",
+        perKill: "",
+        map: "",
+        device: "Mobile",
+        image: "",
+        prizes: { first: "", second: "", third: "", fourth: "" },
+      });
   };
 
-  const inp = { width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" };
-  const f = (k) => ({ style: inp, value: form[k], onChange: (e) => setForm((p) => ({ ...p, [k]: e.target.value })) });
-  const fp = (k) => ({ style: inp, value: form.prizes[k], onChange: (e) => setForm((p) => ({ ...p, prizes: { ...p.prizes, [k]: e.target.value } })) });
+  const inp = {
+    width: "100%",
+    padding: "10px 12px",
+    border: "1px solid #e5e7eb",
+    borderRadius: 8,
+    fontSize: 13,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+  const f = (k) => ({
+    style: inp,
+    value: form[k],
+    onChange: (e) => setForm((p) => ({ ...p, [k]: e.target.value })),
+  });
+  const fp = (k) => ({
+    style: inp,
+    value: form.prizes[k],
+    onChange: (e) =>
+      setForm((p) => ({ ...p, prizes: { ...p.prizes, [k]: e.target.value } })),
+  });
 
   return (
     <div style={{ padding: 24, maxWidth: 540 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>🎮 New Match Create</div>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>
+          🎮 New Match Create
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Match Title *</div><input placeholder="যেমন: BR Match #1" {...f("title")} /></div>
-          <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Category</div>
-            <select style={inp} value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}>
-           {[
-                { key: "br_solo",     label: "BR Solo (48 players)" },
-                { key: "br_duo",      label: "BR Duo 2vs2 (48 players)" },
-                { key: "br_squad",    label: "BR Squad 4vs4 (48 players)" },
-                { key: "cs_solo",     label: "Clash Squad Solo (16 players)" },
-                { key: "cs_duo",      label: "Clash Squad Duo (8 players)" },
-                { key: "cs_squad",    label: "Clash Squad 4vs4 (8 players)" },
-                { key: "cs_6vs6",     label: "Clash Squad 6vs6 (12 players)" },
-                { key: "lw_solo",     label: "Lone Wolf Solo (16 players)" },
-                { key: "lw_duo",      label: "Lone Wolf Duo (8 players)" },
-                { key: "free_match",  label: "Free Match (48 players)" },
-              ].map((c) => (<option key={c.key} value={c.key}>{c.label}</option>))}
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+                marginBottom: 4,
+                fontWeight: 600,
+              }}
+            >
+              Match Title *
+            </div>
+            <input placeholder="যেমন: BR Match #1" {...f("title")} />
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+                marginBottom: 4,
+                fontWeight: 600,
+              }}
+            >
+              Category
+            </div>
+            <select
+              style={inp}
+              value={form.category}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, category: e.target.value }))
+              }
+            >
+              {[
+                { key: "br_solo", label: "BR Solo (48 players)" },
+                { key: "br_duo", label: "BR Duo 2vs2 (48 players)" },
+                { key: "br_squad", label: "BR Squad 4vs4 (48 players)" },
+                { key: "cs_solo", label: "Clash Squad Solo (16 players)" },
+                { key: "cs_duo", label: "Clash Squad Duo (8 players)" },
+                { key: "cs_squad", label: "Clash Squad 4vs4 (8 players)" },
+                { key: "cs_6vs6", label: "Clash Squad 6vs6 (12 players)" },
+                { key: "lw_solo", label: "Lone Wolf Solo (16 players)" },
+                { key: "lw_duo", label: "Lone Wolf Duo (8 players)" },
+                { key: "free_match", label: "Free Match (48 players)" },
+              ].map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </div>
-          <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Start Time *</div><input type="datetime-local" {...f("startTime")} /></div>
           <div>
-            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>Entry & Prize</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+                marginBottom: 4,
+                fontWeight: 600,
+              }}
+            >
+              Start Time *
+            </div>
+            <input type="datetime-local" {...f("startTime")} />
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+                marginBottom: 6,
+                fontWeight: 600,
+              }}
+            >
+              Entry & Prize
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
               <input placeholder="Entry Fee (৳)" {...f("entryFee")} />
               <input placeholder="Win Prize (৳)" {...f("winPrize")} />
             </div>
           </div>
-          <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 10, padding: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 10 }}>🏆 Prize Breakdown</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div><div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥇 1st Prize (৳)</div><input placeholder="60" {...fp("first")} style={{ ...inp, background: "#fff" }} /></div>
-              <div><div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥈 2nd Prize (৳)</div><input placeholder="40" {...fp("second")} style={{ ...inp, background: "#fff" }} /></div>
-              <div><div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥉 3rd Prize (৳)</div><input placeholder="20" {...fp("third")} style={{ ...inp, background: "#fff" }} /></div>
-              <div><div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>4️⃣ 4th Prize (৳)</div><input placeholder="10" {...fp("fourth")} style={{ ...inp, background: "#fff" }} /></div>
+          <div
+            style={{
+              background: "#fefce8",
+              border: "1px solid #fde68a",
+              borderRadius: 10,
+              padding: 14,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#92400e",
+                marginBottom: 10,
+              }}
+            >
+              🏆 Prize Breakdown
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  🥇 1st Prize (৳)
+                </div>
+                <input
+                  placeholder="60"
+                  {...fp("first")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  🥈 2nd Prize (৳)
+                </div>
+                <input
+                  placeholder="40"
+                  {...fp("second")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  🥉 3rd Prize (৳)
+                </div>
+                <input
+                  placeholder="20"
+                  {...fp("third")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
+                >
+                  4️⃣ 4th Prize (৳)
+                </div>
+                <input
+                  placeholder="10"
+                  {...fp("fourth")}
+                  style={{ ...inp, background: "#fff" }}
+                />
+              </div>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Total Players</div><input placeholder="48" {...f("totalPlayers")} /></div>
-            <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Per Kill (৳)</div><input placeholder="5" {...f("perKill")} /></div>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#6b7280",
+                  marginBottom: 4,
+                  fontWeight: 600,
+                }}
+              >
+                Total Players
+              </div>
+              <input placeholder="48" {...f("totalPlayers")} />
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#6b7280",
+                  marginBottom: 4,
+                  fontWeight: 600,
+                }}
+              >
+                Per Kill (৳)
+              </div>
+              <input placeholder="5" {...f("perKill")} />
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Map</div>
-              <select style={inp} value={form.map} onChange={(e) => setForm((p) => ({ ...p, map: e.target.value }))}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#6b7280",
+                  marginBottom: 4,
+                  fontWeight: 600,
+                }}
+              >
+                Map
+              </div>
+              <select
+                style={inp}
+                value={form.map}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, map: e.target.value }))
+                }
+              >
                 <option value="">Select Map</option>
                 <option value="Bermuda">Bermuda</option>
                 <option value="Kalahari">Kalahari</option>
@@ -295,8 +922,24 @@ const CreateMatch = () => {
                 <option value="Nexterra">Nexterra</option>
               </select>
             </div>
-            <div><div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Device</div>
-              <select style={inp} value={form.device} onChange={(e) => setForm((p) => ({ ...p, device: e.target.value }))}>
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#6b7280",
+                  marginBottom: 4,
+                  fontWeight: 600,
+                }}
+              >
+                Device
+              </div>
+              <select
+                style={inp}
+                value={form.device}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, device: e.target.value }))
+                }
+              >
                 <option value="Mobile">Mobile</option>
                 <option value="Emulator">Emulator</option>
                 <option value="All">All Device</option>
@@ -304,15 +947,97 @@ const CreateMatch = () => {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>Match Banner Image</div>
-            <label style={{ display: "block", padding: "12px", border: "1.5px dashed #d1d5db", borderRadius: 8, textAlign: "center", cursor: "pointer", fontSize: 13, color: "#6b7280", background: "#f9fafb" }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+                marginBottom: 4,
+                fontWeight: 600,
+              }}
+            >
+              Match Banner Image
+            </div>
+            <label
+              style={{
+                display: "block",
+                padding: "12px",
+                border: "1.5px dashed #d1d5db",
+                borderRadius: 8,
+                textAlign: "center",
+                cursor: "pointer",
+                fontSize: 13,
+                color: "#6b7280",
+                background: "#f9fafb",
+              }}
+            >
               📷 Image Upload করুন
-              <input type="file" accept="image/*" onChange={handleImage} style={{ display: "none" }} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImage}
+                style={{ display: "none" }}
+              />
             </label>
-            {form.image && (<div style={{ marginTop: 8, position: "relative" }}><img src={form.image} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }} /><button onClick={() => setForm((p) => ({ ...p, image: "" }))} style={{ position: "absolute", top: 6, right: 6, background: "#ef4444", color: "#fff", border: "none", borderRadius: 6, padding: "2px 8px", fontSize: 11, cursor: "pointer" }}>✕</button></div>)}
+            {form.image && (
+              <div style={{ marginTop: 8, position: "relative" }}>
+                <img
+                  src={form.image}
+                  alt=""
+                  style={{
+                    width: "100%",
+                    height: 120,
+                    objectFit: "cover",
+                    borderRadius: 8,
+                  }}
+                />
+                <button
+                  onClick={() => setForm((p) => ({ ...p, image: "" }))}
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    background: "#ef4444",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "2px 8px",
+                    fontSize: 11,
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
-          {msg && <div style={{ fontSize: 12, padding: "8px 10px", borderRadius: 6, background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2", color: msg.startsWith("✅") ? "#065f46" : "#dc2626" }}>{msg}</div>}
-          <button onClick={submit} style={{ padding: "12px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>🎮 Create Match</button>
+          {msg && (
+            <div
+              style={{
+                fontSize: 12,
+                padding: "8px 10px",
+                borderRadius: 6,
+                background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2",
+                color: msg.startsWith("✅") ? "#065f46" : "#dc2626",
+              }}
+            >
+              {msg}
+            </div>
+          )}
+          <button
+            onClick={submit}
+            style={{
+              padding: "12px",
+              background: "#111827",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            🎮 Create Match
+          </button>
         </div>
       </div>
     </div>
@@ -322,21 +1047,70 @@ const CreateMatch = () => {
 const DepositRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
   const load = useCallback(() => {
-    api("/admin/deposits?status=pending").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
+    api("/admin/deposits?status=pending")
+      .then((d) => {
+        setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const approve = async (id) => { await api(`/admin/deposits/${id}/approve`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
-  const reject = async (id) => { await api(`/admin/deposits/${id}/reject`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
+  const approve = async (id) => {
+    await api(`/admin/deposits/${id}/approve`, {
+      method: "PUT",
+      body: JSON.stringify({ adminName }),
+    });
+    load();
+    refresh();
+  };
+  const reject = async (id) => {
+    await api(`/admin/deposits/${id}/reject`, {
+      method: "PUT",
+      body: JSON.stringify({ adminName }),
+    });
+    load();
+    refresh();
+  };
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
           <div style={{ fontSize: 14, fontWeight: 600 }}>Deposit requests</div>
           <Badge color="amber">{list.length} pending</Badge>
         </div>
-        {list.length === 0 ? <p style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", padding: 24 }}>No pending</p> : list.map((r) => <ReqRow key={r._id} r={r} onApprove={approve} onReject={reject} />)}
+        {list.length === 0 ? (
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              textAlign: "center",
+              padding: 24,
+            }}
+          >
+            No pending
+          </p>
+        ) : (
+          list.map((r) => (
+            <ReqRow key={r._id} r={r} onApprove={approve} onReject={reject} />
+          ))
+        )}
       </div>
     </div>
   );
@@ -345,21 +1119,76 @@ const DepositRequests = ({ adminName, refresh }) => {
 const WithdrawRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
   const load = useCallback(() => {
-    api("/withdraw/admin/all?status=pending").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
+    api("/withdraw/admin/all?status=pending")
+      .then((d) => {
+        setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const approve = async (id) => { await api(`/withdraw/admin/approve/${id}`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
-  const reject = async (id) => { await api(`/withdraw/admin/reject/${id}`, { method: "PUT", body: JSON.stringify({ adminName }) }); load(); refresh(); };
+  const approve = async (id) => {
+    await api(`/withdraw/admin/approve/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ adminName }),
+    });
+    load();
+    refresh();
+  };
+  const reject = async (id) => {
+    await api(`/withdraw/admin/reject/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ adminName }),
+    });
+    load();
+    refresh();
+  };
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
           <div style={{ fontSize: 14, fontWeight: 600 }}>Withdraw requests</div>
           <Badge color="red">{list.length} pending</Badge>
         </div>
-        {list.length === 0 ? <p style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", padding: 24 }}>No pending</p> : list.map((r) => <ReqRow key={r._id} r={r} onApprove={approve} onReject={reject} actionLabel="Pay ✓" />)}
+        {list.length === 0 ? (
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              textAlign: "center",
+              padding: 24,
+            }}
+          >
+            No pending
+          </p>
+        ) : (
+          list.map((r) => (
+            <ReqRow
+              key={r._id}
+              r={r}
+              onApprove={approve}
+              onReject={reject}
+              actionLabel="Pay ✓"
+            />
+          ))
+        )}
       </div>
     </div>
   );
@@ -367,24 +1196,77 @@ const WithdrawRequests = ({ adminName, refresh }) => {
 
 const MoneyOverview = () => {
   const [stats, setStats] = useState({});
-  useEffect(() => { api("/admin/stats").then((d) => setStats(d?.data || d || {})).catch(() => {}); }, []);
+  useEffect(() => {
+    api("/admin/stats")
+      .then((d) => setStats(d?.data || d || {}))
+      .catch(() => {});
+  }, []);
   const rows = [
-    { label: "Total user deposits (approved)", value: stats?.totalDeposit, color: "#059669" },
-    { label: "Total user withdrawals (approved)", value: stats?.totalWithdraw, color: "#dc2626" },
-    { label: "Net balance", value: (stats?.totalDeposit || 0) - (stats?.totalWithdraw || 0), color: "#2563eb" },
-    { label: "Pending deposit amount", value: stats?.pendingDepositAmount, color: "#d97706" },
-    { label: "Pending withdraw amount", value: stats?.pendingWithdrawAmount, color: "#d97706" },
-    { label: "Total users", value: stats?.totalUsers, color: "#111827", isMoney: false },
-    { label: "Total matches", value: stats?.totalMatches, color: "#111827", isMoney: false },
+    {
+      label: "Total user deposits (approved)",
+      value: stats?.totalDeposit,
+      color: "#059669",
+    },
+    {
+      label: "Total user withdrawals (approved)",
+      value: stats?.totalWithdraw,
+      color: "#dc2626",
+    },
+    {
+      label: "Net balance",
+      value: (stats?.totalDeposit || 0) - (stats?.totalWithdraw || 0),
+      color: "#2563eb",
+    },
+    {
+      label: "Pending deposit amount",
+      value: stats?.pendingDepositAmount,
+      color: "#d97706",
+    },
+    {
+      label: "Pending withdraw amount",
+      value: stats?.pendingWithdrawAmount,
+      color: "#d97706",
+    },
+    {
+      label: "Total users",
+      value: stats?.totalUsers,
+      color: "#111827",
+      isMoney: false,
+    },
+    {
+      label: "Total matches",
+      value: stats?.totalMatches,
+      color: "#111827",
+      isMoney: false,
+    },
   ];
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Money overview</div>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+          Money overview
+        </div>
         {rows.map((r, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: i < rows.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "12px 0",
+              borderBottom: i < rows.length - 1 ? "1px solid #f3f4f6" : "none",
+            }}
+          >
             <span style={{ fontSize: 13, color: "#6b7280" }}>{r.label}</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: r.color }}>{r.isMoney === false ? (r.value ?? "—") : fmt(r.value)}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: r.color }}>
+              {r.isMoney === false ? (r.value ?? "—") : fmt(r.value)}
+            </span>
           </div>
         ))}
       </div>
@@ -396,18 +1278,67 @@ const History = ({ type }) => {
   const [list, setList] = useState([]);
   const [search, setSearch] = useState("");
   useEffect(() => {
-    const url = type === "withdraw" ? "/withdraw/admin/all" : `/admin/${type}s?limit=50`;
-    api(url).then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {});
+    const url =
+      type === "withdraw" ? "/withdraw/admin/all" : `/admin/${type}s?limit=50`;
+    api(url)
+      .then((d) => {
+        setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
   }, [type]);
-  const filtered = list.filter((h) => (h.user?.name || h.user?.phone || h.userName || "").toLowerCase().includes(search.toLowerCase()));
+  const filtered = list.filter((h) =>
+    (h.user?.name || h.user?.phone || h.userName || "")
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>{type === "deposit" ? "Deposit" : "Withdraw"} history</div>
-          <input placeholder="Search user..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12, outline: "none" }} />
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 600 }}>
+            {type === "deposit" ? "Deposit" : "Withdraw"} history
+          </div>
+          <input
+            placeholder="Search user..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              padding: "6px 10px",
+              border: "1px solid #e5e7eb",
+              borderRadius: 8,
+              fontSize: 12,
+              outline: "none",
+            }}
+          />
         </div>
-        {filtered.length === 0 ? <p style={{ fontSize: 13, color: "#9ca3af", textAlign: "center", padding: 24 }}>No records</p> : filtered.map((h) => <HistRow key={h._id} h={h} />)}
+        {filtered.length === 0 ? (
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              textAlign: "center",
+              padding: 24,
+            }}
+          >
+            No records
+          </p>
+        ) : (
+          filtered.map((h) => <HistRow key={h._id} h={h} />)
+        )}
       </div>
     </div>
   );
@@ -416,28 +1347,118 @@ const History = ({ type }) => {
 const Users = () => {
   const [list, setList] = useState([]);
   const [search, setSearch] = useState("");
-  useEffect(() => { api("/admin/users").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  useEffect(() => {
+    api("/admin/users")
+      .then((d) => {
+        setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
+  }, []);
   const toggleBan = async (id, banned) => {
-    await api(`/admin/users/${id}/${banned ? "unban" : "ban"}`, { method: "PUT" });
-    setList((l) => l.map((u) => (u._id === id ? { ...u, isBlocked: !banned } : u)));
+    await api(`/admin/users/${id}/${banned ? "unban" : "ban"}`, {
+      method: "PUT",
+    });
+    setList((l) =>
+      l.map((u) => (u._id === id ? { ...u, isBlocked: !banned } : u)),
+    );
   };
-  const filtered = list.filter((u) => (u.name || u.phone || "").toLowerCase().includes(search.toLowerCase()) || (u.phone || "").includes(search));
+  const filtered = list.filter(
+    (u) =>
+      (u.name || u.phone || "").toLowerCase().includes(search.toLowerCase()) ||
+      (u.phone || "").includes(search),
+  );
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Users ({list.length})</div>
-          <input placeholder="Search name / phone..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12, outline: "none", width: 180 }} />
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 600 }}>
+            Users ({list.length})
+          </div>
+          <input
+            placeholder="Search name / phone..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              padding: "6px 10px",
+              border: "1px solid #e5e7eb",
+              borderRadius: 8,
+              fontSize: 12,
+              outline: "none",
+              width: 180,
+            }}
+          />
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-          <thead><tr style={{ background: "#f9fafb" }}>{["Name/Phone", "Balance", "Status", "Action"].map((h) => (<th key={h} style={{ padding: "8px 10px", textAlign: "left", color: "#6b7280", fontWeight: 600, borderBottom: "1px solid #e5e7eb" }}>{h}</th>))}</tr></thead>
+        <table
+          style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}
+        >
+          <thead>
+            <tr style={{ background: "#f9fafb" }}>
+              {["Name/Phone", "Balance", "Status", "Action"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "8px 10px",
+                    textAlign: "left",
+                    color: "#6b7280",
+                    fontWeight: 600,
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
             {filtered.map((u) => (
               <tr key={u._id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                <td style={{ padding: "9px 10px", fontWeight: 600 }}>{u.name || u.phone}</td>
-                <td style={{ padding: "9px 10px", color: "#059669", fontWeight: 600 }}>{fmt(u.balance)}</td>
-                <td style={{ padding: "9px 10px" }}><Badge color={u.isBlocked ? "red" : "green"}>{u.isBlocked ? "Banned" : "Active"}</Badge></td>
-                <td style={{ padding: "9px 10px" }}><button onClick={() => toggleBan(u._id, u.isBlocked)} style={{ fontSize: 11, padding: "3px 8px", background: u.isBlocked ? "#d1fae5" : "#fee2e2", color: u.isBlocked ? "#065f46" : "#991b1b", border: "none", borderRadius: 6, cursor: "pointer" }}>{u.isBlocked ? "Unban" : "Ban"}</button></td>
+                <td style={{ padding: "9px 10px", fontWeight: 600 }}>
+                  {u.name || u.phone}
+                </td>
+                <td
+                  style={{
+                    padding: "9px 10px",
+                    color: "#059669",
+                    fontWeight: 600,
+                  }}
+                >
+                  {fmt(u.balance)}
+                </td>
+                <td style={{ padding: "9px 10px" }}>
+                  <Badge color={u.isBlocked ? "red" : "green"}>
+                    {u.isBlocked ? "Banned" : "Active"}
+                  </Badge>
+                </td>
+                <td style={{ padding: "9px 10px" }}>
+                  <button
+                    onClick={() => toggleBan(u._id, u.isBlocked)}
+                    style={{
+                      fontSize: 11,
+                      padding: "3px 8px",
+                      background: u.isBlocked ? "#d1fae5" : "#fee2e2",
+                      color: u.isBlocked ? "#065f46" : "#991b1b",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {u.isBlocked ? "Unban" : "Ban"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -453,24 +1474,24 @@ const Users = () => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Match mode config — frontend এ match type বোঝার জন্য
- const MODE_CONFIG = {
-  br_solo:      { matchType: "solo", teamSize: 1, label: "BR Solo" },
-  br_duo:       { matchType: "team", teamSize: 2, label: "BR Duo 2vs2" },
-  br_squad:     { matchType: "team", teamSize: 4, label: "BR Squad 4vs4" },
-  cs_solo:      { matchType: "solo", teamSize: 1, label: "Clash Squad Solo" },
-  cs_duo:       { matchType: "team", teamSize: 2, label: "Clash Squad Duo" },
-  cs_squad:     { matchType: "team", teamSize: 4, label: "Clash Squad 4vs4" },
-  cs_6vs6:      { matchType: "team", teamSize: 6, label: "Clash Squad 6vs6" },
-  lw_solo:      { matchType: "solo", teamSize: 1, label: "Lone Wolf Solo" },
-  lw_duo:       { matchType: "team", teamSize: 2, label: "Lone Wolf Duo" },
-  free_match:   { matchType: "solo", teamSize: 1, label: "Free Match" },
-  training:     { matchType: "solo", teamSize: 1, label: "Training" },
+const MODE_CONFIG = {
+  br_solo: { matchType: "solo", teamSize: 1, label: "BR Solo" },
+  br_duo: { matchType: "team", teamSize: 2, label: "BR Duo 2vs2" },
+  br_squad: { matchType: "team", teamSize: 4, label: "BR Squad 4vs4" },
+  cs_solo: { matchType: "solo", teamSize: 1, label: "Clash Squad Solo" },
+  cs_duo: { matchType: "team", teamSize: 2, label: "Clash Squad Duo" },
+  cs_squad: { matchType: "team", teamSize: 4, label: "Clash Squad 4vs4" },
+  cs_6vs6: { matchType: "team", teamSize: 6, label: "Clash Squad 6vs6" },
+  lw_solo: { matchType: "solo", teamSize: 1, label: "Lone Wolf Solo" },
+  lw_duo: { matchType: "team", teamSize: 2, label: "Lone Wolf Duo" },
+  free_match: { matchType: "solo", teamSize: 1, label: "Free Match" },
+  training: { matchType: "solo", teamSize: 1, label: "Training" },
   // backward compat
-  br_match:     { matchType: "solo", teamSize: 1, label: "BR Match" },
-  br_survival:  { matchType: "solo", teamSize: 1, label: "BR Survival" },
-  clash_squad:  { matchType: "team", teamSize: 4, label: "Clash Squad" },
-  cs_2vs2:      { matchType: "team", teamSize: 2, label: "CS 2vs2" },
-  lone_wolf:    { matchType: "solo", teamSize: 1, label: "Lone Wolf" },
+  br_match: { matchType: "solo", teamSize: 1, label: "BR Match" },
+  br_survival: { matchType: "solo", teamSize: 1, label: "BR Survival" },
+  clash_squad: { matchType: "team", teamSize: 4, label: "Clash Squad" },
+  cs_2vs2: { matchType: "team", teamSize: 2, label: "CS 2vs2" },
+  lone_wolf: { matchType: "solo", teamSize: 1, label: "Lone Wolf" },
 };
 
 const getMatchMode = (match) => {
@@ -479,28 +1500,29 @@ const getMatchMode = (match) => {
   // যদি match এ matchType সরাসরি আসে (নতুন Match.js) সেটা প্রাধান্য দাও
   return {
     matchType: match?.matchType || cfg.matchType,
-    teamSize:  match?.teamSize  || cfg.teamSize,
-    label:     cfg.label,
+    teamSize: match?.teamSize || cfg.teamSize,
+    label: cfg.label,
   };
 };
 
 const MatchResults = () => {
-  const [matches, setMatches]             = useState([]);
+  const [matches, setMatches] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [players, setPlayers]             = useState([]);
-  const [results, setResults]             = useState([]);
-  const [roomData, setRoomData]           = useState({});
-  const [loading, setLoading]             = useState(false);
-  const [message, setMessage]             = useState({});
+  const [players, setPlayers] = useState([]);
+  const [results, setResults] = useState([]);
+  const [roomData, setRoomData] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({});
 
   // Image section state
-  const [screenshots, setScreenshots]     = useState([]);
-  const [zoomedImg, setZoomedImg]         = useState(null);
+  const [screenshots, setScreenshots] = useState([]);
+  const [zoomedImg, setZoomedImg] = useState(null);
 
   // Team match state
-  const [winnerTeam, setWinnerTeam]       = useState("A");
+  const [winnerTeam, setWinnerTeam] = useState("A");
 
-  const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
+  const token =
+    localStorage.getItem("adminToken") || localStorage.getItem("token");
 
   const loadMatches = useCallback(() => {
     api("/matches").then((d) => {
@@ -509,20 +1531,24 @@ const MatchResults = () => {
     });
   }, []);
 
-  useEffect(() => { loadMatches(); }, [loadMatches]);
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
 
-  const loadScreenshots = useCallback(async (matchId) => {
-    try {
-      const res = await fetch(
-        `${API}/result/admin/match/${matchId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data = await res.json();
-      setScreenshots(data?.data || []);
-    } catch {
-      setScreenshots([]);
-    }
-  }, [token]);
+  const loadScreenshots = useCallback(
+    async (matchId) => {
+      try {
+        const res = await fetch(`${API}/result/admin/match/${matchId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setScreenshots(data?.data || []);
+      } catch {
+        setScreenshots([]);
+      }
+    },
+    [token],
+  );
 
   const handleMatchSelect = (id) => {
     const match = matches.find((m) => m._id === id);
@@ -540,15 +1566,24 @@ const MatchResults = () => {
 
   // ── Solo mode helpers ──────────────────────────────────────────────────────
   const addAllPlayers = () => {
-    setResults(players.map((p) => ({
-      userId: p.userId, inGameName: p.inGameName, position: "", kills: 0,
-    })));
+    setResults(
+      players.map((p) => ({
+        userId: p.userId,
+        inGameName: p.inGameName,
+        position: "",
+        kills: 0,
+      })),
+    );
   };
-  const addPlayerResult  = () => setResults([...results, { userId: "", inGameName: "", position: "", kills: 0 }]);
+  const addPlayerResult = () =>
+    setResults([
+      ...results,
+      { userId: "", inGameName: "", position: "", kills: 0 },
+    ]);
   const handlePlayerSelect = (index, userId) => {
-    const player  = players.find((p) => p.userId === userId);
+    const player = players.find((p) => p.userId === userId);
     const updated = [...results];
-    updated[index].userId     = userId;
+    updated[index].userId = userId;
     updated[index].inGameName = player?.inGameName || "";
     setResults(updated);
   };
@@ -557,14 +1592,15 @@ const MatchResults = () => {
     updated[index][field] = value;
     setResults(updated);
   };
-  const removePlayer = (index) => setResults(results.filter((_, i) => i !== index));
+  const removePlayer = (index) =>
+    setResults(results.filter((_, i) => i !== index));
 
   const calculatePrize = (position, kills) => {
     if (!selectedMatch) return 0;
     let prize = (kills || 0) * (selectedMatch.perKill || 0);
-    if (position == 1)      prize += selectedMatch.prizes?.first  || 0;
+    if (position == 1) prize += selectedMatch.prizes?.first || 0;
     else if (position == 2) prize += selectedMatch.prizes?.second || 0;
-    else if (position == 3) prize += selectedMatch.prizes?.third  || 0;
+    else if (position == 3) prize += selectedMatch.prizes?.third || 0;
     else if (position == 4) prize += selectedMatch.prizes?.fourth || 0;
     return Math.floor(prize);
   };
@@ -572,25 +1608,42 @@ const MatchResults = () => {
   const isAlreadyAdded = (userId, currentIndex) =>
     results.some((r, i) => i !== currentIndex && r.userId === userId);
 
-  const totalSoloPrize = results.reduce((sum, r) => sum + calculatePrize(r.position, r.kills), 0);
+  const totalSoloPrize = results.reduce(
+    (sum, r) => sum + calculatePrize(r.position, r.kills),
+    0,
+  );
 
   const prizePool = selectedMatch
-    ? (selectedMatch.prizes?.first  || 0) + (selectedMatch.prizes?.second || 0) +
-      (selectedMatch.prizes?.third  || 0) + (selectedMatch.prizes?.fourth || 0)
+    ? (selectedMatch.prizes?.first || 0) +
+      (selectedMatch.prizes?.second || 0) +
+      (selectedMatch.prizes?.third || 0) +
+      (selectedMatch.prizes?.fourth || 0)
     : 0;
   const isOverBudget = prizePool > 0 && totalSoloPrize > prizePool;
 
   // ── Team mode helpers ──────────────────────────────────────────────────────
-  const teamPool    = selectedMatch?.prizePool || selectedMatch?.winPrize || 0;
-  const teamSize    = selectedMatch ? (getMatchMode(selectedMatch).teamSize || 1) : 1;
+  const teamPool = selectedMatch?.prizePool || selectedMatch?.winPrize || 0;
+  const teamSize = selectedMatch
+    ? getMatchMode(selectedMatch).teamSize || 1
+    : 1;
   const teamAPlayers = players.filter((p) => (p.team || "A") === "A");
   const teamBPlayers = players.filter((p) => (p.team || "A") === "B");
-  const winnerCount  = winnerTeam === "A" ? teamAPlayers.length : teamBPlayers.length;
-  const prizeEach    = winnerCount > 0 ? Math.floor(teamPool / winnerCount) : Math.floor(teamPool / teamSize);
+  const winnerCount =
+    winnerTeam === "A" ? teamAPlayers.length : teamBPlayers.length;
+  const prizeEach =
+    winnerCount > 0
+      ? Math.floor(teamPool / winnerCount)
+      : Math.floor(teamPool / teamSize);
 
   const updateRoom = async (id) => {
-    const d = await api(`/matches/update-room/${id}`, { method: "PUT", body: JSON.stringify(roomData[id] || {}) });
-    setMessage((p) => ({ ...p, [id]: d.success ? "✅ Room Updated!" : "❌ Failed" }));
+    const d = await api(`/matches/update-room/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(roomData[id] || {}),
+    });
+    setMessage((p) => ({
+      ...p,
+      [id]: d.success ? "✅ Room Updated!" : "❌ Failed",
+    }));
     if (d.success) loadMatches();
   };
 
@@ -599,10 +1652,15 @@ const MatchResults = () => {
     if (!selectedMatch) return alert("Match সিলেক্ট করুন");
     if (results.length === 0) return alert("কমপক্ষে ১ জন player যোগ করুন");
     if (results.some((r) => !r.userId)) return alert("সব player select করুন");
-    const positions = results.map((r) => Number(r.position)).filter((p) => p > 0);
-    if (positions.length !== new Set(positions).size) return alert("একই position দুজনকে দেওয়া যাবে না");
+    const positions = results
+      .map((r) => Number(r.position))
+      .filter((p) => p > 0);
+    if (positions.length !== new Set(positions).size)
+      return alert("একই position দুজনকে দেওয়া যাবে না");
     if (isOverBudget) {
-      const ok = window.confirm(`⚠️ Total prize ৳${totalSoloPrize} prize pool ৳${prizePool} এর বেশি! তবুও submit করবেন?`);
+      const ok = window.confirm(
+        `⚠️ Total prize ৳${totalSoloPrize} prize pool ৳${prizePool} এর বেশি! তবুও submit করবেন?`,
+      );
       if (!ok) return;
     }
     setLoading(true);
@@ -611,19 +1669,26 @@ const MatchResults = () => {
         method: "PUT",
         body: JSON.stringify({
           results: results.map((r) => ({
-            userId: r.userId, inGameName: r.inGameName,
-            position: Number(r.position) || 0, kills: Number(r.kills) || 0,
+            userId: r.userId,
+            inGameName: r.inGameName,
+            position: Number(r.position) || 0,
+            kills: Number(r.kills) || 0,
           })),
         }),
       });
       if (response.success) {
         alert("✅ Result submit হয়েছে!");
-        setResults([]); setSelectedMatch(null); setPlayers([]); setScreenshots([]);
+        setResults([]);
+        setSelectedMatch(null);
+        setPlayers([]);
+        setScreenshots([]);
         loadMatches();
       } else {
         alert("❌ " + (response.message || "Failed"));
       }
-    } catch { alert("Server Error"); }
+    } catch {
+      alert("Server Error");
+    }
     setLoading(false);
   };
 
@@ -639,12 +1704,16 @@ const MatchResults = () => {
       });
       if (response.success) {
         alert("✅ " + response.message);
-        setSelectedMatch(null); setPlayers([]); setScreenshots([]);
+        setSelectedMatch(null);
+        setPlayers([]);
+        setScreenshots([]);
         loadMatches();
       } else {
         alert("❌ " + (response.message || "Failed"));
       }
-    } catch { alert("Server Error"); }
+    } catch {
+      alert("Server Error");
+    }
     setLoading(false);
   };
 
@@ -657,10 +1726,41 @@ const MatchResults = () => {
       {zoomedImg && (
         <div
           onClick={() => setZoomedImg(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.88)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "zoom-out",
+          }}
         >
-          <img src={zoomedImg} alt="zoomed" style={{ maxWidth: "92vw", maxHeight: "92vh", borderRadius: 8 }} onClick={(e) => e.stopPropagation()} />
-          <button onClick={() => setZoomedImg(null)} style={{ position: "absolute", top: 20, right: 24, background: "#fff", border: "none", borderRadius: "50%", width: 36, height: 36, fontSize: 18, cursor: "pointer", fontWeight: 700 }}>✕</button>
+          <img
+            src={zoomedImg}
+            alt="zoomed"
+            style={{ maxWidth: "92vw", maxHeight: "92vh", borderRadius: 8 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setZoomedImg(null)}
+            style={{
+              position: "absolute",
+              top: 20,
+              right: 24,
+              background: "#fff",
+              border: "none",
+              borderRadius: "50%",
+              width: 36,
+              height: 36,
+              fontSize: 18,
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -669,14 +1769,23 @@ const MatchResults = () => {
         <select
           onChange={(e) => handleMatchSelect(e.target.value)}
           value={selectedMatch?._id || ""}
-          style={{ width: "100%", maxWidth: 500, padding: "11px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14, outline: "none" }}
+          style={{
+            width: "100%",
+            maxWidth: 500,
+            padding: "11px 14px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            fontSize: 14,
+            outline: "none",
+          }}
         >
           <option value="">-- Match select করুন --</option>
           {matches.map((m) => {
             const cfg = getMatchMode(m);
             return (
               <option key={m._id} value={m._id}>
-                {m.title} • {cfg.label} • {m.status} • {m.joinedPlayers || 0}/{m.totalPlayers}
+                {m.title} • {cfg.label} • {m.status} • {m.joinedPlayers || 0}/
+                {m.totalPlayers}
               </option>
             );
           })}
@@ -685,12 +1794,42 @@ const MatchResults = () => {
 
       {selectedMatch && (
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-
           {/* ══ বাম: Image Section ══ */}
-          <div style={{ width: 300, minWidth: 260, flexShrink: 0, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 16, position: "sticky", top: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          <div
+            style={{
+              width: 300,
+              minWidth: 260,
+              flexShrink: 0,
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              borderRadius: 14,
+              padding: 16,
+              position: "sticky",
+              top: 16,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#1e293b",
+                marginBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
               📁 {selectedMatch.title}
-              <span style={{ fontSize: 11, fontWeight: 500, color: "#7c3aed", background: "#ede9fe", padding: "1px 7px", borderRadius: 10 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: "#7c3aed",
+                  background: "#ede9fe",
+                  padding: "1px 7px",
+                  borderRadius: 10,
+                }}
+              >
                 {mode?.label}
               </span>
             </div>
@@ -698,18 +1837,51 @@ const MatchResults = () => {
               {screenshots.length} screenshot • click করলে zoom হবে
             </div>
             {screenshots.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "20px 0", color: "#d1d5db", fontSize: 12 }}>কোনো screenshot নেই</div>
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "20px 0",
+                  color: "#d1d5db",
+                  fontSize: 12,
+                }}
+              >
+                কোনো screenshot নেই
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {screenshots.map((sub, idx) => (
-                  <div key={sub._id || idx} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                  <div
+                    key={sub._id || idx}
+                    style={{
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
                     <img
-                      src={sub.screenshot?.url} alt=""
-                      style={{ width: "100%", display: "block", cursor: "zoom-in", maxHeight: 180, objectFit: "cover" }}
+                      src={sub.screenshot?.url}
+                      alt=""
+                      style={{
+                        width: "100%",
+                        display: "block",
+                        cursor: "zoom-in",
+                        maxHeight: 180,
+                        objectFit: "cover",
+                      }}
                       onClick={() => setZoomedImg(sub.screenshot?.url)}
                     />
-                    <div style={{ padding: "5px 8px", background: "#f9fafb", fontSize: 10, color: "#6b7280" }}>
-                      #{idx + 1} · {sub.submittedBy?.name || sub.submittedBy?.phone || "User"}
+                    <div
+                      style={{
+                        padding: "5px 8px",
+                        background: "#f9fafb",
+                        fontSize: 10,
+                        color: "#6b7280",
+                      }}
+                    >
+                      #{idx + 1} ·{" "}
+                      {sub.submittedBy?.name ||
+                        sub.submittedBy?.phone ||
+                        "User"}
                     </div>
                   </div>
                 ))}
@@ -719,75 +1891,257 @@ const MatchResults = () => {
 
           {/* ══ ডান: Result Entry Section ══ */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
+                padding: 20,
+              }}
+            >
               {/* Room Details */}
-              <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: 14, marginBottom: 16 }}>
-                <div style={{ fontWeight: 700, color: "#0369a1", marginBottom: 10, fontSize: 13 }}>🔑 Room Details</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div
+                style={{
+                  background: "#f0f9ff",
+                  border: "1px solid #bae6fd",
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 700,
+                    color: "#0369a1",
+                    marginBottom: 10,
+                    fontSize: 13,
+                  }}
+                >
+                  🔑 Room Details
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
                   <div>
-                    <div style={{ fontSize: 11, marginBottom: 4, color: "#6b7280" }}>Room ID</div>
-                    <input placeholder="Room ID" defaultValue={selectedMatch.roomId || ""}
-                      onChange={(e) => setRoomData((p) => ({ ...p, [selectedMatch._id]: { ...p[selectedMatch._id], roomId: e.target.value } }))}
-                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #bae6fd", boxSizing: "border-box", fontSize: 13 }} />
+                    <div
+                      style={{
+                        fontSize: 11,
+                        marginBottom: 4,
+                        color: "#6b7280",
+                      }}
+                    >
+                      Room ID
+                    </div>
+                    <input
+                      placeholder="Room ID"
+                      defaultValue={selectedMatch.roomId || ""}
+                      onChange={(e) =>
+                        setRoomData((p) => ({
+                          ...p,
+                          [selectedMatch._id]: {
+                            ...p[selectedMatch._id],
+                            roomId: e.target.value,
+                          },
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: 9,
+                        borderRadius: 6,
+                        border: "1px solid #bae6fd",
+                        boxSizing: "border-box",
+                        fontSize: 13,
+                      }}
+                    />
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, marginBottom: 4, color: "#6b7280" }}>Password</div>
-                    <input placeholder="Room Password" defaultValue={selectedMatch.roomPassword || ""}
-                      onChange={(e) => setRoomData((p) => ({ ...p, [selectedMatch._id]: { ...p[selectedMatch._id], roomPassword: e.target.value } }))}
-                      style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #bae6fd", boxSizing: "border-box", fontSize: 13 }} />
+                    <div
+                      style={{
+                        fontSize: 11,
+                        marginBottom: 4,
+                        color: "#6b7280",
+                      }}
+                    >
+                      Password
+                    </div>
+                    <input
+                      placeholder="Room Password"
+                      defaultValue={selectedMatch.roomPassword || ""}
+                      onChange={(e) =>
+                        setRoomData((p) => ({
+                          ...p,
+                          [selectedMatch._id]: {
+                            ...p[selectedMatch._id],
+                            roomPassword: e.target.value,
+                          },
+                        }))
+                      }
+                      style={{
+                        width: "100%",
+                        padding: 9,
+                        borderRadius: 6,
+                        border: "1px solid #bae6fd",
+                        boxSizing: "border-box",
+                        fontSize: 13,
+                      }}
+                    />
                   </div>
                 </div>
-                <button onClick={() => updateRoom(selectedMatch._id)}
-                  style={{ width: "100%", padding: 9, background: "#0284c7", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                <button
+                  onClick={() => updateRoom(selectedMatch._id)}
+                  style={{
+                    width: "100%",
+                    padding: 9,
+                    background: "#0284c7",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
                   Update Room Details
                 </button>
-                {message[selectedMatch._id] && <p style={{ marginTop: 6, color: "#0369a1", fontWeight: 600, fontSize: 12 }}>{message[selectedMatch._id]}</p>}
+                {message[selectedMatch._id] && (
+                  <p
+                    style={{
+                      marginTop: 6,
+                      color: "#0369a1",
+                      fontWeight: 600,
+                      fontSize: 12,
+                    }}
+                  >
+                    {message[selectedMatch._id]}
+                  </p>
+                )}
               </div>
 
               {/* ══ TEAM MATCH UI ══ */}
               {isTeamMatch && (
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+                  <div
+                    style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}
+                  >
                     🏆 Team Match Result — {mode.label}
                   </div>
 
                   {/* Prize Info */}
-                  <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>💰 Prize Pool</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#92400e" }}>৳{teamPool}</div>
-                    <div style={{ fontSize: 12, color: "#a16207", marginTop: 4 }}>
-                      Team Size: {mode.teamSize} জন · Winner team এর সবাই পাবে: ৳{prizeEach} each
+                  <div
+                    style={{
+                      background: "#fefce8",
+                      border: "1px solid #fde68a",
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#92400e",
+                        marginBottom: 4,
+                      }}
+                    >
+                      💰 Prize Pool
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: "#92400e",
+                      }}
+                    >
+                      ৳{teamPool}
+                    </div>
+                    <div
+                      style={{ fontSize: 12, color: "#a16207", marginTop: 4 }}
+                    >
+                      Team Size: {mode.teamSize} জন · Winner team এর সবাই পাবে:
+                      ৳{prizeEach} each
                     </div>
                   </div>
 
                   {/* Team A / Team B players */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 12,
+                      marginBottom: 16,
+                    }}
+                  >
                     {["A", "B"].map((team) => {
-                      const teamPlayers = players.filter((p) => (p.team || "A") === team);
+                      const teamPlayers = players.filter(
+                        (p) => (p.team || "A") === team,
+                      );
                       const isWinner = winnerTeam === team;
                       return (
-                        <div key={team} style={{
-                          borderRadius: 10, padding: 12, border: `2px solid ${isWinner ? "#22c55e" : "#e5e7eb"}`,
-                          background: isWinner ? "#f0fdf4" : "#f9fafb",
-                        }}>
-                          <div style={{ fontWeight: 700, fontSize: 13, color: isWinner ? "#16a34a" : "#374151", marginBottom: 8 }}>
+                        <div
+                          key={team}
+                          style={{
+                            borderRadius: 10,
+                            padding: 12,
+                            border: `2px solid ${isWinner ? "#22c55e" : "#e5e7eb"}`,
+                            background: isWinner ? "#f0fdf4" : "#f9fafb",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 13,
+                              color: isWinner ? "#16a34a" : "#374151",
+                              marginBottom: 8,
+                            }}
+                          >
                             {isWinner ? "✅ " : ""}Team {team}
-                            <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>
+                            <span
+                              style={{
+                                fontWeight: 400,
+                                fontSize: 11,
+                                color: "#9ca3af",
+                                marginLeft: 6,
+                              }}
+                            >
                               ({teamPlayers.length} জন)
                             </span>
                           </div>
                           {teamPlayers.length === 0 ? (
-                            <div style={{ fontSize: 11, color: "#d1d5db" }}>কেউ join করেনি</div>
+                            <div style={{ fontSize: 11, color: "#d1d5db" }}>
+                              কেউ join করেনি
+                            </div>
                           ) : (
                             teamPlayers.map((p, i) => (
-                              <div key={i} style={{ fontSize: 12, padding: "3px 0", borderBottom: "1px solid #f3f4f6", color: "#374151" }}>
-                                {p.inGameName || p.gameName || `Slot #${p.slotNumber}`}
+                              <div
+                                key={i}
+                                style={{
+                                  fontSize: 12,
+                                  padding: "3px 0",
+                                  borderBottom: "1px solid #f3f4f6",
+                                  color: "#374151",
+                                }}
+                              >
+                                {p.inGameName ||
+                                  p.gameName ||
+                                  `Slot #${p.slotNumber}`}
                               </div>
                             ))
                           )}
                           {isWinner && teamPlayers.length > 0 && (
-                            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#16a34a" }}>
+                            <div
+                              style={{
+                                marginTop: 8,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "#16a34a",
+                              }}
+                            >
                               প্রতিজন পাবে: ৳{prizeEach}
                             </div>
                           )}
@@ -798,16 +2152,34 @@ const MatchResults = () => {
 
                   {/* Winner Team Select */}
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#374151" }}>Winner Team Select করুন:</div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        marginBottom: 8,
+                        color: "#374151",
+                      }}
+                    >
+                      Winner Team Select করুন:
+                    </div>
                     <div style={{ display: "flex", gap: 10 }}>
                       {["A", "B"].map((team) => (
-                        <button key={team} onClick={() => setWinnerTeam(team)}
+                        <button
+                          key={team}
+                          onClick={() => setWinnerTeam(team)}
                           style={{
-                            flex: 1, padding: "14px 0", borderRadius: 10, border: "none",
-                            background: winnerTeam === team ? "#22c55e" : "#f3f4f6",
+                            flex: 1,
+                            padding: "14px 0",
+                            borderRadius: 10,
+                            border: "none",
+                            background:
+                              winnerTeam === team ? "#22c55e" : "#f3f4f6",
                             color: winnerTeam === team ? "#fff" : "#374151",
-                            fontWeight: 700, fontSize: 16, cursor: "pointer",
-                          }}>
+                            fontWeight: 700,
+                            fontSize: 16,
+                            cursor: "pointer",
+                          }}
+                        >
                           🏆 Team {team} {winnerTeam === team ? "✅" : ""}
                         </button>
                       ))}
@@ -815,21 +2187,56 @@ const MatchResults = () => {
                   </div>
 
                   {/* Prize Summary */}
-                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 14, marginBottom: 14 }}>
-                    <div style={{ fontWeight: 700, color: "#15803d", fontSize: 13, marginBottom: 4 }}>Prize Summary</div>
+                  <div
+                    style={{
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        color: "#15803d",
+                        fontSize: 13,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Prize Summary
+                    </div>
                     <div style={{ fontSize: 13, color: "#374151" }}>
-                      Team {winnerTeam} এর {winnerCount} জন × ৳{prizeEach} = ৳{prizeEach * winnerCount}
+                      Team {winnerTeam} এর {winnerCount} জন × ৳{prizeEach} = ৳
+                      {prizeEach * winnerCount}
                     </div>
                     {teamPool !== prizeEach * winnerCount && (
-                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 3 }}>
+                      <div
+                        style={{ fontSize: 11, color: "#9ca3af", marginTop: 3 }}
+                      >
                         (Prize pool ৳{teamPool} — {winnerCount} জনের মধ্যে ভাগ)
                       </div>
                     )}
                   </div>
 
-                  <button onClick={submitTeamResult} disabled={loading || !winnerTeam}
-                    style={{ width: "100%", padding: 14, background: loading ? "#9ca3af" : "#22c55e", color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
-                    {loading ? "Submitting..." : `✅ Team ${winnerTeam} Winner — Submit করুন`}
+                  <button
+                    onClick={submitTeamResult}
+                    disabled={loading || !winnerTeam}
+                    style={{
+                      width: "100%",
+                      padding: 14,
+                      background: loading ? "#9ca3af" : "#22c55e",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 12,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor: loading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {loading
+                      ? "Submitting..."
+                      : `✅ Team ${winnerTeam} Winner — Submit করুন`}
                   </button>
                 </div>
               )}
@@ -838,24 +2245,69 @@ const MatchResults = () => {
               {!isTeamMatch && (
                 <div>
                   {/* Prize Info */}
-                  <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12, fontWeight: 600 }}>
+                  <div
+                    style={{
+                      background: "#fffbeb",
+                      border: "1px solid #fde68a",
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 16,
+                      display: "flex",
+                      gap: 16,
+                      flexWrap: "wrap",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
                     <span>🥇 1st: ৳{selectedMatch.prizes?.first || 0}</span>
                     <span>🥈 2nd: ৳{selectedMatch.prizes?.second || 0}</span>
                     <span>🥉 3rd: ৳{selectedMatch.prizes?.third || 0}</span>
                     <span>4️⃣ 4th: ৳{selectedMatch.prizes?.fourth || 0}</span>
                     <span>🔫 Per Kill: ৳{selectedMatch.perKill || 0}</span>
-                    {prizePool > 0 && <span style={{ color: "#7c3aed", marginLeft: "auto" }}>Prize Pool: ৳{prizePool}</span>}
+                    {prizePool > 0 && (
+                      <span style={{ color: "#7c3aed", marginLeft: "auto" }}>
+                        Prize Pool: ৳{prizePool}
+                      </span>
+                    )}
                   </div>
 
                   {/* Joined Players */}
                   {players.length > 0 && (
-                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                      <div style={{ fontWeight: 700, color: "#15803d", marginBottom: 8, fontSize: 12 }}>
+                    <div
+                      style={{
+                        background: "#f0fdf4",
+                        border: "1px solid #bbf7d0",
+                        borderRadius: 10,
+                        padding: 12,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          color: "#15803d",
+                          marginBottom: 8,
+                          fontSize: 12,
+                        }}
+                      >
                         📋 Joined Players ({players.length} জন)
                       </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <div
+                        style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
+                      >
                         {players.map((p, i) => (
-                          <span key={i} style={{ background: "#fff", border: "1px solid #86efac", borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 600, color: "#166534" }}>
+                          <span
+                            key={i}
+                            style={{
+                              background: "#fff",
+                              border: "1px solid #86efac",
+                              borderRadius: 6,
+                              padding: "3px 8px",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: "#166534",
+                            }}
+                          >
                             {p.inGameName || `Slot #${p.slotNumber}`}
                           </span>
                         ))}
@@ -864,60 +2316,229 @@ const MatchResults = () => {
                   )}
 
                   {/* Player Results */}
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🎮 Player Results</div>
+                  <div
+                    style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}
+                  >
+                    🎮 Player Results
+                  </div>
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                    <button onClick={addAllPlayers} disabled={players.length === 0 || results.length === players.length}
-                      style={{ padding: "9px 16px", background: "#8b5cf6", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13, opacity: players.length === 0 ? 0.5 : 1 }}>
+                    <button
+                      onClick={addAllPlayers}
+                      disabled={
+                        players.length === 0 ||
+                        results.length === players.length
+                      }
+                      style={{
+                        padding: "9px 16px",
+                        background: "#8b5cf6",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        opacity: players.length === 0 ? 0.5 : 1,
+                      }}
+                    >
                       ⚡ Add All {players.length} Players
                     </button>
-                    <button onClick={addPlayerResult}
-                      style={{ padding: "9px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+                    <button
+                      onClick={addPlayerResult}
+                      style={{
+                        padding: "9px 16px",
+                        background: "#3b82f6",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: 13,
+                      }}
+                    >
                       + Add Player
                     </button>
                   </div>
 
                   {results.map((res, index) => (
-                    <div key={index} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, marginBottom: 8 }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "2fr 110px 90px 100px 40px", gap: 8, alignItems: "center" }}>
+                    <div
+                      key={index}
+                      style={{
+                        background: "#f9fafb",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 10,
+                        padding: 12,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "2fr 110px 90px 100px 40px",
+                          gap: 8,
+                          alignItems: "center",
+                        }}
+                      >
                         <div>
-                          <select value={res.userId} onChange={(e) => handlePlayerSelect(index, e.target.value)}
-                            style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}>
+                          <select
+                            value={res.userId}
+                            onChange={(e) =>
+                              handlePlayerSelect(index, e.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              padding: 9,
+                              borderRadius: 6,
+                              border: "1px solid #d1d5db",
+                              fontSize: 12,
+                            }}
+                          >
                             <option value="">-- Select --</option>
                             {players.map((p) => (
-                              <option key={p.userId} value={p.userId} disabled={isAlreadyAdded(p.userId, index)}>
+                              <option
+                                key={p.userId}
+                                value={p.userId}
+                                disabled={isAlreadyAdded(p.userId, index)}
+                              >
                                 {p.inGameName || `Slot #${p.slotNumber}`}
                               </option>
                             ))}
                           </select>
-                          {res.inGameName && <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600, marginTop: 3 }}>✅ {res.inGameName}</div>}
+                          {res.inGameName && (
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "#16a34a",
+                                fontWeight: 600,
+                                marginTop: 3,
+                              }}
+                            >
+                              ✅ {res.inGameName}
+                            </div>
+                          )}
                         </div>
-                        <select value={res.position} onChange={(e) => handleResultChange(index, "position", e.target.value)}
-                          style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}>
+                        <select
+                          value={res.position}
+                          onChange={(e) =>
+                            handleResultChange(
+                              index,
+                              "position",
+                              e.target.value,
+                            )
+                          }
+                          style={{
+                            width: "100%",
+                            padding: 9,
+                            borderRadius: 6,
+                            border: "1px solid #d1d5db",
+                            fontSize: 12,
+                          }}
+                        >
                           <option value="">Pos</option>
-                          {Array.from({ length: 48 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+                          {Array.from({ length: 48 }, (_, i) => i + 1).map(
+                            (n) => (
+                              <option key={n} value={n}>
+                                {n}
+                              </option>
+                            ),
+                          )}
                         </select>
-                        <input type="number" min="0" value={res.kills}
-                          onChange={(e) => handleResultChange(index, "kills", parseInt(e.target.value) || 0)}
-                          style={{ width: "100%", padding: 9, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
-                          placeholder="Kills" />
-                        <div style={{ textAlign: "center", fontWeight: 700, fontSize: 14, color: calculatePrize(res.position, res.kills) > 0 ? "#16a34a" : "#9ca3af" }}>
+                        <input
+                          type="number"
+                          min="0"
+                          value={res.kills}
+                          onChange={(e) =>
+                            handleResultChange(
+                              index,
+                              "kills",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
+                          style={{
+                            width: "100%",
+                            padding: 9,
+                            borderRadius: 6,
+                            border: "1px solid #d1d5db",
+                            fontSize: 12,
+                          }}
+                          placeholder="Kills"
+                        />
+                        <div
+                          style={{
+                            textAlign: "center",
+                            fontWeight: 700,
+                            fontSize: 14,
+                            color:
+                              calculatePrize(res.position, res.kills) > 0
+                                ? "#16a34a"
+                                : "#9ca3af",
+                          }}
+                        >
                           ৳{calculatePrize(res.position, res.kills)}
                         </div>
-                        <button onClick={() => removePlayer(index)}
-                          style={{ background: "#fee2e2", border: "none", borderRadius: 6, color: "#dc2626", fontWeight: 700, padding: "7px 10px", cursor: "pointer", fontSize: 13 }}>✕</button>
+                        <button
+                          onClick={() => removePlayer(index)}
+                          style={{
+                            background: "#fee2e2",
+                            border: "none",
+                            borderRadius: 6,
+                            color: "#dc2626",
+                            fontWeight: 700,
+                            padding: "7px 10px",
+                            cursor: "pointer",
+                            fontSize: 13,
+                          }}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </div>
                   ))}
 
                   {/* Total Prize + Prize Pool Check */}
                   {results.length > 0 && (
-                    <div style={{ borderRadius: 10, padding: 14, marginTop: 8, background: isOverBudget ? "#fef2f2" : "#f0fdf4", border: `1px solid ${isOverBudget ? "#fecaca" : "#bbf7d0"}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontWeight: 600, color: isOverBudget ? "#b91c1c" : "#15803d", fontSize: 13 }}>Total Prize Distribution</span>
-                        <span style={{ fontWeight: 800, fontSize: 20, color: isOverBudget ? "#b91c1c" : "#15803d" }}>৳{totalSoloPrize}</span>
+                    <div
+                      style={{
+                        borderRadius: 10,
+                        padding: 14,
+                        marginTop: 8,
+                        background: isOverBudget ? "#fef2f2" : "#f0fdf4",
+                        border: `1px solid ${isOverBudget ? "#fecaca" : "#bbf7d0"}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: isOverBudget ? "#b91c1c" : "#15803d",
+                            fontSize: 13,
+                          }}
+                        >
+                          Total Prize Distribution
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            fontSize: 20,
+                            color: isOverBudget ? "#b91c1c" : "#15803d",
+                          }}
+                        >
+                          ৳{totalSoloPrize}
+                        </span>
                       </div>
                       {prizePool > 0 && (
-                        <div style={{ marginTop: 6, fontSize: 12, color: isOverBudget ? "#b91c1c" : "#6b7280" }}>
+                        <div
+                          style={{
+                            marginTop: 6,
+                            fontSize: 12,
+                            color: isOverBudget ? "#b91c1c" : "#6b7280",
+                          }}
+                        >
                           {isOverBudget
                             ? `⚠️ Prize Pool ৳${prizePool} — বেশি হয়ে গেছে ৳${totalSoloPrize - prizePool}!`
                             : `✅ Prize Pool ৳${prizePool} — বাকি আছে ৳${prizePool - totalSoloPrize}`}
@@ -926,9 +2547,29 @@ const MatchResults = () => {
                     </div>
                   )}
 
-                  <button onClick={submitSoloResult} disabled={loading || results.length === 0}
-                    style={{ marginTop: 14, width: "100%", padding: 14, background: loading ? "#9ca3af" : isOverBudget ? "#dc2626" : "#22c55e", color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
-                    {loading ? "Submitting..." : `✅ Submit Result (${results.length} players)`}
+                  <button
+                    onClick={submitSoloResult}
+                    disabled={loading || results.length === 0}
+                    style={{
+                      marginTop: 14,
+                      width: "100%",
+                      padding: 14,
+                      background: loading
+                        ? "#9ca3af"
+                        : isOverBudget
+                          ? "#dc2626"
+                          : "#22c55e",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 12,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor: loading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {loading
+                      ? "Submitting..."
+                      : `✅ Submit Result (${results.length} players)`}
                   </button>
                 </div>
               )}
@@ -942,62 +2583,292 @@ const MatchResults = () => {
 // ══════════════════════════════════════════════════════════════════════════════
 const PaymentNumbers = () => {
   const [list, setList] = useState([]);
-  const [form, setForm] = useState({ method: "bkash", number: "", limit: "", active: true });
+  const [form, setForm] = useState({
+    method: "bkash",
+    number: "",
+    limit: "",
+    active: true,
+  });
   const [msg, setMsg] = useState("");
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
 
-  const load = useCallback(() => { api("/admin/payment-numbers").then((d) => { setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
-  useEffect(() => { load(); }, [load]);
+  const load = useCallback(() => {
+    api("/admin/payment-numbers")
+      .then((d) => {
+        setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const save = async () => {
-    if (!form.number) { setMsg("❌ নম্বর দিন"); return; }
-    const d = await api("/admin/payment-numbers", { method: "POST", body: JSON.stringify({ ...form, limit: form.limit ? Number(form.limit) : undefined }) });
+    if (!form.number) {
+      setMsg("❌ নম্বর দিন");
+      return;
+    }
+    const d = await api("/admin/payment-numbers", {
+      method: "POST",
+      body: JSON.stringify({
+        ...form,
+        limit: form.limit ? Number(form.limit) : undefined,
+      }),
+    });
     setMsg(d.success ? "✅ সংরক্ষিত!" : "❌ " + (d.message || "Failed"));
-    if (d.success) { setForm({ method: "bkash", number: "", limit: "", active: true }); load(); setTimeout(() => setMsg(""), 3000); }
+    if (d.success) {
+      setForm({ method: "bkash", number: "", limit: "", active: true });
+      load();
+      setTimeout(() => setMsg(""), 3000);
+    }
   };
 
-  const toggle = async (id, active) => { await api(`/admin/payment-numbers/${id}`, { method: "PUT", body: JSON.stringify({ active: !active }) }); load(); };
-  const remove = async (id) => { if (!window.confirm("মুছে ফেলবেন?")) return; await api(`/admin/payment-numbers/${id}`, { method: "DELETE" }); load(); };
-  const startEdit = (n) => { setEditId(n._id); setEditForm({ method: n.method, number: n.number, limit: n.limit || "", active: n.active }); };
-  const saveEdit = async () => { await api(`/admin/payment-numbers/${editId}`, { method: "PUT", body: JSON.stringify({ ...editForm, limit: editForm.limit ? Number(editForm.limit) : undefined }) }); setEditId(null); load(); };
+  const toggle = async (id, active) => {
+    await api(`/admin/payment-numbers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ active: !active }),
+    });
+    load();
+  };
+  const remove = async (id) => {
+    if (!window.confirm("মুছে ফেলবেন?")) return;
+    await api(`/admin/payment-numbers/${id}`, { method: "DELETE" });
+    load();
+  };
+  const startEdit = (n) => {
+    setEditId(n._id);
+    setEditForm({
+      method: n.method,
+      number: n.number,
+      limit: n.limit || "",
+      active: n.active,
+    });
+  };
+  const saveEdit = async () => {
+    await api(`/admin/payment-numbers/${editId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        ...editForm,
+        limit: editForm.limit ? Number(editForm.limit) : undefined,
+      }),
+    });
+    setEditId(null);
+    load();
+  };
 
-  const inp = { width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" };
+  const inp = {
+    width: "100%",
+    padding: "9px 12px",
+    border: "1px solid #e5e7eb",
+    borderRadius: 8,
+    fontSize: 13,
+    outline: "none",
+    boxSizing: "border-box",
+  };
 
   return (
-    <div style={{ padding: 24, display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, alignItems: "start" }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>💳 নতুন নম্বর যোগ করুন</div>
+    <div
+      style={{
+        padding: 24,
+        display: "grid",
+        gridTemplateColumns: "320px 1fr",
+        gap: 16,
+        alignItems: "start",
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
+          💳 নতুন নম্বর যোগ করুন
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <select style={inp} value={form.method} onChange={(e) => setForm((p) => ({ ...p, method: e.target.value }))}><option value="bkash">bKash</option><option value="nagad">Nagad</option><option value="rocket">Rocket</option></select>
-          <input style={inp} placeholder="01XXXXXXXXX" value={form.number} onChange={(e) => setForm((p) => ({ ...p, number: e.target.value }))} />
-          <input style={inp} placeholder="লিমিট (ঐচ্ছিক)" value={form.limit} onChange={(e) => setForm((p) => ({ ...p, limit: e.target.value }))} />
-          {msg && <div style={{ fontSize: 12, padding: "7px 10px", borderRadius: 6, background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2", color: msg.startsWith("✅") ? "#065f46" : "#dc2626" }}>{msg}</div>}
-          <button onClick={save} style={{ padding: "10px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>💾 Save</button>
+          <select
+            style={inp}
+            value={form.method}
+            onChange={(e) => setForm((p) => ({ ...p, method: e.target.value }))}
+          >
+            <option value="bkash">bKash</option>
+            <option value="nagad">Nagad</option>
+            <option value="rocket">Rocket</option>
+          </select>
+          <input
+            style={inp}
+            placeholder="01XXXXXXXXX"
+            value={form.number}
+            onChange={(e) => setForm((p) => ({ ...p, number: e.target.value }))}
+          />
+          <input
+            style={inp}
+            placeholder="লিমিট (ঐচ্ছিক)"
+            value={form.limit}
+            onChange={(e) => setForm((p) => ({ ...p, limit: e.target.value }))}
+          />
+          {msg && (
+            <div
+              style={{
+                fontSize: 12,
+                padding: "7px 10px",
+                borderRadius: 6,
+                background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2",
+                color: msg.startsWith("✅") ? "#065f46" : "#dc2626",
+              }}
+            >
+              {msg}
+            </div>
+          )}
+          <button
+            onClick={save}
+            style={{
+              padding: "10px",
+              background: "#111827",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            💾 Save
+          </button>
         </div>
       </div>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>সব নম্বর ({list.length})</div>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
+          সব নম্বর ({list.length})
+        </div>
         {list.map((n) => (
-          <div key={n._id} style={{ border: "1px solid #f3f4f6", borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}>
+          <div
+            key={n._id}
+            style={{
+              border: "1px solid #f3f4f6",
+              borderRadius: 10,
+              padding: "12px 14px",
+              marginBottom: 8,
+            }}
+          >
             {editId === n._id ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <select value={editForm.method} onChange={(e) => setEditForm((p) => ({ ...p, method: e.target.value }))} style={inp}><option value="bkash">bKash</option><option value="nagad">Nagad</option><option value="rocket">Rocket</option></select>
-                <input style={inp} value={editForm.number} onChange={(e) => setEditForm((p) => ({ ...p, number: e.target.value }))} />
+                <select
+                  value={editForm.method}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, method: e.target.value }))
+                  }
+                  style={inp}
+                >
+                  <option value="bkash">bKash</option>
+                  <option value="nagad">Nagad</option>
+                  <option value="rocket">Rocket</option>
+                </select>
+                <input
+                  style={inp}
+                  value={editForm.number}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, number: e.target.value }))
+                  }
+                />
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={saveEdit} style={{ flex: 1, padding: "7px", background: "#059669", color: "#fff", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Save</button>
-                  <button onClick={() => setEditId(null)} style={{ flex: 1, padding: "7px", background: "#f3f4f6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>বাতিল</button>
+                  <button
+                    onClick={saveEdit}
+                    style={{
+                      flex: 1,
+                      padding: "7px",
+                      background: "#059669",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 7,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✅ Save
+                  </button>
+                  <button
+                    onClick={() => setEditId(null)}
+                    style={{
+                      flex: 1,
+                      padding: "7px",
+                      background: "#f3f4f6",
+                      color: "#374151",
+                      border: "none",
+                      borderRadius: 7,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    বাতিল
+                  </button>
                 </div>
               </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{n.number}</div>
-                  <div style={{ fontSize: 11, color: "#6b7280" }}>{n.method} • {n.active ? "Active" : "Off"}</div>
+                  <div
+                    style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}
+                  >
+                    {n.number}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>
+                    {n.method} • {n.active ? "Active" : "Off"}
+                  </div>
                 </div>
-                <button onClick={() => toggle(n._id, n.active)} style={{ fontSize: 11, padding: "4px 9px", border: "none", borderRadius: 6, cursor: "pointer", background: n.active ? "#fef3c7" : "#d1fae5", color: n.active ? "#92400e" : "#065f46" }}>{n.active ? "বন্ধ" : "চালু"}</button>
-                <button onClick={() => startEdit(n)} style={{ fontSize: 11, padding: "4px 9px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: 6, cursor: "pointer" }}>✏️</button>
-                <button onClick={() => remove(n._id)} style={{ fontSize: 11, padding: "4px 9px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: 6, cursor: "pointer" }}>🗑</button>
+                <button
+                  onClick={() => toggle(n._id, n.active)}
+                  style={{
+                    fontSize: 11,
+                    padding: "4px 9px",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    background: n.active ? "#fef3c7" : "#d1fae5",
+                    color: n.active ? "#92400e" : "#065f46",
+                  }}
+                >
+                  {n.active ? "বন্ধ" : "চালু"}
+                </button>
+                <button
+                  onClick={() => startEdit(n)}
+                  style={{
+                    fontSize: 11,
+                    padding: "4px 9px",
+                    background: "#dbeafe",
+                    color: "#1e40af",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => remove(n._id)}
+                  style={{
+                    fontSize: 11,
+                    padding: "4px 9px",
+                    background: "#fee2e2",
+                    color: "#991b1b",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  🗑
+                </button>
               </div>
             )}
           </div>
@@ -1009,20 +2880,71 @@ const PaymentNumbers = () => {
 
 const ActivityLog = () => {
   const [logs, setLogs] = useState([]);
-  useEffect(() => { api("/admin/logs").then((d) => { setLogs(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
-  const colorMap = { approve: "green", reject: "red", create: "blue", ban: "amber", login: "gray" };
+  useEffect(() => {
+    api("/admin/logs")
+      .then((d) => {
+        setLogs(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
+  }, []);
+  const colorMap = {
+    approve: "green",
+    reject: "red",
+    create: "blue",
+    ban: "amber",
+    login: "gray",
+  };
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Admin activity log</div>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>
+          Admin activity log
+        </div>
         {logs.map((l, i) => (
-          <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", borderBottom: "1px solid #f3f4f6" }}>
-            <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{(l.adminName || "A").charAt(0)}</div>
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              padding: "9px 0",
+              borderBottom: "1px solid #f3f4f6",
+            }}
+          >
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                background: "#f3f4f6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 11,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {(l.adminName || "A").charAt(0)}
+            </div>
             <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{l.adminName} </span>
-              <span style={{ fontSize: 12, color: "#6b7280" }}>{l.action} </span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>
+                {l.adminName}{" "}
+              </span>
+              <span style={{ fontSize: 12, color: "#6b7280" }}>
+                {l.action}{" "}
+              </span>
               <span style={{ fontSize: 12, fontWeight: 500 }}>{l.target}</span>
-              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{timeAgo(l.createdAt)}</div>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                {timeAgo(l.createdAt)}
+              </div>
             </div>
             <Badge color={colorMap[l.type] || "gray"}>{l.type}</Badge>
           </div>
@@ -1034,42 +2956,178 @@ const ActivityLog = () => {
 
 const ManageAdmins = () => {
   const [admins, setAdmins] = useState([]);
-  const [form, setForm] = useState({ name: "", phone: "", password: "", role: "admin" });
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    password: "",
+    role: "admin",
+  });
   const [msg, setMsg] = useState("");
-  useEffect(() => { api("/admin/admins").then((d) => { setAdmins(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []); }).catch(() => {}); }, []);
+  useEffect(() => {
+    api("/admin/admins")
+      .then((d) => {
+        setAdmins(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
+  }, []);
   const create = async () => {
-    const d = await api("/admin/admins/create", { method: "POST", body: JSON.stringify(form) });
+    const d = await api("/admin/admins/create", {
+      method: "POST",
+      body: JSON.stringify(form),
+    });
     setMsg(d.success ? "✅ Admin created!" : "❌ " + (d.message || "Failed"));
-    if (d.success) { setForm({ name: "", phone: "", password: "", role: "admin" }); if (d.admin) setAdmins((p) => [...p, d.admin]); }
+    if (d.success) {
+      setForm({ name: "", phone: "", password: "", role: "admin" });
+      if (d.admin) setAdmins((p) => [...p, d.admin]);
+    }
   };
-  const inp = { width: "100%", padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" };
+  const inp = {
+    width: "100%",
+    padding: "9px 12px",
+    border: "1px solid #e5e7eb",
+    borderRadius: 8,
+    fontSize: 13,
+    outline: "none",
+    boxSizing: "border-box",
+  };
   return (
-    <div style={{ padding: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Add new admin</div>
+    <div
+      style={{
+        padding: 24,
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 16,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>
+          Add new admin
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <input style={inp} placeholder="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-          <input style={inp} placeholder="Phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
-          <input style={inp} placeholder="Password" type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
-          <select style={inp} value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
+          <input
+            style={inp}
+            placeholder="Name"
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+          />
+          <input
+            style={inp}
+            placeholder="Phone"
+            value={form.phone}
+            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+          />
+          <input
+            style={inp}
+            placeholder="Password"
+            type="password"
+            value={form.password}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, password: e.target.value }))
+            }
+          />
+          <select
+            style={inp}
+            value={form.role}
+            onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+          >
             <option value="admin">Admin</option>
             <option value="super-admin">Super Admin</option>
             <option value="finance">Finance</option>
           </select>
-          {msg && <div style={{ fontSize: 12, padding: "7px 10px", borderRadius: 6, background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2", color: msg.startsWith("✅") ? "#065f46" : "#dc2626" }}>{msg}</div>}
-          <button onClick={create} style={{ padding: "10px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>➕ Create Admin</button>
+          {msg && (
+            <div
+              style={{
+                fontSize: 12,
+                padding: "7px 10px",
+                borderRadius: 6,
+                background: msg.startsWith("✅") ? "#d1fae5" : "#fee2e2",
+                color: msg.startsWith("✅") ? "#065f46" : "#dc2626",
+              }}
+            >
+              {msg}
+            </div>
+          )}
+          <button
+            onClick={create}
+            style={{
+              padding: "10px",
+              background: "#111827",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            ➕ Create Admin
+          </button>
         </div>
       </div>
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Admins ({admins.length})</div>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>
+          Admins ({admins.length})
+        </div>
         {admins.map((a) => (
-          <div key={a._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid #f3f4f6" }}>
-            <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#1e40af" }}>{(a.name || a.phone || "A").charAt(0).toUpperCase()}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name || a.phone}</div>
-              <div style={{ fontSize: 11, color: "#6b7280" }}>{a.phone} · {a.role}</div>
+          <div
+            key={a._id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "9px 0",
+              borderBottom: "1px solid #f3f4f6",
+            }}
+          >
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                background: "#dbeafe",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#1e40af",
+              }}
+            >
+              {(a.name || a.phone || "A").charAt(0).toUpperCase()}
             </div>
-            <Badge color={a.role === "super-admin" ? "blue" : a.role === "finance" ? "green" : "gray"}>{a.role}</Badge>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>
+                {a.name || a.phone}
+              </div>
+              <div style={{ fontSize: 11, color: "#6b7280" }}>
+                {a.phone} · {a.role}
+              </div>
+            </div>
+            <Badge
+              color={
+                a.role === "super-admin"
+                  ? "blue"
+                  : a.role === "finance"
+                    ? "green"
+                    : "gray"
+              }
+            >
+              {a.role}
+            </Badge>
           </div>
         ))}
       </div>
@@ -1083,33 +3141,126 @@ const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
-    setLoading(true); setErr("");
+    setLoading(true);
+    setErr("");
     try {
-      const res = await fetch(`${API}/admin/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const res = await fetch(`${API}/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
       const d = await res.json();
       if (d.success && d.token) {
         localStorage.setItem("adminToken", d.token);
-        const adminData = d.admin || d.user || { name: form.phone || "Admin", role: "admin", phone: form.phone };
+        const adminData = d.admin ||
+          d.user || {
+            name: form.phone || "Admin",
+            role: "admin",
+            phone: form.phone,
+          };
         localStorage.setItem("adminInfo", JSON.stringify(adminData));
         onLogin(adminData);
-      } else { setErr(d.message || "লগইন ব্যর্থ হয়েছে"); }
-    } catch (e) { setErr("সার্ভারে সমস্যা হয়েছে"); }
-    finally { setLoading(false); }
+      } else {
+        setErr(d.message || "লগইন ব্যর্থ হয়েছে");
+      }
+    } catch (e) {
+      setErr("সার্ভারে সমস্যা হয়েছে");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a" }}>
-      <div style={{ width: 340, background: "#1e293b", borderRadius: 16, padding: 28, border: "1px solid #334155" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#0f172a",
+      }}
+    >
+      <div
+        style={{
+          width: 340,
+          background: "#1e293b",
+          borderRadius: 16,
+          padding: 28,
+          border: "1px solid #334155",
+        }}
+      >
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>🎮</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9" }}>Admin Login</div>
-          <div style={{ fontSize: 12, color: "#64748b" }}>Free Fire Tournament</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9" }}>
+            Admin Login
+          </div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            Free Fire Tournament
+          </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <input placeholder="Phone number" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} style={{ padding: "11px 12px", background: "#0f172a", border: "1px solid #334155", borderRadius: 8, color: "#f1f5f9", fontSize: 13, outline: "none" }} />
-          <input placeholder="Password" type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && submit()} style={{ padding: "11px 12px", background: "#0f172a", border: "1px solid #334155", borderRadius: 8, color: "#f1f5f9", fontSize: 13, outline: "none" }} />
-          {err && <div style={{ fontSize: 12, color: "#f87171", background: "#450a0a", padding: "6px 10px", borderRadius: 6 }}>{err}</div>}
-          <button onClick={submit} disabled={loading} style={{ padding: "11px", background: loading ? "#64748b" : "#3b82f6", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", marginTop: 4 }}>{loading ? "Logging in..." : "Login"}</button>
+          <input
+            placeholder="Phone number"
+            value={form.phone}
+            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+            style={{
+              padding: "11px 12px",
+              background: "#0f172a",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              color: "#f1f5f9",
+              fontSize: 13,
+              outline: "none",
+            }}
+          />
+          <input
+            placeholder="Password"
+            type="password"
+            value={form.password}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, password: e.target.value }))
+            }
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            style={{
+              padding: "11px 12px",
+              background: "#0f172a",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              color: "#f1f5f9",
+              fontSize: 13,
+              outline: "none",
+            }}
+          />
+          {err && (
+            <div
+              style={{
+                fontSize: 12,
+                color: "#f87171",
+                background: "#450a0a",
+                padding: "6px 10px",
+                borderRadius: 6,
+              }}
+            >
+              {err}
+            </div>
+          )}
+          <button
+            onClick={submit}
+            disabled={loading}
+            style={{
+              padding: "11px",
+              background: loading ? "#64748b" : "#3b82f6",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: loading ? "not-allowed" : "pointer",
+              marginTop: 4,
+            }}
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
         </div>
       </div>
     </div>
@@ -1122,21 +3273,48 @@ const AdminPanel = () => {
   const [badges, setBadges] = useState({ deposit: 0, withdraw: 0 });
 
   const loadBadges = useCallback(() => {
-    api("/admin/deposits?status=pending").then((d) => { const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []; setBadges((p) => ({ ...p, deposit: arr.length })); }).catch(() => {});
-    api("/withdraw/admin/all?status=pending").then((d) => { const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []; setBadges((p) => ({ ...p, withdraw: arr.length })); }).catch(() => {});
+    api("/admin/deposits?status=pending")
+      .then((d) => {
+        const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+        setBadges((p) => ({ ...p, deposit: arr.length }));
+      })
+      .catch(() => {});
+    api("/withdraw/admin/all?status=pending")
+      .then((d) => {
+        const arr = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : [];
+        setBadges((p) => ({ ...p, withdraw: arr.length }));
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
     const savedAdmin = localStorage.getItem("adminInfo");
     if (token && savedAdmin) {
-      try { const adminData = JSON.parse(savedAdmin); setAdmin(adminData); loadBadges(); }
-      catch (e) { localStorage.removeItem("adminToken"); localStorage.removeItem("adminInfo"); setAdmin(null); }
-    } else { setAdmin(null); }
+      try {
+        const adminData = JSON.parse(savedAdmin);
+        setAdmin(adminData);
+        loadBadges();
+      } catch (e) {
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminInfo");
+        setAdmin(null);
+      }
+    } else {
+      setAdmin(null);
+    }
   }, [loadBadges]);
 
-  const handleLogin = (a) => { setAdmin(a); loadBadges(); };
-  const handleLogout = () => { localStorage.removeItem("adminToken"); localStorage.removeItem("adminInfo"); setAdmin(null); setPage("dashboard"); };
+  const handleLogin = (a) => {
+    setAdmin(a);
+    loadBadges();
+  };
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminInfo");
+    setAdmin(null);
+    setPage("dashboard");
+  };
 
   if (!admin) return <Login onLogin={handleLogin} />;
 
@@ -1144,8 +3322,14 @@ const AdminPanel = () => {
     dashboard: ["Dashboard", "Overview of all activity"],
     "create-match": ["Create match", "Add a new tournament match"],
     "match-results": ["Match results", "Set Room ID/Password & Winner"],
-    "deposit-requests": ["Deposit requests", "Approve or reject incoming deposits"],
-    "withdraw-requests": ["Withdraw requests", "Process user withdrawal requests"],
+    "deposit-requests": [
+      "Deposit requests",
+      "Approve or reject incoming deposits",
+    ],
+    "withdraw-requests": [
+      "Withdraw requests",
+      "Process user withdrawal requests",
+    ],
     "money-overview": ["Money overview", "Full financial summary"],
     "deposit-history": ["Deposit history", "All deposit transactions"],
     "withdraw-history": ["Withdraw history", "All withdrawal transactions"],
@@ -1158,15 +3342,42 @@ const AdminPanel = () => {
   const [title, sub] = titles[page] || ["Admin Panel", ""];
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f9fafb", fontFamily: "'Inter', sans-serif" }}>
-      <Sidebar page={page} setPage={setPage} admin={admin} onLogout={handleLogout} badges={badges} />
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "#f9fafb",
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
+      <Sidebar
+        page={page}
+        setPage={setPage}
+        admin={admin}
+        onLogout={handleLogout}
+        badges={badges}
+      />
       <main style={{ flex: 1, overflowY: "auto" }}>
-        <Topbar title={title} sub={sub} onRefresh={() => window.location.reload()} />
+        <Topbar
+          title={title}
+          sub={sub}
+          onRefresh={() => window.location.reload()}
+        />
         {page === "dashboard" && <Dashboard />}
         {page === "create-match" && <CreateMatch />}
         {page === "match-results" && <MatchResults />}
-        {page === "deposit-requests" && <DepositRequests adminName={admin.name || admin.phone} refresh={loadBadges} />}
-        {page === "withdraw-requests" && <WithdrawRequests adminName={admin.name || admin.phone} refresh={loadBadges} />}
+        {page === "deposit-requests" && (
+          <DepositRequests
+            adminName={admin.name || admin.phone}
+            refresh={loadBadges}
+          />
+        )}
+        {page === "withdraw-requests" && (
+          <WithdrawRequests
+            adminName={admin.name || admin.phone}
+            refresh={loadBadges}
+          />
+        )}
         {page === "money-overview" && <MoneyOverview />}
         {page === "deposit-history" && <History type="deposit" />}
         {page === "withdraw-history" && <History type="withdraw" />}
