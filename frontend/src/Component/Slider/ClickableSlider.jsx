@@ -99,7 +99,7 @@ const ClickableSlider = () => {
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-3xl shadow-2xl bg-black">
+    <div className="relative w-full overflow-hidden rounded-3xl shadow-xl bg-gray-100">
       {/* Slider Track */}
       <div
         className="flex"
@@ -127,6 +127,7 @@ const ClickableSlider = () => {
                 aspectRatio: "16/7",
                 objectFit: "cover",
                 objectPosition: "center",
+                 height: "320px",
               }}
               draggable={false}
               loading={index === 0 ? "eager" : "lazy"}
