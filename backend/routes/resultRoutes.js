@@ -6,18 +6,14 @@ const router = express.Router();
 const Match = require("../models/Match");
 const User = require("../models/User");
 const ResultSubmission = require("../models/ResultSubmission");
-
-const auth = require("../middleware/auth");
+ const { protect } = require("../middleware/auth");
 
 // ════════════════════════════════════════════════════════════════
 // ADMIN CUSTOM WINNER DISTRIBUTION
 // PUT /api/result/admin/distribute/:matchId
 // ════════════════════════════════════════════════════════════════
 
-router.put(
-  "/admin/distribute/:matchId",
-  auth,
-  async (req, res) => {
+ router.put("/admin/distribute/:matchId", protect, async (req, res) => {
     try {
       const userId = req.user.id;
 
