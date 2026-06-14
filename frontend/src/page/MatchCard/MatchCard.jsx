@@ -155,7 +155,7 @@ const ScreenshotUpload = ({ matchId }) => {
     try {
       const res  = await fetch(`${API_BASE}/result/upload/${matchId}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
       const data = await res.json();
-      if (data.success) { setStatus("processing"); setMsg("OCR চলছে... ১০-১৫ সেকেন্ড পরে status দেখুন"); setTimeout(checkResult, 14000); }
+      if (data.success) { setStatus("idle"); setMsg("✅ Submit সফল হয়েছে! Admin review করবে।"); checkResult(); }
       else { setStatus("error"); setMsg(data.message || "Upload হয়নি"); }
     } catch { setStatus("error"); setMsg("Network error"); }
   };
@@ -215,8 +215,7 @@ const ScreenshotUpload = ({ matchId }) => {
         </>
       )}
       {status === "uploading"  && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#6b7280", fontSize: 13 }}><span style={{ display: "inline-block", animation: "spin 0.8s linear infinite", fontSize: 16 }}>⏳</span>Upload হচ্ছে...</div>}
-      {status === "processing" && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#6b7280", fontSize: 13 }}><span style={{ display: "inline-block", animation: "spin 0.8s linear infinite", fontSize: 16 }}>🔍</span>OCR দিয়ে result read হচ্ছে...</div>}
-      {msg && <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#6b7280", marginTop: 6 }}>{msg}</p>}
+      {msg && <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#059669", marginTop: 6 }}>{msg}</p>}
       <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
     </div>
   );
@@ -431,8 +430,8 @@ const MatchCard = ({ match, onJoinSuccess }) => {
           </div>
         </div>
 
-        {/* Screenshot Upload — শুধু joined user দেখবে */}
-        {(match.status === "live" || match.status === "completed") && userId && alreadyJoined && (
+        {/* Screenshot Upload — শুধু joined user দেখবে, match start হয়ে গেলে */}
+        {(isStarted || match.status === "live" || match.status === "completed") && userId && alreadyJoined && (
           <ScreenshotUpload matchId={match._id} />
         )}
 
