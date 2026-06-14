@@ -1,12 +1,12 @@
- import React, { useState, useEffect, useCallback } from 'react';
-import api from '../../utils/api';
+import React, { useState, useEffect, useCallback } from "react";
+import api from "../../utils/api";
 
 const MatchResultSubmit = () => {
-  const [matches, setMatches]             = useState([]);
+  const [matches, setMatches] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [players, setPlayers]             = useState([]);
-  const [results, setResults]             = useState([]);
-  const [loading, setLoading]             = useState(false);
+  const [players, setPlayers] = useState([]);
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const loadMatches = useCallback(() => {
     api("/matches").then((d) => {
@@ -15,7 +15,9 @@ const MatchResultSubmit = () => {
     });
   }, []);
 
-  useEffect(() => { loadMatches(); }, [loadMatches]);
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
 
   const handleMatchSelect = (id) => {
     const match = matches.find((m) => m._id === id);
@@ -33,22 +35,25 @@ const MatchResultSubmit = () => {
   // ✅ সব players একসাথে add
   const addAllPlayers = () => {
     const allResults = players.map((p) => ({
-      userId:     p.userId,
+      userId: p.userId,
       inGameName: p.inGameName,
-      position:   '',
-      kills:      0,
+      position: "",
+      kills: 0,
     }));
     setResults(allResults);
   };
 
   const addPlayerRow = () => {
-    setResults([...results, { userId: '', inGameName: '', position: '', kills: 0 }]);
+    setResults([
+      ...results,
+      { userId: "", inGameName: "", position: "", kills: 0 },
+    ]);
   };
 
   const handlePlayerSelect = (index, userId) => {
     const player = players.find((p) => p.userId === userId);
     const updated = [...results];
-    updated[index].userId     = userId;
+    updated[index].userId = userId;
     updated[index].inGameName = player?.inGameName || "";
     setResults(updated);
   };
@@ -62,9 +67,9 @@ const MatchResultSubmit = () => {
   const calcPrize = (position, kills) => {
     if (!selectedMatch) return 0;
     let prize = (kills || 0) * (selectedMatch.perKill || 0);
-    if      (position == 1) prize += selectedMatch.prizes?.first  || 0;
+    if (position == 1) prize += selectedMatch.prizes?.first || 0;
     else if (position == 2) prize += selectedMatch.prizes?.second || 0;
-    else if (position == 3) prize += selectedMatch.prizes?.third  || 0;
+    else if (position == 3) prize += selectedMatch.prizes?.third || 0;
     else if (position == 4) prize += selectedMatch.prizes?.fourth || 0;
     return Math.floor(prize);
   };
@@ -73,11 +78,46 @@ const MatchResultSubmit = () => {
     results.some((r, i) => i !== currentIndex && r.userId === userId);
 
   const totalPrize = results.reduce(
-    (sum, r) => sum + calcPrize(r.position, r.kills), 0
+    (sum, r) => sum + calcPrize(r.position, r.kills),
+    0,
   );
 
+   const startMatch = async () => {
+  if (!selectedMatch) {
+    return alert("Match select করুন");
+  }
+
+  try {
+    const res = await api(
+      `/matches/live/${selectedMatch._id}`,
+      {
+        method: "PUT",
+      },
+    );
+
+    if (res.success) {
+      alert(res.message);
+
+      // match status instantly update
+      setSelectedMatch({
+        ...selectedMatch,
+        status: "live",
+      });
+
+      // reload matches
+      loadMatches();
+    } else {
+      alert("❌ " + res.message);
+    }
+  } catch (err) {
+    console.error(err);
+
+    alert("Server Error!");
+  }
+};
+
   const submitResult = async () => {
-    if (!selectedMatch)       return alert("Match select করুন");
+    if (!selectedMatch) return alert("Match select করুন");
     if (results.length === 0) return alert("কমপক্ষে একজন player যোগ করুন");
 
     const hasEmpty = results.some((r) => !r.userId);
@@ -101,10 +141,10 @@ const MatchResultSubmit = () => {
         method: "PUT",
         body: JSON.stringify({
           results: results.map((r) => ({
-            userId:     r.userId,
+            userId: r.userId,
             inGameName: r.inGameName,
-            position:   Number(r.position) || 0,
-            kills:      Number(r.kills)    || 0,
+            position: Number(r.position) || 0,
+            kills: Number(r.kills) || 0,
           })),
         }),
       });
@@ -126,7 +166,9 @@ const MatchResultSubmit = () => {
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <h2 className="text-lg font-black text-slate-800 mb-4">🏆 Match Result Submit</h2>
+      <h2 className="text-lg font-black text-slate-800 mb-4">
+        🏆 Match Result Submit
+      </h2>
 
       {/* Match Select */}
       <select
@@ -147,15 +189,24 @@ const MatchResultSubmit = () => {
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 text-xs">
           <p className="font-bold text-orange-700">{selectedMatch.title}</p>
           <p className="text-gray-600 mt-1">
-            Per Kill: ৳{selectedMatch.perKill} &nbsp;|&nbsp;
-            1st: ৳{selectedMatch.prizes?.first} &nbsp;|&nbsp;
-            2nd: ৳{selectedMatch.prizes?.second} &nbsp;|&nbsp;
-            3rd: ৳{selectedMatch.prizes?.third}
+            Per Kill: ৳{selectedMatch.perKill} &nbsp;|&nbsp; 1st: ৳
+            {selectedMatch.prizes?.first} &nbsp;|&nbsp; 2nd: ৳
+            {selectedMatch.prizes?.second} &nbsp;|&nbsp; 3rd: ৳
+            {selectedMatch.prizes?.third}
           </p>
           <p className="text-gray-500 mt-1">
             Joined Players: <strong>{players.length} জন</strong>
           </p>
         </div>
+      )}
+
+      {selectedMatch && selectedMatch.status !== "live" && (
+        <button
+          onClick={startMatch}
+          className="w-full py-3 bg-red-600 text-white rounded-xl font-black text-sm mb-4"
+        >
+          🚀 Start Match
+        </button>
       )}
 
       {/* Joined Players Preview */}
@@ -172,8 +223,7 @@ const MatchResultSubmit = () => {
               >
                 {p.inGameName
                   ? `${p.inGameName} — Slot #${p.slotNumber}`
-                  : `Slot #${p.slotNumber}`
-                }
+                  : `Slot #${p.slotNumber}`}
               </span>
             ))}
           </div>
@@ -183,13 +233,14 @@ const MatchResultSubmit = () => {
       {/* Players Result Input */}
       {selectedMatch && (
         <div className="space-y-3">
-
           {/* Buttons */}
           <div className="flex gap-2">
             {/* ✅ সব players একসাথে */}
             <button
               onClick={addAllPlayers}
-              disabled={players.length === 0 || results.length === players.length}
+              disabled={
+                players.length === 0 || results.length === players.length
+              }
               className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-bold disabled:opacity-40"
             >
               ⚡ Add All {players.length} Players
@@ -207,9 +258,13 @@ const MatchResultSubmit = () => {
           {results.map((r, i) => (
             <div key={i} className="bg-white border rounded-xl p-3 shadow-sm">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold text-gray-500">Player #{i + 1}</span>
+                <span className="text-xs font-bold text-gray-500">
+                  Player #{i + 1}
+                </span>
                 <button
-                  onClick={() => setResults(results.filter((_, idx) => idx !== i))}
+                  onClick={() =>
+                    setResults(results.filter((_, idx) => idx !== i))
+                  }
                   className="text-red-400 text-xs font-bold"
                 >
                   ✕ Remove
@@ -219,7 +274,9 @@ const MatchResultSubmit = () => {
               <div className="grid grid-cols-2 gap-2">
                 {/* Player Dropdown */}
                 <div className="col-span-2">
-                  <label className="text-xs text-gray-500 mb-1 block">Player</label>
+                  <label className="text-xs text-gray-500 mb-1 block">
+                    Player
+                  </label>
                   <select
                     value={r.userId}
                     onChange={(e) => handlePlayerSelect(i, e.target.value)}
@@ -234,8 +291,7 @@ const MatchResultSubmit = () => {
                       >
                         {p.inGameName
                           ? `${p.inGameName} — Slot #${p.slotNumber}`
-                          : `Slot #${p.slotNumber}`
-                        }
+                          : `Slot #${p.slotNumber}`}
                         {isUserAlreadyAdded(p.userId, i) ? " ✓" : ""}
                       </option>
                     ))}
@@ -249,22 +305,30 @@ const MatchResultSubmit = () => {
 
                 {/* Position */}
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Position</label>
+                  <label className="text-xs text-gray-500 mb-1 block">
+                    Position
+                  </label>
                   <select
                     value={r.position}
-                    onChange={(e) => handleChange(i, "position", e.target.value)}
+                    onChange={(e) =>
+                      handleChange(i, "position", e.target.value)
+                    }
                     className="w-full p-2 border rounded-lg text-sm focus:outline-none focus:border-orange-500"
                   >
                     <option value="">Select</option>
                     {Array.from({ length: 48 }, (_, n) => n + 1).map((n) => (
-                      <option key={n} value={n}>{n}</option>
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 {/* Kills */}
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Kills</label>
+                  <label className="text-xs text-gray-500 mb-1 block">
+                    Kills
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -288,8 +352,12 @@ const MatchResultSubmit = () => {
           {/* Total Prize */}
           {results.length > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex justify-between items-center">
-              <span className="text-sm font-bold text-green-700">Total Prize</span>
-              <span className="text-green-700 font-black text-lg">৳{totalPrize}</span>
+              <span className="text-sm font-bold text-green-700">
+                Total Prize
+              </span>
+              <span className="text-green-700 font-black text-lg">
+                ৳{totalPrize}
+              </span>
             </div>
           )}
 
@@ -300,7 +368,9 @@ const MatchResultSubmit = () => {
               disabled={loading}
               className="w-full py-3 bg-green-700 text-white rounded-xl font-black text-sm disabled:opacity-50"
             >
-              {loading ? "Submitting..." : `✅ Result Submit করুন (${results.length} players)`}
+              {loading
+                ? "Submitting..."
+                : `✅ Result Submit করুন (${results.length} players)`}
             </button>
           )}
         </div>
