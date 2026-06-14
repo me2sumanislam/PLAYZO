@@ -9,6 +9,29 @@ const userSchema = new mongoose.Schema(
     password:           { type: String, required: true },
     role:               { type: String, enum: ["user", "admin", "super-admin", "finance"], default: "user" },
     balance:            { type: Number, default: 0 },
+   transactions: [
+  {
+    type: {
+      type: String,
+    },
+
+    amount: {
+      type: Number,
+    },
+
+    matchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Match",
+    },
+
+    matchTitle: String,
+
+    date: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+],
     totalMatchesPlayed: { type: Number, default: 0 },
     totalWins:          { type: Number, default: 0 },
     isBlocked:          { type: Boolean, default: false },
