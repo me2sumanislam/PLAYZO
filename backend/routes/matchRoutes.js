@@ -296,4 +296,56 @@ router.delete("/clear-all", protectAdmin, async (req, res) => {
   }
 });
 
+// START MATCH
+router.put("/live/:id", async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+
+    if (!match) {
+      return res.status(404).json({
+        success: false,
+        message: "Match not found",
+      });
+    }
+
+    // already live
+    if (match.status === "live") {
+      return res.status(400).json({
+        success: false,
+        message: "Match already live",
+      });
+    }
+
+    // completed match check
+    if (match.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Completed match cannot start",
+      });
+    }
+
+    match.status = "live";
+
+    match.startedAt = new Date();
+
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "✅ Match started successfully",
+      match,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+
+
 module.exports = router;
