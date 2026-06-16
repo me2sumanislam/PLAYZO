@@ -16,14 +16,15 @@ const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
 // ─── Prize Logic Config ───────────────────────────────────────────────────────
 // matchLogic:
-//   "solo_kill"   → BR Solo/Duo: position prize + kill × perKill
+//   "solo_kill"   → BR Solo: position prize + kill × perKill
 //   "solo_pos"    → CS Solo / LW Solo: winner position prize only (no kill)
-//   "team_kill"   → BR Duo: position ÷ teamSize + individual kill (special)
-//   "team_only"   → BR Squad, CS Duo, CS Squad, CS 6vs6, LW Duo: winner team ÷ teamSize
+//   "team_only"   → BR Duo, BR Squad, CS Duo, CS Squad, CS 6vs6, LW Duo:
+//                   কোনো kill prize নেই, custom winner select করলে winning
+//                   amount winners-দের মধ্যে সমান ভাগ হয়
 
 const CATEGORY_CONFIG = {
   br_solo:    { matchType: "solo",      teamSize: 1,  logic: "solo_kill",  killPrize: true  },
-  br_duo:     { matchType: "team_kill", teamSize: 2,  logic: "team_kill",  killPrize: true  },
+  br_duo:     { matchType: "team",      teamSize: 2,  logic: "team_only",  killPrize: false },
   br_squad:   { matchType: "team",      teamSize: 4,  logic: "team_only",  killPrize: false },
   cs_solo:    { matchType: "solo",      teamSize: 1,  logic: "solo_pos",   killPrize: false },
   cs_duo:     { matchType: "team",      teamSize: 2,  logic: "team_only",  killPrize: false },
@@ -322,12 +323,12 @@ router.get("/completed-matches", authAdmin, async (req, res) => {
 // BR Solo:      { results: [{userId, inGameName, position, kills}] }
 //               → position prize (individual) + kill × perKill (individual)
 //
-// BR Duo:       { results: [{userId, inGameName, position, kills, team}] }
-//               → position prize ÷ 2 (team) + kill × perKill (individual)
-//
-// BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo:
-//               { results: [], winnerTeam: "A"|"B" }
-//               → winner team floor(prizePool ÷ teamSize)
+// BR Duo / BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo  (logic: "team_only"):
+//               { winnerUserIds: ["<userId1>", "<userId2>", ...], totalPrize: 600 }
+//               → কোনো kill prize নেই। প্রতিটা joined player room-এর ভিতরে
+//                 নিজেরা team বানায়, admin শুধু winner হওয়া player গুলো
+//                 select করে এবং মোট prize amount দেয়, সেটা winnerUserIds
+//                 এর মধ্যে সমান ভাগ হয়।
 //
 // CS Solo / LW Solo:
 //               { results: [{userId, inGameName, position:1}] }
@@ -335,7 +336,7 @@ router.get("/completed-matches", authAdmin, async (req, res) => {
 // ════════════════════════════════════════════════════════════════════════════
 router.put("/matches/:id/result", authAdmin, async (req, res) => {
   try {
-    const { results, winnerTeam } = req.body;
+    const { results, winnerUserIds, totalPrize } = req.body;
     const match = await Match.findById(req.params.id);
     if (!match) return res.json({ success: false, message: "Match not found" });
 
@@ -412,110 +413,36 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
       });
     }
 
-    // ── BR Duo (position ÷ 2 + individual kill) ───────────────────────────────
-    if (cfg.logic === "team_kill") {
-      if (!results || results.length === 0)
-        return res.json({ success: false, message: "results required for BR Duo" });
+    // ── Custom Winner (BR Duo / BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo) ──
+    if (cfg.logic === "team_only") {
+      if (!winnerUserIds || winnerUserIds.length === 0)
+        return res.json({ success: false, message: "কমপক্ষে ১ জন winner select করুন" });
 
-      // Group by team to find team positions
-      const teamMap = {};
-      for (const p of results) {
-        const t = p.team || "A";
-        if (!teamMap[t]) teamMap[t] = { players: [], position: Number(p.position) || 99 };
-        teamMap[t].players.push(p);
-        if (Number(p.position) < teamMap[t].position)
-          teamMap[t].position = Number(p.position);
-      }
+      const prize = Number(totalPrize) || 0;
+      if (prize <= 0)
+        return res.json({ success: false, message: "Prize amount দিন" });
 
-      const finalResults = results.map((p) => {
-        const t   = p.team || "A";
-        const pos = teamMap[t]?.position || 0;
+      const winnerSet  = new Set(winnerUserIds.map((id) => id.toString()));
+      const prizeEach  = Math.floor(prize / winnerSet.size);
 
-        // Position prize ÷ 2 (team এর দুজনে ভাগ)
-        let posPrize = 0;
-        if (pos === 1)      posPrize = Math.floor((match.prizes?.first  || 0) / 2);
-        else if (pos === 2) posPrize = Math.floor((match.prizes?.second || 0) / 2);
-        else if (pos === 3) posPrize = Math.floor((match.prizes?.third  || 0) / 2);
-        else if (pos === 4) posPrize = Math.floor((match.prizes?.fourth || 0) / 2);
-
-        // Kill prize individual
-        const killPrize = (Number(p.kills) || 0) * (match.perKill || 0);
-        const prize     = posPrize + killPrize;
-
+      const finalResults = (match.joinedUsers || []).map((u) => {
+        const uid     = u.userId?._id?.toString() || u.userId?.toString();
+        const isWinner = winnerSet.has(uid);
         return {
-          userId:     p.userId,
-          inGameName: p.inGameName || "",
-          position:   pos,
-          kills:      Number(p.kills) || 0,
-          killPrize,
-          posPrize,
-          prize:      Math.floor(prize),
-          rank:       pos,
-          team:       t,
+          userId:     u.userId?._id || u.userId,
+          inGameName: u.inGameName || u.gameName || "",
+          position:   isWinner ? 1 : 0,
+          kills:      0,
+          killPrize:  0,
+          posPrize:   isWinner ? prizeEach : 0,
+          prize:      isWinner ? prizeEach : 0,
+          rank:       isWinner ? 1 : 0,
         };
       });
 
-      const totalDistributed = finalResults.reduce((s, p) => s + p.prize, 0);
-      const prizePool = (match.prizes?.first || 0) + (match.prizes?.second || 0) +
-                        (match.prizes?.third || 0) + (match.prizes?.fourth || 0);
+      const totalDistributed = prizeEach * winnerSet.size;
 
       match.results     = finalResults;
-      match.status      = "completed";
-      match.completedAt = new Date();
-      match.deleteAt    = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      await match.save();
-
-      for (const player of finalResults) {
-        if (player.userId && player.prize > 0) {
-          await User.findByIdAndUpdate(player.userId, {
-            $inc: { balance: player.prize },
-            $push: {
-              transactions: {
-                type: "match_prize", amount: player.prize,
-                matchId: match._id, matchTitle: match.title, date: new Date(),
-              },
-            },
-          });
-        }
-      }
-
-      log(req.admin.name, `BR Duo result — ৳${totalDistributed} distributed`, match.title, "create");
-
-      return res.json({
-        success: true,
-        message: `✅ BR Duo result submitted! ৳${totalDistributed} distributed.`,
-        totalDistributed,
-        prizePoolExceeded: prizePool > 0 && totalDistributed > prizePool,
-        data: match,
-      });
-    }
-
-    // ── Team Only (BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo) ──────────
-    if (cfg.logic === "team_only") {
-      if (!winnerTeam)
-        return res.json({ success: false, message: "winnerTeam ('A' or 'B') required" });
-
-      const pool          = match.prizePool || match.winPrize || 0;
-      const winnerPlayers = (match.joinedUsers || []).filter((u) => (u.team || "A") === winnerTeam);
-      const actualCount   = winnerPlayers.length || cfg.teamSize;
-      const prizeEach     = Math.floor(pool / actualCount);
-
-      const finalResults = (match.joinedUsers || []).map((u) => ({
-        userId:     u.userId,
-        inGameName: u.inGameName || u.gameName || "",
-        position:   (u.team || "A") === winnerTeam ? 1 : 2,
-        kills:      0,
-        killPrize:  0,
-        posPrize:   (u.team || "A") === winnerTeam ? prizeEach : 0,
-        prize:      (u.team || "A") === winnerTeam ? prizeEach : 0,
-        rank:       (u.team || "A") === winnerTeam ? 1 : 2,
-        team:       u.team || "A",
-      }));
-
-      const totalDistributed = prizeEach * actualCount;
-
-      match.results     = finalResults;
-      match.winnerTeam  = winnerTeam;
       match.status      = "completed";
       match.completedAt = new Date();
       match.deleteAt    = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -535,11 +462,11 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
         }
       }
 
-      log(req.admin.name, `Team result: Team ${winnerTeam} wins — ${actualCount}×৳${prizeEach}`, match.title, "create");
+      log(req.admin.name, `Custom winner result: ${winnerSet.size} জন × ৳${prizeEach}`, match.title, "create");
 
       return res.json({
         success: true,
-        message: `✅ Team ${winnerTeam} winner! ${actualCount} জন × ৳${prizeEach} = ৳${totalDistributed} distributed.`,
+        message: `✅ ${winnerSet.size} জন winner-কে ৳${prizeEach} করে — মোট ৳${totalDistributed} distributed.`,
         totalDistributed,
         data: match,
       });
