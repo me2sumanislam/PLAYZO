@@ -244,14 +244,15 @@ const MatchCard = ({ match, onJoinSuccess }) => {
   const joined        = Number(match.joinedPlayers || 0);
   const total         = Number(match.totalPlayers  || 0);
   const fill          = total > 0 ? (joined / total) * 100 : 0;
+  const isFull         = total > 0 && joined >= total;
   const alreadyJoined = (match.joinedUsers || []).some((u) => u.userId?.toString() === userId?.toString());
 
-  const statusStyle = (s) => {
-    if (s === "live")      return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
+  const statusStyle = (s, started) => {
     if (s === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
+    if (s === "live" || started) return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
     return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
   };
-  const st  = statusStyle(match.status);
+  const st  = statusStyle(match.status, isStarted);
   const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
 
   // ✅ Join button click → আগে saved game name fetch করো, তারপর modal খোলো
@@ -370,12 +371,17 @@ const MatchCard = ({ match, onJoinSuccess }) => {
             <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 500 }}>Only {total - joined} spots left</span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 12, color: "#374151", fontWeight: 700 }}>{joined}/{total}</span>
-              {match.status === "upcoming" && !alreadyJoined && (
+              {!isStarted && match.status === "upcoming" && !alreadyJoined && !isFull && (
                 <button onClick={openJoinModal} style={{ padding: "5px 12px", background: "#22c55e", border: "none", borderRadius: 20, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", WebkitTapHighlightColor: "transparent", boxShadow: "0 2px 6px rgba(34,197,94,0.4)" }}>
                   Join
                 </button>
               )}
-              {match.status === "upcoming" && alreadyJoined && (
+              {!isStarted && match.status === "upcoming" && !alreadyJoined && isFull && (
+                <button disabled style={{ padding: "5px 12px", background: "#e5e7eb", border: "none", borderRadius: 20, color: "#9ca3af", fontWeight: 700, fontSize: 12, cursor: "not-allowed" }}>
+                  Full
+                </button>
+              )}
+              {match.status !== "completed" && alreadyJoined && (
                 <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 11, padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>✅ Joined</span>
               )}
             </div>
