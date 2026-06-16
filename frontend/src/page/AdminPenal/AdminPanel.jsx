@@ -610,7 +610,7 @@ const Dashboard = () => {
   );
 };
 
-const CreateMatch = () => {
+ const CreateMatch = () => {
   const [form, setForm] = useState({
     title: "",
     category: "br_match",
@@ -643,6 +643,19 @@ const CreateMatch = () => {
     img.src = URL.createObjectURL(file);
   };
 
+  // ✅ Bangladesh (UTC+6) লোকাল datetime-local string কে সঠিক UTC ISO string এ কনভার্ট করে
+  // input value আসে timezone ছাড়া (যেমন "2026-06-16T20:00") — এটাকে BD লোকাল টাইম ধরে
+  // ৬ ঘণ্টা বিয়োগ করে UTC বানানো হয়, যাতে সার্ভারে date পরের দিনে শিফট না হয়ে যায়।
+  const bdLocalToUTC = (localStr) => {
+    if (!localStr) return "";
+    const [datePart, timePart] = localStr.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hour, minute] = timePart.split(":").map(Number);
+    // BD লোকাল টাইমকে UTC মিলিসেকেন্ডে বানানো — Date.UTC দিয়ে বানিয়ে ৬ ঘণ্টা বিয়োগ
+    const utcMs = Date.UTC(year, month - 1, day, hour, minute) - 6 * 60 * 60 * 1000;
+    return new Date(utcMs).toISOString();
+  };
+
   const submit = async () => {
     if (!form.title || !form.startTime) {
       setMsg("❌ Title আর Start Time অবশ্যই দিন");
@@ -650,7 +663,10 @@ const CreateMatch = () => {
     }
     const d = await api("/matches/create", {
       method: "POST",
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        startTime: bdLocalToUTC(form.startTime), // ✅ সঠিক UTC তে কনভার্ট করে পাঠানো
+      }),
     });
     setMsg(d.success ? "✅ Match created!" : "❌ " + (d.message || "Failed"));
     if (d.success)
@@ -762,7 +778,7 @@ const CreateMatch = () => {
                 fontWeight: 600,
               }}
             >
-              Start Time *
+              Start Time * (Bangladesh Time)
             </div>
             <input type="datetime-local" {...f("startTime")} />
           </div>
