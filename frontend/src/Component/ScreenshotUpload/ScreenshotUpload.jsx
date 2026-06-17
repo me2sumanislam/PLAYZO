@@ -1,16 +1,15 @@
- 
+ import React, { useState, useRef } from "react";
 
-import React, { useState, useRef } from "react";
-
- const API = "https://playzo-vn8e.onrender.com";
+const API = "https://playzo-vn8e.onrender.com";
+const UPLOAD_TIMEOUT_MS = 60000; // 60 সেকেন্ড timeout
 
 const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
-  const [file, setFile]         = useState(null);
-  const [preview, setPreview]   = useState(null);
-  const [status, setStatus]     = useState("idle"); // idle | uploading | processing | done | error
-  const [message, setMessage]   = useState("");
-  const [result, setResult]     = useState(null);
-  const fileRef                 = useRef();
+  const [file, setFile]       = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [status, setStatus]   = useState("idle");
+  const [message, setMessage] = useState("");
+  const [result, setResult]   = useState(null);
+  const fileRef               = useRef();
 
   const token = localStorage.getItem("token");
 
@@ -21,43 +20,72 @@ const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
       setMessage("শুধু image file select করুন");
       return;
     }
-    if (selected.size > 8 * 1024 * 1024) {
-      setMessage("File size 8MB এর বেশি না");
+    // ✅ 8MB → 3MB করা হয়েছে — Render free tier এ large file crash করে
+    if (selected.size > 3 * 1024 * 1024) {
+      setMessage("File size 3MB এর বেশি না। ছোট করে আবার দিন।");
       return;
     }
     setFile(selected);
     setPreview(URL.createObjectURL(selected));
     setMessage("");
+    setStatus("idle");
   };
 
   const handleUpload = async () => {
     if (!file) return;
     setStatus("uploading");
-    setMessage("Upload হচ্ছে...");
+    setMessage("Upload হচ্ছে... (প্রথমবার 30-60 সেকেন্ড লাগতে পারে)");
 
     const formData = new FormData();
     formData.append("screenshot", file);
 
+    // ✅ AbortController দিয়ে 60 সেকেন্ড timeout
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
     try {
-      const res  = await fetch(`${API}/api/result/upload/${matchId}`, {
+      const res = await fetch(`${API}/api/result/upload/${matchId}`, {
         method:  "POST",
         headers: { Authorization: `Bearer ${token}` },
         body:    formData,
+        signal:  controller.signal, // ✅ timeout signal
       });
-      const data = await res.json();
+
+      clearTimeout(timer);
+
+      // ✅ JSON parse error আলাদা handle
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setStatus("error");
+        setMessage(`Server error (${res.status}). আবার চেষ্টা করুন।`);
+        return;
+      }
 
       if (data.success) {
         setStatus("processing");
-        setMessage("OCR processing চলছে... কিছুক্ষণ পরে result দেখুন");
-        // 10 সেকেন্ড পরে result check করি
+        setMessage("Screenshot জমা হয়েছে ✅ Admin review করবেন।");
         setTimeout(() => checkResult(), 12000);
       } else {
         setStatus("error");
-        setMessage(data.message || "Upload failed");
+        setMessage(data.message || "Upload failed. আবার চেষ্টা করুন।");
       }
-    } catch {
-      setStatus("error");
-      setMessage("Network error. আবার চেষ্টা করুন।");
+
+    } catch (err) {
+      clearTimeout(timer);
+
+      // ✅ আসল error অনুযায়ী message দেখাও
+      if (err.name === "AbortError") {
+        setStatus("error");
+        setMessage("Timeout হয়েছে (60 সেকেন্ড)। Server busy — একটু পরে আবার চেষ্টা করুন।");
+      } else if (!navigator.onLine) {
+        setStatus("error");
+        setMessage("Internet connection নেই। Connection check করুন।");
+      } else {
+        setStatus("error");
+        setMessage(`Network error: ${err.message || "Unknown"}। আবার চেষ্টা করুন।`);
+      }
     }
   };
 
@@ -67,17 +95,19 @@ const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data) {
         setResult(data.data);
         setStatus("done");
         setMessage("");
+      } else {
+        setStatus("done");
+        setMessage("Screenshot জমা আছে। Admin result দিলে দেখাবে।");
       }
     } catch {
-      setMessage("Result check করতে পারছি না");
+      setMessage("Result check করতে পারছি না। পরে দেখুন।");
     }
   };
 
-  // Match complete বা already submitted হলে result দেখাই
   if (result) {
     return (
       <div style={styles.card}>
@@ -118,7 +148,6 @@ const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
 
   return (
     <div style={styles.card}>
-      {/* Preview */}
       {preview && (
         <div style={{ marginBottom: 10 }}>
           <img
@@ -129,16 +158,12 @@ const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
         </div>
       )}
 
-      {/* Upload area */}
       {status === "idle" && (
         <>
-          <div
-            style={styles.dropzone}
-            onClick={() => fileRef.current.click()}
-          >
+          <div style={styles.dropzone} onClick={() => fileRef.current.click()}>
             <span style={{ fontSize: 28 }}>📸</span>
             <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>
-              {file ? file.name : "Result screenshot select করুন"}
+              {file ? file.name : "Result screenshot select করুন (max 3MB)"}
             </p>
           </div>
           <input
@@ -159,25 +184,42 @@ const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
       {status === "uploading" && (
         <div style={styles.processing}>
           <div style={styles.spinner} />
-          <span>Upload হচ্ছে...</span>
+          <span>Upload হচ্ছে... অপেক্ষা করুন</span>
         </div>
       )}
 
       {status === "processing" && (
         <div style={styles.processing}>
           <div style={styles.spinner} />
-          <span>OCR দিয়ে result পড়া হচ্ছে...</span>
+          <span>Screenshot জমা হয়েছে, Admin review করবেন</span>
         </div>
       )}
 
+      {/* ✅ Error এ retry button + আবার file বাছাই করার সুযোগ */}
       {status === "error" && (
-        <button style={styles.btnPrimary} onClick={() => { setStatus("idle"); setFile(null); setPreview(null); }}>
-          আবার চেষ্টা করুন
-        </button>
+        <div>
+          <button
+            style={styles.btnPrimary}
+            onClick={() => {
+              setStatus("idle");
+              setFile(null);
+              setPreview(null);
+              setMessage("");
+              if (fileRef.current) fileRef.current.value = "";
+            }}
+          >
+            আবার চেষ্টা করুন
+          </button>
+        </div>
       )}
 
       {message && (
-        <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#6b7280", marginTop: 8 }}>
+        <p style={{
+          fontSize: 12,
+          color: status === "error" ? "#dc2626" : "#6b7280",
+          marginTop: 8,
+          lineHeight: 1.5,
+        }}>
           {message}
         </p>
       )}
@@ -186,7 +228,13 @@ const ScreenshotUpload = ({ matchId, matchTitle, matchStatus }) => {
 };
 
 function statusLabel(s) {
-  return { processing: "⏳ Processing", pending_review: "🔍 Review এ আছে", approved: "✅ Approved", rejected: "❌ Rejected", published: "🏆 Published" }[s] || s;
+  return {
+    processing:     "⏳ Processing",
+    pending_review: "🔍 Review এ আছে",
+    approved:       "✅ Approved",
+    rejected:       "❌ Rejected",
+    published:      "🏆 Published",
+  }[s] || s;
 }
 
 const styles = {
@@ -205,7 +253,10 @@ const styles = {
     background: "#ede9fe", color: "#6d28d9", border: "none", fontWeight: 600,
     fontSize: 13, cursor: "pointer",
   },
-  processing: { display: "flex", alignItems: "center", gap: 10, padding: "12px 0", color: "#6b7280", fontSize: 13 },
+  processing: {
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "12px 0", color: "#6b7280", fontSize: 13,
+  },
   spinner: {
     width: 18, height: 18, borderRadius: "50%",
     border: "2px solid #e5e7eb", borderTopColor: "#7c3aed",
@@ -215,23 +266,14 @@ const styles = {
     display: "inline-block", padding: "4px 10px", borderRadius: 20,
     fontSize: 12, fontWeight: 700,
     background: { processing:"#fef3c7", pending_review:"#dbeafe", approved:"#d1fae5", rejected:"#fee2e2", published:"#ede9fe" }[s] || "#f3f4f6",
-    color: { processing:"#92400e", pending_review:"#1e40af", approved:"#065f46", rejected:"#991b1b", published:"#5b21b6" }[s] || "#374151",
+    color:      { processing:"#92400e", pending_review:"#1e40af", approved:"#065f46", rejected:"#991b1b", published:"#5b21b6" }[s] || "#374151",
   }),
-  label: { fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 6, textTransform: "uppercase" },
+  label:     { fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 6, textTransform: "uppercase" },
   playerRow: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #f3f4f6" },
-  rank:  { width: 28, fontSize: 12, fontWeight: 700, color: "#7c3aed" },
-  name:  { flex: 1, fontSize: 13, fontWeight: 600 },
-  kills: { fontSize: 12, color: "#6b7280" },
-  prize: { fontSize: 12, fontWeight: 700, color: "#059669" },
+  rank:      { width: 28, fontSize: 12, fontWeight: 700, color: "#7c3aed" },
+  name:      { flex: 1, fontSize: 13, fontWeight: 600 },
+  kills:     { fontSize: 12, color: "#6b7280" },
+  prize:     { fontSize: 12, fontWeight: 700, color: "#059669" },
 };
 
 export default ScreenshotUpload;
-
-// ─── Match Card এ কীভাবে use করবেন ──────────────────────────────────────
-// import ScreenshotUpload from "./ScreenshotUpload";
-//
-// <ScreenshotUpload
-//   matchId={match._id}
-//   matchTitle={match.title}
-//   matchStatus={match.status}
-// />
