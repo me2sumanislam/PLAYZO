@@ -202,4 +202,4 @@ const ResultSubmission = require("../models/ResultSubmission");
   }
 );
 
-module.exports = router;
+module.exports = router
