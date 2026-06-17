@@ -436,8 +436,8 @@ const MatchCard = ({ match, onJoinSuccess }) => {
           </div>
         </div>
 
-        {/* Screenshot Upload — শুধু joined user দেখবে, match start হয়ে গেলে */}
-        {(isStarted || match.status === "live" || match.status === "completed") && userId && alreadyJoined && (
+        {/* Screenshot Upload — match start/completed হলে দেখাবে; backend নিজেই join-check করে (alreadyJoined/userId এর জটিল ID-matching এর উপর নির্ভর না করে, যাতে কোনো mismatch এ section হারিয়ে না যায়) */}
+        {(isStarted || match.status === "live" || match.status === "completed") && token && (
           <ScreenshotUpload matchId={match._id} />
         )}
 
