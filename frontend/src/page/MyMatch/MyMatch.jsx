@@ -1,4 +1,4 @@
- import React, { useState, useEffect, useCallback } from "react";
+ import React, { useState, useEffect, useCallback, useRef } from "react";
 
 const API = "https://playzo-vn8e.onrender.com/api";
 
@@ -25,6 +25,107 @@ const TimeLeft = ({ startTime }) => {
   return <span>{time}</span>;
 };
 
+// ── Screenshot Upload Section ─────────────────────────────────────────────────
+const ScreenshotUpload = ({ matchId }) => {
+  const [file, setFile]       = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [status, setStatus]   = useState("idle");
+  const [msg, setMsg]         = useState("");
+  const [result, setResult]   = useState(null);
+  const fileRef               = useRef();
+  const token                 = localStorage.getItem("token");
+
+  useEffect(() => { checkResult(); }, [matchId]);
+
+  const checkResult = async () => {
+    try {
+      const res  = await fetch(`${API}/result/my/${matchId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); if (data.success) setResult(data.data); }
+    } catch { /* silent */ }
+  };
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setMsg("শুধু image file দিন"); return; }
+    if (f.size > 8 * 1024 * 1024)    { setMsg("8MB এর বেশি না"); return; }
+    setFile(f); setPreview(URL.createObjectURL(f)); setMsg("");
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setStatus("uploading");
+    const form = new FormData();
+    form.append("screenshot", file);
+    try {
+      const res  = await fetch(`${API}/result/upload/${matchId}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      const data = await res.json();
+      if (data.success) { setStatus("idle"); setMsg("✅ Submit সফল হয়েছে! Admin review করবে।"); checkResult(); }
+      else { setStatus("error"); setMsg(data.message || "Upload হয়নি"); }
+    } catch { setStatus("error"); setMsg("Network error"); }
+  };
+
+  const statusColor = { processing: "#92400e", pending_review: "#1e40af", approved: "#065f46", rejected: "#991b1b", published: "#5b21b6" };
+  const statusBg    = { processing: "#fef3c7", pending_review: "#dbeafe", approved: "#d1fae5", rejected: "#fee2e2", published: "#ede9fe" };
+  const statusLabel = { processing: "⏳ OCR চলছে", pending_review: "🔍 Admin review এ আছে", approved: "✅ Approved", rejected: "❌ Rejected", published: "🏆 Result Published" };
+
+  if (result) {
+    return (
+      <div style={{ padding: "10px 16px 16px", borderTop: "1px solid #f3f4f6" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>📸 Result Status</span>
+          <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: statusBg[result.status] || "#f3f4f6", color: statusColor[result.status] || "#374151" }}>
+            {statusLabel[result.status] || result.status}
+          </span>
+        </div>
+        {result.status === "published" && result.finalPlayers?.length > 0 && (
+          <div style={{ background: "#f9fafb", borderRadius: 10, padding: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginBottom: 6, textTransform: "uppercase" }}>Leaderboard</div>
+            {result.finalPlayers.map((p, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < result.finalPlayers.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                <span style={{ width: 24, fontSize: 13, fontWeight: 800, color: i === 0 ? "#f59e0b" : i === 1 ? "#6b7280" : "#f97316" }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{p.inGameName}</span>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>{p.kills} kills</span>
+                {p.prizeAwarded > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: "#059669" }}>৳{p.prizeAwarded}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {result.status === "rejected" && result.adminNote && (
+          <p style={{ fontSize: 12, color: "#dc2626", marginTop: 6 }}>কারণ: {result.adminNote}</p>
+        )}
+        <button onClick={checkResult} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "#f3f4f6", border: "none", borderRadius: 8, fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 600 }}>
+          🔄 Status update করুন
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "0 16px 16px", borderTop: "1px solid #f3f4f6", paddingTop: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>📸 Result Screenshot Submit করুন</div>
+      {preview && <img src={preview} alt="" style={{ width: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", marginBottom: 8 }} />}
+      {(status === "idle" || status === "error") && (
+        <>
+          <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: "16px 12px", textAlign: "center", cursor: "pointer", background: "#fafafa", marginBottom: 8 }}>
+            <div style={{ fontSize: 24 }}>📷</div>
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>{file ? file.name : "Screenshot select করুন (Max 8MB)"}</p>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+          {file && (
+            <button onClick={handleUpload} style={{ width: "100%", padding: "11px 0", background: "#f97316", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Submit করুন
+            </button>
+          )}
+        </>
+      )}
+      {status === "uploading"  && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#6b7280", fontSize: 13 }}><span style={{ display: "inline-block", animation: "spin 0.8s linear infinite", fontSize: 16 }}>⏳</span>Upload হচ্ছে...</div>}
+      {msg && <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#059669", marginTop: 6 }}>{msg}</p>}
+      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+    </div>
+  );
+};
+
 // ✅ onBack prop যোগ করা হয়েছে
 const MyMatch = ({ onBack }) => {
   const [matches, setMatches] = useState([]);
@@ -37,6 +138,7 @@ const MyMatch = ({ onBack }) => {
     catch { return {}; }
   })();
   const userId = user?.id || user?._id;
+  const token = localStorage.getItem("token");
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -62,9 +164,9 @@ const MyMatch = ({ onBack }) => {
     return entry?.slotNumber || "—";
   };
 
-  const statusStyle = (s) => {
-    if (s === "live")      return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
+  const statusStyle = (s, started) => {
     if (s === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
+    if (s === "live" || started) return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
     return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
   };
 
@@ -166,11 +268,11 @@ const MyMatch = ({ onBack }) => {
 
         {/* Match Cards */}
         {matches.map((m) => {
-          const st = statusStyle(m.status);
+          const started = m.startTime ? new Date(m.startTime).getTime() <= Date.now() : false;
+          const st = statusStyle(m.status, started);
           const joined = Number(m.joinedPlayers || 0);
           const total  = Number(m.totalPlayers || 0);
           const fill   = total > 0 ? (joined / total) * 100 : 0;
-          const started = new Date(m.startTime).getTime() <= Date.now();
           const slotNo  = getSlot(m);
 
           return (
@@ -323,6 +425,11 @@ const MyMatch = ({ onBack }) => {
                 </div>
 
               </div>
+
+              {/* ── Screenshot Upload — match start/completed হলে; এই পেজে শুধু joined match-ই লিস্ট হয় ── */}
+              {(started || m.status === "live" || m.status === "completed") && token && (
+                <ScreenshotUpload matchId={m._id} />
+              )}
 
               {/* ── Footer: countdown or started ── */}
               <div style={{
