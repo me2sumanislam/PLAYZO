@@ -1554,7 +1554,7 @@ const MatchResults = () => {
   const loadScreenshots = useCallback(
     async (matchId) => {
       try {
-        const res = await fetch(`${API}/result/admin/match/${matchId}`, {
+        const res = await fetch(`${API}/results/admin/match/${matchId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -1709,29 +1709,42 @@ const MatchResults = () => {
   };
 
   // ── Submit (Team) ──────────────────────────────────────────────────────────
-  const submitTeamResult = async () => {
-    if (!selectedMatch) return alert("Match সিলেক্ট করুন");
-    if (!winnerTeam) return alert("Winner team select করুন");
-    setLoading(true);
-    try {
-      const response = await api(`/admin/matches/${selectedMatch._id}/result`, {
-        method: "PUT",
-        body: JSON.stringify({ results: [], winnerTeam }),
-      });
-      if (response.success) {
-        alert("✅ " + response.message);
-        setSelectedMatch(null);
-        setPlayers([]);
-        setScreenshots([]);
-        loadMatches();
-      } else {
-        alert("❌ " + (response.message || "Failed"));
-      }
-    } catch {
-      alert("Server Error");
+   const submitTeamResult = async () => {
+  if (!selectedMatch) return alert("Match সিলেক্ট করুন");
+  if (!winnerTeam) return alert("Winner team select করুন");
+
+  // Winner team-এর players বের করো
+  const winnerPlayers = players.filter((p) => (p.team || "A") === winnerTeam);
+  if (winnerPlayers.length === 0) return alert("Winner team-এ কোনো player নেই");
+
+  // Winner players-দের userId array বানাও
+  const winnerUserIds = winnerPlayers.map((p) => p.userId).filter(Boolean);
+  if (winnerUserIds.length === 0) return alert("Player userId পাওয়া যাচ্ছে না");
+
+  setLoading(true);
+  try {
+    const response = await api(`/admin/matches/${selectedMatch._id}/result`, {
+      method: "PUT",
+      body: JSON.stringify({
+        winnerUserIds,                                    // ✅ backend যা চায়
+        totalPrize: teamPool,                            // ✅ prize pool পাঠাও
+      }),
+    });
+
+    if (response.success) {
+      alert("✅ " + response.message);
+      setSelectedMatch(null);
+      setPlayers([]);
+      setScreenshots([]);
+      loadMatches();
+    } else {
+      alert("❌ " + (response.message || "Failed"));
     }
-    setLoading(false);
-  };
+  } catch {
+    alert("Server Error");
+  }
+  setLoading(false);
+};
 
   const mode = selectedMatch ? getMatchMode(selectedMatch) : null;
   const isTeamMatch = mode?.matchType === "team";
