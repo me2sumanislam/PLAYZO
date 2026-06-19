@@ -12,6 +12,8 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 
+const Match = require("./models/Match");   // ← এই লাইনটি যোগ করা হয়েছে
+
 const app = express();
 
 // Security Middleware
@@ -76,16 +78,13 @@ app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/ludo-matches", require("./routes/ludoMatchRoutes"));
 app.use("/api/ludo-tournament", require("./routes/ludoMatchRoutes"));
 
-// ✅ Result Routes (Screenshot Upload + Result System)
+// Result Routes
 app.use("/api/result", require("./routes/resultRoutes"));
 
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
-  res.status(500).json({ 
-    success: false, 
-    message: "Something went wrong!" 
-  });
+  res.status(500).json({ success: false, message: "Something went wrong!" });
 });
 
 // ================= DATABASE + SERVER START =================
