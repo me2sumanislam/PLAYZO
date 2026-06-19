@@ -1,6 +1,7 @@
+ // frontend/src/page/MatchCard/MatchCard.jsx
 
 import React, { useState, useRef, useEffect } from "react";
-import MatchDetailSheet from "./MatchDetailSheet";
+
 const API_BASE = ((import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api").replace(/\/api\/api/, "/api");
 
 // ── Category → Rules mapping ──────────────────────────────────────────────────
@@ -41,8 +42,225 @@ const TimeLeft = ({ startTime }) => {
   return <span>{time}</span>;
 };
 
+// ── Match Detail Bottom Sheet ─────────────────────────────────────────────────
+// সহজ ভার্সন: Win Prize / Entry Fee / Entry Type + Rules (স্ক্রিনশট নোটিশসহ) + Joined Player List
+const MatchDetailSheet = ({ match, onClose }) => {
+  const [slideIn, setSlideIn] = useState(false);
+  const sheetRef = useRef();
 
+  useEffect(() => { requestAnimationFrame(() => setSlideIn(true)); }, []);
 
+  const handleClose = () => { setSlideIn(false); setTimeout(onClose, 320); };
+  const fmt   = (n) => "৳" + Number(n || 0).toLocaleString();
+  const rules = getMatchRules(match.category);
+
+  const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+  const userId = user?.id || user?._id;
+  const players = [...(match.joinedUsers || [])].sort((a, b) => (a.slotNumber || 0) - (b.slotNumber || 0));
+
+  return (
+    <div onClick={handleClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2000, display: "flex", alignItems: "flex-end", fontFamily: "'Hind Siliguri','Segoe UI',sans-serif" }}>
+      <div ref={sheetRef} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#fff", borderRadius: "20px 20px 0 0", maxHeight: "88dvh", overflowY: "auto", transform: slideIn ? "translateY(0)" : "translateY(100%)", transition: "transform 0.32s cubic-bezier(0.32,0.72,0,1)", WebkitOverflowScrolling: "touch" }}>
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e5e7eb" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "6px 20px 16px" }}>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111", lineHeight: 1.3 }}>{match.title}</h2>
+          <button onClick={handleClose} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, WebkitTapHighlightColor: "transparent" }}>✕</button>
+        </div>
+
+        {/* Join Info: Win Prize / Entry Fee / Entry Type */}
+        <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ background: "#fefce8", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #fde68a" }}>
+            <div style={{ fontSize: 10, color: "#92400e", fontWeight: 700, letterSpacing: 0.3 }}>WIN PRIZE</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#92400e", marginTop: 3 }}>{fmt(match.winPrize)}</div>
+          </div>
+          <div style={{ background: "#fef2f2", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #fecaca" }}>
+            <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 700, letterSpacing: 0.3 }}>ENTRY FEE</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#991b1b", marginTop: 3 }}>{fmt(match.entryFee)}</div>
+          </div>
+          <div style={{ background: "#eff6ff", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #bfdbfe" }}>
+            <div style={{ fontSize: 10, color: "#1e40af", fontWeight: 700, letterSpacing: 0.3 }}>ENTRY TYPE</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#1e40af", marginTop: 3 }}>{(match.category || "").toUpperCase()}</div>
+          </div>
+        </div>
+
+        {/* Screenshot required notice */}
+        <div style={{ margin: "0 20px 16px", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 14px", display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>📸</span>
+          <p style={{ margin: 0, fontSize: 12.5, color: "#92400e", lineHeight: 1.5, fontWeight: 600 }}>ম্যাচ শেষে স্ক্রিনশট প্রমাণ আপলোড করতে হবে — স্ক্রিনশট আপলোড না করলে Win Prize দেওয়া হবে না।</p>
+        </div>
+
+        {/* Match Schedule */}
+        <div style={{ margin: "0 20px 18px", background: "linear-gradient(135deg,#0c4a6e,#0369a1)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 10px rgba(3,105,161,0.25)" }}>
+          <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.18)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📅</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.75)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>Match Schedule</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 2 }}>
+              {match.startTime ? new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "#bae6fd", marginTop: 3, fontWeight: 600 }}>
+              {match.status === "completed"
+                ? "✅ ম্যাচ শেষ হয়েছে"
+                : (match.startTime && new Date(match.startTime).getTime() <= Date.now())
+                  ? "🟢 ম্যাচ লাইভ"
+                  : <>⏰ শুরু হতে বাকি — <TimeLeft startTime={match.startTime} /></>}
+            </div>
+          </div>
+        </div>
+
+        {/* Rules */}
+        <div style={{ padding: "0 20px 18px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ width: 4, height: 18, background: "#ef4444", borderRadius: 2 }} />
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111" }}>📋 {rules.title}</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {rules.rules.map((rule, i) => (
+              <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "#f9fafb", borderRadius: 9, padding: "9px 11px", border: "1px solid #f3f4f6" }}>
+                <span style={{ minWidth: 20, height: 20, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#dc2626" }}>{i + 1}</span>
+                <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>{rule}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 10, background: "#fff7ed", borderRadius: 10, padding: "10px 12px", border: "1px solid #fed7aa", display: "flex", gap: 8 }}>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>⚠️</span>
+            <p style={{ margin: 0, fontSize: 12, color: "#92400e", lineHeight: 1.5, fontWeight: 600 }}>বিতর্কের ক্ষেত্রে admin-এর সিদ্ধান্তই চূড়ান্ত।</p>
+          </div>
+        </div>
+
+        {/* Joined Player List */}
+        <div style={{ padding: "0 20px 28px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111" }}>👥 Joined Players</h3>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>{match.joinedPlayers || 0}/{match.totalPlayers || 0}</span>
+          </div>
+          {players.length > 0 ? (
+            <div style={{ border: "1px solid #f3f4f6", borderRadius: 10, overflow: "hidden" }}>
+              {players.map((p, i) => {
+                const isMe = p.userId?.toString?.() === userId?.toString?.();
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 13px", fontSize: 13, background: isMe ? "#f0fdf4" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: i < players.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                    <span style={{ color: "#374151", fontWeight: isMe ? 700 : 500 }}>
+                      {p.inGameName || p.gameName || "—"} {isMe && <span style={{ color: "#16a34a" }}>(আপনি)</span>}
+                    </span>
+                    <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>Slot #{p.slotNumber}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "14px 0", background: "#f9fafb", borderRadius: 10 }}>এখনো কেউ join করেনি</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Screenshot Upload Section ─────────────────────────────────────────────────
+const ScreenshotUpload = ({ matchId }) => {
+  const [file, setFile]       = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [status, setStatus]   = useState("idle");
+  const [msg, setMsg]         = useState("");
+  const [result, setResult]   = useState(null);
+  const fileRef               = useRef();
+  const token                 = localStorage.getItem("token");
+
+  useEffect(() => { checkResult(); }, [matchId]);
+
+  const checkResult = async () => {
+    try {
+      const res  = await fetch(`${API_BASE}/result/my/${matchId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); if (data.success) setResult(data.data); }
+    } catch { /* silent */ }
+  };
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setMsg("শুধু image file দিন"); return; }
+    if (f.size > 8 * 1024 * 1024)    { setMsg("8MB এর বেশি না"); return; }
+    setFile(f); setPreview(URL.createObjectURL(f)); setMsg("");
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setStatus("uploading");
+    const form = new FormData();
+    form.append("screenshot", file);
+    try {
+      const res  = await fetch(`${API_BASE}/result/upload/${matchId}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      const data = await res.json();
+      if (data.success) { setStatus("idle"); setMsg("✅ Submit সফল হয়েছে! Admin review করবে।"); checkResult(); }
+      else { setStatus("error"); setMsg(data.message || "Upload হয়নি"); }
+    } catch { setStatus("error"); setMsg("Network error"); }
+  };
+
+  const statusColor = { processing: "#92400e", pending_review: "#1e40af", approved: "#065f46", rejected: "#991b1b", published: "#5b21b6" };
+  const statusBg    = { processing: "#fef3c7", pending_review: "#dbeafe", approved: "#d1fae5", rejected: "#fee2e2", published: "#ede9fe" };
+  const statusLabel = { processing: "⏳ OCR চলছে", pending_review: "🔍 Admin review এ আছে", approved: "✅ Approved", rejected: "❌ Rejected", published: "🏆 Result Published" };
+
+  if (result) {
+    return (
+      <div style={{ padding: "10px 16px 16px", borderTop: "1px solid #f3f4f6" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>📸 Result Status</span>
+          <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: statusBg[result.status] || "#f3f4f6", color: statusColor[result.status] || "#374151" }}>
+            {statusLabel[result.status] || result.status}
+          </span>
+        </div>
+        {result.status === "published" && result.finalPlayers?.length > 0 && (
+          <div style={{ background: "#f9fafb", borderRadius: 10, padding: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginBottom: 6, textTransform: "uppercase" }}>Leaderboard</div>
+            {result.finalPlayers.map((p, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < result.finalPlayers.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                <span style={{ width: 24, fontSize: 13, fontWeight: 800, color: i === 0 ? "#f59e0b" : i === 1 ? "#6b7280" : "#f97316" }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{p.inGameName}</span>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>{p.kills} kills</span>
+                {p.prizeAwarded > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: "#059669" }}>৳{p.prizeAwarded}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {result.status === "rejected" && result.adminNote && (
+          <p style={{ fontSize: 12, color: "#dc2626", marginTop: 6 }}>কারণ: {result.adminNote}</p>
+        )}
+        <button onClick={checkResult} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "#f3f4f6", border: "none", borderRadius: 8, fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 600 }}>
+          🔄 Status update করুন
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "0 16px 16px", borderTop: "1px solid #f3f4f6", paddingTop: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>📸 Result Screenshot Submit করুন</div>
+      {preview && <img src={preview} alt="" style={{ width: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", marginBottom: 8 }} />}
+      {(status === "idle" || status === "error") && (
+        <>
+          <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: "16px 12px", textAlign: "center", cursor: "pointer", background: "#fafafa", marginBottom: 8 }}>
+            <div style={{ fontSize: 24 }}>📷</div>
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>{file ? file.name : "Screenshot select করুন (Max 8MB)"}</p>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+          {file && (
+            <button onClick={handleUpload} style={{ width: "100%", padding: "11px 0", background: "#f97316", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Submit করুন
+            </button>
+          )}
+        </>
+      )}
+      {status === "uploading"  && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#6b7280", fontSize: 13 }}><span style={{ display: "inline-block", animation: "spin 0.8s linear infinite", fontSize: 16 }}>⏳</span>Upload হচ্ছে...</div>}
+      {msg && <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#059669", marginTop: 6 }}>{msg}</p>}
+      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+    </div>
+  );
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN MatchCard component
@@ -259,7 +477,10 @@ const MatchCard = ({ match, onJoinSuccess }) => {
           </div>
         </div>
 
-       
+        {/* Screenshot Upload — match start/completed হলে দেখাবে; backend নিজেই join-check করে (alreadyJoined/userId এর জটিল ID-matching এর উপর নির্ভর না করে, যাতে কোনো mismatch এ section হারিয়ে না যায়) */}
+        {(isStarted || match.status === "live" || match.status === "completed") && token && (
+          <ScreenshotUpload matchId={match._id} />
+        )}
 
         {/* Footer — countdown */}
         <div onClick={() => setShowDetailSheet(true)} style={{ background: match.status === "completed" ? "#374151" : "#16a34a", padding: "14px", textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", userSelect: "none", WebkitTapHighlightColor: "transparent", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -276,7 +497,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
         </div>
       )}
 
-      Match Detail Bottom Sheet
+      {/* Match Detail Bottom Sheet */}
       {showDetailSheet && <MatchDetailSheet match={match} onClose={() => setShowDetailSheet(false)} />}
 
       {/* ✅ JOIN MODAL — Game Name Auto-fill সহ */}
