@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
-
+import MatchDetailSheet from "./MatchDetailSheet";
 const API_BASE = ((import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api").replace(/\/api\/api/, "/api");
 
 // ── Category → Rules mapping ──────────────────────────────────────────────────
