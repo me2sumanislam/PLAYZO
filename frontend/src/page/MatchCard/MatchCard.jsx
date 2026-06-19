@@ -1,4 +1,3 @@
- // frontend/src/page/MatchCard/MatchCard.jsx
 
 import React, { useState, useRef, useEffect } from "react";
 
@@ -260,10 +259,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
           </div>
         </div>
 
-        {/* Screenshot Upload — match start/completed হলে দেখাবে; backend নিজেই join-check করে (alreadyJoined/userId এর জটিল ID-matching এর উপর নির্ভর না করে, যাতে কোনো mismatch এ section হারিয়ে না যায়) */}
-        {(isStarted || match.status === "live" || match.status === "completed") && token && (
-          <ScreenshotUpload matchId={match._id} />
-        )}
+       
 
         {/* Footer — countdown */}
         <div onClick={() => setShowDetailSheet(true)} style={{ background: match.status === "completed" ? "#374151" : "#16a34a", padding: "14px", textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", userSelect: "none", WebkitTapHighlightColor: "transparent", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
