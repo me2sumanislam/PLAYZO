@@ -125,4 +125,5 @@ router.put("/admin/distribute/:matchId", protect, async (req, res) => {
   }
 });
 
+
 module.exports = router;

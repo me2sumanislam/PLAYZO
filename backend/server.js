@@ -13,11 +13,11 @@ const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const resultRoutes = require("./routes/resultRoutes");
 const resultAdminRoutes = require("./routes/adminResultRoutes");
-const Match = require("./models/Match");   // ← এই লাইনটি যোগ করা হয়েছে
+const Match = require("./models/Match");
 
 const app = express();
 
-// Security Middleware
+// ================= SECURITY =================
 app.use(helmet());
 
 const allowedOrigins = [
@@ -28,7 +28,7 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: function (origin, callback) {
+    origin(origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -44,7 +44,7 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate Limiter
+// ================= RATE LIMITER =================
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -55,16 +55,22 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// ================= ROUTES =================
+// ================= HEALTH ROUTES =================
 app.get("/", (req, res) => {
-  res.json({ success: true, message: "🚀 Playzo Backend is running!" });
+  res.json({
+    success: true,
+    message: "🚀 Playzo Backend is running!",
+  });
 });
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// Main Routes
+// ================= MAIN ROUTES =================
 app.use("/api/referral", require("./routes/referralRoutes"));
 app.use("/api/matches", require("./routes/matchRoutes"));
 app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
@@ -78,16 +84,18 @@ app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/ludo-matches", require("./routes/ludoMatchRoutes"));
 app.use("/api/ludo-tournament", require("./routes/ludoMatchRoutes"));
-app.use("/api/results", resultRoutes);
-app.use("/api/results", resultAdminRoutes);
 
-// Result Routes
-app.use("/api/result", require("./routes/resultRoutes"));
+// ================= RESULT ROUTES =================
+app.use("/api/result", resultRoutes);
+app.use("/api/results", resultAdminRoutes);
 
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
-  res.status(500).json({ success: false, message: "Something went wrong!" });
+  res.status(500).json({
+    success: false,
+    message: err.message || "Something went wrong!",
+  });
 });
 
 // ================= DATABASE + SERVER START =================
@@ -109,9 +117,11 @@ connectDB()
           status: "completed",
           deleteAt: { $lte: new Date() },
         });
+
         if (deleted.deletedCount > 0) {
           console.log(
-            `🗑️ ${deleted.deletedCount} completed match(es) auto deleted`.bgRed.white
+            `🗑️ ${deleted.deletedCount} completed match(es) auto deleted`
+              .bgRed.white
           );
         }
       } catch (err) {
@@ -124,6 +134,9 @@ connectDB()
     });
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection failed:".bgRed.white, err.message);
+    console.error(
+      "❌ MongoDB connection failed:".bgRed.white,
+      err.message
+    );
     process.exit(1);
   });
