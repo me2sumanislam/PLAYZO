@@ -1,10 +1,9 @@
  // controllers/resultController.js
 const cloudinary = require("cloudinary").v2;
+const streamifier = require("streamifier");
 const ResultSubmission = require("../models/ResultSubmission");
 const Match = require("../models/Match");
-const User = require("../models/User");
 const multer = require("multer");
-const path = require("path");
 
 // Cloudinary Config
 cloudinary.config({
@@ -13,15 +12,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer Setup for Screenshot Upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/screenshots/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+// ✅ Memory storage — Render-এর ephemeral disk এড়িয়ে সরাসরি buffer থেকে Cloudinary-তে আপলোড
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -35,6 +27,19 @@ const upload = multer({
   },
 });
 
+// Buffer কে Cloudinary-তে stream হিসেবে পাঠানোর helper
+const uploadBufferToCloudinary = (buffer) =>
+  new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: "playzo_results", resource_type: "image" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+
 // ===================== UPLOAD SCREENSHOT =====================
 exports.uploadScreenshot = [
   upload.single("screenshot"),
@@ -43,16 +48,16 @@ exports.uploadScreenshot = [
       console.log("📸 Upload Request Received for match:", req.params.matchId);
 
       if (!req.file) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "No screenshot file received" 
+        return res.status(400).json({
+          success: false,
+          message: "No screenshot file received",
         });
       }
 
       if (!req.user?.id) {
-        return res.status(401).json({ 
-          success: false, 
-          message: "Login করুন" 
+        return res.status(401).json({
+          success: false,
+          message: "Login করুন",
         });
       }
 
@@ -60,21 +65,29 @@ exports.uploadScreenshot = [
 
       const match = await Match.findById(matchId);
       if (!match) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "Match পাওয়া যায়নি" 
+        return res.status(404).json({
+          success: false,
+          message: "Match পাওয়া যায়নি",
         });
       }
 
-      // Upload to Cloudinary
-      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-        folder: "playzo_results",
-        resource_type: "image",
+      // ইতিমধ্যে submit করা থাকলে (unique index আছে schema-তে)
+      const existing = await ResultSubmission.findOne({
+        match: matchId,
+        submittedBy: req.user.id,
       });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: "আপনি ইতোমধ্যে এই ম্যাচের জন্য screenshot জমা দিয়েছেন",
+        });
+      }
+
+      // Upload to Cloudinary (buffer থেকে সরাসরি, disk touch করা হয় না)
+      const uploadResult = await uploadBufferToCloudinary(req.file.buffer);
 
       console.log("✅ Cloudinary Upload Successful:", uploadResult.secure_url);
 
-      // Save to Database
       const submission = await ResultSubmission.create({
         match: matchId,
         submittedBy: req.user.id,
@@ -83,15 +96,13 @@ exports.uploadScreenshot = [
           publicId: uploadResult.public_id,
         },
         status: "pending_review",
-        submittedAt: new Date(),
       });
 
       res.status(201).json({
         success: true,
-        message: "✅ Screenshot upload সফল হয়েছে! Admin review করবে।",
+        message: "✅ Screenshot upload সফল হয়েছে! Admin review করবে।",
         data: submission,
       });
-
     } catch (error) {
       console.error("❌ Upload Error:", error.message);
       res.status(500).json({
@@ -117,7 +128,7 @@ exports.getMyMatchResult = async (req, res) => {
     if (!submission) {
       return res.status(404).json({
         success: false,
-        message: "এই ম্যাচের কোনো স্ক্রিনশট জমা দেওয়া হয়নি",
+        message: "এই ম্যাচের কোনো স্ক্রিনশট জমা দেওয়া হয়নি",
       });
     }
 
@@ -128,7 +139,7 @@ exports.getMyMatchResult = async (req, res) => {
   }
 };
 
-// ===================== ADMIN: Get Pending Submissions =====================
+// ===================== ADMIN: Get Pending Submissions (status-wise) =====================
 exports.getPendingSubmissions = async (req, res) => {
   try {
     const { status = "pending_review" } = req.query;
@@ -144,6 +155,22 @@ exports.getPendingSubmissions = async (req, res) => {
   }
 };
 
+// ===================== ADMIN: Get Submissions by Match (AdminPanel.jsx এর জন্য) =====================
+exports.getSubmissionsByMatch = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const submissions = await ResultSubmission.find({ match: matchId })
+      .populate("submittedBy", "name phone")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: submissions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // ===================== ADMIN: Review Submission =====================
 exports.reviewSubmission = async (req, res) => {
   try {
@@ -152,9 +179,9 @@ exports.reviewSubmission = async (req, res) => {
 
     const submission = await ResultSubmission.findById(submissionId);
     if (!submission) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Submission not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found",
       });
     }
 
@@ -179,5 +206,6 @@ module.exports = {
   uploadScreenshot,
   getMyMatchResult,
   getPendingSubmissions,
+  getSubmissionsByMatch,
   reviewSubmission,
 };
