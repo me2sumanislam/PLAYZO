@@ -202,10 +202,4 @@ exports.reviewSubmission = async (req, res) => {
   }
 };
 
-module.exports = {
-  uploadScreenshot,
-  getMyMatchResult,
-  getPendingSubmissions,
-  getSubmissionsByMatch,
-  reviewSubmission,
-};
+ 
