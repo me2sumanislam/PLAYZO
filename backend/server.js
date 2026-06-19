@@ -11,7 +11,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
-
+const resultRoutes = require("./routes/resultRoutes");
+const resultAdminRoutes = require("./routes/adminResultRoutes");
 const Match = require("./models/Match");   // ← এই লাইনটি যোগ করা হয়েছে
 
 const app = express();
@@ -77,6 +78,8 @@ app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/ludo-matches", require("./routes/ludoMatchRoutes"));
 app.use("/api/ludo-tournament", require("./routes/ludoMatchRoutes"));
+app.use("/api/results", resultRoutes);
+app.use("/api/results", resultAdminRoutes);
 
 // Result Routes
 app.use("/api/result", require("./routes/resultRoutes"));
