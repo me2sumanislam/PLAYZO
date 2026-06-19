@@ -276,7 +276,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
         </div>
       )}
 
-      {/* Match Detail Bottom Sheet */}
+      Match Detail Bottom Sheet
       {showDetailSheet && <MatchDetailSheet match={match} onClose={() => setShowDetailSheet(false)} />}
 
       {/* ✅ JOIN MODAL — Game Name Auto-fill সহ */}
