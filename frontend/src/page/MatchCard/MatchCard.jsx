@@ -1,8 +1,10 @@
- import React, { useState, useRef, useEffect } from "react";
+ // frontend/src/page/MatchCard/MatchCard.jsx
+
+import React, { useState, useRef, useEffect } from "react";
 
 const API_BASE = ((import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api").replace(/\/api\/api/, "/api");
 
-// ── ক্যাটাগরি অনুসারে রুলস ──────────────────────────────────────────────────
+// ── Category → Rules mapping ──────────────────────────────────────────────────
 const CATEGORY_RULES = {
   br_solo:    { title: "Battle Royale Solo Rules", rules: ["ম্যাচ শুরুর আগে রুমে থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "ম্যাচ চলাকালীন রুম ছাড়লে হার গণ্য হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়", "Match শুরুর ৫ মিনিট আগে room ID দেওয়া হবে"] },
   br_duo:     { title: "Battle Royale Duo Rules",  rules: ["প্রতিটি দলে ঠিক ২ জন থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "দুজনকেই একই রুমে থাকতে হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়"] },
@@ -18,10 +20,12 @@ const CATEGORY_RULES = {
 
 const getMatchRules = (category) => {
   const key = (category || "").toLowerCase().trim();
-  return CATEGORY_RULES[key] || { title: "Match Rules", rules: ["হ্যাক/চিট ব্যবহারে সরাসরি DQ", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "ম্যাচ চলাকালীন রুম ছাড়লে হার গণ্য হবে"] };
+  return CATEGORY_RULES[key] || { title: "Match Rules", rules: ["হ্যাক/চিট ব্যবহারে সরাসরি DQ", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত"] };
 };
 
-// ── কাউন্টডাউন টাইমার ──────────────────────────────────────────────────────────
+const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+// ── Countdown Timer ──────────────────────────────────────────────────────────
 const TimeLeft = ({ startTime }) => {
   const [time, setTime] = useState("");
   useEffect(() => {
@@ -48,16 +52,17 @@ const MatchDetailSheet = ({ match, onClose }) => {
   useEffect(() => { requestAnimationFrame(() => setSlideIn(true)); }, []);
 
   const handleClose = () => { setSlideIn(false); setTimeout(onClose, 320); };
-  const fmt   = (n) => "৳" + Number(n || 0).toLocaleString();
   const rules = getMatchRules(match.category);
 
   const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
   const userId = user?.id || user?._id;
   const players = [...(match.joinedUsers || [])].sort((a, b) => (a.slotNumber || 0) - (b.slotNumber || 0));
 
+  const isStarted = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
+
   return (
     <div onClick={handleClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2000, display: "flex", alignItems: "flex-end", fontFamily: "'Hind Siliguri','Segoe UI',sans-serif" }}>
-      <div ref={sheetRef} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#fff", borderRadius: "20px 20px 0 0", maxHeight: "88dvh", overflowY: "auto", transform: slideIn ? "translateY(0)" : "translateY(100%)", transition: "transform 0.32s cubic-bezier(0.32,0.72,0,1)", WebkitOverflowScrolling: "touch" }}>
+      <div ref={sheetRef} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#fff", borderRadius: "20px 20px 0 0", maxHeight: "88dvh", overflowY: "auto", transform: slideIn ? "translateY(0)" : "translateY(100%)", transition: "transform 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
         
         {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
@@ -66,27 +71,43 @@ const MatchDetailSheet = ({ match, onClose }) => {
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "6px 20px 16px" }}>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111", lineHeight: 1.3 }}>{match.title}</h2>
-          <button onClick={handleClose} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, WebkitTapHighlightColor: "transparent" }}>✕</button>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111" }}>{match.title}</h2>
+          <button onClick={handleClose} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#374151", cursor: "pointer" }}>✕</button>
         </div>
 
-        {/* Win Prize / Entry Fee / Entry Type */}
+        {/* Match Schedule */}
+        <div style={{ margin: "0 20px 18px", background: "linear-gradient(135deg,#0c4a6e,#0369a1)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.18)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📅</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: 700 }}>MATCH SCHEDULE</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 2 }}>
+              {match.startTime ? new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "#bae6fd", marginTop: 3 }}>
+              {match.status === "completed" ? "✅ ম্যাচ শেষ হয়েছে" 
+                : isStarted ? "🟢 ম্যাচ লাইভ" 
+                : <>⏰ শুরু হতে বাকি — <TimeLeft startTime={match.startTime} /></>}
+            </div>
+          </div>
+        </div>
+
+        {/* Win Prize / Entry Fee / Type */}
         <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <div style={{ background: "#fefce8", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #fde68a" }}>
             <div style={{ fontSize: 10, color: "#92400e", fontWeight: 700 }}>WIN PRIZE</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#92400e", marginTop: 3 }}>{fmt(match.winPrize)}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#92400e" }}>{fmt(match.winPrize)}</div>
           </div>
           <div style={{ background: "#fef2f2", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #fecaca" }}>
             <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 700 }}>ENTRY FEE</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#991b1b", marginTop: 3 }}>{fmt(match.entryFee)}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#991b1b" }}>{fmt(match.entryFee)}</div>
           </div>
           <div style={{ background: "#eff6ff", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #bfdbfe" }}>
             <div style={{ fontSize: 10, color: "#1e40af", fontWeight: 700 }}>ENTRY TYPE</div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#1e40af", marginTop: 3 }}>{(match.category || "").toUpperCase()}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#1e40af" }}>{(match.category || "").toUpperCase()}</div>
           </div>
         </div>
 
-        {/* Rules Section */}
+        {/* Rules */}
         <div style={{ padding: "0 20px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <div style={{ width: 4, height: 18, background: "#ef4444", borderRadius: 2 }} />
@@ -163,9 +184,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
     return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
   };
   const st  = statusStyle(match.status, isStarted);
-  const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
 
-  // Join Modal খোলার আগে Game Name লোড করা
   const openJoinModal = async () => {
     setLoadingName(true);
     setShowJoinModal(true);
@@ -232,7 +251,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "0 16px", rowGap: 14, marginBottom: 14 }}>
           {[
             { label: "WIN PRIZE",  value: fmt(match.winPrize) },
@@ -279,17 +298,16 @@ const MatchCard = ({ match, onJoinSuccess }) => {
         </div>
 
         {/* Footer */}
-        <div onClick={() => setShowDetailSheet(true)} style={{ background: match.status === "completed" ? "#374151" : "#16a34a", padding: "14px", textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-          {match.status === "completed" ? "✅ Match শেষ হয়েছে" : isStarted ? "কাস্টম Ready 🔑 Room Details" : <>⏰ STARTS IN — <TimeLeft startTime={match.startTime} /></>}
-          <span style={{ fontSize: 11, opacity: 0.8, marginLeft: 6 }}>ℹ️ Details</span>
+        <div onClick={() => setShowDetailSheet(true)} style={{ background: match.status === "completed" ? "#374151" : "#16a34a", padding: "15px", textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}>
+          {match.status === "completed" ? "✅ Match শেষ হয়েছে" : isStarted ? "🔑 Room Details দেখুন" : <>⏰ STARTS IN — <TimeLeft startTime={match.startTime} /></>}
+          <span style={{ fontSize: 12, opacity: 0.85, marginLeft: 6 }}>ℹ️ Details</span>
         </div>
       </div>
 
       {/* Join Modal */}
       {showJoinModal && (
-        <div onClick={() => setShowJoinModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div onClick={() => setShowJoinModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 360 }}>
-            {/* Modal Content */}
             <div style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", padding: "18px 20px", color: "#fff" }}>
               <div style={{ fontWeight: 800, fontSize: 16 }}>🎮 Match Join করুন</div>
               <div style={{ fontSize: 12, marginTop: 2 }}>{match.title}</div>
@@ -325,6 +343,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
         </div>
       )}
 
+      {/* Detail Sheet */}
       {showDetailSheet && <MatchDetailSheet match={match} onClose={() => setShowDetailSheet(false)} />}
     </>
   );
