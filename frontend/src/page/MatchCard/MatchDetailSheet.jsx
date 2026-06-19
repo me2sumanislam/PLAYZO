@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from "react";
 
-// ── Category → Rules mapping (same source data MatchCard.jsx already defines) ──
+// ── Category Rules (একই রাখা হয়েছে) ─────────────────────────────────────
 const CATEGORY_RULES = {
   br_solo:    { title: "Battle Royale Solo Rules", rules: ["ম্যাচ শুরুর আগে রুমে থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "ম্যাচ চলাকালীন রুম ছাড়লে হার গণ্য হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়", "Match শুরুর ৫ মিনিট আগে room ID দেওয়া হবে"] },
   br_duo:     { title: "Battle Royale Duo Rules",  rules: ["প্রতিটি দলে ঠিক ২ জন থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "দুজনকেই একই রুমে থাকতে হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়"] },
@@ -16,7 +16,7 @@ const CATEGORY_RULES = {
 
 const getMatchRules = (category) => {
   const key = (category || "").toLowerCase().trim();
-  return CATEGORY_RULES[key] || { title: "Match Rules", rules: ["হ্যাক/চিট ব্যবহারে সরাসরি DQ", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "ম্যাচ চলাকালীন রুম ছাড়লে হার গণ্য হবে"] };
+  return CATEGORY_RULES[key] || { title: "Match Rules", rules: ["হ্যাক/চিট ব্যবহারে সরাসরি DQ", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত"] };
 };
 
 const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
@@ -34,7 +34,7 @@ const MODE_LABEL = {
   free_match: "Free Match",
 };
 
-// ── Inline countdown (self-contained — no dependency on MatchCard.jsx) ─────────
+// Countdown Component
 const Countdown = ({ startTime }) => {
   const [time, setTime] = useState("");
   useEffect(() => {
@@ -53,172 +53,128 @@ const Countdown = ({ startTime }) => {
   return <span>{time}</span>;
 };
 
-// ═════════════════════════════════════════════════════════════════════════════
-// MatchDetailSheet — bottom sheet showing full match info, room, prize,
-// joined players list ও category-wise rules
-// ═════════════════════════════════════════════════════════════════════════════
+// Main MatchDetailSheet
 const MatchDetailSheet = ({ match, onClose }) => {
   if (!match) return null;
 
   const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
   const userId = user?.id || user?._id;
 
-  const isStarted   = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
-  const joined      = Number(match.joinedPlayers || 0);
-  const total       = Number(match.totalPlayers || 0);
-  const isTeamMatch = match.matchType === "team" && (match.teamSize || 1) > 1;
-  const rules       = getMatchRules(match.category);
+  const isStarted = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
+  const joined    = Number(match.joinedPlayers || 0);
+  const total     = Number(match.totalPlayers || 0);
+  const rules     = getMatchRules(match.category);
 
-  const players = [...(match.joinedUsers || [])].sort(
-    (a, b) => (a.slotNumber || 0) - (b.slotNumber || 0)
-  );
-
-  const statusBadge = (() => {
-    if (match.status === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
-    if (match.status === "live" || isStarted) return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
-    return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
-  })();
+  const players = [...(match.joinedUsers || [])].sort((a, b) => (a.slotNumber || 0) - (b.slotNumber || 0));
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ background: "#fff", width: "100%", maxWidth: 450, maxHeight: "88vh", borderRadius: "20px 20px 0 0", overflow: "hidden", display: "flex", flexDirection: "column", animation: "sheetUp 0.25s ease-out" }}
-      >
-        {/* Drag handle */}
-        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "flex-end" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", width: "100%", maxWidth: 460, maxHeight: "88vh", borderRadius: "20px 20px 0 0", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        
+        {/* Drag Handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
           <div style={{ width: 40, height: 4, borderRadius: 4, background: "#e5e7eb" }} />
         </div>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "10px 20px 14px", borderBottom: "1px solid #f3f4f6" }}>
-          <div style={{ flex: 1, paddingRight: 10 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#111", lineHeight: 1.3 }}>{match.title}</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7 }}>
-              <span style={{ background: statusBadge.bg, color: statusBadge.color, fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{statusBadge.label}</span>
-              <span style={{ background: "#f3f4f6", color: "#374151", fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>
-                {MODE_LABEL[match.category] || (match.category || "").toUpperCase()}
-              </span>
-            </div>
+        <div style={{ padding: "0 20px 14px", borderBottom: "1px solid #f3f4f6" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#111" }}>{match.title}</h2>
+            <button onClick={onClose} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#374151" }}>✕</button>
           </div>
-          <button onClick={onClose} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#374151", fontSize: 15, cursor: "pointer", flexShrink: 0, WebkitTapHighlightColor: "transparent" }}>✕</button>
+          <div style={{ marginTop: 8 }}>
+            <span style={{ background: "#dbeafe", color: "#1e40af", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+              {MODE_LABEL[match.category] || (match.category || "").toUpperCase()}
+            </span>
+          </div>
         </div>
 
-        {/* Scrollable body */}
-        <div style={{ overflowY: "auto", padding: "16px 20px 20px" }}>
+        {/* Content */}
+        <div style={{ overflowY: "auto", padding: "16px 20px", flex: 1 }}>
 
-          {/* Countdown / status strip */}
-          <div style={{ background: match.status === "completed" ? "#f3f4f6" : "#f0fdf4", border: `1px solid ${match.status === "completed" ? "#e5e7eb" : "#bbf7d0"}`, borderRadius: 10, padding: "10px 14px", textAlign: "center", fontSize: 13, fontWeight: 700, color: match.status === "completed" ? "#374151" : "#16a34a", marginBottom: 16 }}>
-            {match.status === "completed"
-              ? "✅ ম্যাচ শেষ হয়েছে"
-              : isStarted
-                ? "🟢 ম্যাচ লাইভ — Room Details দেখুন"
-                : <>⏰ শুরু হতে বাকি — <Countdown startTime={match.startTime} /></>}
-          </div>
-
-          {/* Quick info grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", rowGap: 14, marginBottom: 18 }}>
-            {[
-              { label: "MAP",     value: match.map || "Bermuda" },
-              { label: "VERSION", value: (match.device || "Mobile").toUpperCase() },
-              { label: "PLAYERS", value: `${joined}/${total}` },
-            ].map((s, i) => (
-              <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
-                <div style={{ fontSize: 10, color: "#777", fontWeight: 700, letterSpacing: 0.5 }}>{s.label}</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#111", marginTop: 3 }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Start time */}
-          <div style={{ fontSize: 13, color: "#374151", marginBottom: 18 }}>
-            <b>🗓 Start Time:</b>{" "}
-            {match.startTime
-              ? new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })
-              : "—"}
-          </div>
-
-          {/* Prize section */}
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>🏆 Prize Details</div>
-            <div style={{ background: "#fefce8", borderRadius: 10, padding: "12px 14px", border: "1px solid #fde68a" }}>
-              {[
-                { label: "🥇 1st",   value: match.prizes?.first  || match.winPrize || 0 },
-                { label: "🥈 2nd",   value: match.prizes?.second || 0 },
-                { label: "🥉 3rd",   value: match.prizes?.third  || 0 },
-                { label: "4️⃣ 4th",  value: match.prizes?.fourth || 0 },
-                { label: "🔫 Per Kill", value: match.perKill || 0 },
-                ...(isTeamMatch ? [{ label: "👥 Prize Pool", value: match.prizePool || 0 }] : []),
-                { label: "🎟 Entry Fee", value: match.entryFee || 0 },
-              ].map((p, i, arr) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#92400e", paddingBottom: 6, marginBottom: 6, borderBottom: i < arr.length - 1 ? "1px solid #fde68a" : "none" }}>
-                  <span>{p.label}</span><b>৳{p.value}</b>
+          {/* Match Schedule & Status */}
+          <div style={{ background: "linear-gradient(135deg, #0c4a6e, #0369a1)", color: "#fff", borderRadius: 14, padding: "14px 16px", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 28 }}>📅</div>
+              <div>
+                <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 600 }}>MATCH SCHEDULE</div>
+                <div style={{ fontSize: 15, fontWeight: 800, marginTop: 2 }}>
+                  {match.startTime ? new Date(match.startTime).toLocaleString("en-BD", {
+                    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true
+                  }) : "—"}
                 </div>
-              ))}
+                <div style={{ marginTop: 4, fontSize: 13 }}>
+                  {match.status === "completed" ? "✅ ম্যাচ শেষ" 
+                    : isStarted ? "🟢 লাইভ চলছে" 
+                    : <>⏰ বাকি — <Countdown startTime={match.startTime} /></>}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Room details */}
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>🔑 Room Details</div>
-            <div style={{ background: "#f0f9ff", borderRadius: 10, padding: "12px 14px", border: "1px solid #bae6fd" }}>
+          {/* Prize & Entry Info */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+            <div style={{ background: "#fefce8", padding: "12px", borderRadius: 12, textAlign: "center", border: "1px solid #fde68a" }}>
+              <div style={{ fontSize: 11, color: "#92400e", fontWeight: 700 }}>WIN PRIZE</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#92400e" }}>{fmt(match.winPrize)}</div>
+            </div>
+            <div style={{ background: "#fef2f2", padding: "12px", borderRadius: 12, textAlign: "center", border: "1px solid #fecaca" }}>
+              <div style={{ fontSize: 11, color: "#991b1b", fontWeight: 700 }}>ENTRY FEE</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#991b1b" }}>{fmt(match.entryFee)}</div>
+            </div>
+          </div>
+
+          {/* Room Details */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>🔑 Room Details</div>
+            <div style={{ background: "#f0f9ff", padding: "14px", borderRadius: 10, border: "1px solid #bae6fd" }}>
               {match.isRoomOpen && match.roomId ? (
                 <>
-                  <div style={{ fontSize: 13, color: "#0c4a6e", marginBottom: 5 }}><b>Room ID:</b> {match.roomId}</div>
-                  <div style={{ fontSize: 13, color: "#0c4a6e" }}><b>Password:</b> {match.roomPassword || "—"}</div>
+                  <div><b>Room ID:</b> {match.roomId}</div>
+                  <div><b>Password:</b> {match.roomPassword || "নেই"}</div>
                 </>
               ) : (
-                <div style={{ fontSize: 12, color: "#64748b", textAlign: "center" }}>⏳ Room details এখনো দেওয়া হয়নি</div>
+                <div style={{ color: "#64748b" }}>⏳ Room details এখনো আসেনি</div>
               )}
             </div>
           </div>
 
-          {/* Joined players */}
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>👥 Joined Players ({joined}/{total})</div>
+          {/* Joined Players */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>👥 Joined Players ({joined}/{total})</div>
             {players.length > 0 ? (
-              <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #f3f4f6", borderRadius: 10 }}>
+              <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #f3f4f6", borderRadius: 10 }}>
                 {players.map((p, i) => {
-                  const isMe = p.userId?.toString?.() === userId?.toString?.();
+                  const isMe = p.userId?.toString() === userId?.toString();
                   return (
-                    <div
-                      key={i}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", fontSize: 13, background: isMe ? "#f0fdf4" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: i < players.length - 1 ? "1px solid #f3f4f6" : "none" }}
-                    >
-                      <span style={{ color: "#374151", fontWeight: isMe ? 700 : 500 }}>
+                    <div key={i} style={{ padding: "10px 14px", borderBottom: i < players.length - 1 ? "1px solid #f3f4f6" : "none", background: isMe ? "#f0fdf4" : "transparent" }}>
+                      <span style={{ fontWeight: isMe ? 700 : 500 }}>
                         {p.inGameName || p.gameName || "—"} {isMe && <span style={{ color: "#16a34a" }}>(আপনি)</span>}
                       </span>
-                      <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        {isTeamMatch && (
-                          <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 700 }}>Team {p.team || "A"}</span>
-                        )}
-                        <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 700 }}>#{p.slotNumber}</span>
-                      </span>
+                      <span style={{ float: "right", background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 20, fontSize: 12 }}>Slot #{p.slotNumber}</span>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "10px 0" }}>এখনো কেউ join করেনি</div>
+              <div style={{ textAlign: "center", padding: "20px", color: "#9ca3af" }}>এখনো কেউ জয়েন করেনি</div>
             )}
           </div>
 
           {/* Rules */}
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>📜 {rules.title}</div>
-            <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 7 }}>
-              {rules.rules.map((r, i) => (
-                <li key={i} style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{r}</li>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>📋 {rules.title}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {rules.rules.map((rule, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, fontSize: 13.5, lineHeight: 1.5 }}>
+                  <span style={{ color: "#ef4444", fontWeight: 700 }}>{i + 1}.</span>
+                  <span>{rule}</span>
+                </div>
               ))}
-            </ol>
+            </div>
           </div>
         </div>
       </div>
-
-      <style>{`@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
     </div>
   );
 };
