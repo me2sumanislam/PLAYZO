@@ -42,83 +42,83 @@ const TimeLeft = ({ startTime }) => {
   return <span>{time}</span>;
 };
 
-// ── Match Detail Bottom Sheet ─────────────────────────────────────────────────
-const MatchDetailSheet = ({ match, onClose }) => {
-  const [slideIn, setSlideIn] = useState(false);
-  const sheetRef = useRef();
+// // ── Match Detail Bottom Sheet ─────────────────────────────────────────────────
+// const MatchDetailSheet = ({ match, onClose }) => {
+//   const [slideIn, setSlideIn] = useState(false);
+//   const sheetRef = useRef();
 
-  useEffect(() => { requestAnimationFrame(() => setSlideIn(true)); }, []);
+//   useEffect(() => { requestAnimationFrame(() => setSlideIn(true)); }, []);
 
-  const handleClose = () => { setSlideIn(false); setTimeout(onClose, 320); };
-  const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
-  const rules = getMatchRules(match.category);
-  const formatSchedule = (t) => {
-    if (!t) return "—";
-    return new Date(t).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
-  };
+//   const handleClose = () => { setSlideIn(false); setTimeout(onClose, 320); };
+//   const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+//   const rules = getMatchRules(match.category);
+//   const formatSchedule = (t) => {
+//     if (!t) return "—";
+//     return new Date(t).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+//   };
 
-  return (
-    <div onClick={handleClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2000, display: "flex", alignItems: "flex-end", fontFamily: "'Hind Siliguri','Segoe UI',sans-serif" }}>
-      <div ref={sheetRef} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#fff", borderRadius: "20px 20px 0 0", maxHeight: "88dvh", overflowY: "auto", transform: slideIn ? "translateY(0)" : "translateY(100%)", transition: "transform 0.32s cubic-bezier(0.32,0.72,0,1)", WebkitOverflowScrolling: "touch" }}>
-        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e5e7eb" }} />
-        </div>
-        <div style={{ background: "linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)", padding: "16px 20px 24px", color: "#fff" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-            <div>
-              <p style={{ margin: "0 0 4px", fontSize: 11, opacity: 0.7, textTransform: "uppercase", letterSpacing: 1 }}>Match Details</p>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, lineHeight: 1.3 }}>{match.title}</h2>
-            </div>
-            <button onClick={handleClose} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16, WebkitTapHighlightColor: "transparent" }}>✕</button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[{ label: "🏆 Prize", value: fmt(match.winPrize) }, { label: "🎟 Entry Fee", value: fmt(match.entryFee) }, { label: "🔫 Per Kill", value: fmt(match.perKill || 0) }, { label: "👥 Players", value: `${match.joinedPlayers || 0} / ${match.totalPlayers || 0}` }].map((s, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 12, padding: "10px 14px", backdropFilter: "blur(4px)" }}>
-                <p style={{ margin: "0 0 2px", fontSize: 11, opacity: 0.75 }}>{s.label}</p>
-                <p style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 12, background: "rgba(255,255,255,0.15)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 20 }}>📅</span>
-            <div>
-              <p style={{ margin: "0 0 2px", fontSize: 11, opacity: 0.75 }}>Match Schedule</p>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{formatSchedule(match.startTime)}</p>
-            </div>
-          </div>
-          {(match.prizes?.first || match.prizes?.second || match.prizes?.third) && (
-            <div style={{ marginTop: 12, background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: "10px 14px" }}>
-              <p style={{ margin: "0 0 8px", fontSize: 11, opacity: 0.75, textTransform: "uppercase", letterSpacing: 0.5 }}>Prize Breakdown</p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {match.prizes?.first  > 0 && <span style={{ background: "rgba(255,215,0,0.25)", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>🥇 {fmt(match.prizes.first)}</span>}
-                {match.prizes?.second > 0 && <span style={{ background: "rgba(192,192,192,0.25)", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>🥈 {fmt(match.prizes.second)}</span>}
-                {match.prizes?.third  > 0 && <span style={{ background: "rgba(205,127,50,0.25)", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>🥉 {fmt(match.prizes.third)}</span>}
-              </div>
-            </div>
-          )}
-        </div>
-        <div style={{ padding: "20px 20px 32px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <div style={{ width: 4, height: 20, background: "#ef4444", borderRadius: 2 }} />
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#111" }}>📋 {rules.title}</h3>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {rules.rules.map((rule, i) => (
-              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#f9fafb", borderRadius: 10, padding: "10px 12px", border: "1px solid #f3f4f6" }}>
-                <span style={{ minWidth: 22, height: 22, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#dc2626" }}>{i + 1}</span>
-                <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{rule}</p>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 16, background: "#fff7ed", borderRadius: 12, padding: "12px 14px", border: "1px solid #fed7aa", display: "flex", gap: 8 }}>
-            <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-            <p style={{ margin: 0, fontSize: 12, color: "#92400e", lineHeight: 1.5 }}>বিতর্কের ক্ষেত্রে admin-এর সিদ্ধান্তই চূড়ান্ত। স্ক্রিনশট বা রেকর্ড ছাড়া কোনো claim গ্রহণ করা হবে না।</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+//   return (
+//     <div onClick={handleClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2000, display: "flex", alignItems: "flex-end", fontFamily: "'Hind Siliguri','Segoe UI',sans-serif" }}>
+//       <div ref={sheetRef} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#fff", borderRadius: "20px 20px 0 0", maxHeight: "88dvh", overflowY: "auto", transform: slideIn ? "translateY(0)" : "translateY(100%)", transition: "transform 0.32s cubic-bezier(0.32,0.72,0,1)", WebkitOverflowScrolling: "touch" }}>
+//         <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+//           <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e5e7eb" }} />
+//         </div>
+//         <div style={{ background: "linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)", padding: "16px 20px 24px", color: "#fff" }}>
+//           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+//             <div>
+//               <p style={{ margin: "0 0 4px", fontSize: 11, opacity: 0.7, textTransform: "uppercase", letterSpacing: 1 }}>Match Details</p>
+//               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, lineHeight: 1.3 }}>{match.title}</h2>
+//             </div>
+//             <button onClick={handleClose} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16, WebkitTapHighlightColor: "transparent" }}>✕</button>
+//           </div>
+//           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+//             {[{ label: "🏆 Prize", value: fmt(match.winPrize) }, { label: "🎟 Entry Fee", value: fmt(match.entryFee) }, { label: "🔫 Per Kill", value: fmt(match.perKill || 0) }, { label: "👥 Players", value: `${match.joinedPlayers || 0} / ${match.totalPlayers || 0}` }].map((s, i) => (
+//               <div key={i} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 12, padding: "10px 14px", backdropFilter: "blur(4px)" }}>
+//                 <p style={{ margin: "0 0 2px", fontSize: 11, opacity: 0.75 }}>{s.label}</p>
+//                 <p style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{s.value}</p>
+//               </div>
+//             ))}
+//           </div>
+//           <div style={{ marginTop: 12, background: "rgba(255,255,255,0.15)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+//             <span style={{ fontSize: 20 }}>📅</span>
+//             <div>
+//               <p style={{ margin: "0 0 2px", fontSize: 11, opacity: 0.75 }}>Match Schedule</p>
+//               <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{formatSchedule(match.startTime)}</p>
+//             </div>
+//           </div>
+//           {(match.prizes?.first || match.prizes?.second || match.prizes?.third) && (
+//             <div style={{ marginTop: 12, background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: "10px 14px" }}>
+//               <p style={{ margin: "0 0 8px", fontSize: 11, opacity: 0.75, textTransform: "uppercase", letterSpacing: 0.5 }}>Prize Breakdown</p>
+//               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+//                 {match.prizes?.first  > 0 && <span style={{ background: "rgba(255,215,0,0.25)", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>🥇 {fmt(match.prizes.first)}</span>}
+//                 {match.prizes?.second > 0 && <span style={{ background: "rgba(192,192,192,0.25)", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>🥈 {fmt(match.prizes.second)}</span>}
+//                 {match.prizes?.third  > 0 && <span style={{ background: "rgba(205,127,50,0.25)", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>🥉 {fmt(match.prizes.third)}</span>}
+//               </div>
+//             </div>
+//           )}
+//         </div>
+//         <div style={{ padding: "20px 20px 32px" }}>
+//           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+//             <div style={{ width: 4, height: 20, background: "#ef4444", borderRadius: 2 }} />
+//             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#111" }}>📋 {rules.title}</h3>
+//           </div>
+//           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+//             {rules.rules.map((rule, i) => (
+//               <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#f9fafb", borderRadius: 10, padding: "10px 12px", border: "1px solid #f3f4f6" }}>
+//                 <span style={{ minWidth: 22, height: 22, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#dc2626" }}>{i + 1}</span>
+//                 <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{rule}</p>
+//               </div>
+//             ))}
+//           </div>
+//           <div style={{ marginTop: 16, background: "#fff7ed", borderRadius: 12, padding: "12px 14px", border: "1px solid #fed7aa", display: "flex", gap: 8 }}>
+//             <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+//             <p style={{ margin: 0, fontSize: 12, color: "#92400e", lineHeight: 1.5 }}>বিতর্কের ক্ষেত্রে admin-এর সিদ্ধান্তই চূড়ান্ত। স্ক্রিনশট বা রেকর্ড ছাড়া কোনো claim গ্রহণ করা হবে না।</p>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
 
 // ── Screenshot Upload Section ─────────────────────────────────────────────────
 const ScreenshotUpload = ({ matchId }) => {
