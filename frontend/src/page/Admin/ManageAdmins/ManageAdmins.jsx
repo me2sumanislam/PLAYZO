@@ -165,17 +165,7 @@ const ManageAdmins = () => {
                 {a.phone} · {a.role}
               </div>
             </div>
-            <Badge
-              color={
-                a.role === "super-admin"
-                  ? "blue"
-                  : a.role === "finance"
-                    ? "green"
-                    : "gray"
-              }
-            >
-              {a.role}
-            </Badge>
+           
           </div>
         ))}
       </div>
