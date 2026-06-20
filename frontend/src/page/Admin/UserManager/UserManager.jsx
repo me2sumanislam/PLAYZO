@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from "react";
 import { api, fmt } from "../../../utils/adminApi";
-import Badge from "../../../Component/Admin/Badge/Badge";
+ 
 
 const Users = () => {
   const [list, setList] = useState([]);

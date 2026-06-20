@@ -1,6 +1,6 @@
  import React, { useState, useEffect } from "react";
 import { api, timeAgo } from "../../../utils/adminApi";
-import Badge from "../../../Component/Admin/Badge/Badge";
+ 
 
 const ActivityLog = () => {
   const [logs, setLogs] = useState([]);

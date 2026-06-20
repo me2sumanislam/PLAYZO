@@ -1,7 +1,6 @@
  import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../../utils/adminApi";
-import Badge from "../../../Component/Admin/Badge/Badge";
-import ReqRow from "../../../Component/Admin/ReqRow/ReqRow";
+ 
 
 const DepositRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);

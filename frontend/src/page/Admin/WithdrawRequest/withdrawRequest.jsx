@@ -1,10 +1,9 @@
  import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../../utils/adminApi";
-import Badge from "../../../Component/Admin/Badge/Badge";
-import ReqRow from "../../../Component/Admin/ReqRow/ReqRow";
 
 const WithdrawRequests = ({ adminName, refresh }) => {
   const [list, setList] = useState([]);
+
   const load = useCallback(() => {
     api("/withdraw/admin/all?status=pending")
       .then((d) => {
@@ -12,6 +11,7 @@ const WithdrawRequests = ({ adminName, refresh }) => {
       })
       .catch(() => {});
   }, []);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -22,15 +22,16 @@ const WithdrawRequests = ({ adminName, refresh }) => {
       body: JSON.stringify({ adminName }),
     });
     load();
-    refresh();
+    refresh?.();
   };
+
   const reject = async (id) => {
     await api(`/withdraw/admin/reject/${id}`, {
       method: "PUT",
       body: JSON.stringify({ adminName }),
     });
     load();
-    refresh();
+    refresh?.();
   };
 
   return (
@@ -51,9 +52,24 @@ const WithdrawRequests = ({ adminName, refresh }) => {
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Withdraw requests</div>
-          <Badge color="red">{list.length} pending</Badge>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>
+            Withdraw requests
+          </div>
+
+          <span
+            style={{
+              background: "#fee2e2",
+              color: "#dc2626",
+              padding: "4px 10px",
+              borderRadius: "9999px",
+              fontSize: "12px",
+              fontWeight: 600,
+            }}
+          >
+            {list.length} pending
+          </span>
         </div>
+
         {list.length === 0 ? (
           <p
             style={{
@@ -67,13 +83,31 @@ const WithdrawRequests = ({ adminName, refresh }) => {
           </p>
         ) : (
           list.map((r) => (
-            <ReqRow
+            <div
               key={r._id}
-              r={r}
-              onApprove={approve}
-              onReject={reject}
-              actionLabel="Pay ✓"
-            />
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 10,
+              }}
+            >
+              <div>User: {r.userName || r.name || "Unknown"}</div>
+              <div>Amount: {r.amount}</div>
+
+              <div style={{ marginTop: 10 }}>
+                <button onClick={() => approve(r._id)}>
+                  Pay ✓
+                </button>
+
+                <button
+                  onClick={() => reject(r._id)}
+                  style={{ marginLeft: 10 }}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
           ))
         )}
       </div>
