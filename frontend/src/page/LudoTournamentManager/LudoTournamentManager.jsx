@@ -31,21 +31,7 @@ const MODES = [
 ];
 const LUDO_MAPS = ["Classic", "Quick Ludo", "Arrow", "Magic"];
 
-// ─── Badge ───────────────────────────────────────────────────────
-const Badge = ({ status }) => {
-  const M = {
-    upcoming:  { bg: "#dbeafe", c: "#1e40af", t: "Upcoming" },
-    live:      { bg: "#dcfce7", c: "#166534", t: "🔴 Live"   },
-    completed: { bg: "#ede9fe", c: "#5b21b6", t: "Completed" },
-    cancelled: { bg: "#fee2e2", c: "#991b1b", t: "Cancelled" },
-  };
-  const s = M[status] || { bg: "#f3f4f6", c: "#374151", t: status };
-  return (
-    <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.c }}>
-      {s.t}
-    </span>
-  );
-};
+ 
 
 // ─── Prize calculator helper ──────────────────────────────────────
 // Returns array of {userId, inGameName, rank, prize, isWinner, isWinnerTeam}
@@ -690,7 +676,7 @@ const MatchCard = ({ m, onResult, onDelete, onRoomUpdate }) => {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Badge status={m.status} />
+      
           <button onClick={deleteMatch} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 16, cursor: "pointer" }}>🗑</button>
         </div>
       </div>
