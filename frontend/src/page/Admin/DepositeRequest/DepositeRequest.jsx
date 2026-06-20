@@ -51,7 +51,7 @@ const DepositRequests = ({ adminName, refresh }) => {
           }}
         >
           <div style={{ fontSize: 14, fontWeight: 600 }}>Deposit requests</div>
-          <Badge color="amber">{list.length} pending</Badge>
+       
         </div>
         {list.length === 0 ? (
           <p
