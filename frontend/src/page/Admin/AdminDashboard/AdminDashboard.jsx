@@ -1,30 +1,64 @@
  import React, { useState } from "react";
+import api from "../../../utils/api";
+import AdminLogin from "../../AdminPenal/AdminLogin";
 import MatchManager from "../MatchManager.jsx/MatchManager";
+import MatchResultSubmit from "../MatchResultSubmit";
 import DepositRequests from "../DepositeRequest/DepositeRequest";
 import WithdrawRequests from "../WithdrawRequest/withdrawRequest";
 import UserManager from "../UserManager/UserManager";
+import PaymentNumbers from "../../../Component/PaymentNumberManager/paymentNumberManager";
+import AdminHistory from "../AdminHistory/AdminHistory";
+// PaymentNumbers কম্পোনেন্ট api(path, method, body) ফরম্যাটে কল করে,
+// কিন্তু আমাদের utils/api ফাংশন api(path, { method, body }) ফরম্যাট নেয়।
+// এই adapter দুটোর মধ্যে সেতু হিসেবে কাজ করে।
+const apiAdapter = (path, method, body) =>
+  api(path, {
+    method: method || "GET",
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
 
 const AdminDashboard = ({ onBack }) => {
+  const [admin, setAdmin] = useState(() => {
+    const saved = localStorage.getItem("adminInfo");
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [tab, setTab] = useState("dashboard");
+
+  if (!admin) {
+    return <AdminLogin onLoginSuccess={(a) => setAdmin(a)} />;
+  }
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: "📊" },
     { id: "matches", label: "Matches", icon: "🎮" },
+    { id: "results", label: "Results", icon: "🏆" },
     { id: "deposits", label: "Deposits", icon: "💰" },
     { id: "withdraws", label: "Withdraws", icon: "🏧" },
     { id: "users", label: "Users", icon: "👥" },
+    { id: "payments", label: "Payments", icon: "📱" },
+    { id: "history", label: "History", icon: "📜" },
   ];
 
   const renderContent = () => {
     switch (tab) {
       case "matches":
         return <MatchManager />;
+      case "results":
+        return <MatchResultSubmit />;
       case "deposits":
         return <DepositRequests />;
       case "withdraws":
         return <WithdrawRequests />;
       case "users":
         return <UserManager />;
+      case "payments":
+        return <PaymentNumbers api={apiAdapter} />;
+      case "history":
+        return <AdminHistory />;
       default:
         return (
           <div className="grid grid-cols-2 gap-4">
@@ -46,7 +80,16 @@ const AdminDashboard = ({ onBack }) => {
       <div className="bg-indigo-600 text-white p-4 flex justify-between items-center">
         <button onClick={onBack}>❮</button>
         <h2 className="font-black text-lg">Admin Panel</h2>
-        <span></span>
+        <button
+          onClick={() => {
+            localStorage.removeItem("adminToken");
+            localStorage.removeItem("adminInfo");
+            setAdmin(null);
+          }}
+          className="text-xs font-bold"
+        >
+          লগআউট
+        </button>
       </div>
 
       <div className="flex overflow-x-auto bg-white border-b">

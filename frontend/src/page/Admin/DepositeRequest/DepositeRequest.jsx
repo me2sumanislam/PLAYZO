@@ -1,23 +1,75 @@
- import React from "react";
+ import React, { useState, useEffect, useCallback } from "react";
+import { api } from "../../../utils/adminApi";
+import Badge from "../../../Component/Admin/Badge/Badge";
+import ReqRow from "../../../Component/Admin/ReqRow/ReqRow";
 
-const DepositRequests = () => {
+const DepositRequests = ({ adminName, refresh }) => {
+  const [list, setList] = useState([]);
+  const load = useCallback(() => {
+    api("/admin/deposits?status=pending")
+      .then((d) => {
+        setList(Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const approve = async (id) => {
+    await api(`/admin/deposits/${id}/approve`, {
+      method: "PUT",
+      body: JSON.stringify({ adminName }),
+    });
+    load();
+    refresh();
+  };
+  const reject = async (id) => {
+    await api(`/admin/deposits/${id}/reject`, {
+      method: "PUT",
+      body: JSON.stringify({ adminName }),
+    });
+    load();
+    refresh();
+  };
+
   return (
-    <div className="bg-white rounded-2xl p-4 shadow">
-      <h3 className="font-black mb-4">Deposit Requests</h3>
-
-      <div className="border rounded-xl p-3 mb-3">
-        <p>User: Rahim</p>
-        <p>Amount: ৳500</p>
-        <p>TRX: ABC12345</p>
-
-        <div className="flex gap-2 mt-3">
-          <button className="flex-1 bg-green-500 text-white py-2 rounded-xl">
-            Approve
-          </button>
-          <button className="flex-1 bg-red-500 text-white py-2 rounded-xl">
-            Reject
-          </button>
+    <div style={{ padding: 24 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Deposit requests</div>
+          <Badge color="amber">{list.length} pending</Badge>
         </div>
+        {list.length === 0 ? (
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              textAlign: "center",
+              padding: 24,
+            }}
+          >
+            No pending
+          </p>
+        ) : (
+          list.map((r) => (
+            <ReqRow key={r._id} r={r} onApprove={approve} onReject={reject} />
+          ))
+        )}
       </div>
     </div>
   );
