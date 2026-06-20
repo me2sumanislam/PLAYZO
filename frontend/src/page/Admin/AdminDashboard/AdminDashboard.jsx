@@ -1,5 +1,5 @@
  import React, { useState } from "react";
-import api from "../../../utils/api";
+import api from "../../../utils/adminApi";
 import AdminLogin from "../../AdminPenal/AdminLogin";
 import MatchManager from "../MatchManager.jsx/MatchManager";
 import MatchResultSubmit from "../MatchResultSubmit";

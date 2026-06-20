@@ -1166,3 +1166,5 @@ const MatchResults = () => {
     </div>
   );
 };
+
+export default MatchResults;

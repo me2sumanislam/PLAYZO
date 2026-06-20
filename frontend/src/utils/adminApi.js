@@ -10,10 +10,10 @@ export const timeAgo = (d) => {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 };
-
-export const api = async (path, opts = {}) => {
+ export const api = async (path, opts = {}) => {
   const token =
     localStorage.getItem("adminToken") || localStorage.getItem("token");
+
   try {
     const res = await fetch(`${API}${path}`, {
       headers: {
@@ -22,14 +22,19 @@ export const api = async (path, opts = {}) => {
       },
       ...opts,
     });
+
     if (res.status === 401) {
       localStorage.clear();
       window.location.reload();
       return { success: false };
     }
+
     if (!res.ok) return { success: false, status: res.status };
+
     return await res.json();
   } catch (err) {
     return { success: false };
   }
 };
+
+export default api;

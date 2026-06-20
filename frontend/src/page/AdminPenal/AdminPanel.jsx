@@ -1,8 +1,8 @@
  import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../utils/adminApi";
-import AdminLogin from "./AdminLogin";
+import AdminLogin from "../AdminPenal/AdminLogin";
 import Sidebar from "../../Component/Admin/Sidebar/Sidebar";
-// import Topbar from "../../Component/Admin/Topbar/Topbar";
+ 
 
 import Login from "../../Component/Login/Login";
 import Dashboard from "../Admin/AdminDashboard/AdminDashboard";
@@ -11,8 +11,8 @@ import MatchResults from "../../Component/MatchResults/MatchResults";
 import DepositRequests from "../Admin/DepositeRequest/DepositeRequest";
 import WithdrawRequests from "../Admin/WithdrawRequest/withdrawRequest";
 import MoneyOverview from "../Admin/MoneyOverview/MoneyOverview";
-import History from "../Admin/History/History";
-import Users from "../Admin/UserManager/UserManager";
+import History from "../Admin/AdminHistory/AdminHistory";
+ import Users from "../Admin/UserManager/UserManager";
 import ActivityLog from "../Admin/ActivityLog/ActivityLog";
 import ManageAdmins from "../Admin/ManageAdmins/ManageAdmins";
 import PaymentNumbers from "../../Component/PaymentNumberManager/paymentNumberManager";

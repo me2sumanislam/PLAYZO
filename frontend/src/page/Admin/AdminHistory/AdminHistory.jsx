@@ -1,5 +1,5 @@
  import React, { useState, useEffect, useCallback } from "react";
-import api from "../../../utils/api";
+import api from "../../../utils/adminApi";
 
 const STATUS_STYLE = {
   pending: { bg: "bg-amber-50", text: "text-amber-700", label: "Pending" },
