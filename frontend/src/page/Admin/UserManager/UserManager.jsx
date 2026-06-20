@@ -97,9 +97,7 @@ const Users = () => {
                   {fmt(u.balance)}
                 </td>
                 <td style={{ padding: "9px 10px" }}>
-                  <Badge color={u.isBlocked ? "red" : "green"}>
-                    {u.isBlocked ? "Banned" : "Active"}
-                  </Badge>
+                 
                 </td>
                 <td style={{ padding: "9px 10px" }}>
                   <button

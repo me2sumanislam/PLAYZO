@@ -70,7 +70,7 @@ const ActivityLog = () => {
                 {timeAgo(l.createdAt)}
               </div>
             </div>
-            <Badge color={colorMap[l.type] || "gray"}>{l.type}</Badge>
+           
           </div>
         ))}
       </div>
