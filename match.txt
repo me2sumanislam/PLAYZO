@@ -1,0 +1,2082 @@
+......MatchCard.jsx start......
+
+  // frontend/src/page/MatchCard/MatchCard.jsx
+
+import React, { useState, useRef, useEffect } from "react";
+
+const API_BASE = ((import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api").replace(/\/api\/api/, "/api");
+
+// ── Category → Rules mapping ──────────────────────────────────────────────────
+const CATEGORY_RULES = {
+  br_solo:    { title: "Battle Royale Solo Rules", rules: ["ম্যাচ শুরুর আগে রুমে থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "ম্যাচ চলাকালীন রুম ছাড়লে হার গণ্য হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়", "Match শুরুর ৫ মিনিট আগে room ID দেওয়া হবে"] },
+  br_duo:     { title: "Battle Royale Duo Rules",  rules: ["প্রতিটি দলে ঠিক ২ জন থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "দুজনকেই একই রুমে থাকতে হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়"] },
+  br_squad:   { title: "Battle Royale Squad Rules", rules: ["প্রতি squad-এ ৪ জন থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "মাঝপথে প্লেয়ার পরিবর্তন নয়", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত"] },
+  cs_solo:    { title: "Clash Squad Solo Rules",   rules: ["একক প্লেয়ার হিসেবে অংশগ্রহণ", "কোনো co-ordination বা callout নিষিদ্ধ", "প্রতিটি রাউন্ডের স্ক্রিনশট জমা দিতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "Disconnect হলে সেই রাউন্ড পুনরায় খেলতে হবে", "অপরপক্ষকে ট্রোলিং নিষিদ্ধ"] },
+  cs_duo:     { title: "Clash Squad Duo Rules",    rules: ["প্রতিটি দলে ঠিক ২ জন থাকবে", "Clash Squad মোডে ২v২ ফরম্যাটে খেলতে হবে", "প্রতিটি গেমের আগে map কনফার্ম করতে হবে", "একজন Disconnect হলে সেই রাউন্ড বাতিল", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  cs_squad:   { title: "Clash Squad Rules",        rules: ["প্রতিটি দলে ঠিক ৪ জন থাকতে হবে", "Clash Squad মোডে খেলতে হবে", "Friendly fire থেকে বিরত থাকতে হবে", "গ্লিচ বা বাগ ব্যবহার করলে রাউন্ড বাতিল", "২ রাউন্ড জিতলেই ম্যাচ বিজয়ী", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  cs_6vs6:    { title: "Clash Squad 6vs6 Rules",   rules: ["প্রতিটি দলে ঠিক ৬ জন থাকতে হবে", "Clash Squad মোডে খেলতে হবে", "মাঝপথে প্লেয়ার পরিবর্তন নয়", "গ্লিচ বা বাগ ব্যবহার করলে রাউন্ড বাতিল", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  lw_solo:    { title: "Lone Wolf Solo Rules",     rules: ["একক প্লেয়ার হিসেবে অংশগ্রহণ", "কোনো co-ordination নিষিদ্ধ", "Best of 3 বা Best of 5 ফরম্যাট", "টাই হলে Sudden Death রাউন্ড হবে", "Emote abuse এবং delay tactics বন্ধ", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  lw_duo:     { title: "Lone Wolf Duo Rules",      rules: ["প্রতিটি দলে ঠিক ২ জন থাকবে", "Duo voice chat ব্যবহার করা যাবে", "Third party সাহায্য নেওয়া যাবে না", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত"] },
+  free_match: { title: "Free Match Rules",         rules: ["হোস্ট কর্তৃক ঘোষিত নিয়ম মানা বাধ্যতামূলক", "হ্যাক বা চিট ব্যবহার করলে তাৎক্ষণিক ban", "Entry fee থাকলে আগেই প্রদান করতে হবে", "অশ্লীল ভাষা বা ব্যক্তিগত আক্রমণ নিষিদ্ধ", "বিতর্কে হোস্ট/অ্যাডমিনের সিদ্ধান্ত চূড়ান্ত"] },
+};
+
+const getMatchRules = (category) => {
+  const key = (category || "").toLowerCase().trim();
+  return CATEGORY_RULES[key] || { title: "Match Rules", rules: ["হ্যাক/চিট ব্যবহারে সরাসরি DQ", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত"] };
+};
+
+const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+// ── Countdown Timer ──────────────────────────────────────────────────────────
+const TimeLeft = ({ startTime }) => {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(startTime).getTime() - Date.now();
+      if (diff <= 0) { setTime("শুরু হয়েছে"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [startTime]);
+  return <span>{time}</span>;
+};
+
+// ── Match Detail Bottom Sheet ─────────────────────────────────────────────────
+const MatchDetailSheet = ({ match, onClose }) => {
+  const [slideIn, setSlideIn] = useState(false);
+  const sheetRef = useRef();
+
+  useEffect(() => { requestAnimationFrame(() => setSlideIn(true)); }, []);
+
+  const handleClose = () => { setSlideIn(false); setTimeout(onClose, 320); };
+  const rules = getMatchRules(match.category);
+
+  const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+  const userId = user?.id || user?._id;
+  const players = [...(match.joinedUsers || [])].sort((a, b) => (a.slotNumber || 0) - (b.slotNumber || 0));
+
+  const isStarted = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
+
+  return (
+    <div onClick={handleClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2000, display: "flex", alignItems: "flex-end", fontFamily: "'Hind Siliguri','Segoe UI',sans-serif" }}>
+      <div ref={sheetRef} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "#fff", borderRadius: "20px 20px 0 0", maxHeight: "88dvh", overflowY: "auto", transform: slideIn ? "translateY(0)" : "translateY(100%)", transition: "transform 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
+        
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e5e7eb" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "6px 20px 16px" }}>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111" }}>{match.title}</h2>
+          <button onClick={handleClose} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#374151", cursor: "pointer" }}>✕</button>
+        </div>
+
+        {/* Match Schedule */}
+        <div style={{ margin: "0 20px 18px", background: "linear-gradient(135deg,#0c4a6e,#0369a1)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.18)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>📅</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", fontWeight: 700 }}>MATCH SCHEDULE</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 2 }}>
+              {match.startTime ? new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "#bae6fd", marginTop: 3 }}>
+              {match.status === "completed" ? "✅ ম্যাচ শেষ হয়েছে" 
+                : isStarted ? "🟢 ম্যাচ লাইভ" 
+                : <>⏰ শুরু হতে বাকি — <TimeLeft startTime={match.startTime} /></>}
+            </div>
+          </div>
+        </div>
+
+        {/* Win Prize / Entry Fee / Type */}
+        <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ background: "#fefce8", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #fde68a" }}>
+            <div style={{ fontSize: 10, color: "#92400e", fontWeight: 700 }}>WIN PRIZE</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#92400e" }}>{fmt(match.winPrize)}</div>
+          </div>
+          <div style={{ background: "#fef2f2", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #fecaca" }}>
+            <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 700 }}>ENTRY FEE</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#991b1b" }}>{fmt(match.entryFee)}</div>
+          </div>
+          <div style={{ background: "#eff6ff", borderRadius: 12, padding: "10px 8px", textAlign: "center", border: "1px solid #bfdbfe" }}>
+            <div style={{ fontSize: 10, color: "#1e40af", fontWeight: 700 }}>ENTRY TYPE</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#1e40af" }}>{(match.category || "").toUpperCase()}</div>
+          </div>
+        </div>
+
+        {/* Rules */}
+        <div style={{ padding: "0 20px 18px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ width: 4, height: 18, background: "#ef4444", borderRadius: 2 }} />
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111" }}>📋 {rules.title}</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {rules.rules.map((rule, i) => (
+              <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "#f9fafb", borderRadius: 9, padding: "9px 11px", border: "1px solid #f3f4f6" }}>
+                <span style={{ minWidth: 20, height: 20, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#dc2626" }}>{i + 1}</span>
+                <p style={{ margin: 0, fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>{rule}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Joined Players */}
+        <div style={{ padding: "0 20px 28px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111" }}>👥 Joined Players</h3>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>{match.joinedPlayers || 0}/{match.totalPlayers || 0}</span>
+          </div>
+          {players.length > 0 ? (
+            <div style={{ border: "1px solid #f3f4f6", borderRadius: 10, overflow: "hidden" }}>
+              {players.map((p, i) => {
+                const isMe = p.userId?.toString?.() === userId?.toString?.();
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 13px", fontSize: 13, background: isMe ? "#f0fdf4" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: i < players.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                    <span style={{ color: "#374151", fontWeight: isMe ? 700 : 500 }}>
+                      {p.inGameName || p.gameName || "—"} {isMe && <span style={{ color: "#16a34a" }}>(আপনি)</span>}
+                    </span>
+                    <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>Slot #{p.slotNumber}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "14px 0", background: "#f9fafb", borderRadius: 10 }}>এখনো কেউ join করেনি</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// MAIN MatchCard Component
+// ═════════════════════════════════════════════════════════════════════════════
+const MatchCard = ({ match, onJoinSuccess }) => {
+  const [showRoom,        setShowRoom]        = useState(false);
+  const [showPrize,       setShowPrize]       = useState(false);
+  const [showJoinModal,   setShowJoinModal]   = useState(false);
+  const [showDetailSheet, setShowDetailSheet] = useState(false);
+  const [inGameName,      setInGameName]      = useState("");
+  const [savedGameName,   setSavedGameName]   = useState("");
+  const [loadingName,     setLoadingName]     = useState(false);
+  const [joining,         setJoining]         = useState(false);
+  const [joinMsg,         setJoinMsg]         = useState("");
+
+  const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+  const userId = user?.id || user?._id;
+  const token  = localStorage.getItem("token");
+
+  const isStarted     = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
+  const mySlot        = (match.joinedUsers || []).find((u) => u.userId?.toString() === userId?.toString())?.slotNumber;
+  const joined        = Number(match.joinedPlayers || 0);
+  const total         = Number(match.totalPlayers  || 0);
+  const fill          = total > 0 ? (joined / total) * 100 : 0;
+  const isFull        = total > 0 && joined >= total;
+  const alreadyJoined = (match.joinedUsers || []).some((u) => u.userId?.toString() === userId?.toString());
+
+  const statusStyle = (s, started) => {
+    if (s === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
+    if (s === "live" || started) return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
+    return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
+  };
+  const st  = statusStyle(match.status, isStarted);
+
+  const openJoinModal = async () => {
+    setLoadingName(true);
+    setShowJoinModal(true);
+    try {
+      const res = await fetch(`${API_BASE}/users/me`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await res.json();
+      const serverName = d?.user?.inGameName || d?.data?.inGameName || "";
+      if (serverName) {
+        setSavedGameName(serverName);
+        setInGameName(serverName);
+      }
+    } catch {}
+    setLoadingName(false);
+  };
+
+  const handleJoin = async () => {
+    if (!inGameName.trim()) return;
+    setJoining(true);
+    try {
+      if (inGameName.trim() !== savedGameName) {
+        await fetch(`${API_BASE}/users/game-name`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ inGameName: inGameName.trim() }),
+        });
+      }
+
+      const res = await fetch(`${API_BASE}/matches/join/${match._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, inGameName: inGameName.trim() }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setJoinMsg("✅ Join সফল! Slot #" + data.slotNumber);
+        setShowJoinModal(false);
+        if (onJoinSuccess) onJoinSuccess(match._id, data.newBalance);
+      } else {
+        setJoinMsg("❌ " + (data.message || "Join হয়নি"));
+      }
+    } catch {
+      setJoinMsg("❌ Network error");
+    }
+    setJoining(false);
+  };
+
+  return (
+    <>
+      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", overflow: "hidden", marginBottom: 16, width: "100%" }}>
+
+        {/* Top Section */}
+        <div style={{ display: "flex", gap: 14, padding: "16px 16px 12px" }}>
+          <img src={match.image || "/image/img-1.jpg"} alt="" style={{ width: 105, height: 78, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} onError={(e) => { e.target.src = "/image/img-1.jpg"; }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#111", lineHeight: 1.35 }}>{match.title} | {match.device || "Mobile"}</div>
+            <div style={{ fontSize: 13, color: "#e53935", marginTop: 5, fontWeight: 600 }}>
+              {match.startTime ? new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}
+            </div>
+            <div style={{ marginTop: 7, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ background: st.bg, color: st.color, fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{st.label}</span>
+              {mySlot && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>Slot #{mySlot}</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "0 16px", rowGap: 14, marginBottom: 14 }}>
+          {[
+            { label: "WIN PRIZE",  value: fmt(match.winPrize) },
+            { label: "ENTRY TYPE", value: (match.category || "").toUpperCase() },
+            { label: "ENTRY FEE",  value: fmt(match.entryFee) },
+            { label: "PER KILL",   value: fmt(match.perKill || 0) },
+            { label: "MAP",        value: match.map || "Bermuda" },
+            { label: "VERSION",    value: (match.device || "MOBILE").toUpperCase() },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
+              <div style={{ fontSize: 10, color: "#777", fontWeight: 700 }}>{s.label}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#111", marginTop: 3 }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Progress + Join Button */}
+        <div style={{ padding: "0 16px 14px" }}>
+          <div style={{ height: 10, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${fill}%`, background: "#22c55e", borderRadius: 20 }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 7 }}>
+            <span style={{ fontSize: 11, color: "#6b7280" }}>Only {total - joined} spots left</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "#374151", fontWeight: 700 }}>{joined}/{total}</span>
+              {!isStarted && match.status === "upcoming" && !alreadyJoined && !isFull && (
+                <button onClick={openJoinModal} style={{ padding: "5px 12px", background: "#22c55e", border: "none", borderRadius: 20, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                  Join
+                </button>
+              )}
+              {alreadyJoined && <span style={{ background: "#d1fae5", color: "#065f46", fontSize: 11, padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>✅ Joined</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Room & Prize Buttons */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px 14px" }}>
+          <button onClick={() => setShowRoom(!showRoom)} style={{ padding: "12px 0", border: "1.5px solid #1e40af", borderRadius: 10, background: "#fff", color: "#1e40af", fontWeight: 700 }}>
+            🔑 Room Details {showRoom ? "▲" : "▼"}
+          </button>
+          <button onClick={() => setShowPrize(!showPrize)} style={{ padding: "12px 0", border: "1.5px solid #1e40af", borderRadius: 10, background: "#fff", color: "#1e40af", fontWeight: 700 }}>
+            🏆 Prize Details {showPrize ? "▲" : "▼"}
+          </button>
+        </div>
+
+        {/* Footer */}
+        <div onClick={() => setShowDetailSheet(true)} style={{ background: match.status === "completed" ? "#374151" : "#16a34a", padding: "15px", textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}>
+          {match.status === "completed" ? "✅ Match শেষ হয়েছে" : isStarted ? "🔑 Room Details দেখুন" : <>⏰ STARTS IN — <TimeLeft startTime={match.startTime} /></>}
+          <span style={{ fontSize: 12, opacity: 0.85, marginLeft: 6 }}>ℹ️ Details</span>
+        </div>
+      </div>
+
+      {/* Join Modal */}
+      {showJoinModal && (
+        <div onClick={() => setShowJoinModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 360 }}>
+            <div style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", padding: "18px 20px", color: "#fff" }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>🎮 Match Join করুন</div>
+              <div style={{ fontSize: 12, marginTop: 2 }}>{match.title}</div>
+            </div>
+
+            <div style={{ padding: "20px" }}>
+              <div style={{ background: "#fef3c7", padding: "10px 14px", borderRadius: 10, textAlign: "center", marginBottom: 16, color: "#92400e", fontWeight: 600 }}>
+                ৳{match.entryFee} আপনার ওয়ালেট থেকে কাটা হবে
+              </div>
+
+              <label style={{ fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>🎯 Free Fire In-Game Name</label>
+
+              {loadingName ? (
+                <div style={{ padding: "12px", background: "#f9fafb", borderRadius: 10, textAlign: "center" }}>⏳ লোড হচ্ছে...</div>
+              ) : (
+                <input
+                  type="text"
+                  value={inGameName}
+                  onChange={(e) => setInGameName(e.target.value)}
+                  placeholder="আপনার ইন-গেম নাম লিখুন"
+                  style={{ width: "100%", padding: "12px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 14 }}
+                />
+              )}
+
+              <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                <button onClick={() => setShowJoinModal(false)} style={{ flex: 1, padding: "11px", border: "1.5px solid #e5e7eb", borderRadius: 10 }}>বাতিল</button>
+                <button onClick={handleJoin} disabled={!inGameName.trim() || joining} style={{ flex: 1, padding: "11px", background: "#22c55e", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700 }}>
+                  {joining ? "Joining..." : "✅ Confirm Join"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Sheet */}
+      {showDetailSheet && <MatchDetailSheet match={match} onClose={() => setShowDetailSheet(false)} />}
+    </>
+  );
+};
+
+export default MatchCard;
+
+
+......MatchCard.jsx end......
+
+
+
+......MatchDetails.jsx start......
+
+ import React from "react";
+
+const MatchDetails = ({ match, onBack }) => {
+  if (!match) return null;
+
+  return (
+    <div className="bg-gray-100 min-h-screen max-w-[450px] mx-auto pb-24">
+
+      <div className="bg-white p-4 flex items-center gap-3 shadow">
+        <button onClick={onBack}>←</button>
+        <h2 className="font-bold">{match.title}</h2>
+      </div>
+
+      <div className="p-4 space-y-3">
+
+        <div className="bg-white p-4 rounded-xl shadow">
+          <p className="text-sm">Category</p>
+          <b>{match.category}</b>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl shadow">
+          <p className="text-sm">Entry Fee</p>
+          <b>৳ {match.entryFee}</b>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl shadow">
+          <p className="text-sm">Win Prize</p>
+          <b>৳ {match.winPrize}</b>
+        </div>
+
+        <button className="w-full bg-green-500 text-white p-3 rounded-xl font-bold">
+          JOIN MATCH
+        </button>
+
+      </div>
+    </div>
+  );
+};
+
+export default MatchDetails;
+
+
+
+......MatchDetails.jsx end......
+
+
+
+......MatchJoin.jsx start......
+
+ // page/MatchJoin/MatchJoin.jsx
+import React, { useState } from 'react';
+
+// Mode config — match type অনুযায়ী team select দেখাবে
+const TEAM_MODES = ["br_duo", "br_squad", "clash_squad", "cs_2vs2", "tdm_6v6"];
+
+const MODE_LABEL = {
+  br_solo:      "BR Solo",
+  br_survival:  "BR Survival",
+  br_duo:       "BR Duo (2vs2)",
+  br_squad:     "BR Squad (4vs4)",
+  clash_squad:  "Clash Squad (4vs4)",
+  cs_2vs2:      "CS 2vs2",
+  lone_wolf:    "Lone Wolf (1vs1)",
+  tdm_6v6:      "TDM 6vs6",
+  training:     "Training Match",
+  br_match:     "BR Match",
+};
+
+const MatchJoin = ({ match, onBack, onConfirmJoin }) => {
+  const [formData, setFormData] = useState({
+    userName: '',
+    gameId:   '',
+    team:     'A',
+  });
+
+  if (!match) return null;
+
+  const isTeamMode = TEAM_MODES.includes(match.category) || match.matchType === "team";
+  const needsTeam  = isTeamMode && (match.teamSize || 1) > 1;
+
+  // Team A ও Team B তে কতজন আছে
+  const teamACnt = (match.joinedUsers || []).filter((u) => (u.team || "A") === "A").length;
+  const teamBCnt = (match.joinedUsers || []).filter((u) => (u.team || "A") === "B").length;
+  const tSize    = match.teamSize || 2;
+  const teamAFull = teamACnt >= tSize;
+  const teamBFull = teamBCnt >= tSize;
+
+  const handleJoin = () => {
+    if (!formData.userName.trim()) {
+      alert("Game Name দিন");
+      return;
+    }
+    if (needsTeam && !formData.team) {
+      alert("Team select করুন");
+      return;
+    }
+    if (needsTeam && formData.team === "A" && teamAFull) {
+      alert("Team A full! Team B select করুন।");
+      return;
+    }
+    if (needsTeam && formData.team === "B" && teamBFull) {
+      alert("Team B full! Team A select করুন।");
+      return;
+    }
+    onConfirmJoin(formData);
+  };
+
+  const inp = {
+    width: "100%",
+    padding: "12px 14px",
+    border: "1.5px solid #e5e7eb",
+    borderRadius: 10,
+    fontSize: 14,
+    outline: "none",
+    boxSizing: "border-box",
+    background: "#f9fafb",
+  };
+
+  return (
+    <div style={{ background: "#fcfaff", minHeight: "100vh", maxWidth: 450, margin: "0 auto", fontFamily: "'Inter', sans-serif" }}>
+      {/* Header */}
+      <div style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <button onClick={onBack} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#fff", fontSize: 16, cursor: "pointer", marginRight: 10 }}>❮</button>
+          <span style={{ color: "#fff", fontWeight: 800, fontSize: 16 }}>🎮 Match Join করুন</span>
+        </div>
+      </div>
+
+      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Match Info */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: 14, border: "1px solid #e5e7eb" }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>{match.title}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+            <span style={{ background: "#dcfce7", color: "#166534", fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>
+              {MODE_LABEL[match.category] || match.category}
+            </span>
+            {needsTeam && (
+              <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>
+                Team Match
+              </span>
+            )}
+            <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>
+              Entry: ৳{match.entryFee}
+            </span>
+          </div>
+        </div>
+
+        {/* Game Name */}
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
+            Free Fire Username (In-Game Name) *
+          </label>
+          <input
+            type="text"
+            placeholder="আপনার in-game username লিখুন"
+            value={formData.userName}
+            onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+            style={inp}
+          />
+        </div>
+
+        {/* Team Select — শুধু team mode এ এবং teamSize > 1 হলে */}
+        {needsTeam && (
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", display: "block", marginBottom: 8 }}>
+              Team Select করুন *
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {["A", "B"].map((team) => {
+                const cnt  = team === "A" ? teamACnt : teamBCnt;
+                const full = team === "A" ? teamAFull : teamBFull;
+                const sel  = formData.team === team;
+                return (
+                  <button
+                    key={team}
+                    onClick={() => !full && setFormData({ ...formData, team })}
+                    disabled={full}
+                    style={{
+                      padding: "14px 0",
+                      borderRadius: 10,
+                      border: `2px solid ${sel ? "#22c55e" : full ? "#f3f4f6" : "#e5e7eb"}`,
+                      background: sel ? "#f0fdf4" : full ? "#f9fafb" : "#fff",
+                      color: sel ? "#16a34a" : full ? "#9ca3af" : "#374151",
+                      fontWeight: 700,
+                      fontSize: 15,
+                      cursor: full ? "not-allowed" : "pointer",
+                      textAlign: "center",
+                    }}
+                  >
+                    Team {team}
+                    <div style={{ fontSize: 11, fontWeight: 400, marginTop: 3 }}>
+                      {cnt}/{tSize} joined {full ? "— FULL" : ""}
+                    </div>
+                    {sel && <div style={{ fontSize: 12, color: "#16a34a", marginTop: 2 }}>✅ Selected</div>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Entry Fee Warning */}
+        <div style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#92400e", textAlign: "center", fontWeight: 600 }}>
+          ৳{match.entryFee} আপনার wallet থেকে কাটা হবে
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <button
+            onClick={onBack}
+            style={{ flex: 1, padding: "12px 0", border: "1.5px solid #e5e7eb", borderRadius: 10, background: "#fff", color: "#374151", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          >
+            বাতিল
+          </button>
+          <button
+            onClick={handleJoin}
+            disabled={!formData.userName.trim() || (needsTeam && (formData.team === "A" && teamAFull) || (formData.team === "B" && teamBFull))}
+            style={{
+              flex: 2,
+              padding: "12px 0",
+              border: "none",
+              borderRadius: 10,
+              background: formData.userName.trim() ? "#22c55e" : "#86efac",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: formData.userName.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            ✅ Confirm Join
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MatchJoin;
+
+
+......MatchJoin.jsx end......
+
+
+ .......MatchList.jsx start.......
+ import React, { useState, useEffect, useRef } from "react";
+import MatchCard from "../MatchCard/MatchCard";
+import BottomMenu from "../../Component/BottomMenu/BottomMenu";
+
+const API_BASE = ((import.meta.env.VITE_API_URL || 'https://playzo-vn8e.onrender.com') + '/api').replace(/\/api\/api/, '/api');
+
+// ✅ Pull-to-refresh — page change না করে শুধু data reload
+const PullToRefresh = ({ onRefresh, children }) => {
+  const startY = useRef(0);
+  const pulling = useRef(false);
+
+  const onTouchStart = (e) => {
+    startY.current = e.touches[0].clientY;
+    pulling.current = true;
+  };
+
+  const onTouchEnd = (e) => {
+    if (!pulling.current) return;
+    const diff = e.changedTouches[0].clientY - startY.current;
+    if (diff > 80) onRefresh();
+    pulling.current = false;
+  };
+
+  return (
+    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {children}
+    </div>
+  );
+};
+
+const MatchList = ({ category, title, onBack, onJoinSuccess, tab, setTab }) => {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const fetchMatches = async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    try {
+      const res = await fetch(`${API_BASE}/matches`);
+      const data = await res.json();
+
+      let allMatches = [];
+      if (Array.isArray(data)) allMatches = data;
+      else if (Array.isArray(data?.data)) allMatches = data.data;
+      else if (Array.isArray(data?.matches)) allMatches = data.matches;
+
+      if (category) {
+        allMatches = allMatches.filter((m) =>
+          (m.category || "").toLowerCase().trim() === category.toLowerCase().trim()
+        );
+      }
+
+      allMatches = allMatches.filter(
+        (m) => m.status !== "completed" && m.status !== "cancelled"
+      );
+
+      if (isMounted.current) {
+        setMatches(allMatches);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    } catch (err) {
+      console.log(err);
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchMatches();
+    const interval = setInterval(() => fetchMatches(), 10000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleJoinSuccess = (matchId, newBalance) => {
+    setMatches((prev) =>
+      prev.map((m) =>
+        m._id === matchId
+          ? { ...m, joinedPlayers: (m.joinedPlayers || 0) + 1 }
+          : m
+      )
+    );
+    if (onJoinSuccess) onJoinSuccess(matchId, newBalance);
+  };
+
+  const handleRefresh = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    fetchMatches(true);
+  };
+
+  return (
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="bg-gray-100 min-h-screen pb-24" style={{ overscrollBehaviorY: "contain" }}>
+
+        {refreshing && (
+          <div className="flex items-center justify-center py-2 bg-orange-50">
+            <span className="inline-block w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2" />
+            <span className="text-xs text-orange-500 font-bold">Updating...</span>
+          </div>
+        )}
+
+        {/* HEADER */}
+        <div className="bg-white p-4 flex items-center justify-between shadow sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="text-2xl font-bold">←</button>
+            <div>
+              <h2 className="font-bold uppercase text-gray-800">
+                {title || category?.replace(/_/g, " ") || "Matches"}
+              </h2>
+              <p className="text-xs text-gray-500">Total: {matches.length} matches</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200 active:scale-95 transition-all disabled:opacity-50"
+          >
+            <span className={refreshing ? "inline-block animate-spin" : ""}>🔄</span>
+            {refreshing ? "Updating..." : "Refresh"}
+          </button>
+        </div>
+
+        {/* CONTENT */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-600 font-bold">Loading matches...</p>
+          </div>
+        ) : (
+          <div className="p-3 space-y-3">
+            {matches.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+                <p className="text-5xl mb-3">🎮</p>
+                <p className="text-gray-700 font-bold text-lg">No Match Available</p>
+                <p className="text-gray-400 text-sm mt-2">
+                  {category
+                    ? `No ${category.replace(/_/g, " ")} matches found`
+                    : "No matches available"}
+                </p>
+                <p className="text-gray-300 text-xs mt-1">Check back later</p>
+                <button
+                  onClick={handleRefresh}
+                  className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg text-sm font-bold active:scale-95 transition-all"
+                >
+                  🔄 Refresh Now
+                </button>
+              </div>
+            ) : (
+              matches.map((match) => (
+                <MatchCard
+                  key={match._id}
+                  match={match}
+                  totalMatches={null}
+                  onJoinSuccess={(newBalance) =>
+                    handleJoinSuccess(match._id, newBalance)
+                  }
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {tab && setTab && <BottomMenu tab={tab} setTab={setTab} />}
+      </div>
+    </PullToRefresh>
+  );
+};
+
+export default MatchList;
+
+ .......MatchList.jsx end .......
+
+ .......MyMatch.jsx start...... 
+
+ import React, { useState, useEffect, useCallback, useRef } from "react";
+
+const API = "https://playzo-vn8e.onrender.com/api";
+
+const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+// ── Countdown Timer ──
+const TimeLeft = ({ startTime }) => {
+  const [time, setTime] = useState("");
+
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(startTime).getTime() - Date.now();
+      if (diff <= 0) { setTime("শুরু হয়েছে"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [startTime]);
+
+  return <span>{time}</span>;
+};
+
+// ── Screenshot Upload Section ─────────────────────────────────────────────────
+const ScreenshotUpload = ({ matchId }) => {
+  const [file, setFile]       = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [status, setStatus]   = useState("idle");
+  const [msg, setMsg]         = useState("");
+  const [result, setResult]   = useState(null);
+  const fileRef               = useRef();
+  const token                 = localStorage.getItem("token");
+
+  useEffect(() => { checkResult(); }, [matchId]);
+
+  const checkResult = async () => {
+    try {
+      const res  = await fetch(`${API}/result/my/${matchId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); if (data.success) setResult(data.data); }
+    } catch { /* silent */ }
+  };
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setMsg("শুধু image file দিন"); return; }
+    if (f.size > 8 * 1024 * 1024)    { setMsg("8MB এর বেশি না"); return; }
+    setFile(f); setPreview(URL.createObjectURL(f)); setMsg("");
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setStatus("uploading");
+    const form = new FormData();
+    form.append("screenshot", file);
+    try {
+      const res  = await fetch(`${API}/result/upload/${matchId}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      const data = await res.json();
+      if (data.success) { setStatus("idle"); setMsg("✅ Submit সফল হয়েছে! Admin review করবে।"); checkResult(); }
+      else { setStatus("error"); setMsg(data.message || "Upload হয়নি"); }
+    } catch { setStatus("error"); setMsg("Network error"); }
+  };
+
+  const statusColor = { processing: "#92400e", pending_review: "#1e40af", approved: "#065f46", rejected: "#991b1b", published: "#5b21b6" };
+  const statusBg    = { processing: "#fef3c7", pending_review: "#dbeafe", approved: "#d1fae5", rejected: "#fee2e2", published: "#ede9fe" };
+  const statusLabel = { processing: "⏳ OCR চলছে", pending_review: "🔍 Admin review এ আছে", approved: "✅ Approved", rejected: "❌ Rejected", published: "🏆 Result Published" };
+
+  if (result) {
+    return (
+      <div style={{ padding: "10px 16px 16px", borderTop: "1px solid #f3f4f6" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>📸 Result Status</span>
+          <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: statusBg[result.status] || "#f3f4f6", color: statusColor[result.status] || "#374151" }}>
+            {statusLabel[result.status] || result.status}
+          </span>
+        </div>
+        {result.status === "published" && result.finalPlayers?.length > 0 && (
+          <div style={{ background: "#f9fafb", borderRadius: 10, padding: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginBottom: 6, textTransform: "uppercase" }}>Leaderboard</div>
+            {result.finalPlayers.map((p, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < result.finalPlayers.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                <span style={{ width: 24, fontSize: 13, fontWeight: 800, color: i === 0 ? "#f59e0b" : i === 1 ? "#6b7280" : "#f97316" }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{p.inGameName}</span>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>{p.kills} kills</span>
+                {p.prizeAwarded > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: "#059669" }}>৳{p.prizeAwarded}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {result.status === "rejected" && result.adminNote && (
+          <p style={{ fontSize: 12, color: "#dc2626", marginTop: 6 }}>কারণ: {result.adminNote}</p>
+        )}
+        <button onClick={checkResult} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "#f3f4f6", border: "none", borderRadius: 8, fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 600 }}>
+          🔄 Status update করুন
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "0 16px 16px", borderTop: "1px solid #f3f4f6", paddingTop: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>📸 Result Screenshot Submit করুন</div>
+      {preview && <img src={preview} alt="" style={{ width: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", marginBottom: 8 }} />}
+      {(status === "idle" || status === "error") && (
+        <>
+          <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: "16px 12px", textAlign: "center", cursor: "pointer", background: "#fafafa", marginBottom: 8 }}>
+            <div style={{ fontSize: 24 }}>📷</div>
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>{file ? file.name : "Screenshot select করুন (Max 8MB)"}</p>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+          {file && (
+            <button onClick={handleUpload} style={{ width: "100%", padding: "11px 0", background: "#f97316", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Submit করুন
+            </button>
+          )}
+        </>
+      )}
+      {status === "uploading"  && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#6b7280", fontSize: 13 }}><span style={{ display: "inline-block", animation: "spin 0.8s linear infinite", fontSize: 16 }}>⏳</span>Upload হচ্ছে...</div>}
+      {msg && <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#059669", marginTop: 6 }}>{msg}</p>}
+      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+    </div>
+  );
+};
+
+// ✅ onBack prop যোগ করা হয়েছে
+const MyMatch = ({ onBack }) => {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [openRoom, setOpenRoom] = useState({});
+  const [openPrize, setOpenPrize] = useState({});
+
+  const user = (() => {
+    try { return JSON.parse(localStorage.getItem("user") || "{}"); }
+    catch { return {}; }
+  })();
+  const userId = user?.id || user?._id;
+  const token = localStorage.getItem("token");
+
+  const load = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/matches/my-matches?userId=${userId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const d = await res.json();
+      setMatches(Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : []);
+    } catch {
+      setMatches([]);
+    }
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const getSlot = (match) => {
+    const entry = (match.joinedUsers || []).find(
+      (u) => u.userId?.toString() === userId?.toString()
+    );
+    return entry?.slotNumber || "—";
+  };
+
+  const statusStyle = (s, started) => {
+    if (s === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
+    if (s === "live" || started) return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
+    return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
+  };
+
+  if (!userId) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
+        <p style={{ color: "#9ca3af", fontSize: 14 }}>Login করুন</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#f3f4f6", minHeight: "100vh", maxWidth: 450, margin: "0 auto", paddingBottom: 100 }}>
+
+      {/* ── Header ── */}
+      <div style={{
+        background: "#fff", padding: "16px 18px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, zIndex: 10,
+      }}>
+
+        {/* ✅ Left side: Back Arrow + Title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {onBack && (
+            <button
+              onClick={onBack}
+              style={{
+                background: "#f3f4f6",
+                border: "none",
+                borderRadius: "50%",
+                width: 36,
+                height: 36,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                cursor: "pointer",
+                color: "#374151",
+                flexShrink: 0,
+              }}
+            >
+              ←
+            </button>
+          )}
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>🎮 My Matches</div>
+        </div>
+
+        {/* Refresh Button */}
+        <button
+          onClick={load}
+          disabled={loading}
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            padding: "8px 16px",
+            background: loading ? "#f3f4f6" : "#dbeafe",
+            border: "none", borderRadius: 20, fontSize: 13,
+            color: loading ? "#9ca3af" : "#1e40af",
+            cursor: loading ? "not-allowed" : "pointer",
+            fontWeight: 700,
+          }}>
+          <span style={{
+            display: "inline-block",
+            animation: loading ? "spin 1s linear infinite" : "none",
+          }}>🔄</span>
+          {loading ? "Loading..." : "Refresh"}
+        </button>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+      `}</style>
+
+      <div style={{ padding: "8px 8px 0" }}>
+
+        {/* Loading */}
+        {loading && matches.length === 0 && (
+          <div style={{ textAlign: "center", padding: 40 }}>
+            <div style={{ fontSize: 32, animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</div>
+            <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 8 }}>Loading...</p>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && matches.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 20px" }}>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>🎮</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+              কোনো match join করা হয়নি
+            </div>
+            <div style={{ fontSize: 13, color: "#9ca3af" }}>
+              Match join করলে এখানে দেখা যাবে
+            </div>
+          </div>
+        )}
+
+        {/* Match Cards */}
+        {matches.map((m) => {
+          const started = m.startTime ? new Date(m.startTime).getTime() <= Date.now() : false;
+          const st = statusStyle(m.status, started);
+          const joined = Number(m.joinedPlayers || 0);
+          const total  = Number(m.totalPlayers || 0);
+          const fill   = total > 0 ? (joined / total) * 100 : 0;
+          const slotNo  = getSlot(m);
+
+          return (
+            <div key={m._id} style={{
+              background: "#fff",
+              borderRadius: 16,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              overflow: "hidden",
+              marginBottom: 16,
+              width: "100%",
+              paddingTop: 4,
+            }}>
+
+              {/* ── Top: image + title ── */}
+              <div style={{ display: "flex", gap: 14, padding: "16px 16px 12px" }}>
+                <img
+                  src={m.image || "/image/img-1.jpg"}
+                  alt=""
+                  style={{
+                    width: 105,
+                    height: 78,
+                    borderRadius: 10,
+                    objectFit: "cover",
+                    flexShrink: 0
+                  }}
+                  onError={(e) => { e.target.src = "/image/img-1.jpg"; }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#111", lineHeight: 1.35 }}>
+                    {m.title} | {m.device || "Mobile"}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#e53935", marginTop: 5, fontWeight: 600 }}>
+                    {m.startTime
+                      ? new Date(m.startTime).toLocaleString("en-BD", {
+                          day: "2-digit", month: "short", year: "numeric",
+                          hour: "2-digit", minute: "2-digit", hour12: true,
+                        })
+                      : "—"}
+                  </div>
+                  <div style={{ marginTop: 7, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ background: st.bg, color: st.color, fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>
+                      {st.label}
+                    </span>
+                    {slotNo !== "—" && (
+                      <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>
+                        Slot #{slotNo}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Stats Grid ── */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "0 16px", rowGap: 14, marginBottom: 14 }}>
+                {[
+                  { label: "WIN PRIZE",  value: fmt(m.winPrize) },
+                  { label: "ENTRY TYPE", value: (m.category || "").toUpperCase() },
+                  { label: "ENTRY FEE",  value: fmt(m.entryFee) },
+                  { label: "PER KILL",   value: fmt(m.perKill || 0) },
+                  { label: "MAP",        value: m.map || "Bermuda" },
+                  { label: "VERSION",    value: (m.device || "MOBILE").toUpperCase() },
+                ].map((s, i) => (
+                  <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
+                    <div style={{ fontSize: 10, color: "#777", fontWeight: 700, letterSpacing: 0.5 }}>{s.label}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#111", marginTop: 3 }}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Progress Bar ── */}
+              <div style={{ padding: "0 16px 14px" }}>
+                <div style={{ height: 10, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${fill}%`, background: "#22c55e", borderRadius: 20, transition: "width 0.5s" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                  <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 500 }}>Only {total - joined} spots left</span>
+                  <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 500 }}>{joined}/{total}</span>
+                </div>
+              </div>
+
+              {/* ── Room + Prize Buttons ── */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px 14px" }}>
+
+                {/* Room Details */}
+                <div>
+                  <button
+                    onClick={() => setOpenRoom((p) => ({ ...p, [m._id]: !p[m._id] }))}
+                    style={{
+                      width: "100%", padding: "12px 0", border: "1.5px solid #1e40af",
+                      borderRadius: 10, background: "#fff", color: "#1e40af",
+                      fontWeight: 700, fontSize: 13, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                    }}>
+                    🔑 Room Details {openRoom[m._id] ? "▲" : "▼"}
+                  </button>
+                  {openRoom[m._id] && (
+                    <div style={{ marginTop: 6, background: "#f0f9ff", borderRadius: 8, padding: "12px", border: "1px solid #bae6fd" }}>
+                      {m.isRoomOpen && m.roomId ? (
+                        <>
+                          <div style={{ fontSize: 13, color: "#0c4a6e", marginBottom: 5 }}>
+                            <b>Room ID:</b> <span style={{ letterSpacing: 0.5 }}>{m.roomId}</span>
+                          </div>
+                          <div style={{ fontSize: 13, color: "#0c4a6e" }}>
+                            <b>Password:</b> <span style={{ letterSpacing: 0.5 }}>{m.roomPassword || "—"}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#64748b", textAlign: "center" }}>
+                          ⏳ Room details not available yet
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Prize Details */}
+                <div>
+                  <button
+                    onClick={() => setOpenPrize((p) => ({ ...p, [m._id]: !p[m._id] }))}
+                    style={{
+                      width: "100%", padding: "12px 0", border: "1.5px solid #1e40af",
+                      borderRadius: 10, background: "#fff", color: "#1e40af",
+                      fontWeight: 700, fontSize: 13, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                    }}>
+                    🏆 Prize Details {openPrize[m._id] ? "▲" : "▼"}
+                  </button>
+                  {openPrize[m._id] && (
+                    <div style={{ marginTop: 6, background: "#fefce8", borderRadius: 8, padding: "12px", border: "1px solid #fde68a" }}>
+                      {[
+                        { label: "🥇 1st Prize", value: m.prizes?.first  || m.winPrize || 0 },
+                        { label: "🥈 2nd Prize", value: m.prizes?.second || 0 },
+                        { label: "🥉 3rd Prize", value: m.prizes?.third  || 0 },
+                        { label: "4️⃣ 4th Prize", value: m.prizes?.fourth || 0 },
+                        { label: "🔫 Per Kill",   value: m.perKill || 0 },
+                        { label: "🎟 Entry Fee", value: m.entryFee || 0 },
+                      ].map((p, i) => (
+                        <div key={i} style={{
+                          display: "flex", justifyContent: "space-between",
+                          fontSize: 13, color: "#92400e",
+                          paddingBottom: 5, marginBottom: 5,
+                          borderBottom: i < 5 ? "1px solid #fde68a" : "none",
+                        }}>
+                          <span>{p.label}</span>
+                          <b>৳{p.value}</b>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* ── Screenshot Upload — match start/completed হলে; এই পেজে শুধু joined match-ই লিস্ট হয় ── */}
+              {(started || m.status === "live" || m.status === "completed") && token && (
+                <ScreenshotUpload matchId={m._id} />
+              )}
+
+              {/* ── Footer: countdown or started ── */}
+              <div style={{
+                background: m.status === "completed" ? "#374151" : "#16a34a",
+                padding: "14px", textAlign: "center",
+                color: "#fff", fontWeight: 700, fontSize: 14,
+              }}>
+                {m.status === "completed" ? (
+                  <span>✅ Match শেষ হয়েছে</span>
+                ) : started ? (
+                  <span>কাস্টম Ready 🔑 Room Details থেকে নিন</span>
+                ) : (
+                  <span>⏰ STARTS IN — <TimeLeft startTime={m.startTime} /></span>
+                )}
+              </div>
+
+            </div>
+          );
+        })}
+
+      </div>
+    </div>
+  );
+};
+
+export default MyMatch;
+ 
+ .......MyMatch.jsx end  ......
+
+
+ .......Match Related js code......
+
+
+
+ .......matchController.js start .......
+
+ const Match = require("../models/matchModel");
+
+
+// ================= CREATE MATCH =================
+const createMatch = async (req, res) => {
+  try {
+    const {
+      title,
+      category,
+      entryFee,
+      winPrize,
+      totalPlayers,
+      roomId,
+      roomPassword,
+    } = req.body;
+
+    const newMatch = await Match.create({
+      title,
+      category,
+      entryFee,
+      winPrize,
+      totalPlayers,
+      roomId,
+      roomPassword,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Match created successfully",
+      data: newMatch,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// ================= GET ALL MATCHES =================
+const getMatches = async (req, res) => {
+  try {
+    const matches = await Match.find().sort({ createdAt: -1 });
+
+    res.json(matches);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+module.exports = {
+  createMatch,
+  getMatches,
+};
+ .......matchController.js end  .......
+
+
+
+.......Match.js start .......
+ // models/Match.js
+const mongoose = require("mongoose");
+
+// ─── Match Type Config ────────────────────────────────────────────────────────
+// matchType = "solo"   → Type 1: position prize + kill prize (individual)
+// matchType = "team"   → Type 2: winner team prize pool ÷ teamSize
+//
+// mode        teamSize  totalPlayers  matchType
+// br_solo        1         48          solo
+// br_duo         2         48          team
+// br_squad       4         48          team
+// clash_squad    4          8          team
+// cs_2vs2        2          4          team
+// lone_wolf      1          2          team   ← winner takes all
+// tdm_6v6        6         12          team
+// ─────────────────────────────────────────────────────────────────────────────
+
+const joinedUserSchema = new mongoose.Schema({
+  userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  inGameName: { type: String, default: "" },
+  gameName:   { type: String, default: "" },
+  slotNumber: { type: Number },
+  team:       { type: String, default: "A" }, // "A" or "B" — team match এ কোন দলে
+  joinedAt:   { type: Date, default: Date.now },
+}, { _id: false });
+
+const matchSchema = new mongoose.Schema({
+  title:    { type: String, required: true },
+  category: { type: String, required: true },
+
+  // ── Type ──────────────────────────────────────────────────────────────────
+  matchType: {
+    type: String,
+    enum: ["solo", "team"],
+    default: "solo",
+  },
+  teamSize: {
+    type: Number,
+    default: 1,   // 1=solo/lone_wolf, 2=duo/2v2, 4=squad/cs4v4, 6=6v6
+  },
+
+  // ── Finance ───────────────────────────────────────────────────────────────
+  entryFee: { type: Number, required: true, default: 0 },
+  winPrize: { type: Number, required: true, default: 0 },
+
+  // Solo mode prizes (position based)
+  prizes: {
+    first:  { type: Number, default: 0 },
+    second: { type: Number, default: 0 },
+    third:  { type: Number, default: 0 },
+    fourth: { type: Number, default: 0 },
+  },
+
+  // Solo mode kill prize
+  perKill: { type: Number, default: 0 },
+
+  // Team mode: prizePool = total টাকা winner team পাবে (ভাগ হবে teamSize দিয়ে)
+  prizePool: { type: Number, default: 0 },
+
+  // ── Match Info ────────────────────────────────────────────────────────────
+  map:    { type: String, default: "Bermuda" },
+  device: { type: String, default: "Mobile" },
+  image:  { type: String, default: "" },
+
+  startTime: { type: Date },
+
+  totalPlayers:  { type: Number, default: 48 },
+  joinedPlayers: { type: Number, default: 0 },
+
+  joinedUsers: [joinedUserSchema],
+
+  // ── Room ──────────────────────────────────────────────────────────────────
+  roomId:       { type: String, default: "" },
+  roomPassword: { type: String, default: "" },
+  isRoomOpen:   { type: Boolean, default: false },
+
+  // ── Results ───────────────────────────────────────────────────────────────
+  results: [
+    {
+      userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      inGameName: { type: String },
+      position:   { type: Number },
+      kills:      { type: Number, default: 0 },
+      prize:      { type: Number, default: 0 },
+      rank:       { type: Number },
+      team:       { type: String },           // team match result এ winner team
+    },
+  ],
+
+  // ── Winner Team (team match only) ─────────────────────────────────────────
+  winnerTeam: { type: String, default: "" }, // "A" or "B"
+
+  resultSubmissionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ResultSubmission",
+    default: null,
+  },
+
+  completedAt: { type: Date },
+  deleteAt:    { type: Date },
+  status:      { type: String, default: "upcoming" },
+}, { timestamps: true });
+
+module.exports = mongoose.model("Match", matchSchema);
+
+.......Match.js end  .......
+
+
+
+.......matchModel.js start ......
+ const mongoose = require("mongoose");
+
+const matchSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+    },
+
+    category: {
+      type: String,
+      required: true,
+    },
+
+    entryFee: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    winPrize: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    totalPlayers: {
+      type: Number,
+      default: 48,
+    },
+
+    joinedPlayers: {
+      type: Number,
+      default: 0,
+    },
+
+    roomId: {
+      type: String,
+      default: "",
+    },
+
+    roomPassword: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      default: "upcoming",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Match", matchSchema);
+
+.......matchModel.js end  ......
+
+
+......matchRoutes.js start ......
+
+ // routes/matchRoutes.js
+const express = require("express");
+const router  = express.Router();
+const Match   = require("../models/Match");
+const User    = require("../models/User");
+const jwt     = require("jsonwebtoken");
+const notificationRouter = require("./notifications");
+
+// ─── Match mode → config mapping ─────────────────────────────────────────────
+// category string  matchType  teamSize  defaultTotalPlayers
+const MODE_CONFIG = {
+  br_solo:      { matchType: "solo", teamSize: 1, defaultTotal: 48 },
+  br_survival:  { matchType: "solo", teamSize: 1, defaultTotal: 48 },
+  br_duo:       { matchType: "team", teamSize: 2, defaultTotal: 48 },
+  br_squad:     { matchType: "team", teamSize: 4, defaultTotal: 48 },
+  clash_squad:  { matchType: "team", teamSize: 4, defaultTotal:  8 },
+  cs_2vs2:      { matchType: "team", teamSize: 2, defaultTotal:  4 },
+  lone_wolf:    { matchType: "team", teamSize: 1, defaultTotal:  2 }, // winner takes all
+  tdm_6v6:      { matchType: "team", teamSize: 6, defaultTotal: 12 },
+  training:     { matchType: "solo", teamSize: 1, defaultTotal: 48 },
+};
+
+// ─── Middlewares ──────────────────────────────────────────────────────────────
+const protectAdmin = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.json({ success: false, message: "No token" });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "admin" && decoded.role !== "super-admin")
+      return res.json({ success: false, message: "Admin only" });
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.json({ success: false, message: "Invalid token: " + err.message });
+  }
+};
+
+const protect = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ success: false, message: "No token" });
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: "Invalid token" });
+  }
+};
+
+// ─── Test ─────────────────────────────────────────────────────────────────────
+router.get("/test", (req, res) => res.json({ success: true, message: "Match Routes ✅" }));
+
+// ─── CREATE MATCH ─────────────────────────────────────────────────────────────
+// POST /api/matches/create
+router.post("/create", protectAdmin, async (req, res) => {
+  try {
+    const { startTime, category = "br_solo", totalPlayers, prizePool, ...rest } = req.body;
+
+    const cfg = MODE_CONFIG[category] || MODE_CONFIG.br_solo;
+
+    const expiresAt = startTime
+      ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
+      : new Date(Date.now() + 20 * 60 * 1000);
+
+    const match = await Match.create({
+      ...rest,
+      startTime,
+      expiresAt,
+      category,
+      matchType:    cfg.matchType,
+      teamSize:     cfg.teamSize,
+      totalPlayers: totalPlayers || cfg.defaultTotal,
+      prizePool:    prizePool    || rest.winPrize || 0,
+      joinedPlayers: 0,
+      status:        "upcoming",
+    });
+
+    await notificationRouter.sendMatchNotification(match, category);
+
+    res.status(201).json({ success: true, message: "Match created", data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET ALL MATCHES ──────────────────────────────────────────────────────────
+router.get("/", async (req, res) => {
+  try {
+    const matches = await Match.find()
+      .populate("joinedUsers.userId", "name phone")
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET COMPLETED MATCHES ────────────────────────────────────────────────────
+router.get("/completed", async (req, res) => {
+  try {
+    const matches = await Match.find({ status: "completed" })
+      .sort({ completedAt: -1 })
+      .limit(30);
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── MY MATCHES ───────────────────────────────────────────────────────────────
+router.get("/my-matches", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ success: false, message: "userId required" });
+    const matches = await Match.find({ "joinedUsers.userId": userId }).sort({ createdAt: -1 });
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET SINGLE MATCH ─────────────────────────────────────────────────────────
+router.get("/:id", async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+    res.json({ success: true, data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── UPDATE ROOM ──────────────────────────────────────────────────────────────
+router.put("/update-room/:id", protectAdmin, async (req, res) => {
+  try {
+    const { roomId, roomPassword } = req.body;
+    const match = await Match.findByIdAndUpdate(
+      req.params.id,
+      { roomId, roomPassword, status: "live", isRoomOpen: true },
+      { new: true }
+    );
+    res.json({ success: true, message: "Room updated", data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── JOIN MATCH ───────────────────────────────────────────────────────────────
+// PUT /api/matches/join/:id
+// Body: { userId, inGameName, team? }
+// team = "A" or "B" — team match এ কোন দলে যাবে
+router.put("/join/:id", async (req, res) => {
+  try {
+    const { userId, inGameName, team = "A" } = req.body;
+    const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+
+    // Already joined?
+    const alreadyJoined = (match.joinedUsers || []).find(
+      (u) => u.userId.toString() === userId.toString()
+    );
+    if (alreadyJoined)
+      return res.json({ success: false, message: "আপনি ইতোমধ্যে join করেছেন" });
+
+    // Full?
+    if (match.joinedPlayers >= match.totalPlayers)
+      return res.json({ success: false, message: "Match is full" });
+
+    // Team size check (team match)
+    if (match.matchType === "team" && match.teamSize > 1) {
+      const teamCount = (match.joinedUsers || []).filter(
+        (u) => u.team === team
+      ).length;
+      if (teamCount >= match.teamSize)
+        return res.json({
+          success: false,
+          message: `Team ${team} full! অন্য team select করুন।`,
+        });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.balance < match.entryFee)
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+
+    // Slot assign
+    const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
+    let slotNumber = 1;
+    while (usedSlots.includes(slotNumber)) slotNumber++;
+
+    // Deduct balance
+    user.balance -= match.entryFee;
+    if (!user.joinHistory) user.joinHistory = [];
+    user.joinHistory.push({
+      matchId:    match._id,
+      matchTitle: match.title,
+      entryFee:   match.entryFee,
+      joinedAt:   new Date(),
+    });
+    await user.save();
+
+    match.joinedUsers.push({
+      userId:     user._id,
+      inGameName: inGameName || "",
+      gameName:   inGameName || "",
+      slotNumber,
+      team:       match.matchType === "team" ? team : "A",
+    });
+    match.joinedPlayers = match.joinedUsers.length;
+    await match.save();
+
+    // Referral point trigger
+    if (user.referredBy) {
+      try {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          const refEntry = referrer.referralHistory?.find(
+            (r) => r.userId.toString() === user._id.toString()
+          );
+          if (refEntry && refEntry.deposited && !refEntry.pointGiven) {
+            refEntry.pointGiven = true;
+            referrer.referralPoints = (referrer.referralPoints || 0) + 5;
+            await referrer.save();
+          }
+        }
+      } catch (refErr) {
+        console.error("Referral error:", refErr.message);
+      }
+    }
+
+    res.json({
+      success:    true,
+      message:    "Join সফল!",
+      newBalance: user.balance,
+      slotNumber,
+      team:       match.matchType === "team" ? team : null,
+      data:       match,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── SUBMIT RESULT (legacy route — admin panel uses /api/admin/matches/:id/result) ──
+// POST /api/matches/result
+router.post("/result", protectAdmin, async (req, res) => {
+  try {
+    const { matchId, results } = req.body;
+    if (!matchId || !results?.length)
+      return res.status(400).json({ success: false, message: "matchId and results required" });
+
+    const match = await Match.findById(matchId);
+    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+
+    const finalResults = results.map((p) => {
+      let prize = (p.kills || 0) * (match.perKill || 0);
+      if (p.position == 1)      prize += match.prizes?.first  || 0;
+      else if (p.position == 2) prize += match.prizes?.second || 0;
+      else if (p.position == 3) prize += match.prizes?.third  || 0;
+      else if (p.position == 4) prize += match.prizes?.fourth || 0;
+      return { ...p, prize: Math.floor(prize) };
+    });
+
+    match.results     = finalResults;
+    match.status      = "completed";
+    match.completedAt = new Date();
+    await match.save();
+
+    for (const player of finalResults) {
+      if (player.userId && player.prize > 0) {
+        await User.findByIdAndUpdate(player.userId, {
+          $inc: { balance: player.prize },
+          $push: {
+            transactions: {
+              type: "match_prize", amount: player.prize,
+              matchId: match._id, matchTitle: match.title, date: new Date(),
+            },
+          },
+        });
+      }
+    }
+
+    res.json({ success: true, message: "Result submitted & prizes distributed", data: match });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── DELETE ALL (admin) ───────────────────────────────────────────────────────
+router.delete("/clear-all", protectAdmin, async (req, res) => {
+  try {
+    const result = await Match.deleteMany({});
+    res.json({ success: true, message: `${result.deletedCount} matches deleted` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// START MATCH
+router.put("/live/:id", async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+
+    if (!match) {
+      return res.status(404).json({
+        success: false,
+        message: "Match not found",
+      });
+    }
+
+    // already live
+    if (match.status === "live") {
+      return res.status(400).json({
+        success: false,
+        message: "Match already live",
+      });
+    }
+
+    // completed match check
+    if (match.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Completed match cannot start",
+      });
+    }
+
+    match.status = "live";
+
+    match.startedAt = new Date();
+
+    await match.save();
+
+    res.json({
+      success: true,
+      message: "✅ Match started successfully",
+      match,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+
+module.exports = router;
+
+
+
+
+
+......matchRoutes.js end  ......
+
+
+
+......MatchDetailSheet.jsx start ......
+
+ import React, { useState, useEffect } from "react";
+
+// ── Category → Rules mapping (same source data MatchCard.jsx already defines) ──
+const CATEGORY_RULES = {
+  br_solo:    { title: "Battle Royale Solo Rules", rules: ["ম্যাচ শুরুর আগে রুমে থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "ম্যাচ চলাকালীন রুম ছাড়লে হার গণ্য হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়", "Match শুরুর ৫ মিনিট আগে room ID দেওয়া হবে"] },
+  br_duo:     { title: "Battle Royale Duo Rules",  rules: ["প্রতিটি দলে ঠিক ২ জন থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "দুজনকেই একই রুমে থাকতে হবে", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "Zone camping অনুমোদিত নয়"] },
+  br_squad:   { title: "Battle Royale Squad Rules", rules: ["প্রতি squad-এ ৪ জন থাকতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "মাঝপথে প্লেয়ার পরিবর্তন নয়", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত"] },
+  cs_solo:    { title: "Clash Squad Solo Rules",   rules: ["একক প্লেয়ার হিসেবে অংশগ্রহণ", "কোনো co-ordination বা callout নিষিদ্ধ", "প্রতিটি রাউন্ডের স্ক্রিনশট জমা দিতে হবে", "হ্যাক/চিট ব্যবহারে সরাসরি DQ", "Disconnect হলে সেই রাউন্ড পুনরায় খেলতে হবে", "অপরপক্ষকে ট্রোলিং নিষিদ্ধ"] },
+  cs_duo:     { title: "Clash Squad Duo Rules",    rules: ["প্রতিটি দলে ঠিক ২ জন থাকবে", "Clash Squad মোডে ২v২ ফরম্যাটে খেলতে হবে", "প্রতিটি গেমের আগে map কনফার্ম করতে হবে", "একজন Disconnect হলে সেই রাউন্ড বাতিল", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  cs_squad:   { title: "Clash Squad Rules",        rules: ["প্রতিটি দলে ঠিক ৪ জন থাকতে হবে", "Clash Squad মোডে খেলতে হবে", "Friendly fire থেকে বিরত থাকতে হবে", "গ্লিচ বা বাগ ব্যবহার করলে রাউন্ড বাতিল", "২ রাউন্ড জিতলেই ম্যাচ বিজয়ী", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  cs_6vs6:    { title: "Clash Squad 6vs6 Rules",   rules: ["প্রতিটি দলে ঠিক ৬ জন থাকতে হবে", "Clash Squad মোডে খেলতে হবে", "মাঝপথে প্লেয়ার পরিবর্তন নয়", "গ্লিচ বা বাগ ব্যবহার করলে রাউন্ড বাতিল", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  lw_solo:    { title: "Lone Wolf Solo Rules",     rules: ["একক প্লেয়ার হিসেবে অংশগ্রহণ", "কোনো co-ordination নিষিদ্ধ", "Best of 3 বা Best of 5 ফরম্যাট", "টাই হলে Sudden Death রাউন্ড হবে", "Emote abuse এবং delay tactics বন্ধ", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক"] },
+  lw_duo:     { title: "Lone Wolf Duo Rules",      rules: ["প্রতিটি দলে ঠিক ২ জন থাকবে", "Duo voice chat ব্যবহার করা যাবে", "Third party সাহায্য নেওয়া যাবে না", "স্ক্রিনশট প্রমাণ বাধ্যতামূলক", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত"] },
+  free_match: { title: "Free Match Rules",         rules: ["হোস্ট কর্তৃক ঘোষিত নিয়ম মানা বাধ্যতামূলক", "হ্যাক বা চিট ব্যবহার করলে তাৎক্ষণিক ban", "Entry fee থাকলে আগেই প্রদান করতে হবে", "অশ্লীল ভাষা বা ব্যক্তিগত আক্রমণ নিষিদ্ধ", "বিতর্কে হোস্ট/অ্যাডমিনের সিদ্ধান্ত চূড়ান্ত"] },
+};
+
+const getMatchRules = (category) => {
+  const key = (category || "").toLowerCase().trim();
+  return CATEGORY_RULES[key] || { title: "Match Rules", rules: ["হ্যাক/চিট ব্যবহারে সরাসরি DQ", "স্ক্রিনশট প্রমাণ জমা দিতে হবে", "বিতর্কে হোস্টের সিদ্ধান্ত চূড়ান্ত", "ম্যাচ চলাকালীন রুম ছাড়লে হার গণ্য হবে"] };
+};
+
+const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
+
+const MODE_LABEL = {
+  br_solo: "Battle Royale Solo",
+  br_duo: "Battle Royale Duo",
+  br_squad: "Battle Royale Squad",
+  cs_solo: "Clash Squad Solo",
+  cs_duo: "Clash Squad Duo",
+  cs_squad: "Clash Squad",
+  cs_6vs6: "Clash Squad 6vs6",
+  lw_solo: "Lone Wolf Solo",
+  lw_duo: "Lone Wolf Duo",
+  free_match: "Free Match",
+};
+
+// ── Inline countdown (self-contained — no dependency on MatchCard.jsx) ─────────
+const Countdown = ({ startTime }) => {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(startTime).getTime() - Date.now();
+      if (diff <= 0) { setTime("শুরু হয়েছে"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [startTime]);
+  return <span>{time}</span>;
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// MatchDetailSheet — bottom sheet showing full match info, room, prize,
+// joined players list ও category-wise rules
+// ═════════════════════════════════════════════════════════════════════════════
+const MatchDetailSheet = ({ match, onClose }) => {
+  if (!match) return null;
+
+  const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+  const userId = user?.id || user?._id;
+
+  const isStarted   = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
+  const joined      = Number(match.joinedPlayers || 0);
+  const total       = Number(match.totalPlayers || 0);
+  const isTeamMatch = match.matchType === "team" && (match.teamSize || 1) > 1;
+  const rules       = getMatchRules(match.category);
+
+  const players = [...(match.joinedUsers || [])].sort(
+    (a, b) => (a.slotNumber || 0) - (b.slotNumber || 0)
+  );
+
+  const statusBadge = (() => {
+    if (match.status === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
+    if (match.status === "live" || isStarted) return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
+    return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
+  })();
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: "#fff", width: "100%", maxWidth: 450, maxHeight: "88vh", borderRadius: "20px 20px 0 0", overflow: "hidden", display: "flex", flexDirection: "column", animation: "sheetUp 0.25s ease-out" }}
+      >
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 4, background: "#e5e7eb" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "10px 20px 14px", borderBottom: "1px solid #f3f4f6" }}>
+          <div style={{ flex: 1, paddingRight: 10 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#111", lineHeight: 1.3 }}>{match.title}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7 }}>
+              <span style={{ background: statusBadge.bg, color: statusBadge.color, fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{statusBadge.label}</span>
+              <span style={{ background: "#f3f4f6", color: "#374151", fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>
+                {MODE_LABEL[match.category] || (match.category || "").toUpperCase()}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: 32, height: 32, color: "#374151", fontSize: 15, cursor: "pointer", flexShrink: 0, WebkitTapHighlightColor: "transparent" }}>✕</button>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ overflowY: "auto", padding: "16px 20px 20px" }}>
+
+          {/* Countdown / status strip */}
+          <div style={{ background: match.status === "completed" ? "#f3f4f6" : "#f0fdf4", border: `1px solid ${match.status === "completed" ? "#e5e7eb" : "#bbf7d0"}`, borderRadius: 10, padding: "10px 14px", textAlign: "center", fontSize: 13, fontWeight: 700, color: match.status === "completed" ? "#374151" : "#16a34a", marginBottom: 16 }}>
+            {match.status === "completed"
+              ? "✅ ম্যাচ শেষ হয়েছে"
+              : isStarted
+                ? "🟢 ম্যাচ লাইভ — Room Details দেখুন"
+                : <>⏰ শুরু হতে বাকি — <Countdown startTime={match.startTime} /></>}
+          </div>
+
+          {/* Quick info grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", rowGap: 14, marginBottom: 18 }}>
+            {[
+              { label: "MAP",     value: match.map || "Bermuda" },
+              { label: "VERSION", value: (match.device || "Mobile").toUpperCase() },
+              { label: "PLAYERS", value: `${joined}/${total}` },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" }}>
+                <div style={{ fontSize: 10, color: "#777", fontWeight: 700, letterSpacing: 0.5 }}>{s.label}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#111", marginTop: 3 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Start time */}
+          <div style={{ fontSize: 13, color: "#374151", marginBottom: 18 }}>
+            <b>🗓 Start Time:</b>{" "}
+            {match.startTime
+              ? new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })
+              : "—"}
+          </div>
+
+          {/* Prize section */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>🏆 Prize Details</div>
+            <div style={{ background: "#fefce8", borderRadius: 10, padding: "12px 14px", border: "1px solid #fde68a" }}>
+              {[
+                { label: "🥇 1st",   value: match.prizes?.first  || match.winPrize || 0 },
+                { label: "🥈 2nd",   value: match.prizes?.second || 0 },
+                { label: "🥉 3rd",   value: match.prizes?.third  || 0 },
+                { label: "4️⃣ 4th",  value: match.prizes?.fourth || 0 },
+                { label: "🔫 Per Kill", value: match.perKill || 0 },
+                ...(isTeamMatch ? [{ label: "👥 Prize Pool", value: match.prizePool || 0 }] : []),
+                { label: "🎟 Entry Fee", value: match.entryFee || 0 },
+              ].map((p, i, arr) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#92400e", paddingBottom: 6, marginBottom: 6, borderBottom: i < arr.length - 1 ? "1px solid #fde68a" : "none" }}>
+                  <span>{p.label}</span><b>৳{p.value}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Room details */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>🔑 Room Details</div>
+            <div style={{ background: "#f0f9ff", borderRadius: 10, padding: "12px 14px", border: "1px solid #bae6fd" }}>
+              {match.isRoomOpen && match.roomId ? (
+                <>
+                  <div style={{ fontSize: 13, color: "#0c4a6e", marginBottom: 5 }}><b>Room ID:</b> {match.roomId}</div>
+                  <div style={{ fontSize: 13, color: "#0c4a6e" }}><b>Password:</b> {match.roomPassword || "—"}</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 12, color: "#64748b", textAlign: "center" }}>⏳ Room details এখনো দেওয়া হয়নি</div>
+              )}
+            </div>
+          </div>
+
+          {/* Joined players */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>👥 Joined Players ({joined}/{total})</div>
+            {players.length > 0 ? (
+              <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #f3f4f6", borderRadius: 10 }}>
+                {players.map((p, i) => {
+                  const isMe = p.userId?.toString?.() === userId?.toString?.();
+                  return (
+                    <div
+                      key={i}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", fontSize: 13, background: isMe ? "#f0fdf4" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: i < players.length - 1 ? "1px solid #f3f4f6" : "none" }}
+                    >
+                      <span style={{ color: "#374151", fontWeight: isMe ? 700 : 500 }}>
+                        {p.inGameName || p.gameName || "—"} {isMe && <span style={{ color: "#16a34a" }}>(আপনি)</span>}
+                      </span>
+                      <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {isTeamMatch && (
+                          <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 700 }}>Team {p.team || "A"}</span>
+                        )}
+                        <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 700 }}>#{p.slotNumber}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "10px 0" }}>এখনো কেউ join করেনি</div>
+            )}
+          </div>
+
+          {/* Rules */}
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111", marginBottom: 8 }}>📜 {rules.title}</div>
+            <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 7 }}>
+              {rules.rules.map((r, i) => (
+                <li key={i} style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{r}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <style>{`@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+    </div>
+  );
+};
+
+export default MatchDetailSheet;
+
+......MatchDetailSheet.jsx end  ......
