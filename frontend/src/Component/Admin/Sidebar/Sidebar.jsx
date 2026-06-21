@@ -1,4 +1,5 @@
- import React from "react";
+ // src/Component/Admin/Sidebar/Sidebar.jsx
+import React from "react";
 
 export const NAV = [
   {
@@ -9,46 +10,34 @@ export const NAV = [
   },
   {
     key: "create-match",
-    label: "Create match",
+    label: "Create Match",
     icon: "＋",
     roles: ["super-admin", "admin"],
   },
   {
-    key: "deposit-requests",
-    label: "Deposit requests",
-    icon: "↓",
-    badge: "deposit",
-    roles: ["super-admin", "finance"],
-  },
-  {
-    key: "withdraw-requests",
-    label: "Withdraw requests",
-    icon: "↑",
-    badge: "withdraw",
+    // ✅ deposit-requests + withdraw-requests + deposit-history + withdraw-history
+    // সব এখন একটাই "Transaction History" — ভেতরে tab আছে
+    key: "transaction-history",
+    label: "Transaction History",
+    icon: "📜",
+    badge: "transactions", // withdraw + deposit pending মিলিয়ে
     roles: ["super-admin", "finance"],
   },
   {
     key: "money-overview",
-    label: "Money overview",
+    label: "Money Overview",
     icon: "₹",
     roles: ["super-admin", "finance"],
   },
   {
-    key: "deposit-history",
-    label: "Deposit history",
-    icon: "◷",
-    roles: ["super-admin", "finance"],
+    key: "users",
+    label: "Users",
+    icon: "👥",
+    roles: ["super-admin", "admin"],
   },
-  {
-    key: "withdraw-history",
-    label: "Withdraw history",
-    icon: "◷",
-    roles: ["super-admin", "finance"],
-  },
-  { key: "users", label: "Users", icon: "👥", roles: ["super-admin", "admin"] },
   {
     key: "match-results",
-    label: "Match results",
+    label: "Match Results",
     icon: "🏆",
     roles: ["super-admin", "admin"],
   },
@@ -60,13 +49,13 @@ export const NAV = [
   },
   {
     key: "activity-log",
-    label: "Activity log",
+    label: "Activity Log",
     icon: "📋",
     roles: ["super-admin", "admin"],
   },
   {
     key: "manage-admins",
-    label: "Manage admins",
+    label: "Manage Admins",
     icon: "🔐",
     roles: ["super-admin"],
   },
@@ -85,23 +74,17 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
       top: 0,
     }}
   >
-    <div
-      style={{ padding: "20px 16px 14px", borderBottom: "1px solid #1e293b" }}
-    >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: "#f8fafc",
-          letterSpacing: 1,
-        }}
-      >
+    {/* Logo */}
+    <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid #1e293b" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc", letterSpacing: 1 }}>
         🎮 FF ADMIN
       </div>
       <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
         Free Fire Tournament
       </div>
     </div>
+
+    {/* Admin Info */}
     <div
       style={{
         margin: "12px 12px 8px",
@@ -138,14 +121,20 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
         </div>
       </div>
     </div>
+
+    {/* Nav Items */}
     <nav style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
       {NAV.filter((n) => n.roles.includes(admin?.role)).map((n) => {
+        // ✅ transaction-history badge = deposit pending + withdraw pending
         const cnt =
-          n.badge === "deposit"
-            ? badges.deposit
+          n.badge === "transactions"
+            ? (badges.deposit || 0) + (badges.withdraw || 0)
+            : n.badge === "deposit"
+            ? badges.deposit || 0
             : n.badge === "withdraw"
-              ? badges.withdraw
-              : 0;
+            ? badges.withdraw || 0
+            : 0;
+
         return (
           <div
             key={n.key}
@@ -174,6 +163,9 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
                   fontSize: 9,
                   padding: "1px 5px",
                   borderRadius: 20,
+                  fontWeight: 700,
+                  minWidth: 16,
+                  textAlign: "center",
                 }}
               >
                 {cnt}
@@ -183,6 +175,8 @@ const Sidebar = ({ page, setPage, admin, onLogout, badges }) => (
         );
       })}
     </nav>
+
+    {/* Sign Out */}
     <div style={{ padding: 12, borderTop: "1px solid #1e293b" }}>
       <button
         onClick={onLogout}
