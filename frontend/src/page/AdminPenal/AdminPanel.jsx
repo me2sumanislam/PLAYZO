@@ -6,8 +6,7 @@ import Sidebar from "../../Component/Admin/Sidebar/Sidebar";
 import Dashboard from "../Admin/AdminDashboard/AdminDashboard";
 import CreateMatch from "../Admin/CreateMatch/CreateMatch";
 import MatchResults from "../Admin/MatchResultSubmit";
-import DepositRequests from "../Admin/DepositeRequest/DepositeRequest";
-import WithdrawRequests from "../Admin/WithdrawRequest/withdrawRequest";
+
 import MoneyOverview from "../Admin/MoneyOverview/MoneyOverview";
 import TransactionHistory from "../Admin/TransactionHistory/TransactionHistory";
 import Users from "../Admin/UserManager/UserManager";
@@ -77,11 +76,8 @@ const AdminPanel = () => {
         {page === "create-match"       && <CreateMatch />}
         {page === "match-results"      && <MatchResults />}
 
-        {page === "deposit-requests"   && (
-          <DepositRequests adminName={admin.name || admin.phone} refresh={loadBadges} />
-        )}
-        {page === "withdraw-requests"  && (
-          <WithdrawRequests adminName={admin.name || admin.phone} refresh={loadBadges} />
+        {(page === "deposit-requests" || page === "withdraw-requests") && (
+          <TransactionHistory />
         )}
 
         {page === "money-overview"     && <MoneyOverview />}
