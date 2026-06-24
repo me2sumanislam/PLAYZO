@@ -41,7 +41,7 @@ const uploadBufferToCloudinary = (buffer) =>
   });
 
 // ===================== UPLOAD SCREENSHOT =====================
- exports.uploadScreenshot = [
+exports.uploadScreenshot = [
   upload.single("screenshot"),
   async (req, res) => {
     try {
@@ -75,7 +75,6 @@ const uploadBufferToCloudinary = (buffer) =>
       const { matchId } = req.params;
 
       const match = await Match.findById(matchId);
-
       if (!match) {
         return res.status(404).json({
           success: false,
@@ -83,42 +82,69 @@ const uploadBufferToCloudinary = (buffer) =>
         });
       }
 
-      // আগে submit করা আছে কিনা
+      // এই user আগে submit করেছে কিনা চেক
       const existing = await ResultSubmission.findOne({
         match: matchId,
         submittedBy: userId,
       });
 
-      if (existing) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "আপনি ইতোমধ্যে এই ম্যাচের জন্য screenshot জমা দিয়েছেন",
+      // নতুন user হলে 48 limit চেক করো
+      if (!existing) {
+        const totalCount = await ResultSubmission.countDocuments({
+          match: matchId,
         });
+        if (totalCount >= 48) {
+          return res.status(400).json({
+            success: false,
+            message: "এই ম্যাচে সর্বোচ্চ 48টি screenshot জমা হয়ে গেছে",
+          });
+        }
       }
 
       console.log("☁️ Uploading to Cloudinary...");
 
-      const uploadResult = await uploadBufferToCloudinary(
-        req.file.buffer
-      );
+      const uploadResult = await uploadBufferToCloudinary(req.file.buffer);
 
       console.log("✅ Cloudinary Response:", uploadResult);
 
-      const submission = await ResultSubmission.create({
-        match: matchId,
-        submittedBy: userId,
-        screenshot: {
+      let submission;
+
+      if (existing) {
+        // পুরানো image Cloudinary থেকে delete করো
+        if (existing.screenshot?.publicId) {
+          try {
+            await cloudinary.uploader.destroy(existing.screenshot.publicId);
+          } catch (e) {
+            console.warn("⚠️ Old image delete failed:", e.message);
+          }
+        }
+
+        // Record update করো
+        existing.screenshot = {
           url: uploadResult.secure_url,
           publicId: uploadResult.public_id,
-        },
-        status: "pending_review",
-      });
+        };
+        existing.status = "pending_review";
+        existing.adminNote = "";
+        submission = await existing.save();
+      } else {
+        // নতুন record create করো
+        submission = await ResultSubmission.create({
+          match: matchId,
+          submittedBy: userId,
+          screenshot: {
+            url: uploadResult.secure_url,
+            publicId: uploadResult.public_id,
+          },
+          status: "pending_review",
+        });
+      }
 
       return res.status(201).json({
         success: true,
-        message:
-          "✅ Screenshot upload সফল হয়েছে! Admin review করবে।",
+        message: existing
+          ? "✅ Screenshot আপডেট হয়েছে! Admin review করবে।"
+          : "✅ Screenshot upload সফল হয়েছে! Admin review করবে।",
         data: submission,
       });
     } catch (error) {
@@ -175,7 +201,7 @@ exports.getPendingSubmissions = async (req, res) => {
   }
 };
 
-// ===================== ADMIN: Get Submissions by Match (AdminPanel.jsx এর জন্য) =====================
+// ===================== ADMIN: Get Submissions by Match =====================
 exports.getSubmissionsByMatch = async (req, res) => {
   try {
     const { matchId } = req.params;
@@ -221,5 +247,3 @@ exports.reviewSubmission = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
- 
