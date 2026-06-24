@@ -1,5 +1,5 @@
  // backend/routes/resultRoutes.js
-
+console.log("✅ resultRoutes loaded");
 const express = require("express");
 const router = express.Router();
 
