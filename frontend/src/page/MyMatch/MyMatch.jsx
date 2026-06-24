@@ -4,10 +4,9 @@ const API = "https://playzo-vn8e.onrender.com/api";
 
 const fmt = (n) => "৳" + Number(n || 0).toLocaleString();
 
-// ── Countdown Timer ──
+// ── Countdown Timer ──────────────────────────────────────────────────────────
 const TimeLeft = ({ startTime }) => {
   const [time, setTime] = useState("");
-
   useEffect(() => {
     const calc = () => {
       const diff = new Date(startTime).getTime() - Date.now();
@@ -21,11 +20,10 @@ const TimeLeft = ({ startTime }) => {
     const t = setInterval(calc, 1000);
     return () => clearInterval(t);
   }, [startTime]);
-
   return <span>{time}</span>;
 };
 
-// ── Screenshot Upload Section ─────────────────────────────────────────────────
+// ── Screenshot Upload ────────────────────────────────────────────────────────
 const ScreenshotUpload = ({ matchId }) => {
   const [file, setFile]       = useState(null);
   const [preview, setPreview] = useState(null);
@@ -35,12 +33,26 @@ const ScreenshotUpload = ({ matchId }) => {
   const fileRef               = useRef();
   const token                 = localStorage.getItem("token");
 
-  useEffect(() => { checkResult(); }, [matchId]);
+  // ✅ FIX: matchId বদলালে সব state reset — এটাই 2nd user এর problem ঠিক করবে
+  useEffect(() => {
+    setFile(null);
+    setPreview(null);
+    setStatus("idle");
+    setMsg("");
+    setResult(null);
+    if (fileRef.current) fileRef.current.value = "";
+    checkResult();
+  }, [matchId]);
 
   const checkResult = async () => {
     try {
-      const res  = await fetch(`${API}/result/my/${matchId}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const data = await res.json(); if (data.success) setResult(data.data); }
+      const res = await fetch(`${API}/result/my/${matchId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) setResult(data.data);
+      }
     } catch { /* silent */ }
   };
 
@@ -49,7 +61,9 @@ const ScreenshotUpload = ({ matchId }) => {
     if (!f) return;
     if (!f.type.startsWith("image/")) { setMsg("শুধু image file দিন"); return; }
     if (f.size > 8 * 1024 * 1024)    { setMsg("8MB এর বেশি না"); return; }
-    setFile(f); setPreview(URL.createObjectURL(f)); setMsg("");
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+    setMsg("");
   };
 
   const handleUpload = async () => {
@@ -58,32 +72,78 @@ const ScreenshotUpload = ({ matchId }) => {
     const form = new FormData();
     form.append("screenshot", file);
     try {
-      const res  = await fetch(`${API}/result/upload/${matchId}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      const res  = await fetch(`${API}/result/upload/${matchId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
       const data = await res.json();
-      if (data.success) { setStatus("idle"); setMsg("✅ Submit সফল হয়েছে! Admin review করবে।"); checkResult(); }
-      else { setStatus("error"); setMsg(data.message || "Upload হয়নি"); }
-    } catch { setStatus("error"); setMsg("Network error"); }
+      if (data.success) {
+        setStatus("idle");
+        setMsg("✅ Submit সফল হয়েছে! Admin review করবে।");
+        setFile(null);
+        setPreview(null);
+        if (fileRef.current) fileRef.current.value = "";
+        checkResult();
+      } else {
+        setStatus("error");
+        setMsg(data.message || "Upload হয়নি");
+      }
+    } catch {
+      setStatus("error");
+      setMsg("Network error");
+    }
   };
 
-  const statusColor = { processing: "#92400e", pending_review: "#1e40af", approved: "#065f46", rejected: "#991b1b", published: "#5b21b6" };
-  const statusBg    = { processing: "#fef3c7", pending_review: "#dbeafe", approved: "#d1fae5", rejected: "#fee2e2", published: "#ede9fe" };
-  const statusLabel = { processing: "⏳ OCR চলছে", pending_review: "🔍 Admin review এ আছে", approved: "✅ Approved", rejected: "❌ Rejected", published: "🏆 Result Published" };
+  const statusColor = {
+    processing:     "#92400e",
+    pending_review: "#1e40af",
+    approved:       "#065f46",
+    rejected:       "#991b1b",
+    published:      "#5b21b6",
+  };
+  const statusBg = {
+    processing:     "#fef3c7",
+    pending_review: "#dbeafe",
+    approved:       "#d1fae5",
+    rejected:       "#fee2e2",
+    published:      "#ede9fe",
+  };
+  const statusLabel = {
+    processing:     "⏳ OCR চলছে",
+    pending_review: "🔍 Admin review এ আছে",
+    approved:       "✅ Approved",
+    rejected:       "❌ Rejected",
+    published:      "🏆 Result Published",
+  };
 
   if (result) {
     return (
       <div style={{ padding: "10px 16px 16px", borderTop: "1px solid #f3f4f6" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>📸 Result Status</span>
-          <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: statusBg[result.status] || "#f3f4f6", color: statusColor[result.status] || "#374151" }}>
+          <span style={{
+            padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+            background: statusBg[result.status] || "#f3f4f6",
+            color: statusColor[result.status] || "#374151",
+          }}>
             {statusLabel[result.status] || result.status}
           </span>
         </div>
+
         {result.status === "published" && result.finalPlayers?.length > 0 && (
           <div style={{ background: "#f9fafb", borderRadius: 10, padding: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginBottom: 6, textTransform: "uppercase" }}>Leaderboard</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginBottom: 6, textTransform: "uppercase" }}>
+              Leaderboard
+            </div>
             {result.finalPlayers.map((p, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < result.finalPlayers.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-                <span style={{ width: 24, fontSize: 13, fontWeight: 800, color: i === 0 ? "#f59e0b" : i === 1 ? "#6b7280" : "#f97316" }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 0",
+                borderBottom: i < result.finalPlayers.length - 1 ? "1px solid #f3f4f6" : "none",
+              }}>
+                <span style={{ width: 24, fontSize: 13, fontWeight: 800, color: i === 0 ? "#f59e0b" : i === 1 ? "#6b7280" : "#f97316" }}>
+                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                </span>
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{p.inGameName}</span>
                 <span style={{ fontSize: 12, color: "#6b7280" }}>{p.kills} kills</span>
                 {p.prizeAwarded > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: "#059669" }}>৳{p.prizeAwarded}</span>}
@@ -91,10 +151,15 @@ const ScreenshotUpload = ({ matchId }) => {
             ))}
           </div>
         )}
+
         {result.status === "rejected" && result.adminNote && (
           <p style={{ fontSize: 12, color: "#dc2626", marginTop: 6 }}>কারণ: {result.adminNote}</p>
         )}
-        <button onClick={checkResult} style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "#f3f4f6", border: "none", borderRadius: 8, fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 600 }}>
+
+        <button
+          onClick={checkResult}
+          style={{ marginTop: 8, width: "100%", padding: "7px 0", background: "#f3f4f6", border: "none", borderRadius: 8, fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 600 }}
+        >
           🔄 Status update করুন
         </button>
       </div>
@@ -103,42 +168,71 @@ const ScreenshotUpload = ({ matchId }) => {
 
   return (
     <div style={{ padding: "0 16px 16px", borderTop: "1px solid #f3f4f6", paddingTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>📸 Result Screenshot Submit করুন</div>
-      {preview && <img src={preview} alt="" style={{ width: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", marginBottom: 8 }} />}
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+        📸 Result Screenshot Submit করুন
+      </div>
+
+      {preview && (
+        <img src={preview} alt="" style={{ width: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", marginBottom: 8 }} />
+      )}
+
       {(status === "idle" || status === "error") && (
         <>
-          <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: "16px 12px", textAlign: "center", cursor: "pointer", background: "#fafafa", marginBottom: 8 }}>
+          <div
+            onClick={() => fileRef.current.click()}
+            style={{
+              border: "2px dashed #d1d5db", borderRadius: 8, padding: "16px 12px",
+              textAlign: "center", cursor: "pointer", background: "#fafafa", marginBottom: 8,
+            }}
+          >
             <div style={{ fontSize: 24 }}>📷</div>
-            <p style={{ fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>{file ? file.name : "Screenshot select করুন (Max 8MB)"}</p>
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: "4px 0 0" }}>
+              {file ? file.name : "Screenshot select করুন (Max 8MB)"}
+            </p>
           </div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
           {file && (
-            <button onClick={handleUpload} style={{ width: "100%", padding: "11px 0", background: "#f97316", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            <button
+              onClick={handleUpload}
+              style={{ width: "100%", padding: "11px 0", background: "#f97316", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+            >
               Submit করুন
             </button>
           )}
         </>
       )}
-      {status === "uploading"  && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#6b7280", fontSize: 13 }}><span style={{ display: "inline-block", animation: "spin 0.8s linear infinite", fontSize: 16 }}>⏳</span>Upload হচ্ছে...</div>}
-      {msg && <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#059669", marginTop: 6 }}>{msg}</p>}
+
+      {status === "uploading" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#6b7280", fontSize: 13 }}>
+          <span style={{ display: "inline-block", animation: "spin 0.8s linear infinite", fontSize: 16 }}>⏳</span>
+          Upload হচ্ছে...
+        </div>
+      )}
+
+      {msg && (
+        <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#059669", marginTop: 6 }}>{msg}</p>
+      )}
+
       <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
     </div>
   );
 };
 
-// ✅ onBack prop যোগ করা হয়েছে
+// ── MyMatch Main Component ───────────────────────────────────────────────────
 const MyMatch = ({ onBack }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [openRoom, setOpenRoom] = useState({});
+  const [openRoom, setOpenRoom]   = useState({});
   const [openPrize, setOpenPrize] = useState({});
+  // ✅ NEW: copy feedback state
+  const [copyMsg, setCopyMsg] = useState({});
 
   const user = (() => {
     try { return JSON.parse(localStorage.getItem("user") || "{}"); }
     catch { return {}; }
   })();
   const userId = user?.id || user?._id;
-  const token = localStorage.getItem("token");
+  const token  = localStorage.getItem("token");
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -157,6 +251,15 @@ const MyMatch = ({ onBack }) => {
 
   useEffect(() => { load(); }, [load]);
 
+  // ✅ Copy helper
+  const copyToClipboard = (matchId, text, type) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyMsg((prev) => ({ ...prev, [matchId + type]: true }));
+      setTimeout(() => setCopyMsg((prev) => ({ ...prev, [matchId + type]: false })), 2000);
+    });
+  };
+
   const getSlot = (match) => {
     const entry = (match.joinedUsers || []).find(
       (u) => u.userId?.toString() === userId?.toString()
@@ -165,7 +268,7 @@ const MyMatch = ({ onBack }) => {
   };
 
   const statusStyle = (s, started) => {
-    if (s === "completed") return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
+    if (s === "completed")      return { bg: "#f3f4f6", color: "#374151", label: "✅ Ended" };
     if (s === "live" || started) return { bg: "#d1fae5", color: "#065f46", label: "🟢 Live" };
     return { bg: "#dbeafe", color: "#1e40af", label: "🕐 Upcoming" };
   };
@@ -182,40 +285,26 @@ const MyMatch = ({ onBack }) => {
   return (
     <div style={{ background: "#f3f4f6", minHeight: "100vh", maxWidth: 450, margin: "0 auto", paddingBottom: 100 }}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{
         background: "#fff", padding: "16px 18px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, zIndex: 10,
       }}>
-
-        {/* ✅ Left side: Back Arrow + Title */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {onBack && (
             <button
               onClick={onBack}
               style={{
-                background: "#f3f4f6",
-                border: "none",
-                borderRadius: "50%",
-                width: 36,
-                height: 36,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 18,
-                cursor: "pointer",
-                color: "#374151",
-                flexShrink: 0,
+                background: "#f3f4f6", border: "none", borderRadius: "50%",
+                width: 36, height: 36, display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 18, cursor: "pointer",
+                color: "#374151", flexShrink: 0,
               }}
-            >
-              ←
-            </button>
+            >←</button>
           )}
           <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>🎮 My Matches</div>
         </div>
-
-        {/* Refresh Button */}
         <button
           onClick={load}
           disabled={loading}
@@ -227,11 +316,9 @@ const MyMatch = ({ onBack }) => {
             color: loading ? "#9ca3af" : "#1e40af",
             cursor: loading ? "not-allowed" : "pointer",
             fontWeight: 700,
-          }}>
-          <span style={{
-            display: "inline-block",
-            animation: loading ? "spin 1s linear infinite" : "none",
-          }}>🔄</span>
+          }}
+        >
+          <span style={{ display: "inline-block", animation: loading ? "spin 1s linear infinite" : "none" }}>🔄</span>
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
@@ -245,7 +332,6 @@ const MyMatch = ({ onBack }) => {
 
       <div style={{ padding: "8px 8px 0" }}>
 
-        {/* Loading */}
         {loading && matches.length === 0 && (
           <div style={{ textAlign: "center", padding: 40 }}>
             <div style={{ fontSize: 32, animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</div>
@@ -253,51 +339,35 @@ const MyMatch = ({ onBack }) => {
           </div>
         )}
 
-        {/* Empty State */}
         {!loading && matches.length === 0 && (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
             <div style={{ fontSize: 52, marginBottom: 12 }}>🎮</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-              কোনো match join করা হয়নি
-            </div>
-            <div style={{ fontSize: 13, color: "#9ca3af" }}>
-              Match join করলে এখানে দেখা যাবে
-            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>কোনো match join করা হয়নি</div>
+            <div style={{ fontSize: 13, color: "#9ca3af" }}>Match join করলে এখানে দেখা যাবে</div>
           </div>
         )}
 
-        {/* Match Cards */}
         {matches.map((m) => {
           const started = m.startTime ? new Date(m.startTime).getTime() <= Date.now() : false;
-          const st = statusStyle(m.status, started);
-          const joined = Number(m.joinedPlayers || 0);
-          const total  = Number(m.totalPlayers || 0);
-          const fill   = total > 0 ? (joined / total) * 100 : 0;
+          const st      = statusStyle(m.status, started);
+          const joined  = Number(m.joinedPlayers || 0);
+          const total   = Number(m.totalPlayers || 0);
+          const fill    = total > 0 ? (joined / total) * 100 : 0;
           const slotNo  = getSlot(m);
 
           return (
             <div key={m._id} style={{
-              background: "#fff",
-              borderRadius: 16,
+              background: "#fff", borderRadius: 16,
               boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              overflow: "hidden",
-              marginBottom: 16,
-              width: "100%",
-              paddingTop: 4,
+              overflow: "hidden", marginBottom: 16, paddingTop: 4,
             }}>
 
-              {/* ── Top: image + title ── */}
+              {/* Top: image + title */}
               <div style={{ display: "flex", gap: 14, padding: "16px 16px 12px" }}>
                 <img
                   src={m.image || "/image/img-1.jpg"}
                   alt=""
-                  style={{
-                    width: 105,
-                    height: 78,
-                    borderRadius: 10,
-                    objectFit: "cover",
-                    flexShrink: 0
-                  }}
+                  style={{ width: 105, height: 78, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
                   onError={(e) => { e.target.src = "/image/img-1.jpg"; }}
                 />
                 <div style={{ flex: 1 }}>
@@ -325,7 +395,7 @@ const MyMatch = ({ onBack }) => {
                 </div>
               </div>
 
-              {/* ── Stats Grid ── */}
+              {/* Stats Grid */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "0 16px", rowGap: 14, marginBottom: 14 }}>
                 {[
                   { label: "WIN PRIZE",  value: fmt(m.winPrize) },
@@ -342,18 +412,18 @@ const MyMatch = ({ onBack }) => {
                 ))}
               </div>
 
-              {/* ── Progress Bar ── */}
+              {/* Progress Bar */}
               <div style={{ padding: "0 16px 14px" }}>
                 <div style={{ height: 10, background: "#e5e7eb", borderRadius: 20, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${fill}%`, background: "#22c55e", borderRadius: 20, transition: "width 0.5s" }} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-                  <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 500 }}>Only {total - joined} spots left</span>
-                  <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 500 }}>{joined}/{total}</span>
+                  <span style={{ fontSize: 11, color: "#6b7280" }}>Only {total - joined} spots left</span>
+                  <span style={{ fontSize: 11, color: "#6b7280" }}>{joined}/{total}</span>
                 </div>
               </div>
 
-              {/* ── Room + Prize Buttons ── */}
+              {/* Room + Prize Buttons */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px 14px" }}>
 
                 {/* Room Details */}
@@ -365,18 +435,53 @@ const MyMatch = ({ onBack }) => {
                       borderRadius: 10, background: "#fff", color: "#1e40af",
                       fontWeight: 700, fontSize: 13, cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                    }}>
+                    }}
+                  >
                     🔑 Room Details {openRoom[m._id] ? "▲" : "▼"}
                   </button>
+
                   {openRoom[m._id] && (
                     <div style={{ marginTop: 6, background: "#f0f9ff", borderRadius: 8, padding: "12px", border: "1px solid #bae6fd" }}>
                       {m.isRoomOpen && m.roomId ? (
                         <>
-                          <div style={{ fontSize: 13, color: "#0c4a6e", marginBottom: 5 }}>
-                            <b>Room ID:</b> <span style={{ letterSpacing: 0.5 }}>{m.roomId}</span>
+                          {/* ✅ Room ID + Copy Button */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                            <div style={{ fontSize: 13, color: "#0c4a6e" }}>
+                              <b>Room ID:</b>{" "}
+                              <span style={{ letterSpacing: 1, fontFamily: "monospace" }}>{m.roomId}</span>
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(m._id, m.roomId, "room")}
+                              style={{
+                                padding: "4px 10px", background: copyMsg[m._id + "room"] ? "#16a34a" : "#1e40af",
+                                color: "#fff", border: "none", borderRadius: 6,
+                                fontSize: 11, cursor: "pointer", fontWeight: 700,
+                                flexShrink: 0, marginLeft: 6, transition: "background 0.2s",
+                              }}
+                            >
+                              {copyMsg[m._id + "room"] ? "✅ Copied" : "📋 Copy"}
+                            </button>
                           </div>
-                          <div style={{ fontSize: 13, color: "#0c4a6e" }}>
-                            <b>Password:</b> <span style={{ letterSpacing: 0.5 }}>{m.roomPassword || "—"}</span>
+
+                          {/* ✅ Password + Copy Button */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ fontSize: 13, color: "#0c4a6e" }}>
+                              <b>Password:</b>{" "}
+                              <span style={{ letterSpacing: 1, fontFamily: "monospace" }}>{m.roomPassword || "—"}</span>
+                            </div>
+                            {m.roomPassword && (
+                              <button
+                                onClick={() => copyToClipboard(m._id, m.roomPassword, "pass")}
+                                style={{
+                                  padding: "4px 10px", background: copyMsg[m._id + "pass"] ? "#16a34a" : "#1e40af",
+                                  color: "#fff", border: "none", borderRadius: 6,
+                                  fontSize: 11, cursor: "pointer", fontWeight: 700,
+                                  flexShrink: 0, marginLeft: 6, transition: "background 0.2s",
+                                }}
+                              >
+                                {copyMsg[m._id + "pass"] ? "✅ Copied" : "📋 Copy"}
+                              </button>
+                            )}
                           </div>
                         </>
                       ) : (
@@ -397,9 +502,11 @@ const MyMatch = ({ onBack }) => {
                       borderRadius: 10, background: "#fff", color: "#1e40af",
                       fontWeight: 700, fontSize: 13, cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                    }}>
+                    }}
+                  >
                     🏆 Prize Details {openPrize[m._id] ? "▲" : "▼"}
                   </button>
+
                   {openPrize[m._id] && (
                     <div style={{ marginTop: 6, background: "#fefce8", borderRadius: 8, padding: "12px", border: "1px solid #fde68a" }}>
                       {[
@@ -407,7 +514,7 @@ const MyMatch = ({ onBack }) => {
                         { label: "🥈 2nd Prize", value: m.prizes?.second || 0 },
                         { label: "🥉 3rd Prize", value: m.prizes?.third  || 0 },
                         { label: "4️⃣ 4th Prize", value: m.prizes?.fourth || 0 },
-                        { label: "🔫 Per Kill",   value: m.perKill || 0 },
+                        { label: "🔫 Per Kill",  value: m.perKill || 0 },
                         { label: "🎟 Entry Fee", value: m.entryFee || 0 },
                       ].map((p, i) => (
                         <div key={i} style={{
@@ -423,15 +530,14 @@ const MyMatch = ({ onBack }) => {
                     </div>
                   )}
                 </div>
-
               </div>
 
-              {/* ── Screenshot Upload — match start/completed হলে; এই পেজে শুধু joined match-ই লিস্ট হয় ── */}
+              {/* Screenshot Upload */}
               {(started || m.status === "live" || m.status === "completed") && token && (
                 <ScreenshotUpload matchId={m._id} />
               )}
 
-              {/* ── Footer: countdown or started ── */}
+              {/* Footer */}
               <div style={{
                 background: m.status === "completed" ? "#374151" : "#16a34a",
                 padding: "14px", textAlign: "center",
@@ -449,7 +555,6 @@ const MyMatch = ({ onBack }) => {
             </div>
           );
         })}
-
       </div>
     </div>
   );
