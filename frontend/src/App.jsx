@@ -11,7 +11,7 @@ import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
 import Referral from "./page/Referral/Referral";
 import InstallPage from "./page/InstallPage/InstallPage"; // ✅ নতুন
-
+import SplashScreen from "./Component/SplashScreen/SplashScreen";
 const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 const API_BASE =
   (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api";
@@ -36,6 +36,9 @@ async function syncBadge() {
 }
 
 function App() {
+
+   const [showSplash, setShowSplash] = useState(true);
+
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const token = localStorage.getItem("token");
     const user = localStorage.getItem("user");
