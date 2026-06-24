@@ -70,6 +70,9 @@ app.get("/health", (req, res) => {
   });
 });
 
+console.log("✅ Registering /api/result");
+app.use("/api/result", resultRoutes);
+
 // ================= MAIN ROUTES =================
 app.use("/api/referral", require("./routes/referralRoutes"));
 app.use("/api/matches", require("./routes/matchRoutes"));
