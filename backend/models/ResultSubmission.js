@@ -46,8 +46,5 @@ const resultSubmissionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// একজন ইউজার একটা ম্যাচে শুধুমাত্র ১টি স্ক্রিনশট জমা দিতে পারবে
-resultSubmissionSchema.index({ match: 1, submittedBy: 1 }, { unique: true });
-
+ 
 module.exports = mongoose.model("ResultSubmission", resultSubmissionSchema);
