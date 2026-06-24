@@ -41,11 +41,20 @@ const uploadBufferToCloudinary = (buffer) =>
   });
 
 // ===================== UPLOAD SCREENSHOT =====================
-exports.uploadScreenshot = [
+ exports.uploadScreenshot = [
   upload.single("screenshot"),
   async (req, res) => {
     try {
-      console.log("📸 Upload Request Received for match:", req.params.matchId);
+      console.log("📸 Upload Request");
+      console.log("Has File:", !!req.file);
+      console.log("User:", req.user);
+      console.log("MatchId:", req.params.matchId);
+
+      console.log("Cloudinary Env:", {
+        cloud: !!process.env.CLOUDINARY_CLOUD_NAME,
+        key: !!process.env.CLOUDINARY_API_KEY,
+        secret: !!process.env.CLOUDINARY_API_SECRET,
+      });
 
       if (!req.file) {
         return res.status(400).json({
@@ -54,7 +63,9 @@ exports.uploadScreenshot = [
         });
       }
 
-      if (!req.user?.id) {
+      const userId = req.user?._id || req.user?.id;
+
+      if (!userId) {
         return res.status(401).json({
           success: false,
           message: "Login করুন",
@@ -64,6 +75,7 @@ exports.uploadScreenshot = [
       const { matchId } = req.params;
 
       const match = await Match.findById(matchId);
+
       if (!match) {
         return res.status(404).json({
           success: false,
@@ -71,26 +83,31 @@ exports.uploadScreenshot = [
         });
       }
 
-      // ইতিমধ্যে submit করা থাকলে (unique index আছে schema-তে)
+      // আগে submit করা আছে কিনা
       const existing = await ResultSubmission.findOne({
         match: matchId,
-        submittedBy: req.user.id,
+        submittedBy: userId,
       });
+
       if (existing) {
         return res.status(400).json({
           success: false,
-          message: "আপনি ইতোমধ্যে এই ম্যাচের জন্য screenshot জমা দিয়েছেন",
+          message:
+            "আপনি ইতোমধ্যে এই ম্যাচের জন্য screenshot জমা দিয়েছেন",
         });
       }
 
-      // Upload to Cloudinary (buffer থেকে সরাসরি, disk touch করা হয় না)
-      const uploadResult = await uploadBufferToCloudinary(req.file.buffer);
+      console.log("☁️ Uploading to Cloudinary...");
 
-      console.log("✅ Cloudinary Upload Successful:", uploadResult.secure_url);
+      const uploadResult = await uploadBufferToCloudinary(
+        req.file.buffer
+      );
+
+      console.log("✅ Cloudinary Response:", uploadResult);
 
       const submission = await ResultSubmission.create({
         match: matchId,
-        submittedBy: req.user.id,
+        submittedBy: userId,
         screenshot: {
           url: uploadResult.secure_url,
           publicId: uploadResult.public_id,
@@ -98,17 +115,20 @@ exports.uploadScreenshot = [
         status: "pending_review",
       });
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
-        message: "✅ Screenshot upload সফল হয়েছে! Admin review করবে।",
+        message:
+          "✅ Screenshot upload সফল হয়েছে! Admin review করবে।",
         data: submission,
       });
     } catch (error) {
-      console.error("❌ Upload Error:", error.message);
-      res.status(500).json({
+      console.error("❌ Upload Error:", error);
+
+      return res.status(500).json({
         success: false,
-        message: "Upload failed. আবার চেষ্টা করুন।",
-        error: error.message,
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
       });
     }
   },
