@@ -1,6 +1,4 @@
- const Match = require("../models/matchModel");
-
-
+ const Match = require("../models/Match");
 // ================= CREATE MATCH =================
 const createMatch = async (req, res) => {
   try {
