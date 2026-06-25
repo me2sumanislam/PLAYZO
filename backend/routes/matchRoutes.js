@@ -65,99 +65,115 @@ const protect = (req, res, next) => {
  */
 function calculatePrizes(match, results) {
   const category  = match.category  || "br_solo";
-  const perKill   = match.perKill   || 0;
+  const perKill   = match.perKill   || 0;          // admin যা set করে (৫ বা ১০ টাকা)
   const prizePool = match.prizePool  || match.winPrize || 0;
   const prizes    = match.prizes     || {};
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 1. BR SOLO (48 players) — Position Prize + Kill Prize
-  //    ১ম: prizes.first + (kills × perKill)
-  //    ২য়: prizes.second + (kills × perKill)
-  //    ৩য়: prizes.third + (kills × perKill)
-  //    ৪র্থ: prizes.fourth + (kills × perKill)
-  //    ৫ম-৪৮তম: শুধু (kills × perKill)
-  //    Red Alert: total prize > prizePool * 1.5 হলে warn করো
-  // ─────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1. BATTLE ROYALE SOLO — 48 player
+  //    Position Prize + Kill Prize (perKill = admin set, ৫ বা ১০ টাকা)
+  //    ১ম:  prizes.first  (default ৬০) + kills × perKill
+  //    ২য়:  prizes.second (default ৪০) + kills × perKill
+  //    ৩য়:  prizes.third  (default ৩০) + kills × perKill
+  //    ৪র্থ: prizes.fourth (default ২০) + kills × perKill
+  //    ৫ম–৪৮তম: শুধু kills × perKill
+  //    🔴 Red Alert: total prize > prizePool হলে warn
+  // ═══════════════════════════════════════════════════════════════════════════
   if (category === "br_solo" || category === "br_survival") {
     const PLACEMENT = {
-      1: prizes.first  ?? 60,
-      2: prizes.second ?? 40,
-      3: prizes.third  ?? 30,
-      4: prizes.fourth ?? 20,
+      1: prizes.first  != null ? prizes.first  : 60,
+      2: prizes.second != null ? prizes.second : 40,
+      3: prizes.third  != null ? prizes.third  : 30,
+      4: prizes.fourth != null ? prizes.fourth : 20,
     };
 
     const finalResults = results.map((p) => {
-      const killEarning    = (p.kills || 0) * perKill;
+      const killEarning    = Math.floor((p.kills || 0) * perKill);
       const placementPrize = PLACEMENT[p.position] || 0;
       return {
         ...p,
-        prize:          Math.floor(killEarning + placementPrize),
-        killEarning:    Math.floor(killEarning),
-        placementPrize: Math.floor(placementPrize),
+        prize:          killEarning + placementPrize,
+        killEarning,
+        placementPrize,
       };
     });
 
     const totalOut = finalResults.reduce((s, p) => s + p.prize, 0);
-    const redAlert = totalOut > prizePool * 1.5;
+    const redAlert = totalOut > prizePool;
 
     if (redAlert) {
-      console.warn(`🔴 RED ALERT: Match "${match.title}" — total prize ৳${totalOut} > prizePool ৳${prizePool}`);
+      console.warn(
+        `🔴 RED ALERT [${match.title}]: Total prize ৳${totalOut} > Prize Pool ৳${prizePool}`
+      );
     }
 
     return { finalResults, redAlert };
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 2. BR DUO (48 players) — Winner টিম (2 জন) Prize Pool সমান ভাগ
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2. BATTLE ROYALE DUO — 48 player (24 টিম)
   //    Kill Prize নেই
-  // ─────────────────────────────────────────────────────────────────────────
+  //    Winner Team (২ জন): prizePool ÷ 2 প্রতিজন
+  // ═══════════════════════════════════════════════════════════════════════════
   if (category === "br_duo") {
     return _teamWinnerPrize(results, prizePool, 2, match.winnerTeam);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 3. BR SQUAD (48 players) — Winner টিম (4 জন) Prize Pool সমান ভাগ
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 3. BATTLE ROYALE SQUAD — 48 player (12 টিম)
   //    Kill Prize নেই
-  // ─────────────────────────────────────────────────────────────────────────
+  //    Winner Squad (৪ জন): prizePool ÷ 4 প্রতিজন
+  // ═══════════════════════════════════════════════════════════════════════════
   if (category === "br_squad") {
     return _teamWinnerPrize(results, prizePool, 4, match.winnerTeam);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 4. CLASH SQUAD MODES — Kill Prize নেই, winner(s) Prize Pool ভাগ
-  //    cs_solo  (2):  বিজয়ী 1 জন  → 100% pool
-  //    cs_duo   (4):  বিজয়ী 2 জন  → pool ÷ 2
-  //    cs_squad (8):  বিজয়ী 4 জন  → pool ÷ 4
-  //    cs_6vs6  (12): বিজয়ী 6 জন  → pool ÷ 6
-  // ─────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 4. CLASS SQUAD SOLO — 2 player (1 vs 1)
+  //    Kill Prize নেই
+  //    বিজয়ী ১ জন → ১০০% prizePool
+  // ═══════════════════════════════════════════════════════════════════════════
   if (category === "cs_solo") {
     return _teamWinnerPrize(results, prizePool, 1, match.winnerTeam);
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 5. CLASS SQUAD DUO — 4 player (2 vs 2)
+  //    Kill Prize নেই
+  //    Winner Team (২ জন): prizePool ÷ 2 প্রতিজন
+  // ═══════════════════════════════════════════════════════════════════════════
   if (category === "cs_duo" || category === "cs_2vs2") {
     return _teamWinnerPrize(results, prizePool, 2, match.winnerTeam);
   }
-  if (category === "cs_squad" || category === "clash_squad") {
-    return _teamWinnerPrize(results, prizePool, 4, match.winnerTeam);
-  }
-  if (category === "cs_6vs6" || category === "cs_12") {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 6. CLASS SQUAD — 12 player (6 vs 6)
+  //    Kill Prize নেই
+  //    Winner Team (৬ জন): prizePool ÷ 6 প্রতিজন
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (category === "cs_squad" || category === "clash_squad" || category === "cs_6vs6") {
     return _teamWinnerPrize(results, prizePool, 6, match.winnerTeam);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 5. LONE WOLF MODES — Kill Prize নেই, winner(s) Prize Pool ভাগ
-  //    lw_solo / lone_wolf (2): বিজয়ী 1 জন → 100% pool
-  //    lw_duo             (4): বিজয়ী 2 জন → pool ÷ 2
-  // ─────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 7. LONE WOLF SOLO — 2 player (1 vs 1)
+  //    Kill Prize নেই
+  //    বিজয়ী ১ জন → ১০০% prizePool
+  // ═══════════════════════════════════════════════════════════════════════════
   if (category === "lw_solo" || category === "lone_wolf") {
     return _teamWinnerPrize(results, prizePool, 1, match.winnerTeam);
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 8. LONE WOLF DUO — 4 player (2 vs 2)
+  //    Kill Prize নেই
+  //    Winner Team (২ জন): prizePool ÷ 2 প্রতিজন
+  // ═══════════════════════════════════════════════════════════════════════════
   if (category === "lw_duo") {
     return _teamWinnerPrize(results, prizePool, 2, match.winnerTeam);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Default fallback — br_solo এর মতো
-  // ─────────────────────────────────────────────────────────────────────────
+  // Default fallback
   return _soloFallback(results, prizes, perKill);
 }
 
