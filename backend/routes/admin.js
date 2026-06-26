@@ -16,30 +16,38 @@ const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
 // ─── Prize Logic Config ───────────────────────────────────────────────────────
 // matchLogic:
-//   "solo_kill"   → BR Solo: position prize + kill × perKill
-//   "solo_pos"    → CS Solo / LW Solo: winner position prize only (no kill)
-//   "team_only"   → BR Duo, BR Squad, CS Duo, CS Squad, CS 6vs6, LW Duo:
-//                   কোনো kill prize নেই, custom winner select করলে winning
-//                   amount winners-দের মধ্যে সমান ভাগ হয়
+//   "solo_kill"  → BR Solo: position prize + kill × perKill
+//   "solo_pos"   → CS Solo / LW Solo: winner 1 জন → 100% prizePool
+//   "team_only"  → BR Duo/Squad, CS Duo/Squad/6vs6, LW Duo:
+//                  kill prize নেই, winner team সমান ভাগ
 
 const CATEGORY_CONFIG = {
-  br_solo:    { matchType: "solo",      teamSize: 1,  logic: "solo_kill",  killPrize: true  },
-  br_duo:     { matchType: "team",      teamSize: 2,  logic: "team_only",  killPrize: false },
-  br_squad:   { matchType: "team",      teamSize: 4,  logic: "team_only",  killPrize: false },
-  cs_solo:    { matchType: "solo",      teamSize: 1,  logic: "solo_pos",   killPrize: false },
-  cs_duo:     { matchType: "team",      teamSize: 2,  logic: "team_only",  killPrize: false },
-  cs_squad:   { matchType: "team",      teamSize: 4,  logic: "team_only",  killPrize: false },
-  cs_6vs6:    { matchType: "team",      teamSize: 6,  logic: "team_only",  killPrize: false },
-  lw_solo:    { matchType: "solo",      teamSize: 1,  logic: "solo_pos",   killPrize: false },
-  lw_duo:     { matchType: "team",      teamSize: 2,  logic: "team_only",  killPrize: false },
+  br_solo:     { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  br_duo:      { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  br_squad:    { matchType: "team", teamSize: 4, logic: "team_only",  killPrize: false },
+  cs_solo:     { matchType: "solo", teamSize: 1, logic: "solo_pos",   killPrize: false },
+  cs_duo:      { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  cs_squad:    { matchType: "team", teamSize: 4, logic: "team_only",  killPrize: false },
+  cs_6vs6:     { matchType: "team", teamSize: 6, logic: "team_only",  killPrize: false },
+  lw_solo:     { matchType: "solo", teamSize: 1, logic: "solo_pos",   killPrize: false },
+  lw_duo:      { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
   // backward compat
-  br_match:   { matchType: "solo",      teamSize: 1,  logic: "solo_kill",  killPrize: true  },
-  br_survival:{ matchType: "solo",      teamSize: 1,  logic: "solo_kill",  killPrize: true  },
-  clash_squad:{ matchType: "team",      teamSize: 4,  logic: "team_only",  killPrize: false },
-  cs_2vs2:    { matchType: "team",      teamSize: 2,  logic: "team_only",  killPrize: false },
-  lone_wolf:  { matchType: "solo",      teamSize: 1,  logic: "solo_pos",   killPrize: false },
-  training:   { matchType: "solo",      teamSize: 1,  logic: "solo_kill",  killPrize: true  },
-  free_match: { matchType: "solo", teamSize: 1, logic: "solo_kill", killPrize: true },
+  br_match:    { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  br_survival: { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  clash_squad: { matchType: "team", teamSize: 4, logic: "team_only",  killPrize: false },
+  cs_2vs2:     { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  lone_wolf:   { matchType: "solo", teamSize: 1, logic: "solo_pos",   killPrize: false },
+  training:    { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  free_match:  { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+};
+
+// ✅ BR Solo default placement prizes
+// Admin match create করার সময় prizes set না করলে এই default ব্যবহার হবে
+const BR_SOLO_DEFAULT_PRIZES = {
+  first:  60,
+  second: 40,
+  third:  30,
+  fourth: 20,
 };
 
 const authAdmin = async (req, res, next) => {
@@ -301,13 +309,11 @@ router.post("/admins/create", authAdmin, async (req, res) => {
   }
 });
 
-// ── COMPLETED MATCHES (Admin panel — 1 মাস store) ────────────────────────────
+// ── COMPLETED MATCHES ─────────────────────────────────────────────────────────
 router.get("/completed-matches", authAdmin, async (req, res) => {
   try {
-    // ১ মাসের পুরনো completed match auto delete
     const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     await Match.deleteMany({ status: "completed", completedAt: { $lt: oneMonthAgo } });
-
     const matches = await Match.find({ status: "completed" })
       .sort({ completedAt: -1 })
       .limit(100);
@@ -320,19 +326,22 @@ router.get("/completed-matches", authAdmin, async (req, res) => {
 // ════════════════════════════════════════════════════════════════════════════
 // MATCH RESULT — PUT /api/admin/matches/:id/result
 //
-// BR Solo:      { results: [{userId, inGameName, position, kills}] }
-//               → position prize (individual) + kill × perKill (individual)
-//
-// BR Duo / BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo  (logic: "team_only"):
-//               { winnerUserIds: ["<userId1>", "<userId2>", ...], totalPrize: 600 }
-//               → কোনো kill prize নেই। প্রতিটা joined player room-এর ভিতরে
-//                 নিজেরা team বানায়, admin শুধু winner হওয়া player গুলো
-//                 select করে এবং মোট prize amount দেয়, সেটা winnerUserIds
-//                 এর মধ্যে সমান ভাগ হয়।
+// BR Solo:
+//   Body: { results: [{userId, inGameName, position, kills}] }
+//   → ১ম: prizes.first(60) + kills×perKill
+//   → ২য়: prizes.second(40) + kills×perKill
+//   → ৩য়: prizes.third(30) + kills×perKill
+//   → ৪র্থ: prizes.fourth(20) + kills×perKill
+//   → বাকি: শুধু kills×perKill
+//   → Red Alert: total prize > prizePool হলে response এ redAlert: true
 //
 // CS Solo / LW Solo:
-//               { results: [{userId, inGameName, position:1}] }
-//               → winner gets full prize (position 1 only)
+//   Body: { results: [{userId, inGameName, position:1}] }
+//   → winner 1 জন → 100% prizePool
+//
+// BR Duo / BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo:
+//   Body: { winnerUserIds: ["id1","id2",...], totalPrize: 600 }
+//   → winner রা সমান ভাগে prize পাবে, kill prize নেই
 // ════════════════════════════════════════════════════════════════════════════
 router.put("/matches/:id/result", authAdmin, async (req, res) => {
   try {
@@ -342,50 +351,128 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
 
     const cfg = CATEGORY_CONFIG[match.category] || CATEGORY_CONFIG.br_solo;
 
-    // ── BR Solo / CS Solo / LW Solo ──────────────────────────────────────────
-    if (cfg.logic === "solo_kill" || cfg.logic === "solo_pos") {
+    // ══════════════════════════════════════════════════════════════════════
+    // BR SOLO — Position Prize + Kill Prize
+    // ══════════════════════════════════════════════════════════════════════
+    if (cfg.logic === "solo_kill") {
       if (!results || results.length === 0)
         return res.json({ success: false, message: "results array required" });
 
+      // ✅ Admin set করা prizes নাও, না থাকলে default ব্যবহার করো
+      const p1 = match.prizes?.first  || BR_SOLO_DEFAULT_PRIZES.first;
+      const p2 = match.prizes?.second || BR_SOLO_DEFAULT_PRIZES.second;
+      const p3 = match.prizes?.third  || BR_SOLO_DEFAULT_PRIZES.third;
+      const p4 = match.prizes?.fourth || BR_SOLO_DEFAULT_PRIZES.fourth;
+      const kp = match.perKill || 0;  // ✅ Admin set করা perKill (৫ বা ১০ টাকা)
+
       const finalResults = results.map((p) => {
-        const pos = Number(p.position) || 0;
-        let prize = 0;
+        const pos         = Number(p.position) || 0;
+        const kills       = Number(p.kills)    || 0;
+        const killEarning = kills * kp;
 
-        if (cfg.logic === "solo_kill") {
-          // Position prize
-          if (pos === 1)      prize += match.prizes?.first  || 0;
-          else if (pos === 2) prize += match.prizes?.second || 0;
-          else if (pos === 3) prize += match.prizes?.third  || 0;
-          else if (pos === 4) prize += match.prizes?.fourth || 0;
-          // Kill prize
-          prize += (Number(p.kills) || 0) * (match.perKill || 0);
-        } else {
-          // solo_pos: শুধু winner (position 1) full prize পায়
-          if (pos === 1) prize = match.prizePool || match.winPrize || match.prizes?.first || 0;
+        let placementPrize = 0;
+        if      (pos === 1) placementPrize = p1;
+        else if (pos === 2) placementPrize = p2;
+        else if (pos === 3) placementPrize = p3;
+        else if (pos === 4) placementPrize = p4;
+        // ৫ম-৪৮তম: placement prize = 0, শুধু kill prize
+
+        const prize = Math.floor(placementPrize + killEarning);
+
+        return {
+          userId:         p.userId,
+          inGameName:     p.inGameName || "",
+          position:       pos,
+          kills,
+          killPrize:      Math.floor(killEarning),
+          posPrize:       Math.floor(placementPrize),
+          prize,
+          rank:           pos,
+        };
+      });
+
+      const totalDistributed = finalResults.reduce((s, p) => s + p.prize, 0);
+      const prizePool        = match.prizePool || match.winPrize || 0;
+
+      // ✅ Red Alert: total kill prize বেশি হলে warn করো
+      const totalKillPrize = finalResults.reduce((s, p) => s + p.killPrize, 0);
+      const redAlert       = prizePool > 0 && totalDistributed > prizePool;
+
+      if (redAlert) {
+        console.warn(`🔴 RED ALERT: "${match.title}" — distributed ৳${totalDistributed} > pool ৳${prizePool}`);
+      }
+
+      match.results     = finalResults;
+      match.status      = "completed";
+      match.completedAt = new Date();
+      match.deleteAt    = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await match.save();
+
+      for (const player of finalResults) {
+        if (player.userId && player.prize > 0) {
+          await User.findByIdAndUpdate(player.userId, {
+            $inc: { balance: player.prize },
+            $push: {
+              transactions: {
+                type:       "match_prize",
+                amount:     player.prize,
+                matchId:    match._id,
+                matchTitle: match.title,
+                date:       new Date(),
+                note:       `Placement: ৳${player.posPrize} + Kills(${player.kills}×৳${kp}): ৳${player.killPrize}`,
+              },
+            },
+          });
         }
+      }
 
+      log(
+        req.admin.name,
+        `BR Solo Result — ${finalResults.length} players — ৳${totalDistributed} distributed${redAlert ? " 🔴 RED ALERT" : ""}`,
+        match.title,
+        "create"
+      );
+
+      return res.json({
+        success:           true,
+        message:           `✅ Result submitted! ৳${totalDistributed} distributed to ${finalResults.filter(p => p.prize > 0).length} players.`,
+        totalDistributed,
+        totalKillPrize,
+        redAlert,          // ⚠️ Admin panel এ দেখাবে
+        data:              match,
+      });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CS SOLO / LW SOLO — Winner 1 জন, 100% Prize Pool
+    // ══════════════════════════════════════════════════════════════════════
+    if (cfg.logic === "solo_pos") {
+      if (!results || results.length === 0)
+        return res.json({ success: false, message: "results array required" });
+
+      const winnerPrize = match.prizePool || match.winPrize || match.prizes?.first || 0;
+
+      const finalResults = results.map((p) => {
+        const pos     = Number(p.position) || 0;
+        const isWinner = pos === 1;
         return {
           userId:     p.userId,
           inGameName: p.inGameName || "",
           position:   pos,
-          kills:      Number(p.kills) || 0,
-          killPrize:  cfg.logic === "solo_kill" ? (Number(p.kills) || 0) * (match.perKill || 0) : 0,
-          posPrize:   prize - ((cfg.logic === "solo_kill") ? (Number(p.kills) || 0) * (match.perKill || 0) : 0),
-          prize:      Math.floor(prize),
+          kills:      0,
+          killPrize:  0,
+          posPrize:   isWinner ? winnerPrize : 0,
+          prize:      isWinner ? Math.floor(winnerPrize) : 0,
           rank:       pos,
         };
       });
 
       const totalDistributed = finalResults.reduce((s, p) => s + p.prize, 0);
 
-      // Prize pool exceed check
-      const prizePool = (match.prizes?.first || 0) + (match.prizes?.second || 0) +
-                        (match.prizes?.third || 0) + (match.prizes?.fourth || 0);
-
       match.results     = finalResults;
       match.status      = "completed";
       match.completedAt = new Date();
-      match.deleteAt    = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // ১ মাস পর
+      match.deleteAt    = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await match.save();
 
       for (const player of finalResults) {
@@ -402,18 +489,20 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
         }
       }
 
-      log(req.admin.name, `Result: ${match.category} — ${finalResults.length} players — ৳${totalDistributed} distributed`, match.title, "create");
+      log(req.admin.name, `Solo Result — ৳${totalDistributed} to winner`, match.title, "create");
 
       return res.json({
         success: true,
-        message: `✅ Result submitted! ৳${totalDistributed} distributed to ${finalResults.length} players.`,
+        message: `✅ Winner কে ৳${totalDistributed} prize দেওয়া হয়েছে।`,
         totalDistributed,
-        prizePoolExceeded: prizePool > 0 && totalDistributed > prizePool,
         data: match,
       });
     }
 
-    // ── Custom Winner (BR Duo / BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo) ──
+    // ══════════════════════════════════════════════════════════════════════
+    // TEAM ONLY — BR Duo/Squad, CS Duo/Squad/6vs6, LW Duo
+    // Winner team সমান ভাগে prize পাবে, kill prize নেই
+    // ══════════════════════════════════════════════════════════════════════
     if (cfg.logic === "team_only") {
       if (!winnerUserIds || winnerUserIds.length === 0)
         return res.json({ success: false, message: "কমপক্ষে ১ জন winner select করুন" });
@@ -426,7 +515,7 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
       const prizeEach  = Math.floor(prize / winnerSet.size);
 
       const finalResults = (match.joinedUsers || []).map((u) => {
-        const uid     = u.userId?._id?.toString() || u.userId?.toString();
+        const uid      = u.userId?._id?.toString() || u.userId?.toString();
         const isWinner = winnerSet.has(uid);
         return {
           userId:     u.userId?._id || u.userId,
@@ -462,13 +551,19 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
         }
       }
 
-      log(req.admin.name, `Custom winner result: ${winnerSet.size} জন × ৳${prizeEach}`, match.title, "create");
+      log(
+        req.admin.name,
+        `Team Result — ${winnerSet.size} জন × ৳${prizeEach} = ৳${totalDistributed}`,
+        match.title,
+        "create"
+      );
 
       return res.json({
-        success: true,
-        message: `✅ ${winnerSet.size} জন winner-কে ৳${prizeEach} করে — মোট ৳${totalDistributed} distributed.`,
+        success:          true,
+        message:          `✅ ${winnerSet.size} জন winner — প্রতিজন ৳${prizeEach} — মোট ৳${totalDistributed} distributed.`,
         totalDistributed,
-        data: match,
+        prizeEach,
+        data:             match,
       });
     }
 
