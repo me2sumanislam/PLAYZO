@@ -146,12 +146,12 @@ const CreateMatch = () => {
                 { key: "br_solo", label: "BR Solo (48 players)" },
                 { key: "br_duo", label: "BR Duo 2vs2 (48 players)" },
                 { key: "br_squad", label: "BR Squad 4vs4 (48 players)" },
-                { key: "cs_solo", label: "Clash Squad Solo (16 players)" },
-                { key: "cs_duo", label: "Clash Squad Duo (8 players)" },
+                { key: "cs_solo", label: "Clash Squad Solo (2 players)" },
+                { key: "cs_duo", label: "Clash Squad Duo (4 players)" },
                 { key: "cs_squad", label: "Clash Squad 4vs4 (8 players)" },
                 { key: "cs_6vs6", label: "Clash Squad 6vs6 (12 players)" },
-                { key: "lw_solo", label: "Lone Wolf Solo (16 players)" },
-                { key: "lw_duo", label: "Lone Wolf Duo (8 players)" },
+                { key: "lw_solo", label: "Lone Wolf Solo (2 players)" },
+                { key: "lw_duo", label: "Lone Wolf Duo (4 players)" },
                 { key: "free_match", label: "Free Match (48 players)" },
               ].map((c) => (
                 <option key={c.key} value={c.key}>
