@@ -1,6 +1,6 @@
  // src/utils/versionCheck.js
 
-// ✅ Update দেওয়ার সময় শুধু এই দুটো বাড়ান
+// ✅ "npm run bump" চালালে এই দুটো automatically বাড়বে
 const APP_VERSION = "1.0.1"
 const VERSION_KEY = "app_version"
 

@@ -10,8 +10,9 @@ import AppDashboard from "./Component/AppDashBoard/AppDeshBoard";
 import Auth from "./page/Auth/Auth";
 import AdminPanel from "./page/AdminPenal/AdminPanel";
 import Referral from "./page/Referral/Referral";
-import InstallPage from "./page/InstallPage/InstallPage"; // ✅ নতুন
+import InstallPage from "./page/InstallPage/InstallPage";
 import SplashScreen from "./Component/SplashScreen/SplashScreen";
+
 const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 const API_BASE =
   (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api";
@@ -36,8 +37,12 @@ async function syncBadge() {
 }
 
 function App() {
+  // ✅ Splash — শুধু PWA standalone mode এ দেখাবে
+  const isStandaloneMode =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone;
 
-   const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(isStandaloneMode);
 
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const token = localStorage.getItem("token");
@@ -182,63 +187,69 @@ function App() {
   };
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <div className="website-layout">
-            <Navbar />
-            <Hero />
-            <HomeCard />
-            <Footer />
-          </div>
-        }
-      />
+    <>
+      {/* ✅ Splash Screen — PWA open হলে দেখাবে, ২ সেকেন্ড পর সরে যাবে */}
+      {showSplash && (
+        <SplashScreen onFinish={() => setShowSplash(false)} />
+      )}
 
-      {/* ✅ নতুন — Referral install landing page */}
-      <Route path="/install" element={<InstallPage />} />
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <div className="website-layout">
+              <Navbar />
+              <Hero />
+              <HomeCard />
+              <Footer />
+            </div>
+          }
+        />
 
-      <Route
-        path="/app"
-        element={
-          <div className="app-container bg-[#fcfaff] min-h-screen">
-            {isLoggedIn ? (
-              <AppDashboard onLogout={handleLogout} />
+        <Route path="/install" element={<InstallPage />} />
+
+        <Route
+          path="/app"
+          element={
+            <div className="app-container bg-[#fcfaff] min-h-screen">
+              {isLoggedIn ? (
+                <AppDashboard onLogout={handleLogout} />
+              ) : (
+                <Auth onLoginSuccess={handleLoginSuccess} />
+              )}
+            </div>
+          }
+        />
+        <Route
+          path="/referral"
+          element={
+            isLoggedIn ? (
+              <Referral
+                onBack={() => navigate("/app")}
+                user={JSON.parse(localStorage.getItem("user") || "{}")}
+                token={localStorage.getItem("token")}
+              />
             ) : (
               <Auth onLoginSuccess={handleLoginSuccess} />
-            )}
-          </div>
-        }
-      />
-      <Route
-        path="/referral"
-        element={
-          isLoggedIn ? (
-            <Referral
-              onBack={() => navigate("/app")}
-              user={JSON.parse(localStorage.getItem("user") || "{}")}
-              token={localStorage.getItem("token")}
-            />
-          ) : (
-            <Auth onLoginSuccess={handleLoginSuccess} />
-          )
-        }
-      />
-      <Route
-        path="/admin/*"
-        element={
-          <div className="min-h-screen bg-gray-950">
-            <AdminPanel
-              onLogout={() => {
-                localStorage.removeItem("adminToken");
-                localStorage.removeItem("adminInfo");
-                navigate("/");
-              }}
-            />
-          </div>
-        }
-      />
-    </Routes>
+            )
+          }
+        />
+        <Route
+          path="/admin/*"
+          element={
+            <div className="min-h-screen bg-gray-950">
+              <AdminPanel
+                onLogout={() => {
+                  localStorage.removeItem("adminToken");
+                  localStorage.removeItem("adminInfo");
+                  navigate("/");
+                }}
+              />
+            </div>
+          }
+        />
+      </Routes>
+    </>
   );
 }
 
