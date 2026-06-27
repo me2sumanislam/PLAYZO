@@ -9,7 +9,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      strategies: 'generateSW',
+      strategies: 'injectManifest',   // ✅ generateSW থেকে বদলানো
+      srcDir: 'public',               // ✅ sw.js এখানে আছে
+      filename: 'sw.js',             // ✅ আপনার SW ফাইল
 
       manifest: {
         name: "uthiYO",
@@ -36,18 +38,22 @@ export default defineConfig({
         ]
       },
 
-      workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
-        cleanupOutdatedCaches: true,
-        importScripts: ['/sw-push.js'],
-      },
-
-      devOptions: { enabled: true }
+      devOptions: {
+        enabled: true,
+        type: 'module'
+      }
     }),
   ],
 
   build: {
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // ✅ প্রতি build এ নতুন hash — পুরনো cache কাজ করবে না
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      }
+    }
   }
 })
