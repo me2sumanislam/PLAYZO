@@ -1,91 +1,132 @@
- import React, { useEffect, useState } from "react";
+ // src/components/SplashScreen.jsx
+import { useEffect, useState } from 'react'
 
-const SplashScreen = ({ onDone }) => {
-  const [fadeOut, setFadeOut] = useState(false);
+const SplashScreen = ({ onFinish }) => {
+  const [visible, setVisible] = useState(true)
+  const [fadeOut, setFadeOut] = useState(false)
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setFadeOut(true), 2000);
-    const timer2 = setTimeout(() => onDone(), 2400);
+    // ২ সেকেন্ড পর fade out শুরু
+    const fadeTimer = setTimeout(() => {
+      setFadeOut(true)
+    }, 2000)
+
+    // fade out শেষে unmount
+    const removeTimer = setTimeout(() => {
+      setVisible(false)
+      onFinish?.()
+    }, 2600)
+
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, []);
+      clearTimeout(fadeTimer)
+      clearTimeout(removeTimer)
+    }
+  }, [onFinish])
+
+  if (!visible) return null
 
   return (
     <div
       style={{
-        position: "fixed",
+        position: 'fixed',
         inset: 0,
-        backgroundColor: "#1a1a2e",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
+        backgroundColor: '#0f172a',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
         zIndex: 9999,
-        transition: "opacity 0.4s ease",
+        gap: '24px',
         opacity: fadeOut ? 0 : 1,
+        transition: 'opacity 0.6s ease',
       }}
     >
       {/* App Icon */}
-      <img
-        src="/logo.png"
-        alt="Playzo"
+      <div
         style={{
-          width: 100,
-          height: 100,
-          borderRadius: 24,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          marginBottom: 24,
-          animation: "popIn 0.5s ease",
-        }}
-      />
-
-      {/* App Name */}
-      <h1
-        style={{
-          color: "#ffffff",
-          fontSize: 28,
-          fontWeight: 800,
-          letterSpacing: 2,
-          marginBottom: 8,
+          width: '96px',
+          height: '96px',
+          borderRadius: '24px',
+          overflow: 'hidden',
+          boxShadow: '0 0 40px rgba(255, 138, 0, 0.3)',
         }}
       >
-        PLAYZO
-      </h1>
-
-      <p style={{ color: "#aaaacc", fontSize: 13, marginBottom: 40 }}>
-        Play. Win. Repeat.
-      </p>
-
-      {/* Loading dots */}
-      <div style={{ display: "flex", gap: 8 }}>
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              backgroundColor: "#56CCF2",
-              animation: `bounce 1s ease ${i * 0.2}s infinite`,
-            }}
-          />
-        ))}
+        <img
+          src="/image/icon/icon-192x192.png"
+          alt="uthiYO"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
       </div>
 
-      <style>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); opacity: 0.4; }
-          50% { transform: translateY(-10px); opacity: 1; }
-        }
-        @keyframes popIn {
-          0% { transform: scale(0.5); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
-    </div>
-  );
-};
+      {/* App Name */}
+      <div style={{ textAlign: 'center' }}>
+        <h1
+          style={{
+            color: '#ffffff',
+            fontSize: '28px',
+            fontWeight: '700',
+            margin: 0,
+            letterSpacing: '1px',
+          }}
+        >
+          uthiYO
+        </h1>
+        <p
+          style={{
+            color: '#ff8a00',
+            fontSize: '13px',
+            margin: '6px 0 0',
+            letterSpacing: '0.5px',
+          }}
+        >
+          বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ
+        </p>
+      </div>
 
-export default SplashScreen;
+      {/* Loading Spinner */}
+      <div style={{ marginTop: '8px' }}>
+        <Spinner />
+      </div>
+
+      {/* Version */}
+      <p
+        style={{
+          position: 'absolute',
+          bottom: '32px',
+          color: '#475569',
+          fontSize: '12px',
+          margin: 0,
+        }}
+      >
+        v1.0.1
+      </p>
+    </div>
+  )
+}
+
+// Spinner Component
+const Spinner = () => {
+  return (
+    <div
+      style={{
+        width: '28px',
+        height: '28px',
+        border: '2.5px solid #1e293b',
+        borderTop: '2.5px solid #ff8a00',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+      }}
+    />
+  )
+}
+
+// Global keyframe inject
+const style = document.createElement('style')
+style.textContent = `
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`
+document.head.appendChild(style)
+
+export default SplashScreen
