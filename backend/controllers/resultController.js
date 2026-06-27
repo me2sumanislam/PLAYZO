@@ -28,10 +28,10 @@ const upload = multer({
 });
 
 // Buffer কে Cloudinary-তে stream হিসেবে পাঠানোর helper
-const uploadBufferToCloudinary = (buffer) =>
+const uploadBufferToCloudinary = (buffer, folder = "playzo_results") =>
   new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: "playzo_results", resource_type: "image" },
+      { folder, resource_type: "image" },
       (error, result) => {
         if (error) return reject(error);
         resolve(result);
@@ -101,9 +101,17 @@ exports.uploadScreenshot = [
         }
       }
 
+      // Match title থেকে safe folder name বানাও
+      const safeName = (match.title || "match")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "_")  // special char → underscore
+        .replace(/_+/g, "_")          // multiple underscore → একটা
+        .slice(0, 50);                // max 50 char
+      const folder = `playzo_results/${safeName}`;
+
       console.log("☁️ Uploading to Cloudinary...");
 
-      const uploadResult = await uploadBufferToCloudinary(req.file.buffer);
+      const uploadResult = await uploadBufferToCloudinary(req.file.buffer, folder);
 
       console.log("✅ Cloudinary Response:", uploadResult);
 
@@ -247,5 +255,3 @@ exports.reviewSubmission = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
-
