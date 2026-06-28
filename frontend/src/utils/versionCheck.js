@@ -1,33 +1,25 @@
  // src/utils/versionCheck.js
 
-// ✅ "npm run bump" চালালে এই দুটো automatically বাড়বে
 const APP_VERSION = "1.0.1"
 const VERSION_KEY = "app_version"
 
-// =============================================================================
-// App load হওয়ার সময় version check করো
-// =============================================================================
 export const checkAppVersion = () => {
   const savedVersion = localStorage.getItem(VERSION_KEY)
 
   if (savedVersion === null) {
-    // প্রথমবার আসছে — শুধু version save করো, logout নয়
     localStorage.setItem(VERSION_KEY, APP_VERSION)
     return
   }
 
   if (savedVersion !== APP_VERSION) {
-    // পুরনো version — সব clear করো, login এ পাঠাও
     localStorage.clear()
     sessionStorage.clear()
     localStorage.setItem(VERSION_KEY, APP_VERSION)
-    window.location.replace("/login")
+    // ✅ /login নয়, /app এ পাঠাও — Auth component নিজেই login দেখাবে
+    window.location.replace("/app")
   }
 }
 
-// =============================================================================
-// Service Worker থেকে APP_UPDATED message এলেও logout করো
-// =============================================================================
 export const listenForSWUpdate = () => {
   if (!("serviceWorker" in navigator)) return
 
@@ -36,7 +28,8 @@ export const listenForSWUpdate = () => {
       localStorage.clear()
       sessionStorage.clear()
       localStorage.setItem(VERSION_KEY, APP_VERSION)
-      window.location.replace("/login")
+      // ✅ /login নয়, /app এ পাঠাও
+      window.location.replace("/app")
     }
   })
 }
