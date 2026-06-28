@@ -1,6 +1,6 @@
  // src/utils/versionCheck.js
 
-const APP_VERSION = "1.0.1"
+const APP_VERSION = "1.0.3"
 const VERSION_KEY = "app_version"
 
 export const checkAppVersion = () => {
