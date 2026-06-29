@@ -38,19 +38,18 @@ const Auth = ({ onLoginSuccess }) => {
     name: "", phone: "", password: "", confirm: "",
     referralCode: ""
   });
+  const [agreedTerms, setAgreedTerms] = useState(false); // ✅ Terms & Condition state
   const [forgotPhone, setForgotPhone] = useState("");
   const [newPass, setNewPass] = useState("");
   const [forgotStep, setForgotStep] = useState(1);
 
-  // ✅ FIX: useSearchParams ব্যবহার করা হয়েছে — window.location.search এর চেয়ে নির্ভরযোগ্য
-  // navigate("/app?ref=CODE") এর পরেও এটা ঠিকভাবে কাজ করবে
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const refCode = searchParams.get("ref");
     if (refCode) {
       setRegData((prev) => ({ ...prev, referralCode: refCode.toUpperCase() }));
-      setScreen("register"); // সরাসরি register tab এ নিয়ে যাও
+      setScreen("register");
     }
   }, [searchParams]);
 
@@ -91,6 +90,10 @@ const Auth = ({ onLoginSuccess }) => {
     if (regData.password.length < 6) {
       setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return;
     }
+    // ✅ Terms & Condition validation
+    if (!agreedTerms) {
+      setError("শর্তাবলী মেনে নিতে হবে!"); return;
+    }
     setLoading(true);
     try {
       const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/register", {
@@ -109,7 +112,6 @@ const Auth = ({ onLoginSuccess }) => {
         localStorage.setItem("isAdmin", "false");
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        // ✅ Register সফল হলে URL থেকে ?ref param মুছে দাও
         const url = new URL(window.location.href);
         url.searchParams.delete("ref");
         window.history.replaceState({}, "", url.toString());
@@ -294,7 +296,7 @@ const Auth = ({ onLoginSuccess }) => {
             required
           />
 
-          {/* ✅ REFERRAL CODE — URL থেকে auto-fill, manually-ও দেওয়া যাবে */}
+          {/* REFERRAL CODE */}
           <div className="relative">
             <input
               type="text"
@@ -306,16 +308,29 @@ const Auth = ({ onLoginSuccess }) => {
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg">🎁</span>
           </div>
 
-          {/* ✅ Referral code confirm banner */}
           {regData.referralCode && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 font-bold">
               🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু ৫ পয়েন্ট পাবে!
             </div>
           )}
 
+          {/* ✅ Terms & Condition Checkbox */}
+          <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={agreedTerms}
+              onChange={(e) => setAgreedTerms(e.target.checked)}
+              className="mt-1 w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
+            />
+            <label htmlFor="terms" className="text-sm text-slate-600 cursor-pointer leading-relaxed">
+              আমি <span className="text-orange-500 font-bold">শর্তাবলী ও নীতিমালা</span> পড়েছি এবং মেনে নিচ্ছি
+            </label>
+          </div>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !agreedTerms}
             className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
           >
             {loading ? "হচ্ছে..." : "রেজিস্ট্রেশন করুন"}
