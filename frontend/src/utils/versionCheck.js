@@ -15,7 +15,12 @@ export const checkAppVersion = () => {
     localStorage.clear()
     sessionStorage.clear()
     localStorage.setItem(VERSION_KEY, APP_VERSION)
-    window.location.replace("/app")
+
+    // ✅ FIX: /admin এ থাকলে redirect করবে না
+    const isAdmin = window.location.pathname.startsWith("/admin")
+    if (!isAdmin) {
+      window.location.replace("/app")
+    }
   }
 }
 
@@ -24,7 +29,7 @@ let swListenerAdded = false
 
 export const listenForSWUpdate = () => {
   if (!("serviceWorker" in navigator)) return
-  if (swListenerAdded) return  // ✅ already added — skip
+  if (swListenerAdded) return
   swListenerAdded = true
 
   navigator.serviceWorker.addEventListener("message", (event) => {
@@ -32,7 +37,12 @@ export const listenForSWUpdate = () => {
       localStorage.clear()
       sessionStorage.clear()
       localStorage.setItem(VERSION_KEY, APP_VERSION)
-      window.location.replace("/app")
+
+      // ✅ FIX: /admin এ থাকলে redirect করবে না
+      const isAdmin = window.location.pathname.startsWith("/admin")
+      if (!isAdmin) {
+        window.location.replace("/app")
+      }
     }
   })
 }
