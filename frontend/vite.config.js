@@ -17,7 +17,7 @@ export default defineConfig({
         name: "uthiYO",
         short_name: "uthiYO",
         description: "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ",
-        start_url: "/",
+        start_url: "/app",   // ✅ আগে ছিল "/" — এখন সরাসরি /app এ ওপেন হবে, কোনো ফ্লিপ/রিডাইরেক্ট হবে না
         display: "standalone",
         background_color: "#0f172a",
         theme_color: "#ff8a00",
