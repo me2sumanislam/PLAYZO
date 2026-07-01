@@ -4,24 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
-
-const APP_VERSION = "1.0.0";
-const STORAGE_KEY = "uthiyo_app_version";
-
-function checkAppVersion() {
-  try {
-    const savedVersion = localStorage.getItem(STORAGE_KEY);
-    if (savedVersion && savedVersion !== APP_VERSION) {
-      console.log(`🔄 App updated: ${savedVersion} → ${APP_VERSION}`);
-      // ✅ Version mismatch হলে পুরনো data clear করে login এ পাঠাও
-      localStorage.clear();
-      sessionStorage.clear();
-    }
-    localStorage.setItem(STORAGE_KEY, APP_VERSION);
-  } catch (err) {
-    console.warn("checkAppVersion failed:", err);
-  }
-}
+import { checkAppVersion } from './utils/versionCheck.js'
 
 function listenForSWUpdate() {
   if (!("serviceWorker" in navigator)) return;
