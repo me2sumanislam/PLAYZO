@@ -8,27 +8,10 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#ff8a00" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <script type="module" crossorigin src="/assets/index-BO7wG2DC.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CyDSmYUE.css">
+    <script type="module" crossorigin src="/assets/index-B2gcrVDX.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DwRRE2L6.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
-    <script>
-      let deferredPrompt = null;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-      });
-      window.installApp = async () => {
-        if (!deferredPrompt) {
-          alert("⚠️ Install Prompt এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১৫-২০ সেকেন্ড অপেক্ষা করুন।");
-          return;
-        }
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-      };
-      console.log("✅ PWA Install Script Loaded");
-    </script>
   </body>
 </html>

@@ -16,8 +16,8 @@ export default defineConfig({
       manifest: {
         name: "uthiYO",
         short_name: "uthiYO",
-        description: "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ",
-        start_url: "/app",   // ✅ আগে ছিল "/" — এখন সরাসরি /app এ ওপেন হবে, কোনো ফ্লিপ/রিডাইরেক্ট হবে না
+        description: "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ, প্রতিদিন নতুন টুর্নামেন্ট, বিশাল পুরস্কার এবং অসাধারণ গেমিং অভিজ্ঞতা।",
+        start_url: "/",    
         display: "standalone",
         background_color: "#0f172a",
         theme_color: "#ff8a00",
