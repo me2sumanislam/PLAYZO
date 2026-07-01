@@ -12,22 +12,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      let deferredPrompt = null;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-      });
-      window.installApp = async () => {
-        if (!deferredPrompt) {
-          alert("⚠️ Install Prompt এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১৫-২০ সেকেন্ড অপেক্ষা করুন।");
-          return;
-        }
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-      };
-      console.log("✅ PWA Install Script Loaded");
-    </script>
   </body>
 </html>
