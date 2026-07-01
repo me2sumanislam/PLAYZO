@@ -12,18 +12,18 @@ function listenForSWUpdate() {
   let refreshing = false;
 
   // ✅ SW এর activate event থেকে APP_UPDATED message আসলে
-  // localStorage clear করে login page এ পাঠাও
+  // localStorage clear করবে, কিন্তু force navigate করবে না
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "APP_UPDATED") {
-      console.log("🔄 App updated — clearing old data, going to login");
+      console.log("🔄 App updated — clearing old data");
       try {
         localStorage.clear();
         sessionStorage.clear();
       } catch (err) {
         console.warn("Storage clear failed:", err);
       }
-      // token নেই তাই /app এ গেলে App.jsx নিজেই login দেখাবে
-      window.location.href = "/app";
+      // ✅ /app এ force navigate করা হবে না — ইউজার যেই page এ আছে সেখানেই থাকবে
+      // "/" এ থাকলে home page-ই দেখাবে, "/app" এ থাকলে login/dashboard দেখাবে
     }
   });
 
