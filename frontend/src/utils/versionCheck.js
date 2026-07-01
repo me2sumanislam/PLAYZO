@@ -1,6 +1,6 @@
  // src/utils/versionCheck.js
 // ⚠️ bump-version.js স্ক্রিপ্টটা এই ফাইলে APP_VERSION এর প্যাচ নাম্বার অটো বাড়ায়,
-// তাই "APP_VERSION = "x.y.z"" এই লাইনের ফরম্যাট বদলাবেন না।
+// তাই "APP_VERSION = "NaN.NaN.NaN"" এই লাইনের ফরম্যাট বদলাবেন না।
 
 export const APP_VERSION = "1.0.0";
 
