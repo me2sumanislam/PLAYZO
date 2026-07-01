@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+ import React, { useEffect, useState } from "react";
 
 const Hero = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -22,7 +22,7 @@ const Hero = () => {
 
     if (!deferredPrompt) {
       alert(
-        "⚠️ ইনস্টল প্রম্পট এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১০-২০ সেকেন্ড অপেক্ষা করুন।",
+        "⚠️ ইনস্টল প্রম্পট এখনো রেডি হয়নি।\n\nপেজ রিফ্রেশ করে ১০-২০ সেকেন্ড অপেক্ষা করুন।"
       );
       return;
     }
@@ -39,7 +39,7 @@ const Hero = () => {
       }
     } catch (err) {
       console.error("Install Error:", err);
-      alert("কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+      alert("কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন।");
     }
   };
 
@@ -63,6 +63,7 @@ const Hero = () => {
       <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
 
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
+        {/* Left Side Text */}
         <div className="w-full md:w-1/2 text-center md:text-left order-2 md:order-1">
           <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1]">
             বাংলাদেশের সেরা <br />
@@ -123,8 +124,8 @@ const Hero = () => {
             <button
               onClick={handleDownload}
               className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 
-             text-white font-bold py-4 px-12 rounded-2xl text-lg 
-             shadow-xl transition-all active:scale-95 flex items-center gap-2"
+                         text-white font-bold py-4 px-12 rounded-2xl text-lg 
+                         shadow-xl transition-all active:scale-95 flex items-center gap-2"
             >
               📲 এখনই uthiYO ডাউনলোড করুন
             </button>
@@ -134,7 +135,6 @@ const Hero = () => {
             </button>
           </div>
 
-          {/* Status */}
           <p className="mt-4 text-xs text-indigo-200">
             {isReady
               ? "✅ Install Prompt Ready"
@@ -168,5 +168,3 @@ const Hero = () => {
 };
 
 export default Hero;
-  
- 

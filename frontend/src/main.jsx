@@ -5,11 +5,6 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
-// ===================================================================
-// ✅ versionCheck.js এর কোড এখানে inline করা হয়েছে — আলাদা ফাইল থেকে
-// import করলে build এ [UNRESOLVED_IMPORT] এরর আসছিল, তাই সরাসরি এখানেই রাখা হলো
-// ===================================================================
-
 const APP_VERSION = "1.0.0";
 const STORAGE_KEY = "uthiyo_app_version";
 
@@ -18,6 +13,9 @@ function checkAppVersion() {
     const savedVersion = localStorage.getItem(STORAGE_KEY);
     if (savedVersion && savedVersion !== APP_VERSION) {
       console.log(`🔄 App updated: ${savedVersion} → ${APP_VERSION}`);
+      // ✅ Version mismatch হলে পুরনো data clear করে login এ পাঠাও
+      localStorage.clear();
+      sessionStorage.clear();
     }
     localStorage.setItem(STORAGE_KEY, APP_VERSION);
   } catch (err) {
@@ -29,6 +27,22 @@ function listenForSWUpdate() {
   if (!("serviceWorker" in navigator)) return;
 
   let refreshing = false;
+
+  // ✅ SW এর activate event থেকে APP_UPDATED message আসলে
+  // localStorage clear করে login page এ পাঠাও
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "APP_UPDATED") {
+      console.log("🔄 App updated — clearing old data, going to login");
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (err) {
+        console.warn("Storage clear failed:", err);
+      }
+      // token নেই তাই /app এ গেলে App.jsx নিজেই login দেখাবে
+      window.location.href = "/app";
+    }
+  });
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
@@ -43,7 +57,10 @@ function listenForSWUpdate() {
         const newWorker = registration.installing;
         if (!newWorker) return;
         newWorker.addEventListener("statechange", () => {
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+          if (
+            newWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
             console.log("✅ New version available, activating...");
             newWorker.postMessage({ type: "SKIP_WAITING" });
           }
@@ -53,11 +70,10 @@ function listenForSWUpdate() {
     .catch((err) => console.warn("listenForSWUpdate failed:", err));
 }
 
-checkAppVersion()
-listenForSWUpdate()
+checkAppVersion();
+listenForSWUpdate();
 
 createRoot(document.getElementById('root')).render(
-  // ✅ StrictMode সরানো হয়েছে — production এ double render বন্ধ
   <BrowserRouter>
     <App />
   </BrowserRouter>
