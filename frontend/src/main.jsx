@@ -4,20 +4,23 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 const STORAGE_KEY = "uthiyo_app_version";
 
 function checkAppVersion() {
   try {
     const savedVersion = localStorage.getItem(STORAGE_KEY);
     if (savedVersion && savedVersion !== APP_VERSION) {
+      // ✅ version আলাদা — update হয়েছে, clear করো
       localStorage.clear();
       sessionStorage.clear();
       localStorage.setItem(STORAGE_KEY, APP_VERSION);
-      console.log("🔄 App updated — old data cleared");
-    } else {
+      console.log("🔄 Version updated — data cleared");
+    } else if (!savedVersion) {
+      // ✅ fresh visit — কিছু touch করো না, শুধু version save করো
       localStorage.setItem(STORAGE_KEY, APP_VERSION);
     }
+    // same version — কিছুই করো না, token/user অক্ষত থাকবে
   } catch (err) {
     console.warn("checkAppVersion failed:", err);
   }
@@ -28,17 +31,10 @@ function listenForSWUpdate() {
 
   let refreshing = false;
 
+  // ✅ SW থেকে APP_UPDATED আসলে clear করে reload
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "APP_UPDATED") {
-      const savedVersion = localStorage.getItem(STORAGE_KEY);
-      if (!savedVersion) {
-        // ✅ fresh install — কিছু করো না
-        localStorage.setItem(STORAGE_KEY, APP_VERSION);
-        console.log("✅ Fresh install — no redirect");
-        return;
-      }
-      // ✅ আগের version ছিল — clear করে reload
-      console.log("🔄 App updated — clearing old data");
+      console.log("🔄 SW updated — clearing data and reloading");
       try {
         localStorage.clear();
         sessionStorage.clear();
@@ -50,6 +46,7 @@ function listenForSWUpdate() {
     }
   });
 
+  // ✅ নতুন SW active হলে reload
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
     refreshing = true;
@@ -62,11 +59,8 @@ function listenForSWUpdate() {
         const newWorker = registration.installing;
         if (!newWorker) return;
         newWorker.addEventListener("statechange", () => {
-          if (
-            newWorker.state === "installed" &&
-            navigator.serviceWorker.controller
-          ) {
-            console.log("✅ New version available, activating...");
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            console.log("✅ New SW ready, activating...");
             newWorker.postMessage({ type: "SKIP_WAITING" });
           }
         });

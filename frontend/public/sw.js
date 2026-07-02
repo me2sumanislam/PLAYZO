@@ -1,12 +1,8 @@
- // public/sw.js — uthiYO PWA Service Worker (Final ✅)
-
-// =============================================================================
-// ✅ VitePWA injectManifest — precache এখানে inject হয়
-// =============================================================================
+ // public/sw.js
 import { precacheAndRoute } from 'workbox-precaching'
 precacheAndRoute(self.__WB_MANIFEST || [])
 
-
+// ✅ message handler সবার আগে
 self.addEventListener("message", (event) => {
   if (event.data?.type === "CLEAR_BADGE") {
     setBadge(0)
@@ -32,20 +28,9 @@ self.addEventListener("message", (event) => {
   }
 })
 
-
-// =============================================================================
-// VERSION — update দিলে শুধু এটা বাড়ান
-// =============================================================================
-const CACHE_VERSION = "uthiyo-v21"
-
-// =============================================================================
-// TOKEN STORE
-// =============================================================================
+const CACHE_VERSION = "uthiyo-v22"
 self.__token = ""
 
-// =============================================================================
-// ✅ BADGE HELPER — navigator নয়, self ব্যবহার করতে হয় SW context এ
-// =============================================================================
 function setBadge(count) {
   try {
     if ("setAppBadge" in self) {
@@ -58,9 +43,6 @@ function setBadge(count) {
   } catch (e) {}
 }
 
-// =============================================================================
-// INSTALL
-// =============================================================================
 self.addEventListener("install", (event) => {
   self.skipWaiting()
   event.waitUntil(
@@ -77,9 +59,6 @@ self.addEventListener("install", (event) => {
   )
 })
 
-// =============================================================================
-// ACTIVATE — পুরনো cache মুছো + সব tab কে APP_UPDATED জানাও
-// =============================================================================
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     Promise.all([
@@ -92,24 +71,26 @@ self.addEventListener("activate", (event) => {
         )
       ),
 
-      // সব tab control নাও
       self.clients.claim(),
 
-      // ✅ সব open tab কে জানাও — নতুন version এসেছে
-      self.clients
-        .matchAll({ type: "window", includeUncontrolled: true })
-        .then((clients) =>
-          clients.forEach((client) =>
-            client.postMessage({ type: "APP_UPDATED" })
-          )
-        ),
+      // ✅ শুধু আগে কোনো cache ছিলে তখনই APP_UPDATED পাঠাও
+      // fresh install এ পুরনো cache থাকবে না তাই message যাবে না
+      caches.keys().then(async (cacheNames) => {
+        const hasOldCache = cacheNames.some((name) => name !== CACHE_VERSION)
+        if (!hasOldCache) return // fresh install — কিছু করো না
+
+        const clients = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        })
+        clients.forEach((client) =>
+          client.postMessage({ type: "APP_UPDATED" })
+        )
+      }),
     ])
   )
 })
 
-// =============================================================================
-// FETCH — Offline fallback (API call cache করবে না)
-// =============================================================================
 self.addEventListener("fetch", (event) => {
   if (event.request.url.includes("/api/")) return
   event.respondWith(
@@ -117,19 +98,12 @@ self.addEventListener("fetch", (event) => {
   )
 })
 
-// =============================================================================
-// PUSH NOTIFICATION RECEIVE
-// =============================================================================
 self.addEventListener("push", (event) => {
   let data = {}
   try {
     data = event.data.json()
   } catch {
-    data = {
-      title: "uthiYO",
-      body: "You have a new notification",
-      unreadCount: 1,
-    }
+    data = { title: "uthiYO", body: "You have a new notification", unreadCount: 1 }
   }
 
   const targetUrl =
@@ -153,51 +127,28 @@ self.addEventListener("push", (event) => {
       category: data.category || "general",
     },
     actions: [
-      {
-        action: "open",
-        title: "Open App",
-        icon: "/image/icon/icon-192x192.png",
-      },
-      {
-        action: "close",
-        title: "Close",
-        icon: "/image/icon/icon-72x72.png",
-      },
+      { action: "open", title: "Open App", icon: "/image/icon/icon-192x192.png" },
+      { action: "close", title: "Close", icon: "/image/icon/icon-72x72.png" },
     ],
   }
 
   event.waitUntil(
     Promise.all([
-      // 1️⃣ Notification দেখাও
       self.registration.getNotifications().then((existing) => {
-        existing.forEach((n) => {
-          if (n.tag === options.tag) n.close()
-        })
+        existing.forEach((n) => { if (n.tag === options.tag) n.close() })
         return self.registration.showNotification(data.title || "uthiYO", options)
       }),
-
-      // 2️⃣ Badge update
       setBadge(data.unreadCount || 1),
-
-      // 3️⃣ React App কে message পাঠাও
-      self.clients
-        .matchAll({ type: "window", includeUncontrolled: true })
-        .then((clients) => {
-          clients.forEach((client) => {
-            client.postMessage({
-              type: "PUSH_RECEIVED",
-              count: data.unreadCount || 1,
-              category: data.category || "general",
-              notification: {
-                title: data.title,
-                body: data.body,
-                id: data.notificationId,
-              },
-            })
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: "PUSH_RECEIVED",
+            count: data.unreadCount || 1,
+            category: data.category || "general",
+            notification: { title: data.title, body: data.body, id: data.notificationId },
           })
-        }),
-
-      // 4️⃣ Background sync
+        })
+      }),
       self.registration.sync
         ? self.registration.sync.register("sync-notifications").catch(() => {})
         : Promise.resolve(),
@@ -205,12 +156,8 @@ self.addEventListener("push", (event) => {
   )
 })
 
-// =============================================================================
-// NOTIFICATION CLICK
-// =============================================================================
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
-
   const notifData = event.notification.data || {}
   const targetUrl = notifData.url || "/app"
   const matchId = notifData.matchId || null
@@ -220,63 +167,37 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     Promise.all([
-      // 1️⃣ App focus বা নতুন window খোলো
-      self.clients
-        .matchAll({ type: "window", includeUncontrolled: true })
-        .then((windowClients) => {
-          for (const client of windowClients) {
-            if ("focus" in client) {
-              client.postMessage({
-                type: "NOTIFICATION_CLICK",
-                matchId: matchId,
-                notificationId: notificationId,
-                url: targetUrl,
-              })
-              return client.focus()
-            }
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        for (const client of clients) {
+          if ("focus" in client) {
+            client.postMessage({ type: "NOTIFICATION_CLICK", matchId, notificationId, url: targetUrl })
+            return client.focus()
           }
-          if (self.clients.openWindow) {
-            return self.clients.openWindow(targetUrl)
-          }
-        }),
-
-      // 2️⃣ Fresh unread count নিয়ে badge update
-      fetch(
-        "https://playzo-vn8e.onrender.com/api/notifications?isRead=false&limit=1",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            ...(self.__token ? { Authorization: `Bearer ${self.__token}` } : {}),
-          },
         }
-      )
+        if (self.clients.openWindow) return self.clients.openWindow(targetUrl)
+      }),
+      fetch("https://playzo-vn8e.onrender.com/api/notifications?isRead=false&limit=1", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(self.__token ? { Authorization: `Bearer ${self.__token}` } : {}),
+        },
+      })
         .then((res) => res.json())
         .then((resData) => {
-          const count =
-            typeof resData.unreadCount === "number" ? resData.unreadCount : 0
+          const count = typeof resData.unreadCount === "number" ? resData.unreadCount : 0
           setBadge(count)
-
-          return self.clients
-            .matchAll({ type: "window", includeUncontrolled: true })
-            .then((clients) => {
-              clients.forEach((client) => {
-                client.postMessage({
-                  type: "BADGE_UPDATE",
-                  count: count,
-                  notificationId: notificationId,
-                })
-              })
+          return self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+            clients.forEach((client) => {
+              client.postMessage({ type: "BADGE_UPDATE", count, notificationId })
             })
+          })
         })
         .catch(() => {}),
     ])
   )
 })
 
-// =============================================================================
-// BACKGROUND SYNC
-// =============================================================================
 self.addEventListener("sync", (event) => {
   if (event.tag === "sync-notifications") {
     event.waitUntil(syncNotifications())
@@ -286,63 +207,15 @@ self.addEventListener("sync", (event) => {
 async function syncNotifications() {
   try {
     const db = await openDB()
-    const offlineNotifications = await getOfflineNotifications(db)
-    for (const notification of offlineNotifications) {
-      try {
-        await self.registration.showNotification(
-          notification.title,
-          notification.options
-        )
-      } catch (err) {
-        console.error("Failed to show offline notification:", err)
-      }
+    const notifications = await getOfflineNotifications(db)
+    for (const n of notifications) {
+      try { await self.registration.showNotification(n.title, n.options) }
+      catch (err) { console.error("Failed to show offline notification:", err) }
     }
     await clearOfflineNotifications(db)
-  } catch (err) {
-    console.error("Sync failed:", err)
-  }
+  } catch (err) { console.error("Sync failed:", err) }
 }
 
-// =============================================================================
-// MESSAGE HANDLER
-// =============================================================================
-self.addEventListener("message", (event) => {
-  // Badge Clear
-  if (event.data?.type === "CLEAR_BADGE") {
-    setBadge(0)
-    event.source?.postMessage({ type: "BADGE_CLEARED", success: true })
-  }
-
-  // Badge Update
-  if (event.data?.type === "UPDATE_BADGE") {
-    const count = event.data.count || 0
-    setBadge(count)
-    event.source?.postMessage({ type: "BADGE_UPDATED", count, success: true })
-  }
-
-  // Token store
-  if (event.data?.type === "STORE_TOKEN") {
-    self.__token = event.data.token || ""
-  }
-
-  // Skip waiting
-  if (event.data?.type === "SKIP_WAITING") {
-    self.skipWaiting()
-  }
-
-  // Cache clear
-  if (event.data?.type === "CLEAR_CACHE") {
-    event.waitUntil(
-      caches.keys().then((cacheNames) =>
-        Promise.all(cacheNames.map((name) => caches.delete(name)))
-      )
-    )
-  }
-})
-
-// =============================================================================
-// HELPER FUNCTIONS (IndexedDB)
-// =============================================================================
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("uthiyo-notifications", 1)
