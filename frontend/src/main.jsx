@@ -4,23 +4,20 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.0";
 const STORAGE_KEY = "uthiyo_app_version";
 
 function checkAppVersion() {
   try {
     const savedVersion = localStorage.getItem(STORAGE_KEY);
     if (savedVersion && savedVersion !== APP_VERSION) {
-      // ✅ শুধু version mismatch এ clear — token আলাদা রেখে দাও
-      const token = localStorage.getItem("token");
-      const user = localStorage.getItem("user");
+      // ✅ আগের version ছিল, এখন update — clear করো
       localStorage.clear();
       sessionStorage.clear();
-      // ✅ version save করো — না হলে প্রতিবার clear হবে
       localStorage.setItem(STORAGE_KEY, APP_VERSION);
       console.log("🔄 App updated — old data cleared");
     } else {
-      // ✅ version same — শুধু version টা save করো, বাকি কিছু touch করো না
+      // ✅ fresh install বা same version — কিছু touch করো না
       localStorage.setItem(STORAGE_KEY, APP_VERSION);
     }
   } catch (err) {
@@ -33,9 +30,18 @@ function listenForSWUpdate() {
 
   let refreshing = false;
 
-  // ✅ SW এর APP_UPDATED message আসলে clear করো
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "APP_UPDATED") {
+      // ✅ শুধু আগে version ছিল তখনই redirect করবে
+      // fresh install এ STORAGE_KEY থাকবে না, তাই redirect হবে না
+      const savedVersion = localStorage.getItem(STORAGE_KEY);
+      if (!savedVersion) {
+        // fresh install — শুধু version save করো, redirect করো না
+        localStorage.setItem(STORAGE_KEY, APP_VERSION);
+        console.log("✅ Fresh install — no redirect");
+        return;
+      }
+
       console.log("🔄 App updated — clearing old data");
       try {
         localStorage.clear();
