@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-     "bump": "node scripts/bump-version.js && vite build",
+    "bump": "node scripts/bump-version.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
