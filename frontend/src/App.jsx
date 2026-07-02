@@ -1,4 +1,5 @@
- import React, { useState, useEffect } from "react";
+ // src/App.jsx
+import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./App.css";
 
@@ -41,10 +42,8 @@ function App() {
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone;
 
-  // ✅ Splash শুধু standalone এ, একবারই
   const [showSplash, setShowSplash] = useState(isStandaloneMode);
 
-  // ✅ Login state — token থাকলে logged in, expire হলে না
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const token = localStorage.getItem("token");
     const user = localStorage.getItem("user");
@@ -170,17 +169,15 @@ function App() {
     if ("clearAppBadge" in navigator) {
       navigator.clearAppBadge().catch(() => {});
     }
-    navigate("/");
+    navigate("/app"); // ✅ logout এর পর login page দেখাবে
   };
 
   return (
     <>
-      {/* ✅ Splash — শুধু একবার দেখাবে, এর নিচে কিছু render হবে না */}
       {showSplash && (
         <SplashScreen onFinish={() => setShowSplash(false)} />
       )}
 
-      {/* ✅ Splash চলাকালীন routes render করবে না */}
       {!showSplash && (
         <Routes>
           <Route
@@ -233,7 +230,7 @@ function App() {
                   onLogout={() => {
                     localStorage.removeItem("adminToken");
                     localStorage.removeItem("adminInfo");
-                    navigate("/app");
+                    navigate("/");
                   }}
                 />
               </div>
