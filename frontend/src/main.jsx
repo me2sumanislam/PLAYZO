@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.6";
 const STORAGE_KEY = "uthiyo_app_version";
 
 function checkAppVersion() {

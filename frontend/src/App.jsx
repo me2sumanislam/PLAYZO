@@ -66,6 +66,17 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ✅ Splash শেষ হলে PWA mode এ /app এ পাঠাও
+  useEffect(() => {
+    if (showSplash) return;
+    if (isStandaloneMode) {
+      const path = window.location.pathname;
+      if (path === "/" || path === "/login" || path === "") {
+        navigate("/app", { replace: true });
+      }
+    }
+  }, [showSplash]);
+
   // ✅ OneSignal Init
   useEffect(() => {
     const script = document.createElement("script");
@@ -169,7 +180,7 @@ function App() {
     if ("clearAppBadge" in navigator) {
       navigator.clearAppBadge().catch(() => {});
     }
-    navigate("/app"); // ✅ logout এর পর login page দেখাবে
+    navigate("/app");
   };
 
   return (
