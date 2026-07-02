@@ -1,36 +1,56 @@
  // src/main.jsx
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
-import { checkAppVersion } from './utils/versionCheck.js'
+
+const APP_VERSION = "1.0.1";
+const STORAGE_KEY = "uthiyo_app_version";
+
+function checkAppVersion() {
+  try {
+    const savedVersion = localStorage.getItem(STORAGE_KEY);
+    if (savedVersion && savedVersion !== APP_VERSION) {
+      // ✅ শুধু version mismatch এ clear — token আলাদা রেখে দাও
+      const token = localStorage.getItem("token");
+      const user = localStorage.getItem("user");
+      localStorage.clear();
+      sessionStorage.clear();
+      // ✅ version save করো — না হলে প্রতিবার clear হবে
+      localStorage.setItem(STORAGE_KEY, APP_VERSION);
+      console.log("🔄 App updated — old data cleared");
+    } else {
+      // ✅ version same — শুধু version টা save করো, বাকি কিছু touch করো না
+      localStorage.setItem(STORAGE_KEY, APP_VERSION);
+    }
+  } catch (err) {
+    console.warn("checkAppVersion failed:", err);
+  }
+}
 
 function listenForSWUpdate() {
   if (!("serviceWorker" in navigator)) return;
 
   let refreshing = false;
 
-  // ✅ SW এর activate event থেকে APP_UPDATED message আসলে
-  // localStorage clear করবে, কিন্তু force navigate করবে না
+  // ✅ SW এর APP_UPDATED message আসলে clear করো
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "APP_UPDATED") {
       console.log("🔄 App updated — clearing old data");
       try {
         localStorage.clear();
         sessionStorage.clear();
+        localStorage.setItem(STORAGE_KEY, APP_VERSION);
       } catch (err) {
         console.warn("Storage clear failed:", err);
       }
-      // ✅ /app এ force navigate করা হবে না — ইউজার যেই page এ আছে সেখানেই থাকবে
-      // "/" এ থাকলে home page-ই দেখাবে, "/app" এ থাকলে login/dashboard দেখাবে
+      window.location.href = "/app";
     }
   });
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
     refreshing = true;
-    console.log("🔄 New service worker activated — reloading page");
     window.location.reload();
   });
 
