@@ -28,7 +28,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v22"
+const CACHE_VERSION = "uthiyo-v23"
 self.__token = ""
 
 function setBadge(count) {
