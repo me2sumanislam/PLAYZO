@@ -37,7 +37,6 @@ async function syncBadge() {
 }
 
 function App() {
-  // ✅ Splash — শুধু PWA standalone mode এ দেখাবে
   const isStandaloneMode =
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone;
@@ -65,6 +64,16 @@ function App() {
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ✅ PWA standalone mode এ "/" বা "/login" এ আসলে "/app" এ পাঠাও
+  // এটা পুরনো installed PWA এর জন্য — uninstall ছাড়াই কাজ করবে
+  useEffect(() => {
+    if (!isStandaloneMode) return;
+    const path = window.location.pathname;
+    if (path === "/" || path === "/login") {
+      navigate("/app", { replace: true });
+    }
+  }, []);
 
   // ================= OneSignal Init =================
   useEffect(() => {
@@ -158,21 +167,6 @@ function App() {
     }
   }, [location.search, location.pathname, navigate]);
 
-  // ❌ REMOVED: "PWA Standalone Check" useEffect
-  // আগে এখানে একটা useEffect ছিল যেটা standalone mode এ "/" থেকে "/app" এ
-  // navigate করতো — এটাই স্প্ল্যাশ/লোডিং ফ্লিপ আর landing page এক ঝলক
-  // দেখা যাওয়ার মূল কারণ ছিল (render হওয়ার পর effect চলতো, তাই extra
-  // re-render/route change হতো)।
-  //
-  // এখন এর বদলে vite.config.js এর manifest এ:
-  //   start_url: "/app"
-  // সেট করতে হবে। তাহলে ইনস্টল করা PWA সরাসরি /app এ ওপেন হবে,
-  // কোনো জাভাস্ক্রিপ্ট রিডাইরেক্ট লাগবে না, কোনো ফ্লিপও হবে না।
-  //
-  // ⚠️ গুরুত্বপূর্ণ: manifest পরিবর্তন করার পর ইউজারকে app uninstall
-  // করে আবার install করতে হবে (অথবা অনেকদিন পর auto-update হবে),
-  // কারণ start_url ইনস্টলের সময় OS/browser cache করে রাখে।
-
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
   };
@@ -193,7 +187,6 @@ function App() {
 
   return (
     <>
-      {/* ✅ Splash Screen — PWA open হলে দেখাবে, ২ সেকেন্ড পর সরে যাবে */}
       {showSplash && (
         <SplashScreen onFinish={() => setShowSplash(false)} />
       )}
