@@ -41,8 +41,10 @@ function App() {
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone;
 
+  // ✅ Splash শুধু standalone এ, একবারই
   const [showSplash, setShowSplash] = useState(isStandaloneMode);
 
+  // ✅ Login state — token থাকলে logged in, expire হলে না
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const token = localStorage.getItem("token");
     const user = localStorage.getItem("user");
@@ -65,17 +67,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ PWA standalone mode এ "/" বা "/login" এ আসলে "/app" এ পাঠাও
-  // এটা পুরনো installed PWA এর জন্য — uninstall ছাড়াই কাজ করবে
-  useEffect(() => {
-    if (!isStandaloneMode) return;
-    const path = window.location.pathname;
-    if (path === "/" || path === "/login") {
-      navigate("/app", { replace: true });
-    }
-  }, []);
-
-  // ================= OneSignal Init =================
+  // ✅ OneSignal Init
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
@@ -119,19 +111,15 @@ function App() {
     };
   }, []);
 
-  // ================= Login হলে OneSignal user set =================
+  // ✅ Login হলে OneSignal user set
   useEffect(() => {
     if (!isLoggedIn) return;
     const user = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("user") || "{}");
-      } catch {
-        return {};
-      }
+      try { return JSON.parse(localStorage.getItem("user") || "{}"); }
+      catch { return {}; }
     })();
     const userId = user?.id || user?._id;
     if (!userId) return;
-
     if (window.OneSignalDeferred) {
       window.OneSignalDeferred.push(async (OneSignal) => {
         await OneSignal.login(userId.toString());
@@ -139,7 +127,7 @@ function App() {
     }
   }, [isLoggedIn]);
 
-  // ================= Badge sync =================
+  // ✅ Badge sync
   useEffect(() => {
     if (!isLoggedIn) return;
     syncBadge();
@@ -147,7 +135,7 @@ function App() {
     return () => clearInterval(interval);
   }, [isLoggedIn]);
 
-  // ================= Page visible হলে badge sync =================
+  // ✅ Page visible হলে badge sync
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible" && isLoggedIn) {
@@ -158,7 +146,7 @@ function App() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [isLoggedIn]);
 
-  // ================= Referral Link Redirect =================
+  // ✅ Referral redirect
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const refCode = params.get("ref");
@@ -187,66 +175,72 @@ function App() {
 
   return (
     <>
+      {/* ✅ Splash — শুধু একবার দেখাবে, এর নিচে কিছু render হবে না */}
       {showSplash && (
         <SplashScreen onFinish={() => setShowSplash(false)} />
       )}
 
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <div className="website-layout">
-              <Navbar />
-              <Hero />
-              <HomeCard />
-              <Footer />
-            </div>
-          }
-        />
+      {/* ✅ Splash চলাকালীন routes render করবে না */}
+      {!showSplash && (
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <div className="website-layout">
+                <Navbar />
+                <Hero />
+                <HomeCard />
+                <Footer />
+              </div>
+            }
+          />
 
-        <Route path="/install" element={<InstallPage />} />
+          <Route path="/install" element={<InstallPage />} />
 
-        <Route
-          path="/app"
-          element={
-            <div className="app-container bg-[#fcfaff] min-h-screen">
-              {isLoggedIn ? (
-                <AppDashboard onLogout={handleLogout} />
+          <Route
+            path="/app"
+            element={
+              <div className="app-container bg-[#fcfaff] min-h-screen">
+                {isLoggedIn ? (
+                  <AppDashboard onLogout={handleLogout} />
+                ) : (
+                  <Auth onLoginSuccess={handleLoginSuccess} />
+                )}
+              </div>
+            }
+          />
+
+          <Route
+            path="/referral"
+            element={
+              isLoggedIn ? (
+                <Referral
+                  onBack={() => navigate("/app")}
+                  user={JSON.parse(localStorage.getItem("user") || "{}")}
+                  token={localStorage.getItem("token")}
+                />
               ) : (
                 <Auth onLoginSuccess={handleLoginSuccess} />
-              )}
-            </div>
-          }
-        />
-        <Route
-          path="/referral"
-          element={
-            isLoggedIn ? (
-              <Referral
-                onBack={() => navigate("/app")}
-                user={JSON.parse(localStorage.getItem("user") || "{}")}
-                token={localStorage.getItem("token")}
-              />
-            ) : (
-              <Auth onLoginSuccess={handleLoginSuccess} />
-            )
-          }
-        />
-        <Route
-          path="/admin/*"
-          element={
-            <div className="min-h-screen bg-gray-950">
-              <AdminPanel
-                onLogout={() => {
-                  localStorage.removeItem("adminToken");
-                  localStorage.removeItem("adminInfo");
-                  navigate("/");
-                }}
-              />
-            </div>
-          }
-        />
-      </Routes>
+              )
+            }
+          />
+
+          <Route
+            path="/admin/*"
+            element={
+              <div className="min-h-screen bg-gray-950">
+                <AdminPanel
+                  onLogout={() => {
+                    localStorage.removeItem("adminToken");
+                    localStorage.removeItem("adminInfo");
+                    navigate("/");
+                  }}
+                />
+              </div>
+            }
+          />
+        </Routes>
+      )}
     </>
   );
 }
