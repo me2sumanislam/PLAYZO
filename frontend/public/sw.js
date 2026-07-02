@@ -6,10 +6,37 @@
 import { precacheAndRoute } from 'workbox-precaching'
 precacheAndRoute(self.__WB_MANIFEST || [])
 
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "CLEAR_BADGE") {
+    setBadge(0)
+    event.source?.postMessage({ type: "BADGE_CLEARED", success: true })
+  }
+  if (event.data?.type === "UPDATE_BADGE") {
+    const count = event.data.count || 0
+    setBadge(count)
+    event.source?.postMessage({ type: "BADGE_UPDATED", count, success: true })
+  }
+  if (event.data?.type === "STORE_TOKEN") {
+    self.__token = event.data.token || ""
+  }
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting()
+  }
+  if (event.data?.type === "CLEAR_CACHE") {
+    event.waitUntil(
+      caches.keys().then((cacheNames) =>
+        Promise.all(cacheNames.map((name) => caches.delete(name)))
+      )
+    )
+  }
+})
+
+
 // =============================================================================
 // VERSION — update দিলে শুধু এটা বাড়ান
 // =============================================================================
-const CACHE_VERSION = "uthiyo-v12"
+const CACHE_VERSION = "uthiyo-v14"
 
 // =============================================================================
 // TOKEN STORE
