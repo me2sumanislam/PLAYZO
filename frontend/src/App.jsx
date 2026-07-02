@@ -233,7 +233,7 @@ function App() {
                   onLogout={() => {
                     localStorage.removeItem("adminToken");
                     localStorage.removeItem("adminInfo");
-                    navigate("/");
+                    navigate("/app");
                   }}
                 />
               </div>
