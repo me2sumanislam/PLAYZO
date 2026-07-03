@@ -273,6 +273,31 @@ function MatchResultsPage({ match, currentUserUid }) {
           )}
         </div>
       )}
+
+{joinTarget && (
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+    <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: "90%", maxWidth: 400 }}>
+      <h3 style={{ marginBottom: 8 }}>In-Game Name দিন</h3>
+      <input
+        type="text"
+        placeholder="যেমন: SapnilFF, RahulOP"
+        value={gameName}
+        onChange={(e) => setGameName(e.target.value)}
+        style={{ width: "100%", padding: 14, borderRadius: 10, border: "1.5px solid #e5e7eb", fontSize: 16, marginBottom: 20, boxSizing: "border-box" }}
+        autoFocus
+      />
+      <div style={{ display: "flex", gap: 12 }}>
+        <button onClick={() => setJoinTarget(null)} style={{ flex: 1, padding: 14, background: "#e5e7eb", border: "none", borderRadius: 10, fontWeight: 600 }}>
+          Cancel
+        </button>
+        <button onClick={confirmJoin} style={{ flex: 1, padding: 14, background: "#10b981", color: "white", border: "none", borderRadius: 10, fontWeight: 700 }}>
+          Join Now
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
@@ -554,32 +579,47 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
     }
   };
 
-  const handleJoin = async (matchId, entryFee) => {
-    if (!currentUser?.id && !currentUser?._id) { setMsg("আগে login করুন"); return; }
-    setJoining(matchId);
-    setMsg("");
-    try {
-      const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ matchId, userId: currentUser?.id || currentUser?._id }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMsg("✅ Successfully joined!");
-        const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        localStorage.setItem("user", JSON.stringify({ ...stored, balance: data.newBalance ?? stored.balance }));
-        if (onRefreshBalance) onRefreshBalance();
-        loadMatches();
-      } else {
-        setMsg("❌ " + (data.message || "Join failed"));
-      }
-    } catch {
-      setMsg("❌ Server error");
-    } finally {
-      setJoining(null);
+  // ✅ নতুন (ঠিক করা) কোড — inGameName modal যোগ করা হয়েছে
+const [joinTarget, setJoinTarget] = useState(null); // { matchId, entryFee }
+const [gameName, setGameName] = useState("");
+
+const openJoinModal = (matchId, entryFee) => {
+  if (!currentUser?.id && !currentUser?._id) { setMsg("আগে login করুন"); return; }
+  setGameName("");
+  setJoinTarget({ matchId, entryFee });
+};
+
+const confirmJoin = async () => {
+  if (!gameName || gameName.trim().length < 3) {
+    setMsg("❌ সঠিক In-Game Name দিন (কমপক্ষে ৩ অক্ষর)");
+    return;
+  }
+  const { matchId } = joinTarget;
+  setJoining(matchId);
+  setMsg("");
+  setJoinTarget(null);
+  try {
+    const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/join/${matchId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ userId: currentUser?.id || currentUser?._id, inGameName: gameName.trim() }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setMsg(`✅ Join সফল! Slot #${data.slotNumber}`);
+      const stored = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem("user", JSON.stringify({ ...stored, balance: data.newBalance ?? stored.balance }));
+      if (onRefreshBalance) onRefreshBalance();
+      loadMatches();
+    } else {
+      setMsg("❌ " + (data.message || "Join failed"));
     }
-  };
+  } catch {
+    setMsg("❌ Server error");
+  } finally {
+    setJoining(null);
+  }
+};
 
   const FILTERS = [{ id: "upcoming", label: "🕐 Upcoming" }, { id: "live", label: "🔴 Live" }, { id: "completed", label: "✅ Done" }];
   const modeLabel = { "1v1": "⚔️ 1v1", "2v2": "👥 2v2", "4player": "🎮 4 Player" };
@@ -683,7 +723,7 @@ function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance }) {
                     ) : isFull ? (
                       <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">❌ Full</div>
                     ) : (
-                      <button onClick={() => handleJoin(match._id, match.entryFee)} disabled={joining === match._id} className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${mc}, #4f46e5)` }}>
+                      <button onClick={() => openJoinModal(match._id, match.entryFee)} disabled={joining === match._id} className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${mc}, #4f46e5)` }}>
                         {joining === match._id ? "Joining..." : `Join Now • ৳${match.entryFee}`}
                       </button>
                     )

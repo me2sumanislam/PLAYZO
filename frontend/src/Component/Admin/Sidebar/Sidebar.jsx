@@ -48,6 +48,13 @@ export const NAV = [
     roles: ["super-admin", "finance"],
   },
   {
+    // ✅ নতুন — Gem Referral System এর fraud detection page
+    key: "referral-fraud",
+    label: "Referral Fraud Alerts",
+    icon: "⚠️",
+    roles: ["super-admin", "admin"],
+  },
+  {
     key: "activity-log",
     label: "Activity Log",
     icon: "📋",

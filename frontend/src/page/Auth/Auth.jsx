@@ -3,6 +3,18 @@ import React, { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
+
+// ✅ একটা persistent deviceId বানায়/পড়ে — same device থেকে multiple fake account ধরতে সাহায্য করে
+function getDeviceId() {
+  let id = localStorage.getItem("deviceId");
+  if (!id) {
+    id = "dev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("deviceId", id);
+  }
+  return id;
+}
+
+
 const PasswordInput = ({ placeholder, value, onChange, required, autoComplete, className }) => {
   const [show, setShow] = useState(false);
   return (
@@ -104,6 +116,7 @@ const Auth = ({ onLoginSuccess }) => {
           phone: regData.phone,
           password: regData.password,
           referralCode: regData.referralCode.trim().toUpperCase() || null,
+          deviceId: getDeviceId(), // ✅ fraud-detection এর জন্য পাঠানো হচ্ছে
         }),
       });
       const data = await res.json();
@@ -310,7 +323,7 @@ const Auth = ({ onLoginSuccess }) => {
 
           {regData.referralCode && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 font-bold">
-              🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু ৫ পয়েন্ট পাবে!
+              🎁 রেফারেল কোড: {regData.referralCode.toUpperCase()} — আপনার বন্ধু Gem পাবে!
             </div>
           )}
 

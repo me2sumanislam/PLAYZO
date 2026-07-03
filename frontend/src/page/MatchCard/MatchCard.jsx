@@ -68,7 +68,6 @@ const MatchDetailSheet = ({ match, onClose }) => {
             <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 2 }}>
               {match.startTime ? new Date(match.startTime).toLocaleString("en-BD", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}
             </div>
-            {/* ✅ COUNTDOWN এখানে */}
             <div style={{ fontSize: 12, color: "#bae6fd", marginTop: 3, fontWeight: 600 }}>
               {match.status === "completed"
                 ? "✅ ম্যাচ শেষ হয়েছে"
@@ -92,6 +91,16 @@ const MatchDetailSheet = ({ match, onClose }) => {
             </div>
           ))}
         </div>
+
+        {/* 🔷 Gem Entry Info */}
+        {match.gemEntryEnabled && (
+          <div style={{ margin: "0 20px 16px", background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 12, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12.5, color: "#4338ca", fontWeight: 700 }}>🔷 Gem Entry Available</span>
+            <span style={{ fontSize: 12, color: "#4338ca", fontWeight: 700 }}>
+              {match.gemEntryCost} Gem — {match.gemEntryUsed || 0}/{match.gemEntrySlots} স্লট ব্যবহৃত
+            </span>
+          </div>
+        )}
 
         {/* Room Details */}
         <div style={{ padding: "0 20px 16px" }}>
@@ -134,6 +143,7 @@ const MatchDetailSheet = ({ match, onClose }) => {
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 13px", fontSize: 13, background: isMe ? "#f0fdf4" : i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: i < players.length - 1 ? "1px solid #f3f4f6" : "none" }}>
                     <span style={{ color: "#374151", fontWeight: isMe ? 700 : 500 }}>
                       {p.inGameName || p.gameName || "—"} {isMe && <span style={{ color: "#16a34a" }}>(আপনি)</span>}
+                      {p.joinedWithGem && <span style={{ marginLeft: 6, color: "#4338ca" }}>🔷</span>}
                     </span>
                     <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>Slot #{p.slotNumber}</span>
                   </div>
@@ -162,10 +172,12 @@ const MatchCard = ({ match, onJoinSuccess }) => {
   const [loadingName,     setLoadingName]     = useState(false);
   const [joining,         setJoining]         = useState(false);
   const [joinMsg,         setJoinMsg]         = useState("");
+  const [useGem,          setUseGem]          = useState(false); // ✅ Gem দিয়ে join করবে কিনা
 
   const user   = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
   const userId = user?.id || user?._id;
   const token  = localStorage.getItem("token");
+  const myGems = Number(user?.gems || 0);
 
   const isStarted     = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
   const mySlot        = (match.joinedUsers || []).find((u) => u.userId?.toString() === userId?.toString())?.slotNumber;
@@ -175,6 +187,10 @@ const MatchCard = ({ match, onJoinSuccess }) => {
   const isFull        = total > 0 && joined >= total;
   const alreadyJoined = (match.joinedUsers || []).some((u) => u.userId?.toString() === userId?.toString());
   const isCompleted   = match.status === "completed";
+
+  // ✅ Gem Entry availability
+  const gemEntryOpen = !!match.gemEntryEnabled && (match.gemEntryUsed || 0) < (match.gemEntrySlots || 0);
+  const canAffordGem = myGems >= Number(match.gemEntryCost || 0);
 
   // ✅ Join দেখাবে: completed না, full না, already joined না
   const canJoin = !isCompleted && !isFull && !alreadyJoined;
@@ -188,6 +204,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
 
   const openJoinModal = async () => {
     setLoadingName(true);
+    setUseGem(false);
     setShowJoinModal(true);
     try {
       const res = await fetch(`${API_BASE}/users/me`, { headers: { Authorization: `Bearer ${token}` } });
@@ -212,12 +229,19 @@ const MatchCard = ({ match, onJoinSuccess }) => {
       const res = await fetch(`${API_BASE}/matches/join/${match._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId, inGameName: inGameName.trim() }),
+        body: JSON.stringify({ userId, inGameName: inGameName.trim(), useGem }),
       });
       const data = await res.json();
       if (data.success) {
-        setJoinMsg("✅ Join সফল! Slot #" + data.slotNumber);
+        setJoinMsg((data.paidWithGem ? "🔷 Gem দিয়ে Join সফল! " : "✅ Join সফল! ") + "Slot #" + data.slotNumber);
         setShowJoinModal(false);
+        // ✅ localStorage user এর balance/gems আপডেট করো যাতে UI সাথে সাথে সঠিক দেখায়
+        try {
+          const u = JSON.parse(localStorage.getItem("user") || "{}");
+          if (data.newBalance !== undefined) u.balance = data.newBalance;
+          if (data.newGems !== undefined) u.gems = data.newGems;
+          localStorage.setItem("user", JSON.stringify(u));
+        } catch {}
         if (onJoinSuccess) onJoinSuccess(match._id, data.newBalance);
       } else {
         setJoinMsg("❌ " + (data.message || "Join হয়নি"));
@@ -241,6 +265,12 @@ const MatchCard = ({ match, onJoinSuccess }) => {
             <div style={{ marginTop: 7, display: "flex", gap: 6, flexWrap: "wrap" }}>
               <span style={{ background: st.bg, color: st.color, fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{st.label}</span>
               {mySlot && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>Slot #{mySlot}</span>}
+              {/* ✅ Gem Entry Badge */}
+              {match.gemEntryEnabled && (
+                <span style={{ background: "#e0e7ff", color: "#4338ca", fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>
+                  🔷 Gem Entry ({match.gemEntryUsed || 0}/{match.gemEntrySlots})
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -301,7 +331,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
 
         {/* Join success/error message */}
         {joinMsg && (
-          <div style={{ margin: "0 16px 10px", padding: "8px 12px", borderRadius: 8, background: joinMsg.startsWith("✅") ? "#d1fae5" : "#fee2e2", color: joinMsg.startsWith("✅") ? "#065f46" : "#dc2626", fontSize: 13, fontWeight: 600 }}>
+          <div style={{ margin: "0 16px 10px", padding: "8px 12px", borderRadius: 8, background: joinMsg.startsWith("❌") ? "#fee2e2" : "#d1fae5", color: joinMsg.startsWith("❌") ? "#dc2626" : "#065f46", fontSize: 13, fontWeight: 600 }}>
             {joinMsg}
           </div>
         )}
@@ -358,9 +388,40 @@ const MatchCard = ({ match, onJoinSuccess }) => {
               <div style={{ fontSize: 12, marginTop: 2 }}>{match.title}</div>
             </div>
             <div style={{ padding: "20px" }}>
-              <div style={{ background: "#fef3c7", padding: "10px 14px", borderRadius: 10, textAlign: "center", marginBottom: 16, color: "#92400e", fontWeight: 600 }}>
-                ৳{match.entryFee} আপনার ওয়ালেট থেকে কাটা হবে
+
+              {/* ✅ Gem Entry Toggle — শুধু match এ gem entry চালু থাকলে দেখাবে */}
+              {match.gemEntryEnabled && (
+                <div style={{ marginBottom: 16, border: "1.5px solid #c7d2fe", borderRadius: 12, overflow: "hidden" }}>
+                  <div style={{ display: "flex" }}>
+                    <button
+                      onClick={() => setUseGem(false)}
+                      style={{ flex: 1, padding: "10px 0", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12.5, background: !useGem ? "#16a34a" : "#f3f4f6", color: !useGem ? "#fff" : "#6b7280" }}
+                    >
+                      💰 Taka দিয়ে (৳{match.entryFee})
+                    </button>
+                    <button
+                      onClick={() => setUseGem(true)}
+                      disabled={!gemEntryOpen || !canAffordGem}
+                      style={{ flex: 1, padding: "10px 0", border: "none", cursor: (gemEntryOpen && canAffordGem) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12.5, background: useGem ? "#4338ca" : "#f3f4f6", color: useGem ? "#fff" : "#6b7280", opacity: (gemEntryOpen && canAffordGem) ? 1 : 0.5 }}
+                    >
+                      🔷 Gem দিয়ে ({match.gemEntryCost})
+                    </button>
+                  </div>
+                  {!gemEntryOpen && (
+                    <div style={{ padding: "6px 10px", fontSize: 11, color: "#dc2626", background: "#fef2f2" }}>Gem Entry স্লট পূর্ণ হয়ে গেছে</div>
+                  )}
+                  {gemEntryOpen && !canAffordGem && (
+                    <div style={{ padding: "6px 10px", fontSize: 11, color: "#dc2626", background: "#fef2f2" }}>আপনার পর্যাপ্ত Gem নেই (আপনার আছে 🔷{myGems})</div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ background: useGem ? "#eef2ff" : "#fef3c7", padding: "10px 14px", borderRadius: 10, textAlign: "center", marginBottom: 16, color: useGem ? "#4338ca" : "#92400e", fontWeight: 600 }}>
+                {useGem
+                  ? `🔷 ${match.gemEntryCost} Gem কাটা হবে (Taka লাগবে না)`
+                  : `৳${match.entryFee} আপনার ওয়ালেট থেকে কাটা হবে`}
               </div>
+
               <label style={{ fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>🎯 Free Fire In-Game Name</label>
               {loadingName ? (
                 <div style={{ padding: "12px", background: "#f9fafb", borderRadius: 10, textAlign: "center" }}>⏳ লোড হচ্ছে...</div>
@@ -375,7 +436,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
               )}
               <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
                 <button onClick={() => setShowJoinModal(false)} style={{ flex: 1, padding: "11px", border: "1.5px solid #e5e7eb", borderRadius: 10, background: "#fff", cursor: "pointer", fontWeight: 600 }}>বাতিল</button>
-                <button onClick={handleJoin} disabled={!inGameName.trim() || joining} style={{ flex: 1, padding: "11px", background: inGameName.trim() ? "#22c55e" : "#86efac", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: inGameName.trim() ? "pointer" : "not-allowed" }}>
+                <button onClick={handleJoin} disabled={!inGameName.trim() || joining} style={{ flex: 1, padding: "11px", background: inGameName.trim() ? (useGem ? "#4338ca" : "#22c55e") : "#e5e7eb", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: inGameName.trim() ? "pointer" : "not-allowed" }}>
                   {joining ? "Joining..." : "✅ Confirm Join"}
                 </button>
               </div>
