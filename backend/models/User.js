@@ -37,19 +37,27 @@ const userSchema = new mongoose.Schema(
     isBlocked:          { type: Boolean, default: false },
     lastLogin:          { type: Date },
 
-    // ✅ Referral System
+    // ✅ Fraud-detection metadata (registration সময় capture হবে — routes/authRoutes.js দেখুন)
+    registerIp:         { type: String, default: "" },
+    deviceId:           { type: String, default: "" }, // frontend থেকে optional localStorage-generated id
+    isSuspicious:        { type: Boolean, default: false }, // admin flag করলে true হবে
+    suspiciousReason:    { type: String, default: "" },
+
+    // ✅ Referral System — Gem based (gem কখনো taka তে convert হয় না)
     referralCode:       { type: String, unique: true },
     referredBy:         { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    referralPoints:     { type: Number, default: 0 },
+    gems:                { type: Number, default: 0 }, // ⚠️ পুরনো referralPoints বাদ, gems দিয়ে replace
     referralCount:      { type: Number, default: 0 },
     referralHistory: [
       {
-        userId:      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        name:        { type: String },
-        phone:       { type: String },
-        deposited:   { type: Boolean, default: false },
-        pointGiven:  { type: Boolean, default: false },
-        joinedAt:    { type: Date, default: Date.now },
+        userId:        { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        name:          { type: String },
+        phone:         { type: String },
+        deposited:     { type: Boolean, default: false },   // B প্রথমবার deposit করেছে কিনা
+        depositAmount: { type: Number, default: 0 },         // সেই deposit এর amount (gem tier হিসাব করতে)
+        gemsPending:   { type: Number, default: 0 },         // deposit অনুযায়ী কত gem পাওয়ার কথা (match join এর অপেক্ষায়)
+        gemGiven:      { type: Boolean, default: false },    // gem ইতিমধ্যে credit হয়েছে কিনা
+        joinedAt:      { type: Date, default: Date.now },
       }
     ],
 
@@ -59,6 +67,7 @@ const userSchema = new mongoose.Schema(
         matchId:    { type: mongoose.Schema.Types.ObjectId, ref: "Match" },
         matchTitle: { type: String },
         entryFee:   { type: Number },
+        paidWithGem: { type: Boolean, default: false }, // gem দিয়ে join করেছিল কিনা
         joinedAt:   { type: Date, default: Date.now },
       }
     ],
