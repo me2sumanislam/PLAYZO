@@ -87,6 +87,7 @@ app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/ludo-matches", require("./routes/ludoMatchRoutes"));
 app.use("/api/ludo-tournament", require("./routes/ludoMatchRoutes"));
+app.use("/api/ludo-result", require("./routes/ludoResultRoutes")); // ✅ Ludo screenshot result system চালু করা হলো
 
 // ================= RESULT ROUTES =================
 app.use("/api/result", resultRoutes);
