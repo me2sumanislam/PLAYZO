@@ -63,23 +63,42 @@ router.get("/test", (req, res) => res.json({ success: true, message: "Match Rout
 // ── Create Match ──────────────────────────────────────────────────────────────
 router.post("/create", protectAdmin, async (req, res) => {
   try {
-    const { startTime, category = "br_solo", totalPlayers, prizePool, ...rest } = req.body;
+    const {
+      startTime, category = "br_solo", totalPlayers, prizePool,
+      // ✅ Gem Entry ফিল্ড — admin optional ভাবে সেট করবে
+      gemEntryEnabled = false,
+      gemEntryCost = 0,
+      gemEntrySlots = 0,
+      ...rest
+    } = req.body;
     const cfg = MODE_CONFIG[category] || MODE_CONFIG.br_solo;
     const expiresAt = startTime
       ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
       : new Date(Date.now() + 20 * 60 * 1000);
+
+    // ✅ Gem entry validation — enable করলে cost ও slot অবশ্যই > 0 হতে হবে
+    if (gemEntryEnabled && (Number(gemEntryCost) <= 0 || Number(gemEntrySlots) <= 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Gem Entry চালু করলে gemEntryCost ও gemEntrySlots অবশ্যই ০ এর বেশি হতে হবে",
+      });
+    }
 
     const match = await Match.create({
       ...rest,
       startTime,
       expiresAt,
       category,
-      matchType:     cfg.matchType,
-      teamSize:      cfg.teamSize,
-      totalPlayers:  totalPlayers || cfg.defaultTotal,
-      prizePool:     prizePool    || rest.winPrize || 0,
-      joinedPlayers: 0,
-      status:        "upcoming",
+      matchType:       cfg.matchType,
+      teamSize:        cfg.teamSize,
+      totalPlayers:    totalPlayers || cfg.defaultTotal,
+      prizePool:       prizePool    || rest.winPrize || 0,
+      joinedPlayers:   0,
+      status:          "upcoming",
+      gemEntryEnabled: !!gemEntryEnabled,
+      gemEntryCost:    Number(gemEntryCost) || 0,
+      gemEntrySlots:   Number(gemEntrySlots) || 0,
+      gemEntryUsed:    0,
     });
 
     try { await sendMatchNotification(match, category); } catch {}
@@ -155,7 +174,7 @@ router.put("/update-room/:id", protectAdmin, async (req, res) => {
 // ── Join Match ────────────────────────────────────────────────────────────────
 router.put("/join/:id", async (req, res) => {
   try {
-    const { userId, inGameName, team = "A" } = req.body;
+    const { userId, inGameName, team = "A", useGem = false } = req.body;
     const match = await Match.findById(req.params.id);
     if (!match) return res.status(404).json({ success: false, message: "Match not found" });
 
@@ -176,16 +195,43 @@ router.put("/join/:id", async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    if (user.balance < match.entryFee)
-      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+
+    // ✅ Gem দিয়ে join করার চেষ্টা করছে কিনা
+    const wantsGem = useGem === true || useGem === "true";
+    let paidWithGem = false;
+
+    if (wantsGem) {
+      if (!match.gemEntryEnabled) {
+        return res.json({ success: false, message: "এই match এ Gem Entry চালু নেই" });
+      }
+      if (match.gemEntryUsed >= match.gemEntrySlots) {
+        return res.json({ success: false, message: "Gem Entry এর সব স্লট পূর্ণ হয়ে গেছে" });
+      }
+      if ((user.gems || 0) < match.gemEntryCost) {
+        return res.json({ success: false, message: `পর্যাপ্ত Gem নেই। প্রয়োজন ${match.gemEntryCost} Gem` });
+      }
+
+      user.gems -= match.gemEntryCost;
+      match.gemEntryUsed += 1;
+      paidWithGem = true;
+    } else {
+      if (user.balance < match.entryFee)
+        return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+      user.balance -= match.entryFee;
+    }
 
     const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
     let slotNumber = 1;
     while (usedSlots.includes(slotNumber)) slotNumber++;
 
-    user.balance -= match.entryFee;
     if (!user.joinHistory) user.joinHistory = [];
-    user.joinHistory.push({ matchId: match._id, matchTitle: match.title, entryFee: match.entryFee, joinedAt: new Date() });
+    user.joinHistory.push({
+      matchId: match._id,
+      matchTitle: match.title,
+      entryFee: paidWithGem ? 0 : match.entryFee,
+      paidWithGem,
+      joinedAt: new Date(),
+    });
     await user.save();
 
     match.joinedUsers.push({
@@ -194,11 +240,12 @@ router.put("/join/:id", async (req, res) => {
       gameName:   inGameName || "",
       slotNumber,
       team:       match.matchType === "team" ? team : "A",
+      joinedWithGem: paidWithGem,
     });
     match.joinedPlayers = match.joinedUsers.length;
     await match.save();
 
-    // Referral
+    // ✅ Referral — B (এই user) প্রথমবার match join করলে, তার referrer A কে pending gem credit হবে
     if (user.referredBy) {
       try {
         const referrer = await User.findById(user.referredBy);
@@ -206,16 +253,27 @@ router.put("/join/:id", async (req, res) => {
           const refEntry = referrer.referralHistory?.find(
             (r) => r.userId.toString() === user._id.toString()
           );
-          if (refEntry && refEntry.deposited && !refEntry.pointGiven) {
-            refEntry.pointGiven = true;
-            referrer.referralPoints = (referrer.referralPoints || 0) + 5;
+          if (refEntry && refEntry.deposited && !refEntry.gemGiven && refEntry.gemsPending > 0) {
+            refEntry.gemGiven = true;
+            referrer.gems = (referrer.gems || 0) + refEntry.gemsPending;
             await referrer.save();
+            console.log(`🔷 [Gem] ${referrer.name} পেল ${refEntry.gemsPending} gem (${user.name} match join করায়)`);
           }
         }
-      } catch {}
+      } catch (e) {
+        console.error("Referral gem credit error:", e.message);
+      }
     }
 
-    res.json({ success: true, message: "Join সফল!", newBalance: user.balance, slotNumber, data: match });
+    res.json({
+      success: true,
+      message: paidWithGem ? "Gem দিয়ে Join সফল!" : "Join সফল!",
+      newBalance: user.balance,
+      newGems: user.gems,
+      paidWithGem,
+      slotNumber,
+      data: match,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

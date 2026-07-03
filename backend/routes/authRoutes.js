@@ -4,6 +4,7 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { looksLikeFakePhone } = require("../utils/referralFraud");
 
 function generateReferralCode(name) {
   const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);
@@ -11,10 +12,17 @@ function generateReferralCode(name) {
   return `${clean}${rand}`;
 }
 
+// ✅ Client এর real IP বের করা (proxy/load-balancer থাকলেও কাজ করবে)
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress || req.ip || "";
+}
+
 // ================= REGISTER =================
 router.post("/register", async (req, res) => {
   try {
-    const { name, inGameName, email, phone, password, referralCode } = req.body;
+    const { name, inGameName, email, phone, password, referralCode, deviceId } = req.body;
 
     const existingPhone = await User.findOne({ phone });
     if (existingPhone) {
@@ -45,6 +53,10 @@ router.post("/register", async (req, res) => {
       referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
     }
 
+    // ✅ Fraud metadata capture (ব্লক করবে না, শুধু flag করবে — admin manually রিভিউ করবে)
+    const clientIp = getClientIp(req);
+    const fakePhonePattern = looksLikeFakePhone(phone);
+
     const user = await User.create({
       name: name?.trim(),
       inGameName: inGameName?.trim(),
@@ -54,21 +66,30 @@ router.post("/register", async (req, res) => {
       referralCode: newReferralCode,
       referredBy: referrer ? referrer._id : null,
       referralCount: 0,
-      referralPoints: 0,
+      gems: 0,
       referralHistory: [],
+      registerIp: clientIp,
+      deviceId: deviceId || "",
+      isSuspicious: fakePhonePattern,
+      suspiciousReason: fakePhonePattern ? "Pattern-based phone number" : "",
     });
 
     if (referrer) {
-      referrer.referralHistory.push({
-        userId:     user._id,
-        name:       user.name,
-        phone:      user.phone,
-        deposited:  false,
-        pointGiven: false,
-        joinedAt:   new Date(),
-      });
-      referrer.referralCount += 1;
-      await referrer.save();
+      // ✅ referrer নিজেকে refer করতে পারবে না (same phone দিয়ে বানানো fake account প্রতিরোধ)
+      if (referrer._id.toString() !== user._id.toString() && referrer.phone !== user.phone) {
+        referrer.referralHistory.push({
+          userId:        user._id,
+          name:          user.name,
+          phone:         user.phone,
+          deposited:     false,
+          depositAmount: 0,
+          gemsPending:   0,
+          gemGiven:      false,
+          joinedAt:      new Date(),
+        });
+        referrer.referralCount += 1;
+        await referrer.save();
+      }
     }
 
     const token = jwt.sign(
@@ -90,7 +111,7 @@ router.post("/register", async (req, res) => {
         role:           user.role,
         balance:        user.balance,
         referralCode:   user.referralCode,
-        referralPoints: user.referralPoints,
+        gems:           user.gems,
         referralCount:  user.referralCount,
       },
     });
@@ -157,8 +178,8 @@ router.post("/login", async (req, res) => {
         balance:            user.balance,
         totalMatchesPlayed: user.totalMatchesPlayed,
         totalWins:          user.totalWins,
-        referralCode:       user.referralCode,  // ✅ এখন সবসময় আসবে
-        referralPoints:     user.referralPoints,
+        referralCode:       user.referralCode,
+        gems:               user.gems || 0,
         referralCount:      user.referralCount,
       },
     });

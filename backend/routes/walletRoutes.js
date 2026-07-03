@@ -4,12 +4,17 @@ const express = require("express");
 const router  = express.Router();
 const Deposit = require("../models/Deposit");
 const User    = require("../models/User");
+const { isDuplicateTrx } = require("../utils/referralFraud");
 
-// ── Referral Constants ──────────────────────────────────────────
-const REFERRAL_DEPOSIT_MIN = 50;   // B কে ন্যূনতম ৳৫০ deposit করতে হবে
-const POINTS_PER_REFERRAL  = 5;    // প্রতি successful refer = 5 points
-const MIN_CONVERT_POINTS   = 20;   // convert করতে minimum 20 points লাগবে
-// ✅ 1 point = 1 টাকা (সরাসরি)
+// ── Referral / Gem Constants ────────────────────────────────────
+const REFERRAL_DEPOSIT_MIN = 50;   // B কে ন্যূনতম ৳৫০ deposit করতে হবে referral qualify করতে
+
+// ✅ Deposit amount অনুযায়ী কত gem পাবে (tier)
+function calcGemTier(amount) {
+  if (amount >= 100) return 10;
+  if (amount >= REFERRAL_DEPOSIT_MIN) return 5;
+  return 0;
+}
 
 // ─── USER: Deposit Request Submit ────────────────────────────────
 router.post("/deposit", async (req, res) => {
@@ -76,6 +81,14 @@ router.patch("/deposit/:id", async (req, res) => {
       });
     }
 
+    // ✅ Fraud check: একই trxId আগে অন্য কোনো approved deposit এ ব্যবহার হয়েছে কিনা
+    if (await isDuplicateTrx(deposit.trxId, deposit._id)) {
+      return res.status(400).json({
+        success: false,
+        message: "⚠️ এই Transaction ID আগে অন্য একটি deposit এ ব্যবহার হয়েছে — manually verify করুন",
+      });
+    }
+
     deposit.status = status;
     await deposit.save();
 
@@ -87,24 +100,24 @@ router.patch("/deposit/:id", async (req, res) => {
         { new: true }
       );
 
-      // ✅ REFERRAL LOGIC — Step 1: deposit হয়েছে, flag set করো
-      // Point এখনই দেওয়া হবে না — B যখন match join করবে তখন দেওয়া হবে
-      if (
-        deposit.amount >= REFERRAL_DEPOSIT_MIN &&
-        user.referredBy
-      ) {
+      // ✅ REFERRAL GEM LOGIC — Step 1: deposit হয়েছে, gemsPending set করো
+      // Gem এখনই credit হবে না — B যখন প্রথমবার match join করবে তখন credit হবে
+      const gemTier = calcGemTier(deposit.amount);
+      if (gemTier > 0 && user.referredBy) {
         const referrer = await User.findById(user.referredBy);
         if (referrer) {
           const refEntry = referrer.referralHistory.find(
             (r) => r.userId.toString() === user._id.toString()
           );
 
-          // শুধু প্রথমবার deposit flag set করো
+          // শুধু প্রথমবার deposit flag + gemsPending set করো
           if (refEntry && !refEntry.deposited) {
             refEntry.deposited = true;
+            refEntry.depositAmount = deposit.amount;
+            refEntry.gemsPending = gemTier;
             await referrer.save();
             console.log(
-              `💰 [Referral] ${user.name} ৳${deposit.amount} deposit করেছে → deposited=true (match entry pending)`
+              `💰 [Referral] ${user.name} ৳${deposit.amount} deposit করেছে → ${gemTier} gem pending (match join এর অপেক্ষায়)`
             );
           }
         }
@@ -144,7 +157,7 @@ router.get("/referral/:userId", async (req, res) => {
       success: true,
       data: {
         referralCode:    user.referralCode,
-        referralPoints:  user.referralPoints,
+        gems:            user.gems || 0,
         referralCount:   user.referralCount,
         referralHistory: user.referralHistory,
       },
@@ -154,44 +167,7 @@ router.get("/referral/:userId", async (req, res) => {
   }
 });
 
-// ─── REFERRAL POINTS → BALANCE CONVERT ───────────────────────────
-router.post("/referral/convert", async (req, res) => {
-  try {
-    const { userId } = req.body;
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User পাওয়া যায়নি" });
-    }
-
-    const currentPoints = user.referralPoints || 0;
-
-    // ✅ Minimum 20 points check
-    if (currentPoints < MIN_CONVERT_POINTS) {
-      return res.json({
-        success: false,
-        message: `Minimum ${MIN_CONVERT_POINTS} points লাগবে। আপনার আছে ${currentPoints} points`,
-      });
-    }
-
-    // ✅ 1 point = 1 টাকা — সব points একসাথে convert
-    const taka = currentPoints; // 1:1 ratio
-
-    user.referralPoints = 0;
-    user.balance = (user.balance || 0) + taka;
-    await user.save();
-
-    console.log(`💸 [Convert] ${user.name}: ${currentPoints} points → ৳${taka}`);
-
-    res.json({
-      success: true,
-      message: `✅ ${currentPoints} points → ৳${taka} balance এ convert হয়েছে!`,
-      newBalance: user.balance,
-      remainingPoints: 0,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+// ⚠️ NOTE: "/referral/convert" route ইচ্ছাকৃতভাবে বাদ দেওয়া হয়েছে।
+// Gem কখনো taka তে convert করা যাবে না — এটাই নতুন system এর মূল নিয়ম।
 
 module.exports = router;

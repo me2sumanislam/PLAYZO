@@ -21,6 +21,7 @@ const joinedUserSchema = new mongoose.Schema({
   gameName:   { type: String, default: "" },
   slotNumber: { type: Number },
   team:       { type: String, default: "A" }, // "A" or "B" — team match এ কোন দলে
+  joinedWithGem: { type: Boolean, default: false }, // ✅ এই player gem দিয়ে join করেছে কিনা
   joinedAt:   { type: Date, default: Date.now },
 }, { _id: false });
 
@@ -56,6 +57,13 @@ const matchSchema = new mongoose.Schema({
 
   // Team mode: prizePool = total টাকা winner team পাবে (ভাগ হবে teamSize দিয়ে)
   prizePool: { type: Number, default: 0 },
+
+  // ── Gem Entry (✅ নতুন) ──────────────────────────────────────────────────────
+  // Admin চাইলে প্রতি match এ আলাদাভাবে gem-entry চালু/বন্ধ ও slot সংখ্যা সেট করতে পারবে
+  gemEntryEnabled: { type: Boolean, default: false },
+  gemEntryCost:    { type: Number, default: 0 }, // এই match এ join করতে কত gem লাগবে
+  gemEntrySlots:   { type: Number, default: 0 }, // gem দিয়ে max কতজন ঢুকতে পারবে (যেমন ৫-৬)
+  gemEntryUsed:    { type: Number, default: 0 }, // এখন পর্যন্ত কতজন gem দিয়ে ঢুকেছে
 
   // ── Match Info ────────────────────────────────────────────────────────────
   map:    { type: String, default: "Bermuda" },

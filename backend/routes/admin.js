@@ -11,6 +11,20 @@ const Match         = require("../models/Match");
 const ActivityLog   = require("../models/ActivityLog");
 const PaymentNumber = require("../models/PaymentNumber");
 
+// ✅ Gem Referral System — fraud detection helpers
+const {
+  isDuplicateTrx,
+  findSameDeviceReferrals,
+  isOverDailyGemCap,
+} = require("../utils/referralFraud");
+
+// ✅ Deposit amount অনুযায়ী কত gem পাবে
+function calcGemTier(amount) {
+  if (amount >= 100) return 10;
+  if (amount >= 50) return 5;
+  return 0;
+}
+
 const JWT_SECRET  = process.env.JWT_SECRET || "your_secret_key";
 const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
@@ -125,12 +139,47 @@ router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
     const dep = await Deposit.findById(req.params.id).populate("userId");
     if (!dep) return res.json({ success: false, message: "Not found" });
     if (dep.status !== "pending") return res.json({ success: false, message: "Already processed" });
+
+    // ✅ Fraud check: একই trxId আগে অন্য কোনো approved deposit এ ব্যবহার হয়েছে কিনা
+    if (await isDuplicateTrx(dep.trxId, dep._id)) {
+      return res.json({
+        success: false,
+        message: "⚠️ এই Transaction ID আগে অন্য একটি deposit এ ব্যবহার হয়েছে — reject করে user কে জানান",
+      });
+    }
+
     dep.status = "approved";
     dep.approvedBy = req.admin.name;
     await dep.save();
-    await User.findByIdAndUpdate(dep.userId._id || dep.userId, {
-      $inc: { balance: dep.amount, totalDeposit: dep.amount },
-    });
+
+    const depositedUser = await User.findByIdAndUpdate(
+      dep.userId._id || dep.userId,
+      { $inc: { balance: dep.amount, totalDeposit: dep.amount } },
+      { new: true }
+    );
+
+    // ✅ REFERRAL GEM LOGIC — deposit approve হলে gemsPending সেট হবে,
+    // আসল gem credit হবে B যখন প্রথমবার match join করবে তখন (routes/matchRoutes.js এ)
+    const gemTier = calcGemTier(dep.amount);
+    if (gemTier > 0 && depositedUser?.referredBy) {
+      const referrer = await User.findById(depositedUser.referredBy);
+      if (referrer) {
+        const refEntry = referrer.referralHistory.find(
+          (r) => r.userId.toString() === depositedUser._id.toString()
+        );
+        if (refEntry && !refEntry.deposited) {
+          // ✅ Daily gem cap check — spam/fake referral আটকাতে (শুধু log করি, block করি না)
+          if (isOverDailyGemCap(referrer)) {
+            console.warn(`⚠️ [Gem Cap] ${referrer.name} আজকের daily gem cap ছুঁয়ে ফেলেছে — admin রিভিউ করুন`);
+          }
+          refEntry.deposited = true;
+          refEntry.depositAmount = dep.amount;
+          refEntry.gemsPending = gemTier;
+          await referrer.save();
+        }
+      }
+    }
+
     log(req.admin.name, `approved deposit of ৳${dep.amount}`, dep.userId?.name || "user", "approve");
     res.json({ success: true, message: "Deposit approved" });
   } catch (e) {
@@ -323,26 +372,7 @@ router.get("/completed-matches", authAdmin, async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════════
-// MATCH RESULT — PUT /api/admin/matches/:id/result
-//
-// BR Solo:
-//   Body: { results: [{userId, inGameName, position, kills}] }
-//   → ১ম: prizes.first(60) + kills×perKill
-//   → ২য়: prizes.second(40) + kills×perKill
-//   → ৩য়: prizes.third(30) + kills×perKill
-//   → ৪র্থ: prizes.fourth(20) + kills×perKill
-//   → বাকি: শুধু kills×perKill
-//   → Red Alert: total prize > prizePool হলে response এ redAlert: true
-//
-// CS Solo / LW Solo:
-//   Body: { results: [{userId, inGameName, position:1}] }
-//   → winner 1 জন → 100% prizePool
-//
-// BR Duo / BR Squad / CS Duo / CS Squad / CS 6vs6 / LW Duo:
-//   Body: { winnerUserIds: ["id1","id2",...], totalPrize: 600 }
-//   → winner রা সমান ভাগে prize পাবে, kill prize নেই
-// ════════════════════════════════════════════════════════════════════════════
+ 
 router.put("/matches/:id/result", authAdmin, async (req, res) => {
   try {
     const { results, winnerUserIds, totalPrize } = req.body;
@@ -571,6 +601,38 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
 
   } catch (e) {
     console.error("Result error:", e);
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ─── ADMIN: Referral Fraud Alerts ─────────────────────────────────
+// একই IP/device থেকে referrer এর একাধিক referred user থাকলে flag করে দেখায়।
+// এটা কাউকে ব্লক করে না, শুধু admin কে manual review এর জন্য তালিকা দেয়।
+router.get("/referral-fraud-alerts", authAdmin, async (req, res) => {
+  try {
+    const referrers = await User.find({ referralCount: { $gt: 0 } }, "_id name phone referralCount");
+    const alerts = [];
+
+    for (const ref of referrers) {
+      const groups = await findSameDeviceReferrals(ref._id);
+      if (groups.length > 0) {
+        alerts.push({
+          referrerId: ref._id,
+          referrerName: ref.name,
+          referrerPhone: ref.phone,
+          suspiciousGroups: groups,
+        });
+      }
+    }
+
+    // Sequential/pattern phone number দিয়ে খোলা account গুলোও আলাদা করে দেখান
+    const suspiciousPhoneUsers = await User.find(
+      { isSuspicious: true },
+      "name phone registerIp suspiciousReason referredBy createdAt"
+    ).populate("referredBy", "name phone");
+
+    res.json({ success: true, data: { deviceAlerts: alerts, phonePatternAlerts: suspiciousPhoneUsers } });
+  } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
