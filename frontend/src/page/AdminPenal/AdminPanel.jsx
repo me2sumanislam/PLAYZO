@@ -13,6 +13,7 @@ import Users            from "../Admin/UserManager/UserManager";
 import ActivityLog      from "../Admin/ActivityLog/ActivityLog";
 import ManageAdmins     from "../Admin/ManageAdmins/ManageAdmins";
 import PaymentNumbers   from "../../Component/PaymentNumberManager/paymentNumberManager";
+import ReferralFraudAlerts from "../Admin/ReferralFraudAlerts/ReferralFraudAlerts"; // ✅ নতুন
 
 const AdminPanel = () => {
   const [admin,  setAdmin]  = useState(null);
@@ -89,6 +90,7 @@ const AdminPanel = () => {
 
         {page === "money-overview"    && <MoneyOverview />}
         {page === "users"             && <Users />}
+        {page === "referral-fraud"    && <ReferralFraudAlerts />} {/* ✅ নতুন */}
         {page === "activity-log"      && <ActivityLog />}
         {page === "manage-admins"     && <ManageAdmins />}
         {page === "payment-numbers"   && <PaymentNumbers />}

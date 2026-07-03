@@ -14,6 +14,10 @@ const CreateMatch = () => {
     device: "Mobile",
     image: "",
     prizes: { first: "", second: "", third: "", fourth: "" },
+    // ✅ Gem Entry — সম্পূর্ণ optional, admin চাইলে চালু করবে
+    gemEntryEnabled: false,
+    gemEntryCost: "",
+    gemEntrySlots: "",
   });
   const [msg, setMsg] = useState("");
 
@@ -35,14 +39,11 @@ const CreateMatch = () => {
   };
 
   // ✅ Bangladesh (UTC+6) লোকাল datetime-local string কে সঠিক UTC ISO string এ কনভার্ট করে
-  // input value আসে timezone ছাড়া (যেমন "2026-06-16T20:00") — এটাকে BD লোকাল টাইম ধরে
-  // ৬ ঘণ্টা বিয়োগ করে UTC বানানো হয়, যাতে সার্ভারে date পরের দিনে শিফট না হয়ে যায়।
   const bdLocalToUTC = (localStr) => {
     if (!localStr) return "";
     const [datePart, timePart] = localStr.split("T");
     const [year, month, day] = datePart.split("-").map(Number);
     const [hour, minute] = timePart.split(":").map(Number);
-    // BD লোকাল টাইমকে UTC মিলিসেকেন্ডে বানানো — Date.UTC দিয়ে বানিয়ে ৬ ঘণ্টা বিয়োগ
     const utcMs = Date.UTC(year, month - 1, day, hour, minute) - 6 * 60 * 60 * 1000;
     return new Date(utcMs).toISOString();
   };
@@ -52,11 +53,19 @@ const CreateMatch = () => {
       setMsg("❌ Title আর Start Time অবশ্যই দিন");
       return;
     }
+    // ✅ Gem Entry চালু করলে cost ও slots অবশ্যই দিতে হবে
+    if (form.gemEntryEnabled && (!form.gemEntryCost || !form.gemEntrySlots)) {
+      setMsg("❌ Gem Entry চালু করলে Gem Cost ও Slots দুটোই দিন");
+      return;
+    }
     const d = await api("/matches/create", {
       method: "POST",
       body: JSON.stringify({
         ...form,
-        startTime: bdLocalToUTC(form.startTime), // ✅ সঠিক UTC তে কনভার্ট করে পাঠানো
+        startTime: bdLocalToUTC(form.startTime),
+        gemEntryEnabled: !!form.gemEntryEnabled,
+        gemEntryCost: Number(form.gemEntryCost) || 0,
+        gemEntrySlots: Number(form.gemEntrySlots) || 0,
       }),
     });
     setMsg(d.success ? "✅ Match created!" : "❌ " + (d.message || "Failed"));
@@ -73,6 +82,9 @@ const CreateMatch = () => {
         device: "Mobile",
         image: "",
         prizes: { first: "", second: "", third: "", fourth: "" },
+        gemEntryEnabled: false,
+        gemEntryCost: "",
+        gemEntrySlots: "",
       });
   };
 
@@ -84,6 +96,12 @@ const CreateMatch = () => {
     fontSize: 13,
     outline: "none",
     boxSizing: "border-box",
+  };
+  const label = {
+    fontSize: 11,
+    color: "#6b7280",
+    marginBottom: 4,
+    fontWeight: 600,
   };
   const f = (k) => ({
     style: inp,
@@ -112,29 +130,11 @@ const CreateMatch = () => {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
-              Match Title *
-            </div>
+            <div style={label}>Match Title *</div>
             <input placeholder="যেমন: BR Match #1" {...f("title")} />
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
-              Category
-            </div>
+            <div style={label}>Category</div>
             <select
               style={inp}
               value={form.category}
@@ -161,40 +161,62 @@ const CreateMatch = () => {
             </select>
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
-              Start Time * (Bangladesh Time)
-            </div>
+            <div style={label}>Start Time * (Bangladesh Time)</div>
             <input type="datetime-local" {...f("startTime")} />
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 6,
-                fontWeight: 600,
-              }}
-            >
-              Entry & Prize
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 10,
-              }}
-            >
+            <div style={{ ...label, marginBottom: 6 }}>Entry & Prize</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <input placeholder="Entry Fee (৳)" {...f("entryFee")} />
               <input placeholder="Win Prize (৳)" {...f("winPrize")} />
             </div>
           </div>
+
+          {/* ✅ Gem Entry Section — নতুন */}
+          <div
+            style={{
+              background: "#eef2ff",
+              border: "1px solid #c7d2fe",
+              borderRadius: 10,
+              padding: 14,
+            }}
+          >
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={form.gemEntryEnabled}
+                onChange={(e) => setForm((p) => ({ ...p, gemEntryEnabled: e.target.checked }))}
+                style={{ width: 16, height: 16 }}
+              />
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#4338ca" }}>
+                🔷 Enable Gem Entry (referral gem দিয়ে ফ্রি join)
+              </span>
+            </label>
+
+            {form.gemEntryEnabled && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "#4338ca", marginBottom: 3 }}>Gem Cost (join করতে কত Gem লাগবে)</div>
+                  <input
+                    placeholder="যেমন: 10"
+                    style={{ ...inp, background: "#fff" }}
+                    value={form.gemEntryCost}
+                    onChange={(e) => setForm((p) => ({ ...p, gemEntryCost: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "#4338ca", marginBottom: 3 }}>Gem Slots (max কতজন)</div>
+                  <input
+                    placeholder="যেমন: 5"
+                    style={{ ...inp, background: "#fff" }}
+                    value={form.gemEntrySlots}
+                    onChange={(e) => setForm((p) => ({ ...p, gemEntrySlots: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div
             style={{
               background: "#fefce8",
@@ -203,123 +225,47 @@ const CreateMatch = () => {
               padding: 14,
             }}
           >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#92400e",
-                marginBottom: 10,
-              }}
-            >
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 10 }}>
               🏆 Prize Breakdown
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 10,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  🥇 1st Prize (৳)
-                </div>
-                <input
-                  placeholder="60"
-                  {...fp("first")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥇 1st Prize (৳)</div>
+                <input placeholder="60" {...fp("first")} style={{ ...inp, background: "#fff" }} />
               </div>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  🥈 2nd Prize (৳)
-                </div>
-                <input
-                  placeholder="40"
-                  {...fp("second")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥈 2nd Prize (৳)</div>
+                <input placeholder="40" {...fp("second")} style={{ ...inp, background: "#fff" }} />
               </div>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  🥉 3rd Prize (৳)
-                </div>
-                <input
-                  placeholder="20"
-                  {...fp("third")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>🥉 3rd Prize (৳)</div>
+                <input placeholder="20" {...fp("third")} style={{ ...inp, background: "#fff" }} />
               </div>
               <div>
-                <div
-                  style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}
-                >
-                  4️⃣ 4th Prize (৳)
-                </div>
-                <input
-                  placeholder="10"
-                  {...fp("fourth")}
-                  style={{ ...inp, background: "#fff" }}
-                />
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>4️⃣ 4th Prize (৳)</div>
+                <input placeholder="10" {...fp("fourth")} style={{ ...inp, background: "#fff" }} />
               </div>
             </div>
           </div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
-                Total Players
-              </div>
+              <div style={label}>Total Players</div>
               <input placeholder="48" {...f("totalPlayers")} />
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
-                Per Kill (৳)
-              </div>
+              <div style={label}>Per Kill (৳)</div>
               <input placeholder="5" {...f("perKill")} />
             </div>
           </div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
-                Map
-              </div>
+              <div style={label}>Map</div>
               <select
                 style={inp}
                 value={form.map}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, map: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, map: e.target.value }))}
               >
                 <option value="">Select Map</option>
                 <option value="Bermuda">Bermuda</option>
@@ -330,22 +276,11 @@ const CreateMatch = () => {
               </select>
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  marginBottom: 4,
-                  fontWeight: 600,
-                }}
-              >
-                Device
-              </div>
+              <div style={label}>Device</div>
               <select
                 style={inp}
                 value={form.device}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, device: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, device: e.target.value }))}
               >
                 <option value="Mobile">Mobile</option>
                 <option value="Emulator">Emulator</option>
@@ -353,17 +288,9 @@ const CreateMatch = () => {
               </select>
             </div>
           </div>
+
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
-              Match Banner Image
-            </div>
+            <div style={label}>Match Banner Image</div>
             <label
               style={{
                 display: "block",
@@ -378,24 +305,14 @@ const CreateMatch = () => {
               }}
             >
               📷 Image Upload করুন
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImage}
-                style={{ display: "none" }}
-              />
+              <input type="file" accept="image/*" onChange={handleImage} style={{ display: "none" }} />
             </label>
             {form.image && (
               <div style={{ marginTop: 8, position: "relative" }}>
                 <img
                   src={form.image}
                   alt=""
-                  style={{
-                    width: "100%",
-                    height: 120,
-                    objectFit: "cover",
-                    borderRadius: 8,
-                  }}
+                  style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 8 }}
                 />
                 <button
                   onClick={() => setForm((p) => ({ ...p, image: "" }))}
@@ -417,6 +334,7 @@ const CreateMatch = () => {
               </div>
             )}
           </div>
+
           {msg && (
             <div
               style={{

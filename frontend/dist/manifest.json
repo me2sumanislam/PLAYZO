@@ -1,7 +1,7 @@
  {
   "name": "uthiYO",
   "short_name": "uthiYO",
-  "description": "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ",
+  "description": "বাংলাদেশের সেরা টুর্নামেন্ট অ্যাপ যেখানে আপনি খুঁজে পাবেন আপনার পছন্দের টুর্নামেন্ট।",
   "start_url": "/app",
   "display": "standalone",
   "background_color": "#0f172a",

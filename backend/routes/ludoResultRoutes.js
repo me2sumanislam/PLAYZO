@@ -5,12 +5,12 @@
 // app.use("/api/ludo-result", require("./routes/ludoResultRoutes"));
 // ================================================================
 
-const express    = require("express");
-const router     = express.Router();
-const multer     = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("cloudinary").v2;
-const jwt        = require("jsonwebtoken");
+const express     = require("express");
+const router      = express.Router();
+const multer      = require("multer");
+const cloudinary  = require("cloudinary").v2;
+const streamifier = require("streamifier");
+const jwt         = require("jsonwebtoken");
 
 const LudoTournament       = require("../models/LudoTournament");
 const LudoResultSubmission = require("../models/LudoResultSubmission");
@@ -22,21 +22,34 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder:          "playzo-ludo-results",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-    transformation:  [{ width: 1920, crop: "limit", quality: "auto" }],
-  },
-});
+// ✅ Memory storage — multer-storage-cloudinary প্যাকেজের version conflict এড়াতে
+// resultController.js এর মতো একই proven pattern ব্যবহার করা হলো (buffer → stream → Cloudinary)
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
   fileFilter: (req, file, cb) =>
     file.mimetype.startsWith("image/") ? cb(null, true) : cb(new Error("শুধু image"), false),
 });
+
+// Buffer কে Cloudinary-তে stream হিসেবে আপলোড করার helper
+const uploadBufferToCloudinary = (buffer, folder = "playzo-ludo-results") =>
+  new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type:  "image",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+        transformation:  [{ width: 1920, crop: "limit", quality: "auto" }],
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
 
 const protect = (req, res, next) => {
   try {
@@ -83,10 +96,20 @@ router.post("/upload/:matchId", protect, upload.single("screenshot"), async (req
     if (existing)
       return res.status(400).json({ success: false, message: "ইতিমধ্যে screenshot submit করেছেন" });
 
+    // Match title থেকে safe folder name বানাও (resultController.js এর মতোই)
+    const safeName = (match.title || "ludo-match")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 50);
+    const folder = `playzo-ludo-results/${safeName}`;
+
+    const uploadResult = await uploadBufferToCloudinary(req.file.buffer, folder);
+
     const submission = await LudoResultSubmission.create({
       match:       matchId,
       submittedBy: userId,
-      screenshot:  { url: req.file.path, publicId: req.file.filename },
+      screenshot:  { url: uploadResult.secure_url, publicId: uploadResult.public_id },
       status:      "pending_review",
     });
 
@@ -98,6 +121,7 @@ router.post("/upload/:matchId", protect, upload.single("screenshot"), async (req
   } catch (err) {
     if (err.code === 11000)
       return res.status(400).json({ success: false, message: "ইতিমধ্যে screenshot submit করেছেন" });
+    console.error("Ludo screenshot upload error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });
