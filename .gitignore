@@ -1,6 +1,7 @@
-node_modules/
+ node_modules/
 .env
 frontend/dist/
 dist/
 node_modules/
 backend/node_modules/
+temp-passwords.json
