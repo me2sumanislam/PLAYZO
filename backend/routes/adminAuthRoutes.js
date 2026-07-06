@@ -1,50 +1,53 @@
  const express = require("express");
 const router = express.Router();
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const { Pool } = require("pg");
+const supabase = require("../utils/supabaseClient");
 
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
 const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
-// ================= ADMIN LOGIN =================
+function placeholderEmail(phone) {
+  return `${phone}@placeholder.playzo`;
+}
+
 router.post("/login", async (req, res) => {
+  const client = await pool.connect();
   try {
     const { phone, password } = req.body;
 
-    const user = await User.findOne({ phone });
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: placeholderEmail(phone),
+      password,
+    });
 
-    if (!user) {
-      return res.json({ success: false, message: "User not found" });
+    if (signInError) {
+      return res.json({ success: false, message: "Wrong password or user not found" });
     }
 
-    if (!ADMIN_ROLES.includes(user.role)) {
+    const { rows } = await client.query(
+      `SELECT * FROM users WHERE auth_user_id = $1`,
+      [signInData.user.id]
+    );
+    const user = rows[0];
+
+    if (!user || !ADMIN_ROLES.includes(user.role)) {
       return res.json({ success: false, message: "Not an admin account" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      return res.json({ success: false, message: "Wrong password" });
-    }
-
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
     res.json({
       success: true,
-      token,
+      token: signInData.session.access_token,
       admin: {
         name: user.name,
         phone: user.phone,
         role: user.role,
-        _id: user._id,
+        _id: user.id,
       },
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 

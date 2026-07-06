@@ -1,9 +1,10 @@
  // routes/matchRoutes.js
 const express = require("express");
 const router  = express.Router();
-const Match   = require("../models/Match");
-const User    = require("../models/User");
-const jwt     = require("jsonwebtoken");
+const { Pool } = require("pg");
+const { protect, adminOnly } = require("../middleware/auth");
+
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
 
 // notifications optional — না থাকলেও চলবে
 let sendMatchNotification = async () => {};
@@ -32,51 +33,63 @@ const MODE_CONFIG = {
   free_match:   { matchType: "solo", teamSize: 1,  defaultTotal: 48 },
 };
 
-const protectAdmin = (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.json({ success: false, message: "No token" });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "admin" && decoded.role !== "super-admin")
-      return res.json({ success: false, message: "Admin only" });
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.json({ success: false, message: "Invalid token: " + err.message });
-  }
-};
-
-const protect = (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ success: false, message: "No token" });
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: "Invalid token" });
-  }
-};
+// snake_case row → camelCase JSON (frontend পুরনো ফরম্যাট আশা করে)
+function toMatchJson(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    _id: row.id,
+    title: row.title,
+    category: row.category,
+    matchType: row.match_type,
+    teamSize: row.team_size,
+    entryFee: row.entry_fee,
+    winPrize: row.win_prize,
+    prizes: row.prizes || {},
+    perKill: row.per_kill,
+    prizePool: row.prize_pool,
+    map: row.map,
+    device: row.device,
+    image: row.image,
+    startTime: row.start_time,
+    expiresAt: row.expires_at,
+    totalPlayers: row.total_players,
+    joinedPlayers: row.joined_players,
+    roomId: row.room_id,
+    roomPassword: row.room_password,
+    isRoomOpen: row.is_room_open,
+    winnerTeam: row.winner_team,
+    completedAt: row.completed_at,
+    deleteAt: row.delete_at,
+    status: row.status,
+    gemEntryEnabled: row.gem_entry_enabled,
+    gemEntryCost: row.gem_entry_cost,
+    gemEntrySlots: row.gem_entry_slots,
+    gemEntryUsed: row.gem_entry_used,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 // ── Test ──────────────────────────────────────────────────────────────────────
 router.get("/test", (req, res) => res.json({ success: true, message: "Match Routes OK" }));
 
 // ── Create Match ──────────────────────────────────────────────────────────────
-router.post("/create", protectAdmin, async (req, res) => {
+router.post("/create", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
     const {
-      startTime, category = "br_solo", totalPlayers, prizePool,
-      // ✅ Gem Entry ফিল্ড — admin optional ভাবে সেট করবে
-      gemEntryEnabled = false,
-      gemEntryCost = 0,
-      gemEntrySlots = 0,
-      ...rest
+      title, startTime, category = "br_solo", totalPlayers, prizePool,
+      entryFee = 0, winPrize = 0, prizes, perKill = 0,
+      map: mapName, device, image, roomId, roomPassword,
+      gemEntryEnabled = false, gemEntryCost = 0, gemEntrySlots = 0,
     } = req.body;
+
     const cfg = MODE_CONFIG[category] || MODE_CONFIG.br_solo;
     const expiresAt = startTime
       ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
       : new Date(Date.now() + 20 * 60 * 1000);
 
-    // ✅ Gem entry validation — enable করলে cost ও slot অবশ্যই > 0 হতে হবে
     if (gemEntryEnabled && (Number(gemEntryCost) <= 0 || Number(gemEntrySlots) <= 0)) {
       return res.status(400).json({
         success: false,
@@ -84,224 +97,353 @@ router.post("/create", protectAdmin, async (req, res) => {
       });
     }
 
-    const match = await Match.create({
-      ...rest,
-      startTime,
-      expiresAt,
-      category,
-      matchType:       cfg.matchType,
-      teamSize:        cfg.teamSize,
-      totalPlayers:    totalPlayers || cfg.defaultTotal,
-      prizePool:       prizePool    || rest.winPrize || 0,
-      joinedPlayers:   0,
-      status:          "upcoming",
-      gemEntryEnabled: !!gemEntryEnabled,
-      gemEntryCost:    Number(gemEntryCost) || 0,
-      gemEntrySlots:   Number(gemEntrySlots) || 0,
-      gemEntryUsed:    0,
-    });
+    const { rows } = await client.query(
+      `INSERT INTO matches (
+        title, category, match_type, team_size, entry_fee, win_prize,
+        prize_first, prize_second, prize_third, prize_fourth, prizes,
+        per_kill, prize_pool, map, device, image, start_time, expires_at,
+        total_players, room_id, room_password, joined_players, status,
+        gem_entry_enabled, gem_entry_cost, gem_entry_slots, gem_entry_used
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
+        $19,$20,$21,0,'upcoming',$22,$23,$24,0
+      ) RETURNING *`,
+      [
+        title, category, cfg.matchType, cfg.teamSize, entryFee, winPrize,
+        prizes?.first || 0, prizes?.second || 0, prizes?.third || 0, prizes?.fourth || 0,
+        prizes ? JSON.stringify(prizes) : null,
+        perKill, prizePool || winPrize || 0, mapName, device, image,
+        startTime || null, expiresAt,
+        totalPlayers || cfg.defaultTotal, roomId || "", roomPassword || "",
+        !!gemEntryEnabled, Number(gemEntryCost) || 0, Number(gemEntrySlots) || 0,
+      ]
+    );
 
-    try { await sendMatchNotification(match, category); } catch {}
+    const match = rows[0];
+    try { await sendMatchNotification(toMatchJson(match), category); } catch {}
 
-    res.status(201).json({ success: true, message: "Match created", data: match });
+    res.status(201).json({ success: true, message: "Match created", data: toMatchJson(match) });
   } catch (err) {
+    console.error("Create match error:", err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── Get All Matches ───────────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
+  const client = await pool.connect();
   try {
-    const matches = await Match.find()
-      .populate("joinedUsers.userId", "name phone")
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: matches });
+    const { rows: matches } = await client.query(
+      `SELECT * FROM matches ORDER BY created_at DESC`
+    );
+
+    // প্রতিটা match এর জন্য joined participants আলাদা করে টেনে আনা (Mongoose populate এর সমতুল্য)
+    const matchIds = matches.map((m) => m.id);
+    let participantsByMatch = {};
+    if (matchIds.length > 0) {
+      const { rows: participants } = await client.query(
+        `SELECT mp.*, u.name, u.phone
+         FROM match_participants mp
+         JOIN users u ON u.id = mp.user_id
+         WHERE mp.match_id = ANY($1)`,
+        [matchIds]
+      );
+      for (const p of participants) {
+        if (!participantsByMatch[p.match_id]) participantsByMatch[p.match_id] = [];
+        participantsByMatch[p.match_id].push({
+          userId: { _id: p.user_id, name: p.name, phone: p.phone },
+          inGameName: p.in_game_name,
+          gameName: p.game_name,
+          slotNumber: p.slot_number,
+          team: p.team,
+          joinedWithGem: p.joined_with_gem,
+        });
+      }
+    }
+
+    const data = matches.map((m) => ({
+      ...toMatchJson(m),
+      joinedUsers: participantsByMatch[m.id] || [],
+    }));
+
+    res.json({ success: true, data });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── Get Completed Matches ─────────────────────────────────────────────────────
 router.get("/completed", async (req, res) => {
+  const client = await pool.connect();
   try {
-    const matches = await Match.find({ status: "completed" })
-      .sort({ completedAt: -1 })
-      .limit(30);
-    res.json({ success: true, data: matches });
+    const { rows } = await client.query(
+      `SELECT * FROM matches WHERE status = 'completed'
+       ORDER BY completed_at DESC LIMIT 30`
+    );
+    res.json({ success: true, data: rows.map(toMatchJson) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── My Matches ────────────────────────────────────────────────────────────────
 router.get("/my-matches", async (req, res) => {
+  const client = await pool.connect();
   try {
     const { userId } = req.query;
     if (!userId) return res.status(400).json({ success: false, message: "userId required" });
-    const matches = await Match.find({ "joinedUsers.userId": userId }).sort({ createdAt: -1 });
-    res.json({ success: true, data: matches });
+
+    const { rows } = await client.query(
+      `SELECT m.* FROM matches m
+       JOIN match_participants mp ON mp.match_id = m.id
+       WHERE mp.user_id = $1
+       ORDER BY m.created_at DESC`,
+      [userId]
+    );
+    res.json({ success: true, data: rows.map(toMatchJson) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── Get Single Match ──────────────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
+  const client = await pool.connect();
   try {
-    const match = await Match.findById(req.params.id);
-    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
-    res.json({ success: true, data: match });
+    const { rows } = await client.query(`SELECT * FROM matches WHERE id = $1`, [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: "Match not found" });
+    res.json({ success: true, data: toMatchJson(rows[0]) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── Update Room ───────────────────────────────────────────────────────────────
-router.put("/update-room/:id", protectAdmin, async (req, res) => {
+router.put("/update-room/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { roomId, roomPassword } = req.body;
-    const match = await Match.findByIdAndUpdate(
-      req.params.id,
-      { roomId, roomPassword, status: "live", isRoomOpen: true },
-      { new: true }
+    const { rows } = await client.query(
+      `UPDATE matches SET room_id = $1, room_password = $2, status = 'live', is_room_open = true
+       WHERE id = $3 RETURNING *`,
+      [roomId, roomPassword, req.params.id]
     );
-    res.json({ success: true, message: "Room updated", data: match });
+    if (rows.length === 0) return res.status(404).json({ success: false, message: "Match not found" });
+    res.json({ success: true, message: "Room updated", data: toMatchJson(rows[0]) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── Join Match ────────────────────────────────────────────────────────────────
-router.put("/join/:id", async (req, res) => {
+router.put("/join/:id", protect, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { userId, inGameName, team = "A", useGem = false } = req.body;
-    const match = await Match.findById(req.params.id);
-    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+    const { inGameName, team = "A", useGem = false } = req.body;
+    const userId = req.user.id; // ✅ token থেকে (body থেকে নয়, নিরাপত্তার জন্য)
 
-    const alreadyJoined = (match.joinedUsers || []).find(
-      (u) => u.userId.toString() === userId.toString()
+    await client.query("BEGIN");
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM matches WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
     );
-    if (alreadyJoined)
-      return res.json({ success: false, message: "আপনি ইতোমধ্যে join করেছেন" });
-
-    if (match.joinedPlayers >= match.totalPlayers)
-      return res.json({ success: false, message: "Match is full" });
-
-    if (match.matchType === "team" && match.teamSize > 1) {
-      const teamCount = (match.joinedUsers || []).filter((u) => u.team === team).length;
-      if (teamCount >= match.teamSize)
-        return res.json({ success: false, message: `Team ${team} full!` });
+    const match = matchRows[0];
+    if (!match) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "Match not found" });
     }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    const { rows: alreadyRows } = await client.query(
+      `SELECT id FROM match_participants WHERE match_id = $1 AND user_id = $2`,
+      [match.id, userId]
+    );
+    if (alreadyRows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "আপনি ইতোমধ্যে join করেছেন" });
+    }
 
-    // ✅ Gem দিয়ে join করার চেষ্টা করছে কিনা
+    if (match.joined_players >= match.total_players) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Match is full" });
+    }
+
+    if (match.match_type === "team" && match.team_size > 1) {
+      const { rows: teamRows } = await client.query(
+        `SELECT COUNT(*) FROM match_participants WHERE match_id = $1 AND team = $2`,
+        [match.id, team]
+      );
+      if (Number(teamRows[0].count) >= match.team_size) {
+        await client.query("ROLLBACK");
+        return res.json({ success: false, message: `Team ${team} full!` });
+      }
+    }
+
+    const { rows: userRows } = await client.query(
+      `SELECT * FROM users WHERE id = $1 FOR UPDATE`,
+      [userId]
+    );
+    const user = userRows[0];
+    if (!user) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
     const wantsGem = useGem === true || useGem === "true";
     let paidWithGem = false;
 
     if (wantsGem) {
-      if (!match.gemEntryEnabled) {
+      if (!match.gem_entry_enabled) {
+        await client.query("ROLLBACK");
         return res.json({ success: false, message: "এই match এ Gem Entry চালু নেই" });
       }
-      if (match.gemEntryUsed >= match.gemEntrySlots) {
+      if (match.gem_entry_used >= match.gem_entry_slots) {
+        await client.query("ROLLBACK");
         return res.json({ success: false, message: "Gem Entry এর সব স্লট পূর্ণ হয়ে গেছে" });
       }
-      if ((user.gems || 0) < match.gemEntryCost) {
-        return res.json({ success: false, message: `পর্যাপ্ত Gem নেই। প্রয়োজন ${match.gemEntryCost} Gem` });
+      if ((user.gems_balance ?? user.referral_points ?? 0) < match.gem_entry_cost) {
+        await client.query("ROLLBACK");
+        return res.json({ success: false, message: `পর্যাপ্ত Gem নেই। প্রয়োজন ${match.gem_entry_cost} Gem` });
       }
 
-      user.gems -= match.gemEntryCost;
-      match.gemEntryUsed += 1;
+      await client.query(
+        `UPDATE users SET referral_points = referral_points - $1 WHERE id = $2`,
+        [match.gem_entry_cost, userId]
+      );
+      await client.query(
+        `UPDATE matches SET gem_entry_used = gem_entry_used + 1 WHERE id = $1`,
+        [match.id]
+      );
       paidWithGem = true;
     } else {
-      if (user.balance < match.entryFee)
+      if (Number(user.balance) < Number(match.entry_fee)) {
+        await client.query("ROLLBACK");
         return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
-      user.balance -= match.entryFee;
+      }
+      await client.query(
+        `UPDATE users SET balance = balance - $1 WHERE id = $2`,
+        [match.entry_fee, userId]
+      );
     }
 
-    const usedSlots = (match.joinedUsers || []).map((u) => u.slotNumber);
+    const { rows: usedSlotRows } = await client.query(
+      `SELECT slot_number FROM match_participants WHERE match_id = $1`,
+      [match.id]
+    );
+    const usedSlots = usedSlotRows.map((r) => r.slot_number);
     let slotNumber = 1;
     while (usedSlots.includes(slotNumber)) slotNumber++;
 
-    if (!user.joinHistory) user.joinHistory = [];
-    user.joinHistory.push({
-      matchId: match._id,
-      matchTitle: match.title,
-      entryFee: paidWithGem ? 0 : match.entryFee,
-      paidWithGem,
-      joinedAt: new Date(),
-    });
-    await user.save();
+    await client.query(
+      `INSERT INTO match_join_history (user_id, match_id, match_title, entry_fee, paid_with_gem)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [userId, match.id, match.title, paidWithGem ? 0 : match.entry_fee, paidWithGem]
+    );
 
-    match.joinedUsers.push({
-      userId:     user._id,
-      inGameName: inGameName || "",
-      gameName:   inGameName || "",
-      slotNumber,
-      team:       match.matchType === "team" ? team : "A",
-      joinedWithGem: paidWithGem,
-    });
-    match.joinedPlayers = match.joinedUsers.length;
-    await match.save();
+    await client.query(
+      `INSERT INTO match_participants (match_id, user_id, in_game_name, game_name, slot_number, team, joined_with_gem)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [match.id, userId, inGameName || "", inGameName || "", slotNumber,
+       match.match_type === "team" ? team : "A", paidWithGem]
+    );
 
-    // ✅ Referral — B (এই user) প্রথমবার match join করলে, তার referrer A কে pending gem credit হবে
-    if (user.referredBy) {
-      try {
-        const referrer = await User.findById(user.referredBy);
-        if (referrer) {
-          const refEntry = referrer.referralHistory?.find(
-            (r) => r.userId.toString() === user._id.toString()
-          );
-          if (refEntry && refEntry.deposited && !refEntry.gemGiven && refEntry.gemsPending > 0) {
-            refEntry.gemGiven = true;
-            referrer.gems = (referrer.gems || 0) + refEntry.gemsPending;
-            await referrer.save();
-            console.log(`🔷 [Gem] ${referrer.name} পেল ${refEntry.gemsPending} gem (${user.name} match join করায়)`);
-          }
-        }
-      } catch (e) {
-        console.error("Referral gem credit error:", e.message);
+    const { rows: updatedMatchRows } = await client.query(
+      `UPDATE matches SET joined_players = joined_players + 1 WHERE id = $1 RETURNING *`,
+      [match.id]
+    );
+
+    // ✅ Referral gem credit — B প্রথমবার match join করলে referrer A কে pending gem credit
+    let newGems = user.referral_points || 0;
+    if (user.referred_by) {
+      const { rows: refRows } = await client.query(
+        `SELECT * FROM referral_history
+         WHERE referrer_id = $1 AND referred_user_id = $2
+         FOR UPDATE`,
+        [user.referred_by, userId]
+      );
+      const refEntry = refRows[0];
+      if (refEntry && refEntry.deposited && !refEntry.gem_given && refEntry.gems_pending > 0) {
+        await client.query(
+          `UPDATE referral_history SET gem_given = true WHERE id = $1`,
+          [refEntry.id]
+        );
+        await client.query(
+          `UPDATE users SET referral_points = referral_points + $1 WHERE id = $2`,
+          [refEntry.gems_pending, user.referred_by]
+        );
       }
     }
+
+    await client.query("COMMIT");
+
+    const { rows: finalUserRows } = await client.query(
+      `SELECT balance, referral_points FROM users WHERE id = $1`,
+      [userId]
+    );
 
     res.json({
       success: true,
       message: paidWithGem ? "Gem দিয়ে Join সফল!" : "Join সফল!",
-      newBalance: user.balance,
-      newGems: user.gems,
+      newBalance: finalUserRows[0].balance,
+      newGems: finalUserRows[0].referral_points,
       paidWithGem,
       slotNumber,
-      data: match,
+      data: toMatchJson(updatedMatchRows[0]),
     });
   } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Join match error:", err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── Start Match (Live) ────────────────────────────────────────────────────────
-router.put("/live/:id", async (req, res) => {
+router.put("/live/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const match = await Match.findById(req.params.id);
+    const { rows: matchRows } = await client.query(`SELECT status FROM matches WHERE id = $1`, [req.params.id]);
+    const match = matchRows[0];
     if (!match) return res.status(404).json({ success: false, message: "Match not found" });
     if (match.status === "live") return res.status(400).json({ success: false, message: "Already live" });
     if (match.status === "completed") return res.status(400).json({ success: false, message: "Already completed" });
-    match.status = "live";
-    match.startedAt = new Date();
-    await match.save();
-    res.json({ success: true, message: "Match started", match });
+
+    const { rows } = await client.query(
+      `UPDATE matches SET status = 'live' WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    res.json({ success: true, message: "Match started", match: toMatchJson(rows[0]) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // ── Delete All ────────────────────────────────────────────────────────────────
-router.delete("/clear-all", protectAdmin, async (req, res) => {
+router.delete("/clear-all", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await Match.deleteMany({});
-    res.json({ success: true, message: `${result.deletedCount} matches deleted` });
+    const { rowCount } = await client.query(`DELETE FROM matches`);
+    res.json({ success: true, message: `${rowCount} matches deleted` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
