@@ -75,18 +75,21 @@ self.addEventListener("activate", (event) => {
 
       // ✅ শুধু আগে কোনো cache ছিলে তখনই APP_UPDATED পাঠাও
       // fresh install এ পুরনো cache থাকবে না তাই message যাবে না
-      caches.keys().then(async (cacheNames) => {
-        const hasOldCache = cacheNames.some((name) => name !== CACHE_VERSION)
-        if (!hasOldCache) return // fresh install — কিছু করো না
+     caches.keys().then(async (cacheNames) => {
+  // ✅ শুধু আমাদের নিজেদের CACHE_VERSION cache গুলো check করো,
+  // workbox-precache cache বাদ দিয়ে
+  const ownCaches = cacheNames.filter((name) => name.startsWith("uthiyo-"))
+  const hasOldOwnCache = ownCaches.some((name) => name !== CACHE_VERSION)
+  if (!hasOldOwnCache) return // fresh install বা একই version — কিছু করো না
 
-        const clients = await self.clients.matchAll({
-          type: "window",
-          includeUncontrolled: true,
-        })
-        clients.forEach((client) =>
-          client.postMessage({ type: "APP_UPDATED" })
-        )
-      }),
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  })
+  clients.forEach((client) =>
+    client.postMessage({ type: "APP_UPDATED" })
+  )
+})
     ])
   )
 })
