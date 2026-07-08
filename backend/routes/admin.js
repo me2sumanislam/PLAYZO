@@ -12,9 +12,15 @@
 
 const express  = require("express");
 const router   = express.Router();
-const bcrypt   = require("bcryptjs");
-const jwt      = require("jsonwebtoken");
 const { Pool } = require("pg");
+
+// ✅ পুরনো ভুল: আগে এখানে নিজস্ব JWT_SECRET দিয়ে jwt.verify() করা authAdmin
+// middleware ছিল — কিন্তু বাস্তবে লগইন (routes/adminAuthRoutes.js) Supabase
+// Auth ব্যবহার করে (supabase.auth.signInWithPassword), আর token verify হয়
+// middleware/auth.js এর protect দিয়ে (supabase.auth.getUser)। তাই এখন সেটাই
+// ব্যবহার করা হচ্ছে — matchRoutes.js/ludoResultRoutes.js এর সাথে সামঞ্জস্যপূর্ণ।
+const { protect, adminOnly } = require("../middleware/auth");
+const supabaseAdmin = require("../utils/supabaseAdmin"); // admin তৈরির জন্য (Supabase Auth user create করতে)
 
 // NOTE: utils/referralFraud.js নিজের একটা Pool বানায় (একই connectionString দিয়ে)।
 // প্রোডাকশনে ভালো হয় একটা শেয়ার্ড db.js থেকে pool export করে সব জায়গায় reuse
@@ -64,6 +70,12 @@ const CATEGORY_CONFIG = {
   lone_wolf:   { matchType: "solo", teamSize: 1, logic: "solo_pos",   killPrize: false },
   training:    { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
   free_match:  { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  // ✅ Ludo — kill/position ধারণা নেই, শুধু winner(রা) prize pool (কমিশন বাদে) ভাগ করে নেয়।
+  // team_only লজিকই এখানে মানানসই: winnerUserIds এ ১ জন দিলে সে পুরোটা পায় (1v1 / solo),
+  // ২ জন দিলে সমান ভাগ (2v2)। admin.js এ আলাদা কোনো নতুন calculation লাগবে না।
+  ludo_1v1:    { matchType: "team", teamSize: 1, logic: "team_only",  killPrize: false },
+  ludo_2v2:    { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  ludo_solo:   { matchType: "solo", teamSize: 1, logic: "team_only",  killPrize: false },
 };
 
 // ✅ BR Solo default placement prizes
@@ -103,8 +115,44 @@ const log = (adminName, action, target, type) =>
     )
     .catch(() => {});
 
+// ✅ প্রতিটা player এর ফলাফল match_results টেবিলে row হিসেবে সেভ করে (jsonb কলামের বদলে)।
+// একই match এ result re-submit হলে পুরনো row গুলো মুছে নতুন করে বসানো হয় (idempotent)।
+async function saveMatchResults(client, matchId, finalResults) {
+  await client.query(`DELETE FROM match_results WHERE match_id = $1`, [matchId]);
+  for (const r of finalResults) {
+    await client.query(
+      `INSERT INTO match_results (match_id, user_id, in_game_name, position, kills, prize, rank, team)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        matchId,
+        r.userId || null,
+        r.inGameName || null,
+        r.position ?? null,
+        r.kills ?? 0,
+        r.prize ?? 0,
+        r.rank ?? null,
+        r.team || null,
+      ]
+    );
+  }
+}
+
+// ✅ Screenshot-review workflow এর submission কে match এর সাথে লিংক করা।
+// submissionType "ludo" হলে ludo_result_submissions টেবিল, নাহলে result_submissions।
+async function markSubmissionReviewed(client, submissionId, submissionType, adminId, matchId) {
+  if (!submissionId) return;
+  const table = submissionType === "ludo" ? "ludo_result_submissions" : "result_submissions";
+  await client.query(
+    `UPDATE ${table}
+     SET status = 'approved', reviewed_by = $1, reviewed_at = now(), updated_at = now()
+     WHERE id = $2`,
+    [adminId, submissionId]
+  );
+  await client.query(`UPDATE matches SET result_submission_id = $1 WHERE id = $2`, [submissionId, matchId]);
+}
+
 // ── STATS ─────────────────────────────────────────────────────────────────────
-router.get("/stats", authAdmin, async (req, res) => {
+router.get("/stats", protect, adminOnly, async (req, res) => {
   try {
     const [
       totalDepositRes, totalWithdrawRes,
@@ -141,7 +189,7 @@ router.get("/stats", authAdmin, async (req, res) => {
 });
 
 // ── DEPOSITS ──────────────────────────────────────────────────────────────────
-router.get("/deposits", authAdmin, async (req, res) => {
+router.get("/deposits", protect, adminOnly, async (req, res) => {
   try {
     const { status, limit = 50 } = req.query;
     const params = [];
@@ -172,7 +220,7 @@ router.get("/deposits", authAdmin, async (req, res) => {
   }
 });
 
-router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
+router.put("/deposits/:id/approve", protect, adminOnly, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -202,7 +250,7 @@ router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
 
     await client.query(
       `UPDATE deposits SET status = 'approved', approved_by = $1, updated_at = now() WHERE id = $2`,
-      [req.admin.name, dep.id]
+      [req.user.name, dep.id]
     );
 
     const { rows: userRows } = await client.query(
@@ -245,7 +293,7 @@ router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
     await client.query("COMMIT");
 
     const { rows: nameRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [dep.user_id]);
-    log(req.admin.name, `approved deposit of ৳${dep.amount}`, nameRows[0]?.name || "user", "approve");
+    log(req.user.name, `approved deposit of ৳${dep.amount}`, nameRows[0]?.name || "user", "approve");
 
     res.json({ success: true, message: "Deposit approved" });
   } catch (e) {
@@ -256,18 +304,18 @@ router.put("/deposits/:id/approve", authAdmin, async (req, res) => {
   }
 });
 
-router.put("/deposits/:id/reject", authAdmin, async (req, res) => {
+router.put("/deposits/:id/reject", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE deposits SET status = 'rejected', rejected_by = $1, updated_at = now()
        WHERE id = $2 RETURNING *`,
-      [req.admin.name, req.params.id]
+      [req.user.name, req.params.id]
     );
     const dep = rows[0];
     if (!dep) return res.json({ success: false, message: "Not found" });
 
     const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [dep.user_id]);
-    log(req.admin.name, `rejected deposit of ৳${dep.amount}`, userRows[0]?.name || "user", "reject");
+    log(req.user.name, `rejected deposit of ৳${dep.amount}`, userRows[0]?.name || "user", "reject");
 
     res.json({ success: true, message: "Deposit rejected" });
   } catch (e) {
@@ -276,7 +324,7 @@ router.put("/deposits/:id/reject", authAdmin, async (req, res) => {
 });
 
 // ── WITHDRAWALS ───────────────────────────────────────────────────────────────
-router.get("/withdraws", authAdmin, async (req, res) => {
+router.get("/withdraws", protect, adminOnly, async (req, res) => {
   try {
     const { status, limit = 50 } = req.query;
     const params = [];
@@ -307,7 +355,7 @@ router.get("/withdraws", authAdmin, async (req, res) => {
   }
 });
 
-router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
+router.put("/withdraws/:id/approve", protect, adminOnly, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -338,7 +386,7 @@ router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
 
     await client.query(
       `UPDATE withdraws SET status = 'approved', approved_by = $1, updated_at = now() WHERE id = $2`,
-      [req.admin.name, wit.id]
+      [req.user.name, wit.id]
     );
     await client.query(
       `UPDATE users SET balance = balance - $1, total_withdraw = total_withdraw + $1, updated_at = now()
@@ -348,7 +396,7 @@ router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
 
     await client.query("COMMIT");
 
-    log(req.admin.name, `approved withdraw of ৳${wit.amount}`, user.name, "approve");
+    log(req.user.name, `approved withdraw of ৳${wit.amount}`, user.name, "approve");
     res.json({ success: true, message: "Withdraw approved & balance deducted" });
   } catch (e) {
     await client.query("ROLLBACK").catch(() => {});
@@ -358,18 +406,18 @@ router.put("/withdraws/:id/approve", authAdmin, async (req, res) => {
   }
 });
 
-router.put("/withdraws/:id/reject", authAdmin, async (req, res) => {
+router.put("/withdraws/:id/reject", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE withdraws SET status = 'rejected', rejected_by = $1, updated_at = now()
        WHERE id = $2 RETURNING *`,
-      [req.admin.name, req.params.id]
+      [req.user.name, req.params.id]
     );
     const wit = rows[0];
     if (!wit) return res.json({ success: false, message: "Not found" });
 
     const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [wit.user_id]);
-    log(req.admin.name, `rejected withdraw of ৳${wit.amount}`, userRows[0]?.name || "user", "reject");
+    log(req.user.name, `rejected withdraw of ৳${wit.amount}`, userRows[0]?.name || "user", "reject");
 
     res.json({ success: true, message: "Withdraw rejected" });
   } catch (e) {
@@ -378,7 +426,7 @@ router.put("/withdraws/:id/reject", authAdmin, async (req, res) => {
 });
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
-router.get("/users", authAdmin, async (req, res) => {
+router.get("/users", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, phone, balance, total_deposit, total_withdraw, is_blocked
@@ -391,28 +439,28 @@ router.get("/users", authAdmin, async (req, res) => {
   }
 });
 
-router.put("/users/:id/ban", authAdmin, async (req, res) => {
+router.put("/users/:id/ban", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE users SET is_blocked = true, updated_at = now() WHERE id = $1 RETURNING name`,
       [req.params.id]
     );
     if (!rows[0]) return res.json({ success: false, message: "Not found" });
-    log(req.admin.name, "banned user", rows[0].name, "ban");
+    log(req.user.name, "banned user", rows[0].name, "ban");
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
 
-router.put("/users/:id/unban", authAdmin, async (req, res) => {
+router.put("/users/:id/unban", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE users SET is_blocked = false, updated_at = now() WHERE id = $1 RETURNING name`,
       [req.params.id]
     );
     if (!rows[0]) return res.json({ success: false, message: "Not found" });
-    log(req.admin.name, "unbanned user", rows[0].name, "ban");
+    log(req.user.name, "unbanned user", rows[0].name, "ban");
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -421,7 +469,7 @@ router.put("/users/:id/unban", authAdmin, async (req, res) => {
 
 // ── PAYMENT NUMBERS ───────────────────────────────────────────────────────────
 // NOTE: "limit" Postgres এ reserved keyword, তাই সবসময় quoted "limit" ব্যবহার করা হয়েছে।
-router.get("/payment-numbers", authAdmin, async (req, res) => {
+router.get("/payment-numbers", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, method, number, "limit", active, created_at, updated_at
@@ -434,7 +482,7 @@ router.get("/payment-numbers", authAdmin, async (req, res) => {
   }
 });
 
-router.post("/payment-numbers", authAdmin, async (req, res) => {
+router.post("/payment-numbers", protect, adminOnly, async (req, res) => {
   try {
     const { method, number, limit, active } = req.body;
     if (!method || !number) return res.json({ success: false, message: "method ও number দিন" });
@@ -445,14 +493,14 @@ router.post("/payment-numbers", authAdmin, async (req, res) => {
        RETURNING *`,
       [method, number, limit ?? null, active !== false]
     );
-    log(req.admin.name, `added payment number ${number}`, method, "create");
+    log(req.user.name, `added payment number ${number}`, method, "create");
     res.json({ success: true, data: rows[0] });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
 
-router.put("/payment-numbers/:id", authAdmin, async (req, res) => {
+router.put("/payment-numbers/:id", protect, adminOnly, async (req, res) => {
   try {
     const allowed = ["method", "number", "limit", "active"];
     const fields = Object.keys(req.body).filter((k) => allowed.includes(k));
@@ -475,7 +523,7 @@ router.put("/payment-numbers/:id", authAdmin, async (req, res) => {
   }
 });
 
-router.delete("/payment-numbers/:id", authAdmin, async (req, res) => {
+router.delete("/payment-numbers/:id", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `DELETE FROM payment_numbers WHERE id = $1 RETURNING id`,
@@ -489,7 +537,7 @@ router.delete("/payment-numbers/:id", authAdmin, async (req, res) => {
 });
 
 // ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
-router.get("/logs", authAdmin, async (req, res) => {
+router.get("/logs", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 100`
@@ -501,7 +549,7 @@ router.get("/logs", authAdmin, async (req, res) => {
 });
 
 // ── ADMIN MANAGEMENT ──────────────────────────────────────────────────────────
-router.get("/admins", authAdmin, async (req, res) => {
+router.get("/admins", protect, adminOnly, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, phone, role, created_at
@@ -516,9 +564,9 @@ router.get("/admins", authAdmin, async (req, res) => {
   }
 });
 
-router.post("/admins/create", authAdmin, async (req, res) => {
+router.post("/admins/create", protect, adminOnly, async (req, res) => {
   try {
-    if (req.admin.role !== "super-admin")
+    if (req.user.role !== "super-admin")
       return res.json({ success: false, message: "Only super admin can create admins" });
 
     const { name, phone, password, role } = req.body;
@@ -534,7 +582,7 @@ router.post("/admins/create", authAdmin, async (req, res) => {
       [name, phone, hash, role]
     );
 
-    log(req.admin.name, `created new admin ${name}`, phone, "create");
+    log(req.user.name, `created new admin ${name}`, phone, "create");
     res.json({ success: true, admin: rows[0] });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -542,7 +590,7 @@ router.post("/admins/create", authAdmin, async (req, res) => {
 });
 
 // ── COMPLETED MATCHES ─────────────────────────────────────────────────────────
-router.get("/completed-matches", authAdmin, async (req, res) => {
+router.get("/completed-matches", protect, adminOnly, async (req, res) => {
   try {
     await pool.query(
       `DELETE FROM matches WHERE status = 'completed' AND completed_at < now() - interval '30 days'`
@@ -557,12 +605,15 @@ router.get("/completed-matches", authAdmin, async (req, res) => {
 });
 
 // ── RESULT SUBMISSION / PRIZE DISTRIBUTION ────────────────────────────────────
-router.put("/matches/:id/result", authAdmin, async (req, res) => {
+router.put("/matches/:id/result", protect, adminOnly, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const { results, winnerUserIds, totalPrize } = req.body;
+    // submissionId/submissionType (optional): screenshot-review workflow থেকে এলে
+    // ("regular" → result_submissions, "ludo" → ludo_result_submissions) সেটাকে
+    // approved মার্ক করে match এর সাথে লিংক করে দেওয়া হবে।
+    const { results, winnerUserIds, totalPrize, submissionId, submissionType } = req.body;
 
     const { rows: matchRows } = await client.query(
       `SELECT * FROM matches WHERE id = $1 FOR UPDATE`,
@@ -627,12 +678,14 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
         console.warn(`🔴 RED ALERT: "${match.title}" — distributed ৳${totalDistributed} > pool ৳${prizePool}`);
       }
 
+      await saveMatchResults(client, match.id, finalResults);
+
       await client.query(
         `UPDATE matches
-         SET results = $1, status = 'completed', completed_at = now(),
+         SET status = 'completed', completed_at = now(),
              delete_at = now() + interval '30 days', updated_at = now()
-         WHERE id = $2`,
-        [JSON.stringify(finalResults), match.id]
+         WHERE id = $1`,
+        [match.id]
       );
 
       for (const player of finalResults) {
@@ -652,10 +705,12 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
         }
       }
 
+      await markSubmissionReviewed(client, submissionId, submissionType, req.user.id, match.id);
+
       await client.query("COMMIT");
 
       log(
-        req.admin.name,
+        req.user.name,
         `BR Solo Result — ${finalResults.length} players — ৳${totalDistributed} distributed${redAlert ? " 🔴 RED ALERT" : ""}`,
         match.title,
         "create"
@@ -700,12 +755,14 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
 
       const totalDistributed = finalResults.reduce((s, p) => s + p.prize, 0);
 
+      await saveMatchResults(client, match.id, finalResults);
+
       await client.query(
         `UPDATE matches
-         SET results = $1, status = 'completed', completed_at = now(),
+         SET status = 'completed', completed_at = now(),
              delete_at = now() + interval '30 days', updated_at = now()
-         WHERE id = $2`,
-        [JSON.stringify(finalResults), match.id]
+         WHERE id = $1`,
+        [match.id]
       );
 
       for (const player of finalResults) {
@@ -722,9 +779,11 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
         }
       }
 
+      await markSubmissionReviewed(client, submissionId, submissionType, req.user.id, match.id);
+
       await client.query("COMMIT");
 
-      log(req.admin.name, `Solo Result — ৳${totalDistributed} to winner`, match.title, "create");
+      log(req.user.name, `Solo Result — ৳${totalDistributed} to winner`, match.title, "create");
 
       return res.json({
         success:          true,
@@ -753,7 +812,7 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
       // match.joinedUsers (Mongo subdocument array) এর বদলে এখন এটা আলাদা
       // match_participants টেবিল থেকে আসছে।
       const { rows: participants } = await client.query(
-        `SELECT user_id, in_game_name, game_name FROM match_participants WHERE match_id = $1`,
+        `SELECT user_id, in_game_name, game_name, team FROM match_participants WHERE match_id = $1`,
         [match.id]
       );
 
@@ -772,17 +831,20 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
           posPrize:   isWinner ? prizeEach : 0,
           prize:      isWinner ? prizeEach : 0,
           rank:       isWinner ? 1 : 0,
+          team:       u.team || null,
         };
       });
 
       const totalDistributed = prizeEach * winnerSet.size;
 
+      await saveMatchResults(client, match.id, finalResults);
+
       await client.query(
         `UPDATE matches
-         SET results = $1, status = 'completed', completed_at = now(),
+         SET status = 'completed', completed_at = now(),
              delete_at = now() + interval '30 days', updated_at = now()
-         WHERE id = $2`,
-        [JSON.stringify(finalResults), match.id]
+         WHERE id = $1`,
+        [match.id]
       );
 
       for (const player of finalResults) {
@@ -799,10 +861,12 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
         }
       }
 
+      await markSubmissionReviewed(client, submissionId, submissionType, req.user.id, match.id);
+
       await client.query("COMMIT");
 
       log(
-        req.admin.name,
+        req.user.name,
         `Team Result — ${winnerSet.size} জন × ৳${prizeEach} = ৳${totalDistributed}`,
         match.title,
         "create"
@@ -828,10 +892,91 @@ router.put("/matches/:id/result", authAdmin, async (req, res) => {
   }
 });
 
+// ─── RESULT SUBMISSIONS (screenshot review) ──────────────────────────────────
+// Player/room-host একটা screenshot আপলোড করে (pending_review) → admin সেটা দেখে
+// (এই route গুলো দিয়ে) approve/reject করে → approve করার পর admin স্বাভাবিকভাবে
+// /matches/:id/result এ position/kills দিয়ে আসল ফলাফল সাবমিট করে (submissionId
+// পাঠালে সেটা এই submission-টার সাথেই লিংক হয়ে যাবে)।
+//
+// type query param: "ludo" হলে ludo_result_submissions, নাহলে (default) result_submissions
+
+function submissionTable(type) {
+  return type === "ludo" ? "ludo_result_submissions" : "result_submissions";
+}
+
+router.get("/result-submissions", protect, adminOnly, async (req, res) => {
+  try {
+    const { status = "pending_review", type } = req.query;
+    const table = submissionTable(type);
+    const params = [];
+    let where = "";
+    if (status && status !== "all") {
+      params.push(status);
+      where = `WHERE rs.status = $${params.length}`;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT rs.*, m.title AS match_title, m.category AS match_category,
+              u.name AS submitted_by_name, u.phone AS submitted_by_phone
+       FROM ${table} rs
+       LEFT JOIN matches m ON m.id = rs.match_id
+       LEFT JOIN users u ON u.id = rs.submitted_by
+       ${where}
+       ORDER BY rs.created_at DESC`,
+      params
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/result-submissions/:id/approve", protect, adminOnly, async (req, res) => {
+  try {
+    const { type, adminNote } = req.body;
+    const table = submissionTable(type);
+    const { rows } = await pool.query(
+      `UPDATE ${table}
+       SET status = 'approved', reviewed_by = $1, reviewed_at = now(),
+           admin_note = COALESCE($2, admin_note), updated_at = now()
+       WHERE id = $3
+       RETURNING *`,
+      [req.user.id, adminNote || null, req.params.id]
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    log(req.user.name, "approved result screenshot", rows[0].match_id, "approve");
+    res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/result-submissions/:id/reject", protect, adminOnly, async (req, res) => {
+  try {
+    const { type, adminNote } = req.body;
+    if (!adminNote) return res.json({ success: false, message: "Reject করার কারণ (adminNote) দিন" });
+
+    const table = submissionTable(type);
+    const { rows } = await pool.query(
+      `UPDATE ${table}
+       SET status = 'rejected', reviewed_by = $1, reviewed_at = now(),
+           admin_note = $2, updated_at = now()
+       WHERE id = $3
+       RETURNING *`,
+      [req.user.id, adminNote, req.params.id]
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    log(req.user.name, `rejected result screenshot: ${adminNote}`, rows[0].match_id, "reject");
+    res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── ADMIN: Referral Fraud Alerts ─────────────────────────────────
 // একই IP/device থেকে referrer এর একাধিক referred user থাকলে flag করে দেখায়।
 // এটা কাউকে ব্লক করে না, শুধু admin কে manual review এর জন্য তালিকা দেয়।
-router.get("/referral-fraud-alerts", authAdmin, async (req, res) => {
+router.get("/referral-fraud-alerts", protect, adminOnly, async (req, res) => {
   try {
     const { rows: referrers } = await pool.query(
       `SELECT id, name, phone, referral_count FROM users WHERE referral_count > 0`
