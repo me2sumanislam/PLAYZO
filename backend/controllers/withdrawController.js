@@ -1,6 +1,9 @@
- const Withdraw = require("../models/withdraw");
-const User = require("../models/User");
+ // controllers/withdrawController.js
+// (Postgres/Supabase version — converted from Mongoose)
+const { Pool } = require("pg");
 const axios = require("axios");
+
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
 
 // ─── SMS helper ───────────────────────────────────────────────────────────
 const sendSMS = async (phone, message) => {
@@ -17,48 +20,94 @@ const sendSMS = async (phone, message) => {
   }
 };
 
+function toWithdrawJson(row) {
+  if (!row) return row;
+  return {
+    _id: row.id,
+    id: row.id,
+    user: row.user_id,
+    amount: row.amount,
+    method: row.method,
+    accountNo: row.account_no,
+    status: row.status,
+    trxId: row.trx_id,
+    note: row.note,
+    approvedBy: row.approved_by,
+    rejectedBy: row.rejected_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 // ─── USER: submit request ─────────────────────────────────────────────────
 exports.createWithdraw = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { amount, method, accountNo } = req.body;
+    const userId = req.user.id;
 
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    if (amount < 100)
+    if (amount < 100) {
+      client.release();
       return res.status(400).json({ message: "Minimum ৳100" });
+    }
 
-    if (user.balance < amount)
+    await client.query("BEGIN");
+
+    const { rows: userRows } = await client.query(
+      `SELECT * FROM users WHERE id = $1 FOR UPDATE`,
+      [userId]
+    );
+    const user = userRows[0];
+    if (!user) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (Number(user.balance) < Number(amount)) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ message: "Insufficient balance" });
+    }
 
-    const pending = await Withdraw.findOne({ user: user._id, status: "pending" });
-    if (pending)
+    const { rows: pendingRows } = await client.query(
+      `SELECT id FROM withdraws WHERE user_id = $1 AND status = 'pending'`,
+      [userId]
+    );
+    if (pendingRows.length > 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ message: "You already have a pending request" });
+    }
 
-    // ✅ Balance কাটো
-    user.balance -= amount;
-    await user.save();
+    // ✅ Balance কাটো (immediately, request submit করার সময়ই)
+    await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
 
-    const withdraw = await Withdraw.create({
-      user: user._id,
-      amount,
-      method,
-      accountNo,
-    });
+    const { rows: withdrawRows } = await client.query(
+      `INSERT INTO withdraws (user_id, amount, method, account_no)
+       VALUES ($1,$2,$3,$4) RETURNING *`,
+      [userId, amount, method, accountNo]
+    );
 
-    res.json({ message: "Request submitted", withdraw });
+    await client.query("COMMIT");
+
+    res.json({ message: "Request submitted", withdraw: toWithdrawJson(withdrawRows[0]) });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  } finally {
+    client.release();
   }
 };
 
 // ─── USER: my history ─────────────────────────────────────────────────────
 exports.myWithdraw = async (req, res) => {
   try {
-    const data = await Withdraw.find({ user: req.user.id }).sort({ createdAt: -1 });
-    res.json(data);
+    const { rows } = await pool.query(
+      `SELECT * FROM withdraws WHERE user_id = $1 ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows.map(toWithdrawJson));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -67,73 +116,135 @@ exports.myWithdraw = async (req, res) => {
 exports.getAllWithdraw = async (req, res) => {
   try {
     const { status } = req.query;
-    const filter = status ? { status } : {};
+    const params = [];
+    let where = "";
+    if (status) {
+      params.push(status);
+      where = `WHERE w.status = $${params.length}`;
+    }
 
-    const data = await Withdraw.find(filter)
-      .populate("user", "phone name balance")
-      .sort({ createdAt: -1 });
+    const { rows } = await pool.query(
+      `SELECT w.*, u.phone AS user_phone, u.name AS user_name, u.balance AS user_balance
+       FROM withdraws w
+       LEFT JOIN users u ON u.id = w.user_id
+       ${where}
+       ORDER BY w.created_at DESC`,
+      params
+    );
 
-    res.json(data);
+    const mapped = rows.map((w) => ({
+      ...toWithdrawJson(w),
+      user: { phone: w.user_phone, name: w.user_name, balance: w.user_balance },
+    }));
+
+    res.json(mapped);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
 // ─── ADMIN: approve ───────────────────────────────────────────────────────
 exports.approveWithdraw = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { trxId, note, adminName } = req.body;
 
-    const withdraw = await Withdraw.findById(req.params.id).populate("user", "phone name balance");
-    if (!withdraw) return res.status(404).json({ message: "Not found" });
-    if (withdraw.status !== "pending")
+    await client.query("BEGIN");
+
+    const { rows: witRows } = await client.query(
+      `SELECT w.*, u.phone AS user_phone
+       FROM withdraws w
+       LEFT JOIN users u ON u.id = w.user_id
+       WHERE w.id = $1
+       FOR UPDATE`,
+      [req.params.id]
+    );
+    const withdraw = witRows[0];
+    if (!withdraw) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Not found" });
+    }
+    if (withdraw.status !== "pending") {
+      await client.query("ROLLBACK");
       return res.status(400).json({ message: "Already processed" });
+    }
 
-    // ✅ Balance আগেই কাটা হয়েছে, এখন শুধু status update
-    withdraw.status     = "approved";
-    withdraw.trxId      = trxId || "";
-    withdraw.note       = note  || "Payment sent";
-    withdraw.approvedBy = adminName;
-    await withdraw.save();
+    // ✅ Balance আগেই কাটা হয়ে গেছে (submit করার সময়), এখন শুধু status update
+    const { rows: updatedRows } = await client.query(
+      `UPDATE withdraws
+       SET status = 'approved', trx_id = $1, note = $2, approved_by = $3, updated_at = now()
+       WHERE id = $4
+       RETURNING *`,
+      [trxId || "", note || "Payment sent", adminName, withdraw.id]
+    );
 
-    const smsText = `আপনার ৳${withdraw.amount} উইথড্র রিকোয়েস্ট অনুমোদিত হয়েছে। ${withdraw.method}: ${withdraw.accountNo}${trxId ? `. TrxID: ${trxId}` : ""}`;
-    await sendSMS(withdraw.user.phone, smsText);
+    await client.query("COMMIT");
 
-    res.json({ message: "Approved", withdraw });
+    const smsText = `আপনার ৳${withdraw.amount} উইথড্র রিকোয়েস্ট অনুমোদিত হয়েছে। ${withdraw.method}: ${withdraw.account_no}${trxId ? `. TrxID: ${trxId}` : ""}`;
+    await sendSMS(withdraw.user_phone, smsText);
+
+    res.json({ message: "Approved", withdraw: toWithdrawJson(updatedRows[0]) });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  } finally {
+    client.release();
   }
 };
 
 // ─── ADMIN: reject ────────────────────────────────────────────────────────
 exports.rejectWithdraw = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { note, adminName } = req.body;
 
-    const withdraw = await Withdraw.findById(req.params.id).populate("user", "phone name balance");
-    if (!withdraw) return res.status(404).json({ message: "Not found" });
-    if (withdraw.status !== "pending")
-      return res.status(400).json({ message: "Already processed" });
+    await client.query("BEGIN");
 
-    // ✅ Reject হলে balance ফেরত দাও
-    const user = await User.findById(withdraw.user._id);
-    if (user) {
-      user.balance += withdraw.amount;
-      await user.save();
+    const { rows: witRows } = await client.query(
+      `SELECT w.*, u.phone AS user_phone
+       FROM withdraws w
+       LEFT JOIN users u ON u.id = w.user_id
+       WHERE w.id = $1
+       FOR UPDATE`,
+      [req.params.id]
+    );
+    const withdraw = witRows[0];
+    if (!withdraw) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Not found" });
+    }
+    if (withdraw.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "Already processed" });
     }
 
-    withdraw.status     = "rejected";
-    withdraw.note       = note || "Rejected by admin";
-    withdraw.rejectedBy = adminName;
-    await withdraw.save();
+    // ✅ Reject হলে balance ফেরত দাও
+    await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [
+      withdraw.amount,
+      withdraw.user_id,
+    ]);
+
+    const { rows: updatedRows } = await client.query(
+      `UPDATE withdraws
+       SET status = 'rejected', note = $1, rejected_by = $2, updated_at = now()
+       WHERE id = $3
+       RETURNING *`,
+      [note || "Rejected by admin", adminName, withdraw.id]
+    );
+
+    await client.query("COMMIT");
 
     const smsText = `আপনার ৳${withdraw.amount} উইথড্র রিকোয়েস্ট বাতিল হয়েছে। কারণ: ${note || "Admin কর্তৃক বাতিল"}`;
-    await sendSMS(withdraw.user.phone, smsText);
+    await sendSMS(withdraw.user_phone, smsText);
 
-    res.json({ message: "Rejected", withdraw });
+    res.json({ message: "Rejected", withdraw: toWithdrawJson(updatedRows[0]) });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  } finally {
+    client.release();
   }
 };

@@ -10,10 +10,12 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const connectDB = require("./config/db");
+const { Pool } = require("pg");
+
 const resultRoutes = require("./routes/resultRoutes");
 const resultAdminRoutes = require("./routes/adminResultRoutes");
-const Match = require("./models/Match");
+
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
 
 const app = express();
 
@@ -87,7 +89,7 @@ app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/ludo-matches", require("./routes/ludoMatchRoutes"));
 app.use("/api/ludo-tournament", require("./routes/ludoMatchRoutes"));
-app.use("/api/ludo-result", require("./routes/ludoResultRoutes")); // ✅ Ludo screenshot result system চালু করা হলো
+app.use("/api/ludo-result", require("./routes/ludoResultRoutes"));
 
 // ================= RESULT ROUTES =================
 app.use("/api/result", resultRoutes);
@@ -106,27 +108,23 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 console.log(
-  "MONGO_URI:",
-  process.env.MONGO_URI ? "✅ Loaded" : "❌ Not found"
+  "SUPABASE_DB_URL:",
+  process.env.SUPABASE_DB_URL ? "✅ Loaded" : "❌ Not found"
 );
 
-connectDB()
+pool
+  .query("SELECT 1")
   .then(() => {
-    console.log("✅ MongoDB Connected Successfully".bgGreen.black);
+    console.log("✅ Supabase (Postgres) Connected Successfully".bgGreen.black);
 
-    // Auto delete old completed matches
+    // ✅ Auto delete old completed matches (আগে Match.deleteMany দিয়ে হতো, এখন Postgres DELETE)
     setInterval(async () => {
       try {
-        const deleted = await Match.deleteMany({
-          status: "completed",
-          deleteAt: { $lte: new Date() },
-        });
-
-        if (deleted.deletedCount > 0) {
-          console.log(
-            `🗑️ ${deleted.deletedCount} completed match(es) auto deleted`
-              .bgRed.white
-          );
+        const { rowCount } = await pool.query(
+          `DELETE FROM matches WHERE status = 'completed' AND delete_at <= now()`
+        );
+        if (rowCount > 0) {
+          console.log(`🗑️ ${rowCount} completed match(es) auto deleted`.bgRed.white);
         }
       } catch (err) {
         console.error("Auto delete error:", err.message);
@@ -138,9 +136,6 @@ connectDB()
     });
   })
   .catch((err) => {
-    console.error(
-      "❌ MongoDB connection failed:".bgRed.white,
-      err.message
-    );
+    console.error("❌ Supabase (Postgres) connection failed:".bgRed.white, err.message);
     process.exit(1);
   });

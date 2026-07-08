@@ -1,28 +1,19 @@
  // routes/ludoMatchRoutes.js
+// (Postgres/Supabase version — converted from Mongoose)
 const express = require("express");
 const router = express.Router();
-const LudoTournament = require("../models/LudoTournament");
-const User = require("../models/User");
-const jwt = require("jsonwebtoken");
+const { Pool } = require("pg");
+const { protect, adminOnly } = require("../middleware/auth");
 
-const notificationRouter = require("./notifications");
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
 
-// Admin Middleware
-const protectAdmin = (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.json({ success: false, message: "No token" });
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!["admin", "super-admin"].includes(decoded.role)) {
-      return res.json({ success: false, message: "Admin only" });
-    }
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.json({ success: false, message: "Invalid token" });
+let sendMatchNotification = async () => {};
+try {
+  const notif = require("./notifications");
+  if (typeof notif.sendMatchNotification === "function") {
+    sendMatchNotification = notif.sendMatchNotification;
   }
-};
+} catch {}
 
 const slotsForMode = (mode) => {
   if (mode === "1v1") return 2;
@@ -31,218 +22,362 @@ const slotsForMode = (mode) => {
   return 4;
 };
 
-// Create Tournament
-router.post("/create", protectAdmin, async (req, res) => {
+function toTournamentJson(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    _id: row.id,
+    title: row.title,
+    mode: row.mode,
+    entryFee: row.entry_fee,
+    winPrize: row.win_prize,
+    totalSlots: row.total_slots,
+    joinedPlayers: row.joined_players,
+    roomCode: row.room_code,
+    isRoomOpen: row.is_room_open,
+    map: row.map,
+    device: row.device,
+    image: row.image,
+    status: row.status,
+    startTime: row.start_time,
+    expiresAt: row.expires_at,
+    winningTeam: row.winning_team,
+    prizes: {
+      first: row.prize_first,
+      second: row.prize_second,
+      third: row.prize_third,
+      fourth: row.prize_fourth,
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ── Create Tournament ────────────────────────────────────────────────────────
+router.post("/create", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { startTime, mode, ...rest } = req.body;
+    const {
+      title, startTime, mode = "4player", entryFee = 0, winPrize = 0,
+      map: mapName, device, image, prizes,
+    } = req.body;
+
     const expiresAt = startTime
       ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
       : new Date(Date.now() + 20 * 60 * 1000);
+    const totalSlots = slotsForMode(mode);
 
-    const totalSlots = slotsForMode(mode || "4player");
+    const { rows } = await client.query(
+      `INSERT INTO ludo_tournaments (
+        title, mode, entry_fee, win_prize, total_slots, joined_players,
+        map, device, image, status, start_time, expires_at,
+        prize_first, prize_second, prize_third, prize_fourth
+      ) VALUES ($1,$2,$3,$4,$5,0,$6,$7,$8,'upcoming',$9,$10,$11,$12,$13,$14)
+      RETURNING *`,
+      [
+        title, mode, entryFee, winPrize, totalSlots,
+        mapName, device, image, startTime || null, expiresAt,
+        prizes?.first || 0, prizes?.second || 0, prizes?.third || 0, prizes?.fourth || 0,
+      ]
+    );
 
-    const match = await LudoTournament.create({
-      ...rest,
-      mode: mode || "4player",
-      startTime,
-      expiresAt,
-      totalSlots,
-      joinedPlayers: 0,
-      status: "upcoming",
-    });
+    const match = rows[0];
+    try { await sendMatchNotification(toTournamentJson(match), "ludo"); } catch {}
 
-    notificationRouter.sendMatchNotification(match, "ludo");
-
-    res.status(201).json({ success: true, message: "Ludo tournament created", data: match });
+    res.status(201).json({ success: true, message: "Ludo tournament created", data: toTournamentJson(match) });
   } catch (err) {
+    console.error("Create ludo tournament error:", err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
-// Join with In-Game Name
-router.put("/join/:id", async (req, res) => {
+// ── Join with In-Game Name ───────────────────────────────────────────────────
+router.put("/join/:id", protect, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { userId, inGameName } = req.body;
+    const { inGameName } = req.body;
+    const userId = req.user.id; // ✅ token থেকে (body থেকে নয়, নিরাপত্তার জন্য)
 
-    if (!userId) return res.json({ success: false, message: "User ID required" });
     if (!inGameName || inGameName.trim() === "") {
       return res.json({ success: false, message: "In-Game Name দিতে হবে" });
     }
 
-    const match = await LudoTournament.findById(req.params.id);
-    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+    await client.query("BEGIN");
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const match = matchRows[0];
+    if (!match) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "Match not found" });
+    }
 
     if (match.status === "completed" || match.status === "cancelled") {
+      await client.query("ROLLBACK");
       return res.json({ success: false, message: "Match আর join করা যাবে না" });
     }
 
-    const already = (match.joinedUsers || []).find(u => u.userId?.toString() === userId?.toString());
-    if (already) return res.json({ success: false, message: "ইতোমধ্যে join করেছেন" });
+    const { rows: alreadyRows } = await client.query(
+      `SELECT id FROM ludo_participants WHERE tournament_id = $1 AND user_id = $2`,
+      [match.id, userId]
+    );
+    if (alreadyRows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "ইতোমধ্যে join করেছেন" });
+    }
 
-    if (match.joinedPlayers >= match.totalSlots) {
+    if (match.joined_players >= match.total_slots) {
+      await client.query("ROLLBACK");
       return res.json({ success: false, message: "Match ফুল হয়ে গেছে" });
     }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    if (user.balance < match.entryFee) {
+    const { rows: userRows } = await client.query(
+      `SELECT * FROM users WHERE id = $1 FOR UPDATE`,
+      [userId]
+    );
+    const user = userRows[0];
+    if (!user) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    if (Number(user.balance) < Number(match.entry_fee)) {
+      await client.query("ROLLBACK");
       return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
     }
 
-    const usedSlots = (match.joinedUsers || []).map(u => u.slotNumber);
+    const { rows: usedSlotRows } = await client.query(
+      `SELECT slot_number FROM ludo_participants WHERE tournament_id = $1`,
+      [match.id]
+    );
+    const usedSlots = usedSlotRows.map((r) => r.slot_number);
     let slot = 1;
     while (usedSlots.includes(slot)) slot++;
 
-    user.balance -= match.entryFee;
-    if (!user.joinHistory) user.joinHistory = [];
-    user.joinHistory.push({
-      matchId: match._id,
-      matchTitle: match.title,
-      entryFee: match.entryFee,
-      joinedAt: new Date(),
-      gameType: "ludo",
-    });
-    await user.save();
+    await client.query(
+      `UPDATE users SET balance = balance - $1 WHERE id = $2`,
+      [match.entry_fee, userId]
+    );
 
-    if (!match.joinedUsers) match.joinedUsers = [];
-    match.joinedUsers.push({ 
-      userId, 
-      slotNumber: slot, 
-      inGameName: inGameName.trim() 
-    });
-    match.joinedPlayers = match.joinedUsers.length;
+    await client.query(
+      `INSERT INTO match_join_history (user_id, match_id, match_title, entry_fee)
+       VALUES ($1,NULL,$2,$3)`,
+      [userId, match.title, match.entry_fee]
+    );
+    // ⚠️ match_join_history.match_id শুধু `matches` টেবিলের সাথে FK link (ludo_tournaments না),
+    // তাই এখানে NULL রেখে match_title দিয়ে বোঝানো হচ্ছে এটা কোন ludo ম্যাচ থেকে এসেছে
 
-    if (match.joinedPlayers >= match.totalSlots) {
-      match.status = "live";
-    }
+    await client.query(
+      `INSERT INTO ludo_participants (tournament_id, user_id, slot_number, in_game_name)
+       VALUES ($1,$2,$3,$4)`,
+      [match.id, userId, slot, inGameName.trim()]
+    );
 
-    await match.save();
+    const newJoinedPlayers = match.joined_players + 1;
+    const newStatus = newJoinedPlayers >= match.total_slots ? "live" : match.status;
+
+    const { rows: updatedRows } = await client.query(
+      `UPDATE ludo_tournaments SET joined_players = $1, status = $2 WHERE id = $3 RETURNING *`,
+      [newJoinedPlayers, newStatus, match.id]
+    );
+
+    await client.query("COMMIT");
+
+    const { rows: finalUserRows } = await client.query(`SELECT balance FROM users WHERE id = $1`, [userId]);
 
     res.json({
       success: true,
       message: "Join সফল! 🎉",
-      newBalance: user.balance,
+      newBalance: finalUserRows[0].balance,
       slotNumber: slot,
-      data: match,
+      data: toTournamentJson(updatedRows[0]),
     });
-
   } catch (err) {
-    console.error(err);
+    await client.query("ROLLBACK");
+    console.error("Ludo join error:", err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
-// Submit Result
-router.post("/result/:id", protectAdmin, async (req, res) => {
+// ── Submit Result (Admin, direct — no screenshot) ────────────────────────────
+router.post("/result/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { results, winningTeam } = req.body;
-    const match = await LudoTournament.findById(req.params.id);
 
-    if (!match) return res.status(404).json({ success: false, message: "Match not found" });
+    await client.query("BEGIN");
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const match = matchRows[0];
+
+    if (!match) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "Match not found" });
+    }
     if (!Array.isArray(results) || results.length === 0) {
+      await client.query("ROLLBACK");
       return res.json({ success: false, message: "Results array is required" });
     }
-
-    if (results.length !== match.joinedPlayers) {
-      return res.json({ success: false, message: `Exactly ${match.joinedPlayers} results needed` });
+    if (results.length !== match.joined_players) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: `Exactly ${match.joined_players} results needed` });
     }
 
-    const ranks = results.map(r => r.rank);
+    const ranks = results.map((r) => r.rank);
     if (new Set(ranks).size !== ranks.length) {
+      await client.query("ROLLBACK");
       return res.json({ success: false, message: "Duplicate ranks not allowed" });
     }
-
     const sortedRanks = [...ranks].sort((a, b) => a - b);
     for (let i = 0; i < sortedRanks.length; i++) {
       if (sortedRanks[i] !== i + 1) {
+        await client.query("ROLLBACK");
         return res.json({ success: false, message: "Ranks must be sequential starting from 1" });
       }
     }
 
-    match.results = results;
-    match.status = "completed";
-    
-    if (match.mode === "2v2" && winningTeam) {
-      match.winningTeam = winningTeam;
-    }
-
-    await match.save();
+    // পুরনো result row থাকলে মুছে নতুন করে বসানো (idempotent re-submit)
+    await client.query(`DELETE FROM ludo_results WHERE tournament_id = $1`, [match.id]);
 
     let totalPrizeDistributed = 0;
     for (const r of results) {
+      await client.query(
+        `INSERT INTO ludo_results (tournament_id, user_id, rank, prize, kills)
+         VALUES ($1,$2,$3,$4,0)`,
+        [match.id, r.userId || null, r.rank || null, r.prize || 0]
+      );
+
       if (r.userId && r.prize > 0) {
         totalPrizeDistributed += r.prize;
-        await User.findByIdAndUpdate(r.userId, {
-          $inc: { balance: r.prize },
-          $push: {
-            transactions: {
-              type: "match_prize",
-              amount: r.prize,
-              matchId: match._id,
-              description: `${match.title} (${match.mode}) - Rank #${r.rank}`,
-            },
-          },
-        });
+        await client.query(`SELECT adjust_user_balance($1, $2)`, [r.userId, r.prize]);
+        await client.query(
+          `INSERT INTO transactions (user_id, type, amount, match_id, match_title)
+           VALUES ($1,'match_prize',$2,NULL,$3)`,
+          [r.userId, r.prize, `${match.title} (${match.mode}) - Rank #${r.rank}`]
+        );
       }
     }
 
-    res.json({ 
-      success: true, 
-      message: "✅ Result submitted successfully & prizes distributed!",
-      totalPrizeDistributed
-    });
+    await client.query(
+      `UPDATE ludo_tournaments
+       SET status = 'completed', winning_team = $1
+       WHERE id = $2`,
+      [match.mode === "2v2" && winningTeam ? winningTeam : match.winning_team, match.id]
+    );
 
+    await client.query("COMMIT");
+
+    res.json({
+      success: true,
+      message: "✅ Result submitted successfully & prizes distributed!",
+      totalPrizeDistributed,
+    });
   } catch (err) {
-    console.error(err);
+    await client.query("ROLLBACK");
+    console.error("Ludo result error:", err);
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
-// Other Routes
+// ── Get All Tournaments ───────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
+  const client = await pool.connect();
   try {
     const { mode, status } = req.query;
-    const filter = {};
-    if (mode) filter.mode = mode;
-    if (status) filter.status = status;
-    const matches = await LudoTournament.find(filter).sort({ createdAt: -1 });
-    res.json({ success: true, data: matches });
+    const conditions = [];
+    const params = [];
+    if (mode) { params.push(mode); conditions.push(`mode = $${params.length}`); }
+    if (status) { params.push(status); conditions.push(`status = $${params.length}`); }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const { rows } = await client.query(
+      `SELECT * FROM ludo_tournaments ${where} ORDER BY created_at DESC`,
+      params
+    );
+    res.json({ success: true, data: rows.map(toTournamentJson) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
+// ── Get Single Tournament ─────────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
+  const client = await pool.connect();
   try {
-    const match = await LudoTournament.findById(req.params.id)
-      .populate("joinedUsers.userId", "name phone inGameName");
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1`,
+      [req.params.id]
+    );
+    const match = matchRows[0];
     if (!match) return res.status(404).json({ success: false, message: "Not found" });
-    res.json({ success: true, data: match });
+
+    const { rows: participants } = await client.query(
+      `SELECT lp.*, u.name, u.phone
+       FROM ludo_participants lp
+       JOIN users u ON u.id = lp.user_id
+       WHERE lp.tournament_id = $1`,
+      [match.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        ...toTournamentJson(match),
+        joinedUsers: participants.map((p) => ({
+          userId: { _id: p.user_id, name: p.name, phone: p.phone },
+          slotNumber: p.slot_number,
+          inGameName: p.in_game_name,
+        })),
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
-router.put("/update-room/:id", protectAdmin, async (req, res) => {
+// ── Update Room ──────────────────────────────────────────────────────────────
+router.put("/update-room/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { roomCode } = req.body;
-    const match = await LudoTournament.findByIdAndUpdate(
-      req.params.id,
-      { roomCode, status: "live", isRoomOpen: true },
-      { new: true }
+    const { rows } = await client.query(
+      `UPDATE ludo_tournaments SET room_code = $1, status = 'live', is_room_open = true
+       WHERE id = $2 RETURNING *`,
+      [roomCode, req.params.id]
     );
-    res.json({ success: true, message: "Room code updated, match is now LIVE", data: match });
+    if (rows.length === 0) return res.status(404).json({ success: false, message: "Not found" });
+    res.json({ success: true, message: "Room code updated, match is now LIVE", data: toTournamentJson(rows[0]) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 
-router.delete("/:id", protectAdmin, async (req, res) => {
+// ── Delete Tournament ─────────────────────────────────────────────────────────
+router.delete("/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
-    await LudoTournament.findByIdAndDelete(req.params.id);
+    await client.query(`DELETE FROM ludo_tournaments WHERE id = $1`, [req.params.id]);
     res.json({ success: true, message: "Match deleted" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
   }
 });
 

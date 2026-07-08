@@ -1,8 +1,8 @@
  // backend/routes/resultRoutes.js
-
+// (Postgres/Supabase version — converted from Mongoose)
 const express = require("express");
 const router  = express.Router();
-const jwt     = require("jsonwebtoken");
+const { protect, adminOnly } = require("../middleware/auth");
 
 const {
   uploadScreenshot,
@@ -11,32 +11,6 @@ const {
   getSubmissionsByMatch,
   reviewSubmission,
 } = require("../controllers/resultController");
-
-// ✅ Inline protect middleware — matchRoutes.js এর মতো একই pattern
-const protect = (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ success: false, message: "No token" });
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: "Invalid token" });
-  }
-};
-
-const protectAdmin = (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ success: false, message: "No token" });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "admin" && decoded.role !== "super-admin")
-      return res.status(403).json({ success: false, message: "Admin only" });
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: "Invalid token" });
-  }
-};
 
 // ── User Routes ───────────────────────────────────────────────────────────────
 // POST /api/result/upload/:matchId  — screenshot upload
@@ -47,12 +21,12 @@ router.get("/my/:matchId", protect, getMyMatchResult);
 
 // ── Admin Routes ──────────────────────────────────────────────────────────────
 // GET  /api/result/pending          — pending submissions
-router.get("/pending", protectAdmin, getPendingSubmissions);
+router.get("/pending", protect, adminOnly, getPendingSubmissions);
 
 // GET  /api/result/match/:matchId   — একটা match এর সব submissions
-router.get("/match/:matchId", protectAdmin, getSubmissionsByMatch);
+router.get("/match/:matchId", protect, adminOnly, getSubmissionsByMatch);
 
 // PUT  /api/result/review/:submissionId — approve/reject
-router.put("/review/:submissionId", protectAdmin, reviewSubmission);
+router.put("/review/:submissionId", protect, adminOnly, reviewSubmission);
 
 module.exports = router;
