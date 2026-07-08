@@ -229,7 +229,7 @@ const MatchCard = ({ match, onJoinSuccess }) => {
       const res = await fetch(`${API_BASE}/matches/join/${match._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId, inGameName: inGameName.trim(), useGem }),
+        body: JSON.stringify({ inGameName: inGameName.trim(), useGem }),
       });
       const data = await res.json();
       if (data.success) {

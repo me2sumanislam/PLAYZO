@@ -55,6 +55,10 @@ const Auth = ({ onLoginSuccess }) => {
   const [newPass, setNewPass] = useState("");
   const [forgotStep, setForgotStep] = useState(1);
 
+  // ✅ Migrated user first-login password reset (needsPasswordReset flag)
+  const [mustResetPhone, setMustResetPhone] = useState("");
+  const [mustResetPass, setMustResetPass] = useState("");
+
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -77,12 +81,51 @@ const Auth = ({ onLoginSuccess }) => {
       });
       const data = await res.json();
       if (data.success) {
+        // ✅ পুরনো (migrated) ইউজার প্রথমবার লগইন করলে backend needsPasswordReset:true পাঠায়
+        // token/user আগেই সেভ করে রাখছি, কিন্তু onLoginSuccess() তখনই কল হবে যখন
+        // পাসওয়ার্ড রিসেট সম্পন্ন হবে — এর মধ্যে App.jsx isLoggedIn state আপডেট হয় না
+        // তাই ইউজার এই স্ক্রিন থেকে বের হতে পারবে না।
         localStorage.setItem("token", data.token);
         localStorage.setItem("isAdmin", "false");
         localStorage.setItem("user", JSON.stringify(data.user));
-        onLoginSuccess();
+
+        if (data.needsPasswordReset) {
+          setMustResetPhone(loginData.phone);
+          setMustResetPass("");
+          setScreen("mustReset");
+        } else {
+          onLoginSuccess();
+        }
       } else {
         setError(data.message || "Login failed!");
+      }
+    } catch {
+      setError("Server error! Backend চালু আছে?");
+    }
+    setLoading(false);
+  };
+
+  // ✅ মাইগ্রেটেড ইউজারের বাধ্যতামূলক নতুন পাসওয়ার্ড সেট করার handler
+  const handleMustReset = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!mustResetPass || mustResetPass.length < 6) {
+      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: mustResetPhone, password: mustResetPass }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // পাসওয়ার্ড রিসেট সফল — এখন app-এ প্রবেশ করানো হচ্ছে
+        onLoginSuccess();
+      } else {
+        setError(data.message || "পাসওয়ার্ড পরিবর্তন করা যায়নি!");
       }
     } catch {
       setError("Server error! Backend চালু আছে?");
@@ -203,11 +246,12 @@ const Auth = ({ onLoginSuccess }) => {
           {screen === "login" && "আপনার অ্যাকাউন্টে লগইন করুন"}
           {screen === "register" && "নতুন অ্যাকাউন্ট তৈরি করুন"}
           {screen === "forgot" && "পাসওয়ার্ড রিসেট করুন"}
+          {screen === "mustReset" && "নিরাপত্তার জন্য নতুন পাসওয়ার্ড সেট করুন"}
         </p>
       </div>
 
       {/* Tab Switcher */}
-      {screen !== "forgot" && (
+      {screen !== "forgot" && screen !== "mustReset" && (
         <div className="flex bg-slate-100 rounded-2xl p-1 mb-6">
           <button
             onClick={() => switchScreen("login")}
@@ -407,6 +451,33 @@ const Auth = ({ onLoginSuccess }) => {
             </form>
           )}
         </div>
+      )}
+
+      {/* ✅ MUST RESET PASSWORD — migrated user first login */}
+      {screen === "mustReset" && (
+        <form onSubmit={handleMustReset} className="space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center mb-2">
+            <p className="text-2xl mb-1">🔒</p>
+            <p className="text-sm font-bold text-orange-700">
+              আমরা আমাদের সিস্টেম আপডেট করেছি — চালিয়ে যেতে একটি নতুন পাসওয়ার্ড সেট করুন
+            </p>
+          </div>
+          <PasswordInput
+            placeholder="নতুন পাসওয়ার্ড"
+            className={`${inputClass} pr-12`}
+            value={mustResetPass}
+            onChange={(e) => setMustResetPass(e.target.value)}
+            autoComplete="new-password"
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
+          >
+            {loading ? "হচ্ছে..." : "পাসওয়ার্ড সেট করুন ও চালিয়ে যান"}
+          </button>
+        </form>
       )}
 
       <p className="text-center mt-6 text-xs text-gray-400">
