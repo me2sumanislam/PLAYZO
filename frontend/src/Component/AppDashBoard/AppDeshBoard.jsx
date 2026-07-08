@@ -602,7 +602,7 @@ const confirmJoin = async () => {
     const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/join/${matchId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ userId: currentUser?.id || currentUser?._id, inGameName: gameName.trim() }),
+      body: JSON.stringify({ inGameName: gameName.trim() }),
     });
     const data = await res.json();
     if (data.success) {

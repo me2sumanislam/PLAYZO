@@ -93,7 +93,7 @@ const AdminPanel = () => {
         {page === "referral-fraud"    && <ReferralFraudAlerts />} {/* ✅ নতুন */}
         {page === "activity-log"      && <ActivityLog />}
         {page === "manage-admins"     && <ManageAdmins />}
-        {page === "payment-numbers"   && <PaymentNumbers />}
+        {page === "payment-numbers"   && <PaymentNumbers api={api} />}
 
       </main>
     </div>

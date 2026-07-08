@@ -51,7 +51,6 @@ fetch(`${API}/payment-numbers?activeOnly=true`, {
 
     try {
       const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
 
       const res = await fetch(`${API}/wallet/deposit`, {
         method: "POST",
@@ -64,7 +63,6 @@ fetch(`${API}/payment-numbers?activeOnly=true`, {
           amount: Number(form.amount),
           trxId: form.trxId,
           paymentNumber: currentNumber,
-          userId: user.id || user._id || null,
         }),
       });
 
