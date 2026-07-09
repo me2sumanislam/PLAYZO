@@ -158,6 +158,7 @@ router.post("/register", async (req, res) => {
       success: true,
       message: "রেজিস্ট্রেশন সফল হয়েছে!",
       token: signInData.session.access_token,
+      refreshToken: signInData.session.refresh_token,
       user: {
         id: user.id,
         name: user.name,
@@ -186,7 +187,7 @@ router.post("/login", async (req, res) => {
     const { phone, password, deviceType } = req.body;
 
     if (deviceType && deviceType !== "mobile") {
-      return res.json({ success: false, message: "Only mobile devices allowed 🎮" });
+      return res.json({ success: false, message: "Only mobile devices allowed 🎮"});
     }
 
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -225,6 +226,7 @@ router.post("/login", async (req, res) => {
       success: true,
       message: "Login success",
       token: signInData.session.access_token,
+      refreshToken: signInData.session.refresh_token,
       needsPasswordReset,
       user: {
         id: user.id,
@@ -291,6 +293,33 @@ router.post("/reset-password", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   } finally {
     client.release();
+  }
+});
+
+// ================= REFRESH TOKEN =================
+router.post("/refresh", async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ success: false, message: "refreshToken প্রয়োজন" });
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.session) {
+      return res.status(401).json({ success: false, message: "Session expired, আবার লগইন করুন" });
+    }
+
+    res.json({
+      success: true,
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    });
+  } catch (err) {
+    console.error("Refresh Error:", err);
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
   }
 });
 
