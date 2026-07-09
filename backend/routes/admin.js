@@ -377,30 +377,24 @@ router.put("/withdraws/:id/approve", protect, adminOnly, async (req, res) => {
       return res.json({ success: false, message: "Already processed" });
     }
 
-    const { rows: userRows } = await client.query(
-      `SELECT * FROM users WHERE id = $1 FOR UPDATE`,
-      [wit.user_id]
-    );
-    const user = userRows[0];
-    if (!user || Number(user.balance) < Number(wit.amount)) {
-      await client.query("ROLLBACK");
-      return res.json({ success: false, message: "Insufficient balance" });
-    }
-
+    // ⚠️ balance already কাটা হয়ে গেছে user request submit করার সময়ই
+    // (controllers/withdrawController.js → createWithdraw)। এখানে আবার
+    // balance check বা deduction করলে balance ডাবল কাটা হয়ে যায় এবং এই
+    // "Insufficient balance" check-টাই approve fail হওয়ার আসল কারণ ছিল।
     await client.query(
       `UPDATE withdraws SET status = 'approved', approved_by = $1, updated_at = now() WHERE id = $2`,
       [req.user.name, wit.id]
     );
     await client.query(
-      `UPDATE users SET balance = balance - $1, total_withdraw = total_withdraw + $1, updated_at = now()
-       WHERE id = $2`,
+      `UPDATE users SET total_withdraw = total_withdraw + $1, updated_at = now() WHERE id = $2`,
       [wit.amount, wit.user_id]
     );
 
     await client.query("COMMIT");
 
-    log(req.user.name, `approved withdraw of ৳${wit.amount}`, user.name, "approve");
-    res.json({ success: true, message: "Withdraw approved & balance deducted" });
+    const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [wit.user_id]);
+    log(req.user.name, `approved withdraw of ৳${wit.amount}`, userRows[0]?.name || "user", "approve");
+    res.json({ success: true, message: "Withdraw approved" });
   } catch (e) {
     await client.query("ROLLBACK").catch(() => {});
     res.status(500).json({ success: false, message: e.message });
@@ -410,21 +404,49 @@ router.put("/withdraws/:id/approve", protect, adminOnly, async (req, res) => {
 });
 
 router.put("/withdraws/:id/reject", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      `UPDATE withdraws SET status = 'rejected', rejected_by = $1, updated_at = now()
-       WHERE id = $2 RETURNING *`,
-      [req.user.name, req.params.id]
+    const { reason } = req.body;
+    await client.query("BEGIN");
+
+    const { rows: witRows } = await client.query(
+      `SELECT * FROM withdraws WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
     );
-    const wit = rows[0];
-    if (!wit) return res.json({ success: false, message: "Not found" });
+    const wit = witRows[0];
+    if (!wit) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Not found" });
+    }
+    if (wit.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Already processed" });
+    }
+
+    // ✅ reject হলে balance ফেরত দিতে হবে (submit করার সময় কেটে নেওয়া হয়েছিল)।
+    // আগে এই refund-টাই মিসিং ছিল — reject করলে user-এর টাকা হারিয়ে যেত।
+    await client.query(
+      `UPDATE users SET balance = balance + $1, updated_at = now() WHERE id = $2`,
+      [wit.amount, wit.user_id]
+    );
+
+    await client.query(
+      `UPDATE withdraws SET status = 'rejected', rejected_by = $1, note = $2, updated_at = now()
+       WHERE id = $3`,
+      [req.user.name, reason || "Rejected by admin", wit.id]
+    );
+
+    await client.query("COMMIT");
 
     const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [wit.user_id]);
     log(req.user.name, `rejected withdraw of ৳${wit.amount}`, userRows[0]?.name || "user", "reject");
 
-    res.json({ success: true, message: "Withdraw rejected" });
+    res.json({ success: true, message: "Withdraw rejected & balance refunded" });
   } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
     res.status(500).json({ success: false, message: e.message });
+  } finally {
+    client.release();
   }
 });
 

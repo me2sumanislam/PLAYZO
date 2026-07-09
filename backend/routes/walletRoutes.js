@@ -10,7 +10,7 @@ const router  = express.Router();
 const { Pool } = require("pg");
 const { protect, adminOnly } = require("../middleware/auth");
 const { isDuplicateTrx } = require("../utils/referralFraud");
-
+const { sendToUser } = require("../utils/sendNotification");
 const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
 
 // ── Referral / Gem Constants ────────────────────────────────────
@@ -22,7 +22,7 @@ function calcGemTier(amount) {
   return 0;
 }
 
-function toDepositJson(row) {
+ function toDepositJson(row) {
   if (!row) return row;
   return {
     _id: row.id,
@@ -33,11 +33,32 @@ function toDepositJson(row) {
     paymentNumber: row.payment_number,
     userId: row.user_id,
     status: row.status,
+    reason: row.reason,           // ✅ new
     approvedBy: row.approved_by,
     rejectedBy: row.rejected_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// ─── Deposit approve/reject notification (push + in-app) ─────────
+async function sendDepositNotification({ userId, title, message, category = "deposit" }) {
+  try {
+    // 1) DB তে save (bell dropdown / unread count এর জন্য)
+    const { rows: notifRows } = await pool.query(
+      `INSERT INTO notifications (title, message, category) VALUES ($1,$2,$3) RETURNING id`,
+      [title, message, category]
+    );
+    await pool.query(
+      `INSERT INTO user_notifications (notification_id, user_id, is_read) VALUES ($1,$2,false)`,
+      [notifRows[0].id, userId]
+    );
+
+    // 2) Push notification (OneSignal)
+    await sendToUser({ userId, title, message, url: "/app?tab=wallet", category });
+  } catch (err) {
+    console.error("❌ sendDepositNotification error:", err.message);
+  }
 }
 
 // ─── USER: Deposit Request Submit ────────────────────────────────
@@ -61,6 +82,19 @@ router.post("/deposit", protect, async (req, res) => {
     );
 
     res.json({ success: true, deposit: toDepositJson(rows[0]) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── USER: নিজের deposit history ─────────────────────────────────
+router.get("/deposits/my", protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM deposits WHERE user_id = $1 ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ success: true, data: rows.map(toDepositJson) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -101,7 +135,7 @@ router.get("/deposits", protect, adminOnly, async (req, res) => {
 router.patch("/deposit/:id", protect, adminOnly, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { status } = req.body;
+    const { status, reason } = req.body;   // ✅ reason নিলাম
 
     if (!["approved", "rejected"].includes(status)) {
       client.release();
@@ -140,8 +174,8 @@ router.patch("/deposit/:id", protect, adminOnly, async (req, res) => {
     }
 
     const { rows: updatedDepRows } = await client.query(
-      `UPDATE deposits SET status = $1, updated_at = now() WHERE id = $2 RETURNING *`,
-      [status, deposit.id]
+      `UPDATE deposits SET status = $1, reason = $2, updated_at = now() WHERE id = $3 RETURNING *`,
+      [status, status === "rejected" ? (reason || "Rejected by admin") : null, deposit.id]
     );
     const updatedDeposit = updatedDepRows[0];
 
@@ -181,6 +215,13 @@ router.patch("/deposit/:id", protect, adminOnly, async (req, res) => {
 
       await client.query("COMMIT");
 
+      // ✅ Notification পাঠাও (approved)
+      await sendDepositNotification({
+        userId: deposit.user_id,
+        title: "✅ ডিপোজিট সফল হয়েছে!",
+        message: `আপনার ৳${deposit.amount} ডিপোজিট Approved হয়েছে। ব্যালেন্সে যোগ হয়ে গেছে।`,
+      });
+
       return res.json({
         success: true,
         message: `✅ Approved! ৳${deposit.amount} user এর balance এ যোগ হয়েছে`,
@@ -190,6 +231,15 @@ router.patch("/deposit/:id", protect, adminOnly, async (req, res) => {
     }
 
     await client.query("COMMIT");
+
+    // ✅ Notification পাঠাও (rejected)
+    if (status === "rejected" && deposit.user_id) {
+      await sendDepositNotification({
+        userId: deposit.user_id,
+        title: "❌ ডিপোজিট Reject হয়েছে",
+        message: `আপনার ৳${deposit.amount} ডিপোজিট Reject হয়েছে। কারণ: ${updatedDeposit.reason || "উল্লেখ নেই"}`,
+      });
+    }
 
     res.json({
       success: true,

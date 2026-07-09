@@ -2,6 +2,7 @@
 // (Postgres/Supabase version — converted from Mongoose)
 const { Pool } = require("pg");
 const axios = require("axios");
+const { sendToUser } = require("../utils/sendNotification");
 
 const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
 
@@ -17,6 +18,26 @@ const sendSMS = async (phone, message) => {
     });
   } catch (err) {
     console.error("SMS failed:", err.message);
+  }
+};
+
+// ─── Withdraw approve/reject notification (push + in-app) ────────────────
+const sendWithdrawNotification = async ({ userId, title, message, category = "withdraw" }) => {
+  try {
+    // 1) DB তে save (bell dropdown / unread count এর জন্য)
+    const { rows: notifRows } = await pool.query(
+      `INSERT INTO notifications (title, message, category) VALUES ($1,$2,$3) RETURNING id`,
+      [title, message, category]
+    );
+    await pool.query(
+      `INSERT INTO user_notifications (notification_id, user_id, is_read) VALUES ($1,$2,false)`,
+      [notifRows[0].id, userId]
+    );
+
+    // 2) Push notification (OneSignal)
+    await sendToUser({ userId, title, message, url: "/app?tab=wallet", category });
+  } catch (err) {
+    console.error("❌ sendWithdrawNotification error:", err.message);
   }
 };
 
@@ -184,6 +205,13 @@ exports.approveWithdraw = async (req, res) => {
     const smsText = `আপনার ৳${withdraw.amount} উইথড্র রিকোয়েস্ট অনুমোদিত হয়েছে। ${withdraw.method}: ${withdraw.account_no}${trxId ? `. TrxID: ${trxId}` : ""}`;
     await sendSMS(withdraw.user_phone, smsText);
 
+    // ✅ Push + in-app notification
+    await sendWithdrawNotification({
+      userId: withdraw.user_id,
+      title: "✅ উইথড্র সফল হয়েছে!",
+      message: `আপনার ৳${withdraw.amount} উইথড্র Approved হয়েছে।${trxId ? ` TrxID: ${trxId}` : ""}`,
+    });
+
     res.json({ message: "Approved", withdraw: toWithdrawJson(updatedRows[0]) });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -238,6 +266,13 @@ exports.rejectWithdraw = async (req, res) => {
 
     const smsText = `আপনার ৳${withdraw.amount} উইথড্র রিকোয়েস্ট বাতিল হয়েছে। কারণ: ${note || "Admin কর্তৃক বাতিল"}`;
     await sendSMS(withdraw.user_phone, smsText);
+
+    // ✅ Push + in-app notification
+    await sendWithdrawNotification({
+      userId: withdraw.user_id,
+      title: "❌ উইথড্র Reject হয়েছে",
+      message: `আপনার ৳${withdraw.amount} উইথড্র বাতিল হয়েছে। কারণ: ${note || "Admin কর্তৃক বাতিল"}। টাকা ব্যালেন্সে ফেরত দেওয়া হয়েছে।`,
+    });
 
     res.json({ message: "Rejected", withdraw: toWithdrawJson(updatedRows[0]) });
   } catch (err) {
