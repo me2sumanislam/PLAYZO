@@ -212,6 +212,7 @@ router.get("/deposits", protect, adminOnly, async (req, res) => {
 
     const mapped = rows.map((d) => ({
       ...d,
+      _id: d.id,   // ✅ frontend "_id" ব্যবহার করে approve/reject URL বানাতে
       user: { name: d.user_name, phone: d.user_phone },
     }));
     res.json({ success: true, data: mapped });
@@ -347,6 +348,7 @@ router.get("/withdraws", protect, adminOnly, async (req, res) => {
 
     const mapped = rows.map((w) => ({
       ...w,
+      _id: w.id,   // ✅ frontend "_id" ব্যবহার করে approve/reject URL বানাতে
       user: { name: w.user_name, phone: w.user_phone },
     }));
     res.json({ success: true, data: mapped });
