@@ -210,11 +210,12 @@ router.get("/deposits", protect, adminOnly, async (req, res) => {
       params
     );
 
-    const mapped = rows.map((d) => ({
-      ...d,
-      _id: d.id,   // ✅ frontend "_id" ব্যবহার করে approve/reject URL বানাতে
-      user: { name: d.user_name, phone: d.user_phone },
-    }));
+   const mapped = rows.map((d) => ({
+  ...d,
+  _id: d.id,   // ✅ frontend "_id" ব্যবহার করে approve/reject URL বানাতে
+  trxId: d.trx_id,   // ✅ frontend camelCase "trxId" দিয়ে খুঁজে, এটা না থাকলে সবসময় "—" দেখাত
+  user: { name: d.user_name, phone: d.user_phone },
+}));
     res.json({ success: true, data: mapped });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
