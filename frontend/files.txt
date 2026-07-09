@@ -1,9 +1,0 @@
-]633;E;{ find . -iname "matchController.js"\x3b find . -iname "MatchResultController.js"\x3b find . -iname "resultController.js"\x3b find . -iname "Match.js"\x3b find . -iname "matchModal.js"\x3b find . -iname "matchRoutes.js"\x3b find . -iname "ResultSubmission.js"\x3b find . -iname "resultRoutes.js"\x3b find . -iname "MatchResult.jsx"\x3b find . -iname "ScreenshotUpload.jsx"\x3b find . -iname "Leaderboard.jsx"\x3b find . -iname "MatchCard.jsx"\x3b find . -iname "MatchDetails.jsx"\x3b find . -iname "MatchJoin.jsx"\x3b find . -iname "MatchList.jsx"\x3b find . -iname "MyMatch.jsx"\x3b find . -iname "profile.jsx"\x3b find . -iname "BottomMenu.jsx"\x3b } > files.txt;e549a6b5-c068-4729-9f3b-38e42d78d0bf]633;C./src/Component/ScreenshotUpload/ScreenshotUpload.jsx
-./src/page/Leaderboard/Leaderboard.jsx
-./src/page/MatchCard/MatchCard.jsx
-./src/page/MatchDetails/MatchDetails.jsx
-./src/page/MatchList/MatchList.jsx
-./src/page/MyMatch/MyMatch.jsx
-./src/page/Profile/profile.jsx
-./src/Component/BottomMenu/BottomMenu.jsx
-./src/page/BottomManu/BottomMenu.jsx

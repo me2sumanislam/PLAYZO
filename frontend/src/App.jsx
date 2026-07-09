@@ -77,8 +77,11 @@ function App() {
     }
   }, [showSplash]);
 
-  // ✅ OneSignal Init
+  // ✅ OneSignal Init (Admin panel এ স্কিপ হবে)
   useEffect(() => {
+    // 🚫 Admin panel এ OneSignal দরকার নেই — এটাই auto-refresh এর মূল কারণ ছিল
+    if (window.location.pathname.startsWith("/admin")) return;
+
     const script = document.createElement("script");
     script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
     script.defer = true;
@@ -119,6 +122,22 @@ function App() {
     return () => {
       if (script.parentNode) script.parentNode.removeChild(script);
     };
+  }, []);
+
+  // ✅ Admin route এ আগে থেকে registered OneSignal Service Worker থাকলে
+  //    সব ইউজারের ব্রাউজারে silently unregister করে দাও (কোনো manual step লাগবে না)
+  useEffect(() => {
+    if (!window.location.pathname.startsWith("/admin")) return;
+    if (!("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((reg) => {
+        const scriptUrl = reg.active?.scriptURL || reg.installing?.scriptURL || "";
+        if (scriptUrl.includes("OneSignal")) {
+          reg.unregister().catch(() => {});
+        }
+      });
+    }).catch(() => {});
   }, []);
 
   // ✅ Login হলে OneSignal user set
