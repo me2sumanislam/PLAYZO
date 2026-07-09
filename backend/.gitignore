@@ -1,3 +1,4 @@
 .env
 .env.backup
 .env.local
+backend/.env.backup
