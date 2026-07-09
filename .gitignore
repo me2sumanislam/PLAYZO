@@ -1,7 +1,8 @@
  node_modules/
 .env
+.env*
 frontend/dist/
 dist/
 node_modules/
 backend/node_modules/
-temp-passwords.json.env*
+temp-passwords.json
