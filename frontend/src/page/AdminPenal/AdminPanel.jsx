@@ -13,7 +13,8 @@ import Users            from "../Admin/UserManager/UserManager";
 import ActivityLog      from "../Admin/ActivityLog/ActivityLog";
 import ManageAdmins     from "../Admin/ManageAdmins/ManageAdmins";
 import PaymentNumbers   from "../../Component/PaymentNumberManager/paymentNumberManager";
-import ReferralFraudAlerts from "../Admin/ReferralFraudAlerts/ReferralFraudAlerts"; // ✅ নতুন
+import ReferralFraudAlerts from "../Admin/ReferralFraudAlerts/ReferralFraudAlerts";
+import LudoTournamentManager from "../Admin/LudoTournament/LudoTournamentManager"; // ✅ নতুন — path আপনার actual folder অনুযায়ী বদলান
 
 const AdminPanel = () => {
   const [admin,  setAdmin]  = useState(null);
@@ -80,6 +81,7 @@ const AdminPanel = () => {
         {page === "dashboard"         && <Dashboard />}
         {page === "create-match"      && <CreateMatch />}
         {page === "match-results"     && <MatchResults />}
+        {page === "ludo-tournament"   && <LudoTournamentManager />} {/* ✅ নতুন */}
 
         {/* ✅ সব transaction related page এখন একটাই component
             — deposit-requests, withdraw-requests, deposit-history,
@@ -90,7 +92,7 @@ const AdminPanel = () => {
 
         {page === "money-overview"    && <MoneyOverview />}
         {page === "users"             && <Users />}
-        {page === "referral-fraud"    && <ReferralFraudAlerts />} {/* ✅ নতুন */}
+        {page === "referral-fraud"    && <ReferralFraudAlerts />}
         {page === "activity-log"      && <ActivityLog />}
         {page === "manage-admins"     && <ManageAdmins />}
         {page === "payment-numbers"   && <PaymentNumbers api={api} />}

@@ -42,6 +42,13 @@ export const NAV = [
     roles: ["super-admin", "admin"],
   },
   {
+    // ✅ নতুন — Ludo Tournament admin page
+    key: "ludo-tournament",
+    label: "Ludo Tournament",
+    icon: "🎲",
+    roles: ["super-admin", "admin"],
+  },
+  {
     key: "payment-numbers",
     label: "Payment Numbers",
     icon: "💳",

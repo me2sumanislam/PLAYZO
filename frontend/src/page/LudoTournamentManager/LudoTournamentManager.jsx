@@ -4,6 +4,7 @@
 // 4player: rank অনুযায়ী prize (prizes.first/second/third/fourth)
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+ 
 
 const API_BASE = (
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
@@ -761,6 +762,9 @@ const LudoTournamentManager = () => {
   const [showCreate, setShowCreate]   = useState(false);
   const [filter, setFilter]           = useState("all");
   const [resultMatch, setResultMatch] = useState(null);
+const [ludoEnabled, setLudoEnabled] = useState(true);
+const [toggleLoading, setToggleLoading] = useState(false);
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -768,6 +772,43 @@ const LudoTournamentManager = () => {
     setMatches(Array.isArray(d?.data) ? d.data : []);
     setLoading(false);
   }, []);
+
+const loadSettings = useCallback(async () => {
+  const d = await api("/settings");
+
+  if (d?.success && d.data?.ludo_enabled !== undefined) {
+    setLudoEnabled(d.data.ludo_enabled);
+  }
+}, []);
+
+useEffect(() => {
+  loadSettings();
+}, [loadSettings]);
+
+ const handleToggleLudo = async () => {
+  const newVal = !ludoEnabled;
+
+  // ✅ বন্ধ করার আগে confirm — ভুল ক্লিক থেকে বাঁচাবে
+  if (!newVal && !window.confirm("Ludo Tournament পুরো app থেকে বন্ধ করে দিতে চান?")) {
+    return;
+  }
+
+  setToggleLoading(true);
+
+  const res = await api("/settings/ludo_enabled", {
+    method: "PUT",
+    body: JSON.stringify({ value: newVal }),
+  });
+
+  setToggleLoading(false);
+
+  if (res?.success) {
+    setLudoEnabled(newVal);
+  } else {
+    alert(res?.message || "Toggle করা যায়নি");
+  }
+};
+
 
   useEffect(() => { load(); }, [load]);
 
@@ -788,6 +829,30 @@ const LudoTournamentManager = () => {
           <div style={{ fontSize: 12, color: "#9ca3af" }}>Total: {matches.length}</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+
+<button
+  onClick={handleToggleLudo}
+  disabled={toggleLoading}
+  style={{
+    padding: "9px 16px",
+    background: ludoEnabled ? "#fee2e2" : "#d1fae5",
+    color: ludoEnabled ? "#991b1b" : "#065f46",
+    border: "none",
+    borderRadius: 8,
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: toggleLoading ? "not-allowed" : "pointer",
+  }}
+>
+  {toggleLoading
+    ? "⏳..."
+    : ludoEnabled
+    ? "🚫 Ludo বন্ধ করুন"
+    : "✅ Ludo চালু করুন"}
+</button>
+
+
+
           <button onClick={() => setShowCreate(v => !v)}
             style={{
               padding: "9px 16px",
