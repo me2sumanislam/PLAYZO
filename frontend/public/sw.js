@@ -94,13 +94,7 @@ self.addEventListener("activate", (event) => {
   )
 })
 
-self.addEventListener("fetch", (event) => {
-  if (event.request.url.includes("/api/")) return
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  )
-})
-
+ 
 self.addEventListener("push", (event) => {
   let data = {}
   try {
