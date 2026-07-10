@@ -14,7 +14,7 @@ import ActivityLog      from "../Admin/ActivityLog/ActivityLog";
 import ManageAdmins     from "../Admin/ManageAdmins/ManageAdmins";
 import PaymentNumbers   from "../../Component/PaymentNumberManager/paymentNumberManager";
 import ReferralFraudAlerts from "../Admin/ReferralFraudAlerts/ReferralFraudAlerts";
-import LudoTournamentManager from "../Admin/LudoTournament/LudoTournamentManager"; // ✅ নতুন — path আপনার actual folder অনুযায়ী বদলান
+import LudoTournamentManager from "../../page/LudoTournamentManager/LudoTournamentManager"; // ✅ নতুন —  
 
 const AdminPanel = () => {
   const [admin,  setAdmin]  = useState(null);
