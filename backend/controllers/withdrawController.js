@@ -170,20 +170,20 @@ exports.approveWithdraw = async (req, res) => {
   const client = await pool.connect();
   try {
     const { trxId, note } = req.body;
-    // ✅ FIX: frontend adminName পাঠায় না (শুধু trxId/note পাঠায়)।
-    // আগে adminName সরাসরি req.body থেকে নেওয়া হতো, যেটা undefined হয়ে
-    // approved_by কলামে null যেত — approved_by NOT NULL হলে এখানেই
-    // query fail করে 500 error দিত, যেটাই "Approve করা যায়নি" bug-এর কারণ ছিল।
+    // ✅ frontend adminName পাঠায় না (শুধু trxId/note পাঠায়) — fallback দরকার
     const adminName = req.body.adminName || req.user?.name || "Admin";
 
     await client.query("BEGIN");
 
+    // ✅ FIX: LEFT JOIN-এর nullable side (users) এ FOR UPDATE লাগানো যায় না।
+    // "FOR UPDATE cannot be applied to the nullable side of an outer join"
+    // এড়াতে শুধু withdraws (w) টেবিলে লক করতে হবে — "FOR UPDATE OF w"
     const { rows: witRows } = await client.query(
       `SELECT w.*, u.phone AS user_phone
        FROM withdraws w
        LEFT JOIN users u ON u.id = w.user_id
        WHERE w.id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF w`,
       [req.params.id]
     );
     const withdraw = witRows[0];
@@ -232,17 +232,18 @@ exports.rejectWithdraw = async (req, res) => {
   const client = await pool.connect();
   try {
     const { note } = req.body;
-    // ✅ একই fallback rejectWithdraw এ, যাতে rejected_by NOT NULL হলেও fail না করে
+    // ✅ একই fallback rejectWithdraw এও প্রযোজ্য
     const adminName = req.body.adminName || req.user?.name || "Admin";
 
     await client.query("BEGIN");
 
+    // ✅ একই FIX এখানেও — FOR UPDATE OF w
     const { rows: witRows } = await client.query(
       `SELECT w.*, u.phone AS user_phone
        FROM withdraws w
        LEFT JOIN users u ON u.id = w.user_id
        WHERE w.id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF w`,
       [req.params.id]
     );
     const withdraw = witRows[0];
