@@ -169,7 +169,12 @@ exports.getAllWithdraw = async (req, res) => {
 exports.approveWithdraw = async (req, res) => {
   const client = await pool.connect();
   try {
-    const { trxId, note, adminName } = req.body;
+    const { trxId, note } = req.body;
+    // ✅ FIX: frontend adminName পাঠায় না (শুধু trxId/note পাঠায়)।
+    // আগে adminName সরাসরি req.body থেকে নেওয়া হতো, যেটা undefined হয়ে
+    // approved_by কলামে null যেত — approved_by NOT NULL হলে এখানেই
+    // query fail করে 500 error দিত, যেটাই "Approve করা যায়নি" bug-এর কারণ ছিল।
+    const adminName = req.body.adminName || req.user?.name || "Admin";
 
     await client.query("BEGIN");
 
@@ -226,7 +231,9 @@ exports.approveWithdraw = async (req, res) => {
 exports.rejectWithdraw = async (req, res) => {
   const client = await pool.connect();
   try {
-    const { note, adminName } = req.body;
+    const { note } = req.body;
+    // ✅ একই fallback rejectWithdraw এ, যাতে rejected_by NOT NULL হলেও fail না করে
+    const adminName = req.body.adminName || req.user?.name || "Admin";
 
     await client.query("BEGIN");
 
