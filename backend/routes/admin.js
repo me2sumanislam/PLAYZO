@@ -26,7 +26,7 @@ const supabaseAdmin = require("../utils/supabaseAdmin"); // admin তৈরি�
 // প্রোডাকশনে ভালো হয় একটা শেয়ার্ড db.js থেকে pool export করে সব জায়গায় reuse
 // করা (কানেকশন লিমিট বাঁচাতে) — কিন্তু existing pattern এর সাথে সামঞ্জস্য রাখতে
 // এখানেও নিজের pool বানানো হলো।
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // ✅ Gem Referral System — fraud detection helpers (Postgres ভার্সন)
 const {

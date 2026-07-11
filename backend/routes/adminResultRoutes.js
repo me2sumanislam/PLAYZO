@@ -6,7 +6,7 @@ const { Pool } = require("pg");
 const { protect, adminOnly } = require("../middleware/auth");
 const { getSubmissionsByMatch } = require("../controllers/resultController");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // Frontend: GET /api/results/admin/match/:matchId
 router.get("/admin/match/:matchId", protect, adminOnly, getSubmissionsByMatch);

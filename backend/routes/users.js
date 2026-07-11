@@ -5,7 +5,7 @@ const supabaseAdmin = require("../utils/supabaseAdmin");
 const supabase = require("../utils/supabaseClient");
 const { protect } = require("../middleware/auth");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 function placeholderEmail(phone) {
   return `${phone}@placeholder.playzo`;

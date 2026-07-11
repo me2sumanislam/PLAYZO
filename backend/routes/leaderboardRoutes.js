@@ -7,7 +7,7 @@ const express = require("express");
 const router  = express.Router();
 const { Pool } = require("pg");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // সপ্তাহের শুরু (সোমবার, লোকাল সময় অনুযায়ী) বের করার SQL এক্সপ্রেশন
 // Postgres এ date_trunc('week', ...) সোমবার থেকেই সপ্তাহ শুরু ধরে (ISO 8601)

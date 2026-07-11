@@ -5,7 +5,7 @@ const streamifier = require("streamifier");
 const multer = require("multer");
 const { Pool } = require("pg");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

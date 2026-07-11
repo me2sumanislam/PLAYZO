@@ -9,7 +9,7 @@ const router = express.Router();
 const { Pool } = require("pg");
 const { protect } = require("../middleware/auth");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // GET /api/referral/:userId
 router.get("/:userId", protect, async (req, res) => {

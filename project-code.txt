@@ -1,0 +1,4435 @@
+==================================================
+FILE: backend/controllers/MatchResultController.js
+==================================================
+ const Match = require('../models/Match');
+const User = require('../models/User');
+
+// @desc    Submit Match Result & Distribute Prize
+// @route   POST /api/admin/match-result
+// @access  Admin
+const submitMatchResult = async (req, res) => {
+  try {
+    const { matchId, results } = req.body;
+
+    if (!matchId || !results || results.length === 0) {
+      return res.status(400).json({ message: "Match ID and results are required" });
+    }
+
+    // Find match
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    // Update match with results
+    match.results = results;
+    match.status = 'completed';
+    match.completedAt = new Date();
+
+    await match.save();
+
+    // Distribute Prize to Users
+    for (const player of results) {
+      if (player.userId && player.prize > 0) {
+        await User.findByIdAndUpdate(
+          player.userId,
+          { 
+            $inc: { balance: player.prize },
+            $push: { 
+              transactions: {
+                type: 'match_prize',
+                amount: player.prize,
+                matchId: match._id,
+                description: `${match.title} - Prize`
+              }
+            }
+          }
+        );
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Match result submitted and prizes distributed successfully",
+      match
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+// @desc    Get User's Joined Matches
+// @route   GET /api/user/my-matches
+const getMyMatches = async (req, res) => {
+  try {
+    const userId = req.user.id; // from auth middleware
+
+    const matches = await Match.find({
+      "participants.user": userId
+    })
+    .select('title prizePool status roomId password results createdAt')
+    .sort({ createdAt: -1 });
+
+    res.json(matches);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// @desc    Get Single Match Result (for user)
+const getMatchResult = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.user.id;
+
+    const match = await Match.findById(matchId)
+      .select('title prizePool status roomId password results');
+
+    if (!match) return res.status(404).json({ message: "Match not found" });
+
+    // Check if user joined this match
+    const isParticipant = match.participants?.some(p => p.user.toString() === userId);
+    if (!isParticipant) {
+      return res.status(403).json({ message: "You did not join this match" });
+    }
+
+    res.json(match);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+module.exports = {
+  submitMatchResult,
+  getMyMatches,
+  getMatchResult
+};
+
+==================================================
+FILE: backend/middleware/auth.js
+==================================================
+ // middleware/auth.js
+const { Pool } = require("pg");
+const supabase = require("../utils/supabaseClient");
+
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
+
+// ================= PROTECT =================
+const protect = async (req, res, next) => {
+  let token;
+
+  try {
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+
+      // ✅ Supabase session token verify করা (আগের jwt.verify এর বদলে)
+      const { data: authData, error: authError } = await supabase.auth.getUser(token);
+
+      if (authError || !authData.user) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+
+      const authUserId = authData.user.id;
+
+      const client = await pool.connect();
+      let user;
+      try {
+        const { rows } = await client.query(
+          `SELECT id, name, in_game_name, email, phone, role, balance,
+                  total_matches_played, total_wins, referral_code,
+                  referred_by, referral_points, referral_count, is_blocked
+           FROM users WHERE auth_user_id = $1`,
+          [authUserId]
+        );
+        user = rows[0];
+      } finally {
+        client.release();
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      if (user.is_blocked) {
+        return res.status(403).json({ message: "Account is blocked" });
+      }
+
+      req.user = user;
+      next();
+    } else {
+      return res.status(401).json({ message: "No token provided" });
+    }
+  } catch (err) {
+    console.error("Auth middleware error:", err);
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
+
+// ================= ADMIN ONLY =================
+const adminOnly = (req, res, next) => {
+  if (req.user && ADMIN_ROLES.includes(req.user.role)) {
+    next();
+  } else {
+    return res.status(403).json({ message: "Admin only access" });
+  }
+};
+
+module.exports = { protect, adminOnly };
+
+==================================================
+FILE: backend/middleware/authMiddleware.js
+==================================================
+ const { protect } = require("./auth"); // path ঠিক করো
+
+// GET /api/notifications
+router.get("/", protect, async (req, res) => {
+  try {
+    const { isRead, limit = 20, category } = req.query;
+
+    const filter = { userId: req.user.id }; // ✅ req.user.id (decoded থেকে আসে)
+
+    if (isRead === "false") filter.isRead = false;
+    if (isRead === "true") filter.isRead = true;
+    if (category) filter.category = category;
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit));
+
+    const unreadCount = await Notification.countDocuments({ 
+      userId: req.user.id,  // ✅ এখানেও userId filter
+      isRead: false 
+    });
+
+    res.json({
+      success: true,
+      notifications,
+      unreadCount,
+      count: notifications.length,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+==================================================
+FILE: backend/models/LudoResultSubmission.js
+==================================================
+ // models/LudoResultSubmission.js
+// User-submitted screenshot for ludo tournament result verification
+
+const mongoose = require("mongoose");
+
+const ludoResultSubmissionSchema = new mongoose.Schema(
+  {
+    match: {
+      type:     mongoose.Schema.Types.ObjectId,
+      ref:      "LudoTournament",
+      required: true,
+    },
+    submittedBy: {
+      type:     mongoose.Schema.Types.ObjectId,
+      ref:      "User",
+      required: true,
+    },
+    screenshot: {
+      url:      { type: String, required: true },
+      publicId: { type: String, required: true },
+    },
+    status: {
+      type:    String,
+      enum:    ["pending_review", "approved", "rejected", "published"],
+      default: "pending_review",
+    },
+    adminNote:  { type: String, default: "" },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    reviewedAt: { type: Date, default: null },
+  },
+  { timestamps: true }
+);
+
+// একজন user একটা match এ শুধু ১টাই screenshot দিতে পারবে
+ludoResultSubmissionSchema.index({ match: 1, submittedBy: 1 }, { unique: true });
+
+module.exports = mongoose.model("LudoResultSubmission", ludoResultSubmissionSchema);
+
+==================================================
+FILE: backend/models/LudoTournament.js
+==================================================
+ // models/LudoTournament.js
+const mongoose = require("mongoose");
+
+const ludoTournamentSchema = new mongoose.Schema({
+  title:        { type: String, required: true },
+  mode:         { type: String, enum: ["1v1", "2v2", "4player"], default: "4player" },
+  
+  entryFee:     { type: Number, default: 0 },
+  winPrize:     { type: Number, default: 0 },
+  
+  totalSlots:   { type: Number, default: 4 },
+  joinedPlayers:{ type: Number, default: 0 },
+  
+  roomCode:     { type: String, default: "" },
+  isRoomOpen:   { type: Boolean, default: false },
+  
+  map:          { type: String, default: "Classic" },
+  device:       { type: String, default: "Mobile" },
+  image:        { type: String, default: "" },
+  
+  status:       { type: String, enum: ["upcoming","live","completed","cancelled"], default: "upcoming" },
+  startTime:    { type: Date, default: null },
+  expiresAt:    { type: Date, default: null },
+
+  winningTeam:  { type: String, default: "" },
+
+  prizes: {
+    first:  { type: Number, default: 0 },
+    second: { type: Number, default: 0 },
+    third:  { type: Number, default: 0 },
+    fourth: { type: Number, default: 0 },
+  },
+
+  joinedUsers: [
+    {
+      userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      slotNumber: { type: Number },
+      inGameName: { type: String, default: "" },        // ← Important
+      teamId:     { type: String, default: "" },
+    }
+  ],
+
+  results: [
+    {
+      userId:   { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      rank:     { type: Number },
+      prize:    { type: Number, default: 0 },
+      kills:    { type: Number, default: 0 },
+    }
+  ],
+
+}, { timestamps: true });
+
+ludoTournamentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+module.exports = mongoose.model("LudoTournament", ludoTournamentSchema);
+
+==================================================
+FILE: backend/routes/admin.js
+==================================================
+ // routes/admin.js
+// (Postgres/Supabase version — converted from Mongoose)
+//
+// আগের admin.js Mongoose models (User, Deposit, Withdraw, Match, ActivityLog,
+// PaymentNumber) ব্যবহার করত। এখন সরাসরি `pg` দিয়ে Supabase Postgres এর সাথে
+// কথা বলা হচ্ছে। schema-এর column নাম snake_case (users, deposits, withdraws,
+// matches, match_participants, transactions, activity_logs, payment_numbers)।
+//
+// ⚠️ চালানোর আগে sql/2026-07-06-admin-migration.sql মাইগ্রেশনটা রান করুন —
+// matches.results, users.register_ip/device_id/is_suspicious/suspicious_reason,
+// transactions.note কলামগুলো এই ফাইলে দরকার।
+
+const express  = require("express");
+const router   = express.Router();
+const { Pool } = require("pg");
+
+// ✅ পুরনো ভুল: আগে এখানে নিজস্ব JWT_SECRET দিয়ে jwt.verify() করা authAdmin
+// middleware ছিল — কিন্তু বাস্তবে লগইন (routes/adminAuthRoutes.js) Supabase
+// Auth ব্যবহার করে (supabase.auth.signInWithPassword), আর token verify হয়
+// middleware/auth.js এর protect দিয়ে (supabase.auth.getUser)। তাই এখন সেটাই
+// ব্যবহার করা হচ্ছে — matchRoutes.js/ludoResultRoutes.js এর সাথে সামঞ্জস্যপূর্ণ।
+const { protect, adminOnly } = require("../middleware/auth");
+const supabaseAdmin = require("../utils/supabaseAdmin"); // admin তৈরির জন্য (Supabase Auth user create করতে)
+
+// NOTE: utils/referralFraud.js নিজের একটা Pool বানায় (একই connectionString দিয়ে)।
+// প্রোডাকশনে ভালো হয় একটা শেয়ার্ড db.js থেকে pool export করে সব জায়গায় reuse
+// করা (কানেকশন লিমিট বাঁচাতে) — কিন্তু existing pattern এর সাথে সামঞ্জস্য রাখতে
+// এখানেও নিজের pool বানানো হলো।
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+
+// ✅ Gem Referral System — fraud detection helpers (Postgres ভার্সন)
+const {
+  isDuplicateTrx,
+  findSameDeviceReferrals,
+  isOverDailyGemCap,
+} = require("../utils/referralFraud");
+
+// ✅ Deposit amount অনুযায়ী কত gem পাবে
+function calcGemTier(amount) {
+  if (amount >= 100) return 10;
+  if (amount >= 50) return 5;
+  return 0;
+}
+
+const JWT_SECRET  = process.env.JWT_SECRET || "your_secret_key";
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
+
+// ─── Prize Logic Config ───────────────────────────────────────────────────────
+// matchLogic:
+//   "solo_kill"  → BR Solo: position prize + kill × perKill
+//   "solo_pos"   → CS Solo / LW Solo: winner 1 জন → 100% prizePool
+//   "team_only"  → BR Duo/Squad, CS Duo/Squad/6vs6, LW Duo:
+//                  kill prize নেই, winner team সমান ভাগ
+
+const CATEGORY_CONFIG = {
+  br_solo:     { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  br_duo:      { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  br_squad:    { matchType: "team", teamSize: 4, logic: "team_only",  killPrize: false },
+  cs_solo:     { matchType: "solo", teamSize: 1, logic: "solo_pos",   killPrize: false },
+  cs_duo:      { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  cs_squad:    { matchType: "team", teamSize: 4, logic: "team_only",  killPrize: false },
+  cs_6vs6:     { matchType: "team", teamSize: 6, logic: "team_only",  killPrize: false },
+  lw_solo:     { matchType: "solo", teamSize: 1, logic: "solo_pos",   killPrize: false },
+  lw_duo:      { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  // backward compat
+  br_match:    { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  br_survival: { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  clash_squad: { matchType: "team", teamSize: 4, logic: "team_only",  killPrize: false },
+  cs_2vs2:     { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  lone_wolf:   { matchType: "solo", teamSize: 1, logic: "solo_pos",   killPrize: false },
+  training:    { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  free_match:  { matchType: "solo", teamSize: 1, logic: "solo_kill",  killPrize: true  },
+  // ✅ Ludo — kill/position ধারণা নেই, শুধু winner(রা) prize pool (কমিশন বাদে) ভাগ করে নেয়।
+  // team_only লজিকই এখানে মানানসই: winnerUserIds এ ১ জন দিলে সে পুরোটা পায় (1v1 / solo),
+  // ২ জন দিলে সমান ভাগ (2v2)। admin.js এ আলাদা কোনো নতুন calculation লাগবে না।
+  ludo_1v1:    { matchType: "team", teamSize: 1, logic: "team_only",  killPrize: false },
+  ludo_2v2:    { matchType: "team", teamSize: 2, logic: "team_only",  killPrize: false },
+  ludo_solo:   { matchType: "solo", teamSize: 1, logic: "team_only",  killPrize: false },
+};
+
+// ✅ BR Solo default placement prizes
+const BR_SOLO_DEFAULT_PRIZES = {
+  first:  60,
+  second: 40,
+  third:  30,
+  fourth: 20,
+};
+
+const authAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ success: false, message: "No token" });
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const { rows } = await pool.query(
+      `SELECT id, name, role FROM users WHERE id = $1`,
+      [decoded.id]
+    );
+    const user = rows[0];
+    if (!user || !ADMIN_ROLES.includes(user.role))
+      return res.status(401).json({ success: false, message: "Admin not found" });
+
+    req.admin = user;
+    next();
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+};
+
+const log = (adminName, action, target, type) =>
+  pool
+    .query(
+      `INSERT INTO activity_logs (admin_name, action, target, type) VALUES ($1, $2, $3, $4)`,
+      [adminName, action, target, type]
+    )
+    .catch(() => {});
+
+// ✅ প্রতিটা player এর ফলাফল match_results টেবিলে row হিসেবে সেভ করে (jsonb কলামের বদলে)।
+// একই match এ result re-submit হলে পুরনো row গুলো মুছে নতুন করে বসানো হয় (idempotent)।
+async function saveMatchResults(client, matchId, finalResults) {
+  await client.query(`DELETE FROM match_results WHERE match_id = $1`, [matchId]);
+  for (const r of finalResults) {
+    await client.query(
+      `INSERT INTO match_results (match_id, user_id, in_game_name, position, kills, prize, rank, team)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        matchId,
+        r.userId || null,
+        r.inGameName || null,
+        r.position ?? null,
+        r.kills ?? 0,
+        r.prize ?? 0,
+        r.rank ?? null,
+        r.team || null,
+      ]
+    );
+  }
+}
+
+// ✅ Screenshot-review workflow এর submission কে match এর সাথে লিংক করা।
+// submissionType "ludo" হলে ludo_result_submissions টেবিল, নাহলে result_submissions।
+async function markSubmissionReviewed(client, submissionId, submissionType, adminId, matchId) {
+  if (!submissionId) return;
+  const table = submissionType === "ludo" ? "ludo_result_submissions" : "result_submissions";
+  await client.query(
+    `UPDATE ${table}
+     SET status = 'approved', reviewed_by = $1, reviewed_at = now(), updated_at = now()
+     WHERE id = $2`,
+    [adminId, submissionId]
+  );
+  await client.query(`UPDATE matches SET result_submission_id = $1 WHERE id = $2`, [submissionId, matchId]);
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+router.get("/stats", protect, adminOnly, async (req, res) => {
+  try {
+    const [
+      totalDepositRes, totalWithdrawRes,
+      pendingDepositAmountRes, pendingWithdrawAmountRes,
+      pendingDepositCountRes, pendingWithdrawCountRes,
+      totalUsersRes, totalMatchesRes,
+    ] = await Promise.all([
+      pool.query(`SELECT COALESCE(SUM(amount), 0) AS sum FROM deposits WHERE status = 'approved'`),
+      pool.query(`SELECT COALESCE(SUM(amount), 0) AS sum FROM withdraws WHERE status = 'approved'`),
+      pool.query(`SELECT COALESCE(SUM(amount), 0) AS sum FROM deposits WHERE status = 'pending'`),
+      pool.query(`SELECT COALESCE(SUM(amount), 0) AS sum FROM withdraws WHERE status = 'pending'`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM deposits WHERE status = 'pending'`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM withdraws WHERE status = 'pending'`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM users`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM matches`),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalDeposit:          Number(totalDepositRes.rows[0].sum),
+        totalWithdraw:         Number(totalWithdrawRes.rows[0].sum),
+        pendingDepositAmount:  Number(pendingDepositAmountRes.rows[0].sum),
+        pendingWithdrawAmount: Number(pendingWithdrawAmountRes.rows[0].sum),
+        pendingDeposit:        pendingDepositCountRes.rows[0].count,
+        pendingWithdraw:       pendingWithdrawCountRes.rows[0].count,
+        totalUsers:            totalUsersRes.rows[0].count,
+        totalMatches:          totalMatchesRes.rows[0].count,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── DEPOSITS ──────────────────────────────────────────────────────────────────
+router.get("/deposits", protect, adminOnly, async (req, res) => {
+  try {
+    const { status, limit = 50 } = req.query;
+    const params = [];
+    let where = "";
+    if (status && status !== "all") {
+      params.push(status);
+      where = `WHERE d.status = $${params.length}`;
+    }
+    params.push(Number(limit));
+
+    const { rows } = await pool.query(
+      `SELECT d.*, u.name AS user_name, u.phone AS user_phone
+       FROM deposits d
+       LEFT JOIN users u ON u.id = d.user_id
+       ${where}
+       ORDER BY d.created_at DESC
+       LIMIT $${params.length}`,
+      params
+    );
+
+   const mapped = rows.map((d) => ({
+  ...d,
+  _id: d.id,   // ✅ frontend "_id" ব্যবহার করে approve/reject URL বানাতে
+  trxId: d.trx_id,   // ✅ frontend camelCase "trxId" দিয়ে খুঁজে, এটা না থাকলে সবসময় "—" দেখাত
+  user: { name: d.user_name, phone: d.user_phone },
+}));
+    res.json({ success: true, data: mapped });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/deposits/:id/approve", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows: depRows } = await client.query(
+      `SELECT * FROM deposits WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const dep = depRows[0];
+    if (!dep) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Not found" });
+    }
+    if (dep.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Already processed" });
+    }
+
+    // ✅ Fraud check: একই trxId আগে অন্য কোনো approved deposit এ ব্যবহার হয়েছে কিনা
+    if (await isDuplicateTrx(dep.trx_id, dep.id, client)) {
+      await client.query("ROLLBACK");
+      return res.json({
+        success: false,
+        message: "⚠️ এই Transaction ID আগে অন্য একটি deposit এ ব্যবহার হয়েছে — reject করে user কে জানান",
+      });
+    }
+
+    await client.query(
+      `UPDATE deposits SET status = 'approved', approved_by = $1, updated_at = now() WHERE id = $2`,
+      [req.user.name, dep.id]
+    );
+
+    const { rows: userRows } = await client.query(
+      `UPDATE users
+       SET balance = balance + $1, total_deposit = total_deposit + $1, updated_at = now()
+       WHERE id = $2
+       RETURNING *`,
+      [dep.amount, dep.user_id]
+    );
+    const depositedUser = userRows[0];
+
+    // ✅ REFERRAL GEM LOGIC — deposit approve হলে gems_pending সেট হবে,
+    // আসল gem credit হবে user যখন প্রথমবার match join করবে তখন (matchRoutes.js এ)
+    const gemTier = calcGemTier(dep.amount);
+    if (gemTier > 0 && depositedUser?.referred_by) {
+      const { rows: refRows } = await client.query(
+        `SELECT * FROM referral_history
+         WHERE referrer_id = $1 AND referred_user_id = $2 AND deposited = false
+         LIMIT 1`,
+        [depositedUser.referred_by, depositedUser.id]
+      );
+      const refEntry = refRows[0];
+
+      if (refEntry) {
+        // ✅ Daily gem cap check — spam/fake referral আটকাতে (শুধু log করি, block করি না)
+        if (await isOverDailyGemCap(depositedUser.referred_by, client)) {
+          console.warn(
+            `⚠️ [Gem Cap] referrer ${depositedUser.referred_by} আজকের daily gem cap ছুঁয়ে ফেলেছে — admin রিভিউ করুন`
+          );
+        }
+        await client.query(
+          `UPDATE referral_history
+           SET deposited = true, deposit_amount = $1, gems_pending = $2
+           WHERE id = $3`,
+          [dep.amount, gemTier, refEntry.id]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const { rows: nameRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [dep.user_id]);
+    log(req.user.name, `approved deposit of ৳${dep.amount}`, nameRows[0]?.name || "user", "approve");
+
+    res.json({ success: true, message: "Deposit approved" });
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    res.status(500).json({ success: false, message: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.put("/deposits/:id/reject", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE deposits SET status = 'rejected', rejected_by = $1, updated_at = now()
+       WHERE id = $2 RETURNING *`,
+      [req.user.name, req.params.id]
+    );
+    const dep = rows[0];
+    if (!dep) return res.json({ success: false, message: "Not found" });
+
+    const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [dep.user_id]);
+    log(req.user.name, `rejected deposit of ৳${dep.amount}`, userRows[0]?.name || "user", "reject");
+
+    res.json({ success: true, message: "Deposit rejected" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── WITHDRAWALS ───────────────────────────────────────────────────────────────
+router.get("/withdraws", protect, adminOnly, async (req, res) => {
+  try {
+    const { status, limit = 50 } = req.query;
+    const params = [];
+    let where = "";
+    if (status && status !== "all") {
+      params.push(status);
+      where = `WHERE w.status = $${params.length}`;
+    }
+    params.push(Number(limit));
+
+    const { rows } = await pool.query(
+      `SELECT w.*, u.name AS user_name, u.phone AS user_phone
+       FROM withdraws w
+       LEFT JOIN users u ON u.id = w.user_id
+       ${where}
+       ORDER BY w.created_at DESC
+       LIMIT $${params.length}`,
+      params
+    );
+
+    const mapped = rows.map((w) => ({
+      ...w,
+      _id: w.id,   // ✅ frontend "_id" ব্যবহার করে approve/reject URL বানাতে
+      user: { name: w.user_name, phone: w.user_phone },
+    }));
+    res.json({ success: true, data: mapped });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/withdraws/:id/approve", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows: witRows } = await client.query(
+      `SELECT * FROM withdraws WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const wit = witRows[0];
+    if (!wit) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Not found" });
+    }
+    if (wit.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Already processed" });
+    }
+
+    // ⚠️ balance already কাটা হয়ে গেছে user request submit করার সময়ই
+    // (controllers/withdrawController.js → createWithdraw)। এখানে আবার
+    // balance check বা deduction করলে balance ডাবল কাটা হয়ে যায় এবং এই
+    // "Insufficient balance" check-টাই approve fail হওয়ার আসল কারণ ছিল।
+    await client.query(
+      `UPDATE withdraws SET status = 'approved', approved_by = $1, updated_at = now() WHERE id = $2`,
+      [req.user.name, wit.id]
+    );
+    await client.query(
+      `UPDATE users SET total_withdraw = total_withdraw + $1, updated_at = now() WHERE id = $2`,
+      [wit.amount, wit.user_id]
+    );
+
+    await client.query("COMMIT");
+
+    const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [wit.user_id]);
+    log(req.user.name, `approved withdraw of ৳${wit.amount}`, userRows[0]?.name || "user", "approve");
+    res.json({ success: true, message: "Withdraw approved" });
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    res.status(500).json({ success: false, message: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.put("/withdraws/:id/reject", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { reason } = req.body;
+    await client.query("BEGIN");
+
+    const { rows: witRows } = await client.query(
+      `SELECT * FROM withdraws WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const wit = witRows[0];
+    if (!wit) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Not found" });
+    }
+    if (wit.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Already processed" });
+    }
+
+    // ✅ reject হলে balance ফেরত দিতে হবে (submit করার সময় কেটে নেওয়া হয়েছিল)।
+    // আগে এই refund-টাই মিসিং ছিল — reject করলে user-এর টাকা হারিয়ে যেত।
+    await client.query(
+      `UPDATE users SET balance = balance + $1, updated_at = now() WHERE id = $2`,
+      [wit.amount, wit.user_id]
+    );
+
+    await client.query(
+      `UPDATE withdraws SET status = 'rejected', rejected_by = $1, note = $2, updated_at = now()
+       WHERE id = $3`,
+      [req.user.name, reason || "Rejected by admin", wit.id]
+    );
+
+    await client.query("COMMIT");
+
+    const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [wit.user_id]);
+    log(req.user.name, `rejected withdraw of ৳${wit.amount}`, userRows[0]?.name || "user", "reject");
+
+    res.json({ success: true, message: "Withdraw rejected & balance refunded" });
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    res.status(500).json({ success: false, message: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+router.get("/users", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, phone, balance, total_deposit, total_withdraw, is_blocked
+       FROM users
+       ORDER BY created_at DESC`
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/users/:id/ban", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET is_blocked = true, updated_at = now() WHERE id = $1 RETURNING name`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    log(req.user.name, "banned user", rows[0].name, "ban");
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/users/:id/unban", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET is_blocked = false, updated_at = now() WHERE id = $1 RETURNING name`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    log(req.user.name, "unbanned user", rows[0].name, "ban");
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── PAYMENT NUMBERS ───────────────────────────────────────────────────────────
+// NOTE: "limit" Postgres এ reserved keyword, তাই সবসময় quoted "limit" ব্যবহার করা হয়েছে।
+router.get("/payment-numbers", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, method, number, "limit", active, created_at, updated_at
+       FROM payment_numbers
+       ORDER BY created_at DESC`
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.post("/payment-numbers", protect, adminOnly, async (req, res) => {
+  try {
+    const { method, number, limit, active } = req.body;
+    if (!method || !number) return res.json({ success: false, message: "method ও number দিন" });
+
+    const { rows } = await pool.query(
+      `INSERT INTO payment_numbers (method, number, "limit", active)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [method, number, limit ?? null, active !== false]
+    );
+    log(req.user.name, `added payment number ${number}`, method, "create");
+    res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/payment-numbers/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const allowed = ["method", "number", "limit", "active"];
+    const fields = Object.keys(req.body).filter((k) => allowed.includes(k));
+    if (fields.length === 0) return res.json({ success: false, message: "কোনো ফিল্ড দেওয়া হয়নি" });
+
+    const setClauses = fields.map((f, i) => `"${f}" = $${i + 1}`);
+    const values = fields.map((f) => req.body[f]);
+    values.push(req.params.id);
+
+    const { rows } = await pool.query(
+      `UPDATE payment_numbers SET ${setClauses.join(", ")}, updated_at = now()
+       WHERE id = $${values.length}
+       RETURNING *`,
+      values
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.delete("/payment-numbers/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `DELETE FROM payment_numbers WHERE id = $1 RETURNING id`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
+router.get("/logs", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 100`
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── ADMIN MANAGEMENT ──────────────────────────────────────────────────────────
+router.get("/admins", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, phone, role, created_at
+       FROM users
+       WHERE role = ANY($1)
+       ORDER BY created_at DESC`,
+      [ADMIN_ROLES]
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.post("/admins/create", protect, adminOnly, async (req, res) => {
+  try {
+    if (req.user.role !== "super-admin")
+      return res.json({ success: false, message: "Only super admin can create admins" });
+
+    const { name, phone, password, role } = req.body;
+
+    const { rows: existing } = await pool.query(`SELECT id FROM users WHERE phone = $1`, [phone]);
+    if (existing[0]) return res.json({ success: false, message: "Phone already registered" });
+
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await pool.query(
+      `INSERT INTO users (name, phone, password, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, phone, role`,
+      [name, phone, hash, role]
+    );
+
+    log(req.user.name, `created new admin ${name}`, phone, "create");
+    res.json({ success: true, admin: rows[0] });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── COMPLETED MATCHES ─────────────────────────────────────────────────────────
+router.get("/completed-matches", protect, adminOnly, async (req, res) => {
+  try {
+    await pool.query(
+      `DELETE FROM matches WHERE status = 'completed' AND completed_at < now() - interval '30 days'`
+    );
+    const { rows } = await pool.query(
+      `SELECT * FROM matches WHERE status = 'completed' ORDER BY completed_at DESC LIMIT 100`
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ── RESULT SUBMISSION / PRIZE DISTRIBUTION ────────────────────────────────────
+router.put("/matches/:id/result", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // submissionId/submissionType (optional): screenshot-review workflow থেকে এলে
+    // ("regular" → result_submissions, "ludo" → ludo_result_submissions) সেটাকে
+    // approved মার্ক করে match এর সাথে লিংক করে দেওয়া হবে।
+    const { results, winnerUserIds, totalPrize, submissionId, submissionType } = req.body;
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM matches WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const match = matchRows[0];
+    if (!match) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Match not found" });
+    }
+
+    const cfg = CATEGORY_CONFIG[match.category] || CATEGORY_CONFIG.br_solo;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // BR SOLO — Position Prize + Kill Prize
+    // ══════════════════════════════════════════════════════════════════════
+    if (cfg.logic === "solo_kill") {
+      if (!results || results.length === 0) {
+        await client.query("ROLLBACK");
+        return res.json({ success: false, message: "results array required" });
+      }
+
+      const prizes = match.prizes || {};
+      const p1 = prizes.first  || BR_SOLO_DEFAULT_PRIZES.first;
+      const p2 = prizes.second || BR_SOLO_DEFAULT_PRIZES.second;
+      const p3 = prizes.third  || BR_SOLO_DEFAULT_PRIZES.third;
+      const p4 = prizes.fourth || BR_SOLO_DEFAULT_PRIZES.fourth;
+      const kp = Number(match.per_kill) || 0;
+
+      const finalResults = results.map((p) => {
+        const pos         = Number(p.position) || 0;
+        const kills       = Number(p.kills)    || 0;
+        const killEarning = kills * kp;
+
+        let placementPrize = 0;
+        if      (pos === 1) placementPrize = p1;
+        else if (pos === 2) placementPrize = p2;
+        else if (pos === 3) placementPrize = p3;
+        else if (pos === 4) placementPrize = p4;
+        // ৫ম-৪৮তম: placement prize = 0, শুধু kill prize
+
+        const prize = Math.floor(placementPrize + killEarning);
+
+        return {
+          userId:     p.userId,
+          inGameName: p.inGameName || "",
+          position:   pos,
+          kills,
+          killPrize:  Math.floor(killEarning),
+          posPrize:   Math.floor(placementPrize),
+          prize,
+          rank:       pos,
+        };
+      });
+
+      const totalDistributed = finalResults.reduce((s, p) => s + p.prize, 0);
+      const prizePool        = Number(match.prize_pool) || Number(match.win_prize) || 0;
+      const totalKillPrize   = finalResults.reduce((s, p) => s + p.killPrize, 0);
+      const redAlert         = prizePool > 0 && totalDistributed > prizePool;
+
+      if (redAlert) {
+        console.warn(`🔴 RED ALERT: "${match.title}" — distributed ৳${totalDistributed} > pool ৳${prizePool}`);
+      }
+
+      await saveMatchResults(client, match.id, finalResults);
+
+      await client.query(
+        `UPDATE matches
+         SET status = 'completed', completed_at = now(),
+             delete_at = now() + interval '30 days', updated_at = now()
+         WHERE id = $1`,
+        [match.id]
+      );
+
+      for (const player of finalResults) {
+        if (player.userId && player.prize > 0) {
+          await client.query(
+            `UPDATE users SET balance = balance + $1, updated_at = now() WHERE id = $2`,
+            [player.prize, player.userId]
+          );
+          await client.query(
+            `INSERT INTO transactions (user_id, type, amount, match_id, match_title, note)
+             VALUES ($1, 'match_prize', $2, $3, $4, $5)`,
+            [
+              player.userId, player.prize, match.id, match.title,
+              `Placement: ৳${player.posPrize} + Kills(${player.kills}×৳${kp}): ৳${player.killPrize}`,
+            ]
+          );
+        }
+      }
+
+      await markSubmissionReviewed(client, submissionId, submissionType, req.user.id, match.id);
+
+      await client.query("COMMIT");
+
+      log(
+        req.user.name,
+        `BR Solo Result — ${finalResults.length} players — ৳${totalDistributed} distributed${redAlert ? " 🔴 RED ALERT" : ""}`,
+        match.title,
+        "create"
+      );
+
+      return res.json({
+        success:          true,
+        message:          `✅ Result submitted! ৳${totalDistributed} distributed to ${finalResults.filter((p) => p.prize > 0).length} players.`,
+        totalDistributed,
+        totalKillPrize,
+        redAlert,
+        data: { ...match, results: finalResults, status: "completed" },
+      });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CS SOLO / LW SOLO — Winner 1 জন, 100% Prize Pool
+    // ══════════════════════════════════════════════════════════════════════
+    if (cfg.logic === "solo_pos") {
+      if (!results || results.length === 0) {
+        await client.query("ROLLBACK");
+        return res.json({ success: false, message: "results array required" });
+      }
+
+      const prizes      = match.prizes || {};
+      const winnerPrize = Number(match.prize_pool) || Number(match.win_prize) || Number(prizes.first) || 0;
+
+      const finalResults = results.map((p) => {
+        const pos      = Number(p.position) || 0;
+        const isWinner = pos === 1;
+        return {
+          userId:     p.userId,
+          inGameName: p.inGameName || "",
+          position:   pos,
+          kills:      0,
+          killPrize:  0,
+          posPrize:   isWinner ? winnerPrize : 0,
+          prize:      isWinner ? Math.floor(winnerPrize) : 0,
+          rank:       pos,
+        };
+      });
+
+      const totalDistributed = finalResults.reduce((s, p) => s + p.prize, 0);
+
+      await saveMatchResults(client, match.id, finalResults);
+
+      await client.query(
+        `UPDATE matches
+         SET status = 'completed', completed_at = now(),
+             delete_at = now() + interval '30 days', updated_at = now()
+         WHERE id = $1`,
+        [match.id]
+      );
+
+      for (const player of finalResults) {
+        if (player.userId && player.prize > 0) {
+          await client.query(
+            `UPDATE users SET balance = balance + $1, updated_at = now() WHERE id = $2`,
+            [player.prize, player.userId]
+          );
+          await client.query(
+            `INSERT INTO transactions (user_id, type, amount, match_id, match_title)
+             VALUES ($1, 'match_prize', $2, $3, $4)`,
+            [player.userId, player.prize, match.id, match.title]
+          );
+        }
+      }
+
+      await markSubmissionReviewed(client, submissionId, submissionType, req.user.id, match.id);
+
+      await client.query("COMMIT");
+
+      log(req.user.name, `Solo Result — ৳${totalDistributed} to winner`, match.title, "create");
+
+      return res.json({
+        success:          true,
+        message:          `✅ Winner কে ৳${totalDistributed} prize দেওয়া হয়েছে।`,
+        totalDistributed,
+        data: { ...match, results: finalResults, status: "completed" },
+      });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // TEAM ONLY — BR Duo/Squad, CS Duo/Squad/6vs6, LW Duo
+    // Winner team সমান ভাগে prize পাবে, kill prize নেই
+    // ══════════════════════════════════════════════════════════════════════
+    if (cfg.logic === "team_only") {
+      if (!winnerUserIds || winnerUserIds.length === 0) {
+        await client.query("ROLLBACK");
+        return res.json({ success: false, message: "কমপক্ষে ১ জন winner select করুন" });
+      }
+
+      const prize = Number(totalPrize) || 0;
+      if (prize <= 0) {
+        await client.query("ROLLBACK");
+        return res.json({ success: false, message: "Prize amount দিন" });
+      }
+
+      // match.joinedUsers (Mongo subdocument array) এর বদলে এখন এটা আলাদা
+      // match_participants টেবিল থেকে আসছে।
+      const { rows: participants } = await client.query(
+        `SELECT user_id, in_game_name, game_name, team FROM match_participants WHERE match_id = $1`,
+        [match.id]
+      );
+
+      const winnerSet = new Set(winnerUserIds.map((id) => String(id)));
+      const prizeEach = Math.floor(prize / winnerSet.size);
+
+      const finalResults = participants.map((u) => {
+        const uid      = String(u.user_id);
+        const isWinner = winnerSet.has(uid);
+        return {
+          userId:     u.user_id,
+          inGameName: u.in_game_name || u.game_name || "",
+          position:   isWinner ? 1 : 0,
+          kills:      0,
+          killPrize:  0,
+          posPrize:   isWinner ? prizeEach : 0,
+          prize:      isWinner ? prizeEach : 0,
+          rank:       isWinner ? 1 : 0,
+          team:       u.team || null,
+        };
+      });
+
+      const totalDistributed = prizeEach * winnerSet.size;
+
+      await saveMatchResults(client, match.id, finalResults);
+
+      await client.query(
+        `UPDATE matches
+         SET status = 'completed', completed_at = now(),
+             delete_at = now() + interval '30 days', updated_at = now()
+         WHERE id = $1`,
+        [match.id]
+      );
+
+      for (const player of finalResults) {
+        if (player.prize > 0 && player.userId) {
+          await client.query(
+            `UPDATE users SET balance = balance + $1, updated_at = now() WHERE id = $2`,
+            [player.prize, player.userId]
+          );
+          await client.query(
+            `INSERT INTO transactions (user_id, type, amount, match_id, match_title)
+             VALUES ($1, 'match_prize', $2, $3, $4)`,
+            [player.userId, player.prize, match.id, match.title]
+          );
+        }
+      }
+
+      await markSubmissionReviewed(client, submissionId, submissionType, req.user.id, match.id);
+
+      await client.query("COMMIT");
+
+      log(
+        req.user.name,
+        `Team Result — ${winnerSet.size} জন × ৳${prizeEach} = ৳${totalDistributed}`,
+        match.title,
+        "create"
+      );
+
+      return res.json({
+        success:          true,
+        message:          `✅ ${winnerSet.size} জন winner — প্রতিজন ৳${prizeEach} — মোট ৳${totalDistributed} distributed.`,
+        totalDistributed,
+        prizeEach,
+        data: { ...match, results: finalResults, status: "completed" },
+      });
+    }
+
+    await client.query("ROLLBACK");
+    return res.json({ success: false, message: "Unknown match logic" });
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Result error:", e);
+    res.status(500).json({ success: false, message: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── RESULT SUBMISSIONS (screenshot review) ──────────────────────────────────
+// Player/room-host একটা screenshot আপলোড করে (pending_review) → admin সেটা দেখে
+// (এই route গুলো দিয়ে) approve/reject করে → approve করার পর admin স্বাভাবিকভাবে
+// /matches/:id/result এ position/kills দিয়ে আসল ফলাফল সাবমিট করে (submissionId
+// পাঠালে সেটা এই submission-টার সাথেই লিংক হয়ে যাবে)।
+//
+// type query param: "ludo" হলে ludo_result_submissions, নাহলে (default) result_submissions
+
+function submissionTable(type) {
+  return type === "ludo" ? "ludo_result_submissions" : "result_submissions";
+}
+
+router.get("/result-submissions", protect, adminOnly, async (req, res) => {
+  try {
+    const { status = "pending_review", type } = req.query;
+    const table = submissionTable(type);
+    const params = [];
+    let where = "";
+    if (status && status !== "all") {
+      params.push(status);
+      where = `WHERE rs.status = $${params.length}`;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT rs.*, m.title AS match_title, m.category AS match_category,
+              u.name AS submitted_by_name, u.phone AS submitted_by_phone
+       FROM ${table} rs
+       LEFT JOIN matches m ON m.id = rs.match_id
+       LEFT JOIN users u ON u.id = rs.submitted_by
+       ${where}
+       ORDER BY rs.created_at DESC`,
+      params
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/result-submissions/:id/approve", protect, adminOnly, async (req, res) => {
+  try {
+    const { type, adminNote } = req.body;
+    const table = submissionTable(type);
+    const { rows } = await pool.query(
+      `UPDATE ${table}
+       SET status = 'approved', reviewed_by = $1, reviewed_at = now(),
+           admin_note = COALESCE($2, admin_note), updated_at = now()
+       WHERE id = $3
+       RETURNING *`,
+      [req.user.id, adminNote || null, req.params.id]
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    log(req.user.name, "approved result screenshot", rows[0].match_id, "approve");
+    res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put("/result-submissions/:id/reject", protect, adminOnly, async (req, res) => {
+  try {
+    const { type, adminNote } = req.body;
+    if (!adminNote) return res.json({ success: false, message: "Reject করার কারণ (adminNote) দিন" });
+
+    const table = submissionTable(type);
+    const { rows } = await pool.query(
+      `UPDATE ${table}
+       SET status = 'rejected', reviewed_by = $1, reviewed_at = now(),
+           admin_note = $2, updated_at = now()
+       WHERE id = $3
+       RETURNING *`,
+      [req.user.id, adminNote, req.params.id]
+    );
+    if (!rows[0]) return res.json({ success: false, message: "Not found" });
+    log(req.user.name, `rejected result screenshot: ${adminNote}`, rows[0].match_id, "reject");
+    res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ─── ADMIN: Referral Fraud Alerts ─────────────────────────────────
+// একই IP/device থেকে referrer এর একাধিক referred user থাকলে flag করে দেখায়।
+// এটা কাউকে ব্লক করে না, শুধু admin কে manual review এর জন্য তালিকা দেয়।
+router.get("/referral-fraud-alerts", protect, adminOnly, async (req, res) => {
+  try {
+    const { rows: referrers } = await pool.query(
+      `SELECT id, name, phone, referral_count FROM users WHERE referral_count > 0`
+    );
+
+    const alerts = [];
+    for (const ref of referrers) {
+      const groups = await findSameDeviceReferrals(ref.id);
+      if (groups.length > 0) {
+        alerts.push({
+          referrerId:       ref.id,
+          referrerName:     ref.name,
+          referrerPhone:    ref.phone,
+          suspiciousGroups: groups,
+        });
+      }
+    }
+
+    // Sequential/pattern phone number দিয়ে খোলা account গুলোও আলাদা করে দেখান
+    const { rows: suspiciousPhoneUsers } = await pool.query(
+      `SELECT u.id, u.name, u.phone, u.register_ip, u.suspicious_reason, u.created_at,
+              r.name AS referred_by_name, r.phone AS referred_by_phone
+       FROM users u
+       LEFT JOIN users r ON r.id = u.referred_by
+       WHERE u.is_suspicious = true`
+    );
+
+    res.json({ success: true, data: { deviceAlerts: alerts, phonePatternAlerts: suspiciousPhoneUsers } });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+module.exports = router;
+
+==================================================
+FILE: backend/routes/ludoMatchRoutes.js
+==================================================
+ // routes/ludoMatchRoutes.js
+// (Postgres/Supabase version — converted from Mongoose)
+const express = require("express");
+const router = express.Router();
+const { Pool } = require("pg");
+const { protect, adminOnly } = require("../middleware/auth");
+
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+
+let sendMatchNotification = async () => {};
+try {
+  const notif = require("./notifications");
+  if (typeof notif.sendMatchNotification === "function") {
+    sendMatchNotification = notif.sendMatchNotification;
+  }
+} catch {}
+
+const slotsForMode = (mode) => {
+  if (mode === "1v1") return 2;
+  if (mode === "2v2") return 4;
+  if (mode === "4player") return 4;
+  return 4;
+};
+
+function toTournamentJson(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    _id: row.id,
+    title: row.title,
+    mode: row.mode,
+    entryFee: row.entry_fee,
+    winPrize: row.win_prize,
+    totalSlots: row.total_slots,
+    joinedPlayers: row.joined_players,
+    roomCode: row.room_code,
+    isRoomOpen: row.is_room_open,
+    map: row.map,
+    device: row.device,
+    image: row.image,
+    status: row.status,
+    startTime: row.start_time,
+    expiresAt: row.expires_at,
+    winningTeam: row.winning_team,
+    prizes: {
+      first: row.prize_first,
+      second: row.prize_second,
+      third: row.prize_third,
+      fourth: row.prize_fourth,
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ── Create Tournament ────────────────────────────────────────────────────────
+router.post("/create", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const {
+      title, startTime, mode = "4player", entryFee = 0, winPrize = 0,
+      map: mapName, device, image, prizes,
+    } = req.body;
+
+    const expiresAt = startTime
+      ? new Date(new Date(startTime).getTime() + 20 * 60 * 1000)
+      : new Date(Date.now() + 20 * 60 * 1000);
+    const totalSlots = slotsForMode(mode);
+
+    const { rows } = await client.query(
+      `INSERT INTO ludo_tournaments (
+        title, mode, entry_fee, win_prize, total_slots, joined_players,
+        map, device, image, status, start_time, expires_at,
+        prize_first, prize_second, prize_third, prize_fourth
+      ) VALUES ($1,$2,$3,$4,$5,0,$6,$7,$8,'upcoming',$9,$10,$11,$12,$13,$14)
+      RETURNING *`,
+      [
+        title, mode, entryFee, winPrize, totalSlots,
+        mapName, device, image, startTime || null, expiresAt,
+        prizes?.first || 0, prizes?.second || 0, prizes?.third || 0, prizes?.fourth || 0,
+      ]
+    );
+
+    const match = rows[0];
+    try { await sendMatchNotification(toTournamentJson(match), "ludo"); } catch {}
+
+    res.status(201).json({ success: true, message: "Ludo tournament created", data: toTournamentJson(match) });
+  } catch (err) {
+    console.error("Create ludo tournament error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Join with In-Game Name ───────────────────────────────────────────────────
+router.put("/join/:id", protect, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { inGameName } = req.body;
+    const userId = req.user.id; // ✅ token থেকে (body থেকে নয়, নিরাপত্তার জন্য)
+
+    if (!inGameName || inGameName.trim() === "") {
+      return res.json({ success: false, message: "In-Game Name দিতে হবে" });
+    }
+
+    await client.query("BEGIN");
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const match = matchRows[0];
+    if (!match) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "Match not found" });
+    }
+
+    if (match.status === "completed" || match.status === "cancelled") {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Match আর join করা যাবে না" });
+    }
+
+    const { rows: alreadyRows } = await client.query(
+      `SELECT id FROM ludo_participants WHERE tournament_id = $1 AND user_id = $2`,
+      [match.id, userId]
+    );
+    if (alreadyRows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "ইতোমধ্যে join করেছেন" });
+    }
+
+    if (match.joined_players >= match.total_slots) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Match ফুল হয়ে গেছে" });
+    }
+
+    const { rows: userRows } = await client.query(
+      `SELECT * FROM users WHERE id = $1 FOR UPDATE`,
+      [userId]
+    );
+    const user = userRows[0];
+    if (!user) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    if (Number(user.balance) < Number(match.entry_fee)) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "পর্যাপ্ত balance নেই" });
+    }
+
+    const { rows: usedSlotRows } = await client.query(
+      `SELECT slot_number FROM ludo_participants WHERE tournament_id = $1`,
+      [match.id]
+    );
+    const usedSlots = usedSlotRows.map((r) => r.slot_number);
+    let slot = 1;
+    while (usedSlots.includes(slot)) slot++;
+
+    await client.query(
+      `UPDATE users SET balance = balance - $1 WHERE id = $2`,
+      [match.entry_fee, userId]
+    );
+
+    await client.query(
+      `INSERT INTO match_join_history (user_id, match_id, match_title, entry_fee)
+       VALUES ($1,NULL,$2,$3)`,
+      [userId, match.title, match.entry_fee]
+    );
+    // ⚠️ match_join_history.match_id শুধু `matches` টেবিলের সাথে FK link (ludo_tournaments না),
+    // তাই এখানে NULL রেখে match_title দিয়ে বোঝানো হচ্ছে এটা কোন ludo ম্যাচ থেকে এসেছে
+
+    await client.query(
+      `INSERT INTO ludo_participants (tournament_id, user_id, slot_number, in_game_name)
+       VALUES ($1,$2,$3,$4)`,
+      [match.id, userId, slot, inGameName.trim()]
+    );
+
+    const newJoinedPlayers = match.joined_players + 1;
+    const newStatus = newJoinedPlayers >= match.total_slots ? "live" : match.status;
+
+    const { rows: updatedRows } = await client.query(
+      `UPDATE ludo_tournaments SET joined_players = $1, status = $2 WHERE id = $3 RETURNING *`,
+      [newJoinedPlayers, newStatus, match.id]
+    );
+
+    await client.query("COMMIT");
+
+    const { rows: finalUserRows } = await client.query(`SELECT balance FROM users WHERE id = $1`, [userId]);
+
+    res.json({
+      success: true,
+      message: "Join সফল! 🎉",
+      newBalance: finalUserRows[0].balance,
+      slotNumber: slot,
+      data: toTournamentJson(updatedRows[0]),
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Ludo join error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Submit Result (Admin, direct — no screenshot) ────────────────────────────
+router.post("/result/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { results, winningTeam } = req.body;
+
+    await client.query("BEGIN");
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    const match = matchRows[0];
+
+    if (!match) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "Match not found" });
+    }
+    if (!Array.isArray(results) || results.length === 0) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Results array is required" });
+    }
+    if (results.length !== match.joined_players) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: `Exactly ${match.joined_players} results needed` });
+    }
+
+    const ranks = results.map((r) => r.rank);
+    if (new Set(ranks).size !== ranks.length) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Duplicate ranks not allowed" });
+    }
+    const sortedRanks = [...ranks].sort((a, b) => a - b);
+    for (let i = 0; i < sortedRanks.length; i++) {
+      if (sortedRanks[i] !== i + 1) {
+        await client.query("ROLLBACK");
+        return res.json({ success: false, message: "Ranks must be sequential starting from 1" });
+      }
+    }
+
+    // পুরনো result row থাকলে মুছে নতুন করে বসানো (idempotent re-submit)
+    await client.query(`DELETE FROM ludo_results WHERE tournament_id = $1`, [match.id]);
+
+    let totalPrizeDistributed = 0;
+    for (const r of results) {
+      await client.query(
+        `INSERT INTO ludo_results (tournament_id, user_id, rank, prize, kills)
+         VALUES ($1,$2,$3,$4,0)`,
+        [match.id, r.userId || null, r.rank || null, r.prize || 0]
+      );
+
+      if (r.userId && r.prize > 0) {
+        totalPrizeDistributed += r.prize;
+        await client.query(`SELECT adjust_user_balance($1, $2)`, [r.userId, r.prize]);
+        await client.query(
+          `INSERT INTO transactions (user_id, type, amount, match_id, match_title)
+           VALUES ($1,'match_prize',$2,NULL,$3)`,
+          [r.userId, r.prize, `${match.title} (${match.mode}) - Rank #${r.rank}`]
+        );
+      }
+    }
+
+    await client.query(
+      `UPDATE ludo_tournaments
+       SET status = 'completed', winning_team = $1
+       WHERE id = $2`,
+      [match.mode === "2v2" && winningTeam ? winningTeam : match.winning_team, match.id]
+    );
+
+    await client.query("COMMIT");
+
+    res.json({
+      success: true,
+      message: "✅ Result submitted successfully & prizes distributed!",
+      totalPrizeDistributed,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Ludo result error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Get All Tournaments ───────────────────────────────────────────────────────
+router.get("/", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { mode, status } = req.query;
+    const conditions = [];
+    const params = [];
+    if (mode) { params.push(mode); conditions.push(`mode = $${params.length}`); }
+    if (status) { params.push(status); conditions.push(`status = $${params.length}`); }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const { rows } = await client.query(
+      `SELECT * FROM ludo_tournaments ${where} ORDER BY created_at DESC`,
+      params
+    );
+    res.json({ success: true, data: rows.map(toTournamentJson) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Get Single Tournament ─────────────────────────────────────────────────────
+router.get("/:id", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1`,
+      [req.params.id]
+    );
+    const match = matchRows[0];
+    if (!match) return res.status(404).json({ success: false, message: "Not found" });
+
+    const { rows: participants } = await client.query(
+      `SELECT lp.*, u.name, u.phone
+       FROM ludo_participants lp
+       JOIN users u ON u.id = lp.user_id
+       WHERE lp.tournament_id = $1`,
+      [match.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        ...toTournamentJson(match),
+        joinedUsers: participants.map((p) => ({
+          userId: { _id: p.user_id, name: p.name, phone: p.phone },
+          slotNumber: p.slot_number,
+          inGameName: p.in_game_name,
+        })),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Update Room ──────────────────────────────────────────────────────────────
+router.put("/update-room/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { roomCode } = req.body;
+    const { rows } = await client.query(
+      `UPDATE ludo_tournaments SET room_code = $1, status = 'live', is_room_open = true
+       WHERE id = $2 RETURNING *`,
+      [roomCode, req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ success: false, message: "Not found" });
+    res.json({ success: true, message: "Room code updated, match is now LIVE", data: toTournamentJson(rows[0]) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Delete Tournament ─────────────────────────────────────────────────────────
+router.delete("/:id", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query(`DELETE FROM ludo_tournaments WHERE id = $1`, [req.params.id]);
+    res.json({ success: true, message: "Match deleted" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router;
+
+==================================================
+FILE: backend/routes/ludoResultRoutes.js
+==================================================
+ // ================================================================
+// ludoResultRoutes.js  —  Ludo Image-Based Result System (No Kills)
+// ================================================================
+const express     = require("express");
+const router      = express.Router();
+const multer      = require("multer");
+const cloudinary  = require("cloudinary").v2;
+const streamifier = require("streamifier");
+const { Pool }    = require("pg");
+const { protect } = require("../middleware/auth");
+
+const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) =>
+    file.mimetype.startsWith("image/") ? cb(null, true) : cb(new Error("শুধু image"), false),
+});
+
+const uploadBufferToCloudinary = (buffer, folder = "playzo-ludo-results") =>
+  new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type:  "image",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+        transformation:  [{ width: 1920, crop: "limit", quality: "auto" }],
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+
+// ✅ auth.js এর নতুন protect middleware ব্যবহার করা হচ্ছে (Supabase session verify করে)
+const adminOnly = (req, res, next) => {
+  if (!["admin", "super-admin"].includes(req.user?.role))
+    return res.status(403).json({ success: false, message: "Admin only" });
+  next();
+};
+
+// ════════════════════════════════════════════════════════════════
+// USER: Screenshot Upload
+// ════════════════════════════════════════════════════════════════
+router.post("/upload/:matchId", protect, upload.single("screenshot"), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { matchId } = req.params;
+    const userId = req.user.id;
+
+    if (!req.file)
+      return res.status(400).json({ success: false, message: "Screenshot upload করুন" });
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1`,
+      [matchId]
+    );
+    const match = matchRows[0];
+    if (!match)
+      return res.status(404).json({ success: false, message: "Match পাওয়া যায়নি" });
+    if (match.status === "completed")
+      return res.status(400).json({ success: false, message: "Match শেষ হয়ে গেছে" });
+
+    const { rows: joinedRows } = await client.query(
+      `SELECT id FROM ludo_participants WHERE tournament_id = $1 AND user_id = $2`,
+      [matchId, userId]
+    );
+    if (joinedRows.length === 0)
+      return res.status(403).json({ success: false, message: "আপনি এই match এ join করেননি" });
+
+    const { rows: existingRows } = await client.query(
+      `SELECT id FROM ludo_result_submissions WHERE match_id = $1 AND submitted_by = $2`,
+      [matchId, userId]
+    );
+    if (existingRows.length > 0)
+      return res.status(400).json({ success: false, message: "ইতিমধ্যে screenshot submit করেছেন" });
+
+    const safeName = (match.title || "ludo-match")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 50);
+    const folder = `playzo-ludo-results/${safeName}`;
+
+    const uploadResult = await uploadBufferToCloudinary(req.file.buffer, folder);
+
+    const { rows: subRows } = await client.query(
+      `INSERT INTO ludo_result_submissions
+        (match_id, submitted_by, screenshot_url, screenshot_public_id, status)
+       VALUES ($1,$2,$3,$4,'pending_review')
+       RETURNING id`,
+      [matchId, userId, uploadResult.secure_url, uploadResult.public_id]
+    );
+
+    res.status(201).json({
+      success:      true,
+      message:      "✅ Screenshot submit সফল! Admin review করবে।",
+      submissionId: subRows[0].id,
+    });
+  } catch (err) {
+    if (err.code === "23505") // unique_violation (match_id, submitted_by)
+      return res.status(400).json({ success: false, message: "ইতিমধ্যে screenshot submit করেছেন" });
+    console.error("Ludo screenshot upload error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// USER: নিজের submission status
+// ════════════════════════════════════════════════════════════════
+router.get("/my/:matchId", protect, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const userId = req.user.id;
+    const { rows } = await client.query(
+      `SELECT status, screenshot_url, admin_note, created_at
+       FROM ludo_result_submissions
+       WHERE match_id = $1 AND submitted_by = $2`,
+      [req.params.matchId, userId]
+    );
+
+    if (rows.length === 0)
+      return res.status(404).json({ success: false, message: "কোনো screenshot submit হয়নি" });
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  } finally {
+    client.release();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// ADMIN: একটা match এর সব screenshots দেখা
+// ════════════════════════════════════════════════════════════════
+router.get("/admin/match/:matchId", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      `SELECT rs.*, u.name AS submitter_name, u.phone AS submitter_phone
+       FROM ludo_result_submissions rs
+       JOIN users u ON u.id = rs.submitted_by
+       WHERE rs.match_id = $1
+       ORDER BY rs.created_at DESC`,
+      [req.params.matchId]
+    );
+    res.json({ success: true, count: rows.length, data: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  } finally {
+    client.release();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// ADMIN: Result Submit + Prize Distribute
+// ════════════════════════════════════════════════════════════════
+router.post("/admin/submit/:matchId", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { results, winningTeam } = req.body;
+    const matchId = req.params.matchId;
+
+    const { rows: matchRows } = await client.query(
+      `SELECT * FROM ludo_tournaments WHERE id = $1`,
+      [matchId]
+    );
+    const match = matchRows[0];
+
+    if (!match)
+      return res.status(404).json({ success: false, message: "Match পাওয়া যায়নি" });
+    if (match.status === "completed")
+      return res.status(400).json({ success: false, message: "Result ইতিমধ্যে submit হয়েছে" });
+    if (!Array.isArray(results) || results.length === 0)
+      return res.status(400).json({ success: false, message: "Results দিন" });
+
+    if (match.mode === "1v1") {
+      const winner = results.find(r => r.rank === 1);
+      if (!winner)
+        return res.status(400).json({ success: false, message: "1v1 এ rank 1 (winner) দিন" });
+      if (results.length !== 2)
+        return res.status(400).json({ success: false, message: "1v1 এ 2 জনের result দিন" });
+    }
+
+    if (match.mode === "2v2") {
+      if (!winningTeam)
+        return res.status(400).json({ success: false, message: "Winning Team (A বা B) দিন" });
+      const winnerCount = results.filter(r => r.team === winningTeam).length;
+      if (winnerCount !== 2)
+        return res.status(400).json({ success: false, message: `Team ${winningTeam} এ 2 জন player assign করুন` });
+    }
+
+    await client.query("BEGIN");
+
+    // ludo_tournaments আপডেট
+    await client.query(
+      `UPDATE ludo_tournaments
+       SET status = 'completed', winning_team = $1
+       WHERE id = $2`,
+      [match.mode === "2v2" ? winningTeam : match.winning_team, matchId]
+    );
+
+    let totalDistributed = 0;
+    for (const r of results) {
+      // ludo_results এ প্রতিটা player এর ফলাফল সেভ
+      await client.query(
+        `INSERT INTO ludo_results (tournament_id, user_id, rank, prize, kills)
+         VALUES ($1,$2,$3,$4,0)`,
+        [matchId, r.userId || null, r.rank || null, r.prize || 0]
+      );
+
+      if (r.userId && r.prize > 0) {
+        totalDistributed += r.prize;
+
+        // ✅ atomic balance update (adjust_user_balance RPC ব্যবহার করা হলো)
+        await client.query(`SELECT adjust_user_balance($1, $2)`, [r.userId, r.prize]);
+
+        const desc =
+          match.mode === "1v1"     ? `${match.title} — Winner Prize`                       :
+          match.mode === "2v2"     ? `${match.title} — Team ${r.team} Winner (৳${r.prize})` :
+          /* 4player */              `${match.title} — Rank #${r.rank} Prize`;
+
+        // ⚠️ transactions.match_id শুধু matches টেবিলের সাথে link, তাই এখানে null রেখে
+        // match_title দিয়ে বোঝানো হচ্ছে এটা কোন ludo match থেকে এসেছে
+        await client.query(
+          `INSERT INTO transactions (user_id, type, amount, match_id, match_title)
+           VALUES ($1,'match_prize',$2,NULL,$3)`,
+          [r.userId, r.prize, desc]
+        );
+      }
+    }
+
+    // submissions published করা
+    await client.query(
+      `UPDATE ludo_result_submissions
+       SET status = 'published', reviewed_by = $1, reviewed_at = now()
+       WHERE match_id = $2 AND status = 'pending_review'`,
+      [req.user.id, matchId]
+    );
+
+    await client.query("COMMIT");
+
+    res.json({
+      success:          true,
+      message:          `✅ Result submit ও ৳${totalDistributed} prize distribute হয়েছে!`,
+      totalDistributed,
+      mode:             match.mode,
+      ...(match.mode === "2v2" ? { winningTeam } : {}),
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Ludo result error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// ADMIN: Submission reject
+// ════════════════════════════════════════════════════════════════
+router.put("/admin/reject/:submissionId", protect, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { adminNote = "" } = req.body;
+    const { rows } = await client.query(
+      `UPDATE ludo_result_submissions
+       SET status = 'rejected', admin_note = $1, reviewed_by = $2, reviewed_at = now()
+       WHERE id = $3
+       RETURNING id`,
+      [adminNote, req.user.id, req.params.submissionId]
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ success: false, message: "Submission পাওয়া যায়নি" });
+    res.json({ success: true, message: "Submission reject করা হয়েছে" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router;
+
+==================================================
+FILE: frontend/src/Component/AppDashBoard/AppDeshBoard.jsx
+==================================================
+ import React, { useState, useEffect } from "react";
+import BottomMenu from "../BottomMenu/BottomMenu";
+import NotificationBell from "../NotificationBell/NotificationBell";
+import Wallet from "../../page/Wallet/Wallet";
+import MatchList from "../../page/MatchList/MatchList";
+import Withdraw from "../../page/Withdraw/Withdraw";
+import AddMoneyModal from "../Addmoney/AddMoney";
+import AllRulesPage from "../AllRulesPage/AllRulesPage";
+import AccountInfo from "../../page/AccountInfo/AccountInfo";
+import MyMatch from "../../page/MyMatch/MyMatch";
+import Leaderboard from "../../page/Leaderboard/Leaderboard";
+import Referral from "../../page/Referral/Referral";
+import ClickableSlider from "../Slider/ClickableSlider";
+import LudoTournamentPage from "../../page/LudoTournamentPage.jsx/LudoTournamentPage";
+ 
+import axios from "axios";
+
+const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const CLEAN_API_URL = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
+
+function getRankMeta(rank) {
+  if (rank === 1)
+    return { icon: "🏆", text: "text-yellow-400", bg: "bg-yellow-500/20", border: "border-yellow-500/30", label: "BOOYAH!" };
+  if (rank === 2)
+    return { icon: "🥈", text: "text-gray-300", bg: "bg-gray-500/20", border: "border-gray-400/30", label: "2nd Place" };
+  if (rank === 3)
+    return { icon: "🥉", text: "text-orange-400", bg: "bg-orange-500/20", border: "border-orange-500/30", label: "3rd Place" };
+  return null;
+}
+
+// ─── Match Results Page ───────────────────────────────────────────────────────
+function MatchResultsPage({ match, currentUserUid }) {
+  const [tab, setTab] = useState("leaderboard");
+
+  // ✅ FIX: match.results থেকে সঠিকভাবে data নেওয়া
+  const rawResults = match?.results || [];
+  const killPrice  = match?.perKill || 0;
+  const matchTitle = match?.title || "Match Result";
+  const mapName    = match?.map || "";
+  const publishedAt = match?.completedAt || match?.updatedAt || "";
+
+  // results array normalize করা — backend এ position/kills/prize field আছে
+  const sorted = [...rawResults]
+    .map((r) => ({
+      uid:         r.userId?._id?.toString() || r.userId?.toString() || "",
+      playerName:  r.inGameName || "—",
+      rank:        r.position || r.rank || 0,
+      kills:       r.kills || 0,
+      rankPrize:   r.prize || 0,
+      killEarning: (r.kills || 0) * killPrice,
+      totalPrize:  (r.prize || 0),
+    }))
+    .sort((a, b) => {
+      if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
+      return (a.rank || 999) - (b.rank || 999);
+    });
+
+  const myResult = sorted.find(
+    (r) => r.uid === currentUserUid?.toString()
+  );
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      {/* Header */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/10 to-transparent pointer-events-none" />
+        <div className="px-4 pt-6 pb-4 relative z-10">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-green-400 text-xs font-semibold uppercase tracking-widest">Result Live</span>
+          </div>
+          <h1 className="text-white text-2xl font-extrabold">{matchTitle}</h1>
+          <div className="flex items-center gap-3 mt-1 text-gray-500 text-xs flex-wrap">
+            {mapName && <span>🗺️ {mapName}</span>}
+            {killPrice > 0 && <><span>•</span><span>⚔️ Kill: ৳{killPrice}</span></>}
+            {publishedAt && <><span>•</span><span>{new Date(publishedAt).toLocaleDateString("en-BD")}</span></>}
+          </div>
+        </div>
+      </div>
+
+      {/* Podium Top 3 */}
+      {sorted.length >= 1 && (
+        <div className="px-4 mb-4">
+          <div className="flex items-end justify-center gap-2">
+            {sorted[1] && (
+              <div className="flex-1 bg-[#111827] border border-gray-400/20 rounded-2xl p-3 text-center pb-4">
+                <p className="text-2xl mb-1">🥈</p>
+                <p className="text-white text-xs font-bold truncate">{sorted[1].playerName}</p>
+                <p className="text-gray-400 text-[10px]">{sorted[1].kills} kills</p>
+                <p className="text-gray-200 text-sm font-black mt-1">৳{sorted[1].totalPrize}</p>
+              </div>
+            )}
+            {sorted[0] && (
+              <div className="flex-1 bg-[#111827] border border-yellow-500/30 rounded-2xl p-3 text-center pb-6 -mb-2 shadow-lg shadow-yellow-500/10">
+                <p className="text-3xl mb-1">🏆</p>
+                <p className="text-yellow-400 text-xs font-extrabold truncate">{sorted[0].playerName}</p>
+                <p className="text-gray-400 text-[10px]">{sorted[0].kills} kills</p>
+                <p className="text-yellow-400 text-base font-black mt-1">৳{sorted[0].totalPrize}</p>
+              </div>
+            )}
+            {sorted[2] && (
+              <div className="flex-1 bg-[#111827] border border-orange-500/20 rounded-2xl p-3 text-center pb-4">
+                <p className="text-2xl mb-1">🥉</p>
+                <p className="text-white text-xs font-bold truncate">{sorted[2].playerName}</p>
+                <p className="text-gray-400 text-[10px]">{sorted[2].kills} kills</p>
+                <p className="text-orange-300 text-sm font-black mt-1">৳{sorted[2].totalPrize}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab Switch */}
+      <div className="px-4 mb-3">
+        <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
+          {[{ key: "leaderboard", label: "Leaderboard" }, { key: "mine", label: "My Result" }].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${tab === t.key ? "bg-orange-500 text-white" : "text-gray-400"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Leaderboard Tab */}
+      {tab === "leaderboard" && (
+        <div className="px-4 space-y-2">
+          {sorted.length === 0 && (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-gray-500 text-sm">No results yet</p>
+            </div>
+          )}
+          {sorted.map((player, idx) => {
+            const isMe = player.uid === currentUserUid?.toString();
+            return (
+              <div
+                key={player.uid + idx}
+                className={`rounded-2xl p-4 border ${isMe ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
+                    idx === 0 ? "bg-yellow-500/20 text-yellow-400" :
+                    idx === 1 ? "bg-gray-500/20 text-gray-300" :
+                    idx === 2 ? "bg-orange-500/20 text-orange-400" : "bg-white/5 text-gray-500"
+                  }`}>
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={`font-bold text-sm truncate ${isMe ? "text-orange-400" : "text-white"}`}>
+                        {player.playerName}
+                      </p>
+                      {isMe && (
+                        <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded-full shrink-0">YOU</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
+                      {player.rank > 0 && <span>#{player.rank} Rank</span>}
+                      <span>⚔️ {player.kills} kills</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`font-black text-base ${player.totalPrize > 0 ? "text-green-400" : "text-gray-600"}`}>
+                      {player.totalPrize > 0 ? `+৳${player.totalPrize}` : "—"}
+                    </p>
+                    {player.totalPrize > 0 && <p className="text-[10px] text-gray-600 mt-0.5">credited</p>}
+                  </div>
+                </div>
+                {player.totalPrize > 0 && (
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    {player.rankPrize > 0 && (
+                      <span className="text-[11px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/20">
+                        Rank ৳{player.rankPrize}
+                      </span>
+                    )}
+                    {player.killEarning > 0 && (
+                      <span className="text-[11px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
+                        ⚔️ {player.kills} kills ৳{player.killEarning}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* My Result Tab */}
+      {tab === "mine" && (
+        <div className="px-4">
+          {!currentUserUid ? (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-gray-500 text-sm">Login to see your result</p>
+            </div>
+          ) : !myResult ? (
+            <div className="bg-[#111827] rounded-2xl p-8 text-center border border-white/5">
+              <p className="text-3xl mb-3">😔</p>
+              <p className="text-white font-bold mb-1">Not in Results</p>
+              <p className="text-gray-500 text-sm">আপনি এই ম্যাচে ছিলেন না বা result এ আপনার UID পাওয়া যায়নি</p>
+            </div>
+          ) : (
+            <div>
+              <div className={`rounded-2xl p-5 border mb-4 ${
+                myResult.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" :
+                myResult.rank === 2 ? "bg-gray-500/10 border-gray-400/30" :
+                myResult.rank === 3 ? "bg-orange-500/10 border-orange-500/30" : "bg-[#111827] border-white/5"
+              }`}>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-gray-400 text-xs">Your IGN</p>
+                    <p className="text-white text-xl font-black">{myResult.playerName}</p>
+                  </div>
+                  {getRankMeta(myResult.rank) && (
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getRankMeta(myResult.rank).bg} ${getRankMeta(myResult.rank).text} ${getRankMeta(myResult.rank).border}`}>
+                      {getRankMeta(myResult.rank).icon} #{myResult.rank}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-white font-black text-lg">#{myResult.rank || "—"}</p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Final Rank</p>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-orange-400 font-black text-lg">{myResult.kills}</p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Kills</p>
+                  </div>
+                  <div className="bg-black/30 rounded-xl p-3 text-center">
+                    <p className="text-green-400 font-black text-lg">৳{myResult.totalPrize}</p>
+                    <p className="text-gray-500 text-[10px] mt-0.5">Earned</p>
+                  </div>
+                </div>
+                {myResult.totalPrize > 0 ? (
+                  <div className="bg-black/30 rounded-xl p-3">
+                    <p className="text-gray-400 text-xs mb-2 font-semibold uppercase tracking-wider">Prize Breakdown</p>
+                    <div className="space-y-1.5">
+                      {myResult.rankPrize > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Placement Prize</span>
+                          <span className="text-yellow-400 font-bold">+৳{myResult.rankPrize}</span>
+                        </div>
+                      )}
+                      {myResult.killEarning > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">{myResult.kills} Kills × ৳{killPrice}</span>
+                          <span className="text-green-400 font-bold">+৳{myResult.killEarning}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-white/10 pt-1.5 flex justify-between">
+                        <span className="text-white font-bold text-sm">Total Credited</span>
+                        <span className="text-green-400 font-black text-base">৳{myResult.totalPrize}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-black/30 rounded-xl p-4 text-center">
+                    <p className="text-gray-500 text-sm">No prize this match. Better luck next time! 💪</p>
+                  </div>
+                )}
+              </div>
+              {myResult.totalPrize > 0 && (
+                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+                  <span className="text-green-400">✓</span>
+                  <p className="text-green-400 text-sm">
+                    <strong>৳{myResult.totalPrize}</strong> has been credited to your wallet
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Results List Page ────────────────────────────────────────────────────────
+function ResultsListPage({ onSelectResult, currentUserUid, onBack }) {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${CLEAN_API_URL}/matches/completed`);
+        const data = await res.json();
+        setMatches(Array.isArray(data?.data) ? data.data : []);
+      } catch {
+        setMatches([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchResults();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 text-sm">Loading results...</p>
+      </div>
+    );
+  }
+
+  const categoryLabel = {
+    br_solo: "BR Solo", br_duo: "BR Duo", br_squad: "BR Squad",
+    cs_solo: "CS Solo", cs_duo: "CS Duo", cs_squad: "Clash Squad",
+    cs_6vs6: "CS 6vs6", lw_solo: "LW Solo", lw_duo: "LW Duo",
+    br_match: "BR Match", br_survival: "BR Survival",
+    clash_squad: "Clash Squad", cs_2vs2: "CS 2vs2",
+    lone_wolf: "Lone Wolf", training: "Training Match",
+  };
+  const categoryColor = {
+    br_solo:     { bg: "#7c3aed20", text: "#a78bfa" },
+    br_duo:      { bg: "#7c3aed20", text: "#a78bfa" },
+    br_squad:    { bg: "#7c3aed20", text: "#a78bfa" },
+    br_match:    { bg: "#7c3aed20", text: "#a78bfa" },
+    br_survival: { bg: "#dc262620", text: "#f87171" },
+    clash_squad: { bg: "#0284c720", text: "#38bdf8" },
+    cs_2vs2:     { bg: "#16a34a20", text: "#4ade80" },
+    lone_wolf:   { bg: "#d9770620", text: "#fb923c" },
+    training:    { bg: "#64748b20", text: "#94a3b8" },
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5 px-4 py-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+          <span className="text-orange-400 text-xs font-semibold uppercase tracking-widest">Match Results</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white text-lg active:scale-95 transition-all">←</button>
+          )}
+          <h1 className="text-white text-2xl font-extrabold">Results</h1>
+        </div>
+        <p className="text-gray-500 text-xs mt-1">Tap a match to see full leaderboard</p>
+      </div>
+
+      <div className="px-4 mt-4 space-y-3">
+        {matches.length === 0 ? (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-3xl mb-3">🎮</p>
+            <p className="text-white font-bold mb-1">No Results Yet</p>
+            <p className="text-gray-500 text-sm">Results will appear here after matches end</p>
+          </div>
+        ) : (
+          matches.map((match) => {
+            const top3 = (match.results || [])
+              .sort((a, b) => (a.position || 0) - (b.position || 0))
+              .slice(0, 3);
+            const myResult = (match.results || []).find(
+              (r) => r.userId?.toString() === currentUserUid?.toString()
+            );
+            const catColor = categoryColor[match.category] || { bg: "#ffffff10", text: "#fff" };
+            return (
+              <div
+                key={match._id}
+                onClick={() => onSelectResult(match)}   // ✅ FIX: পুরো match object pass
+                className="bg-[#111827] border border-white/5 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: catColor.bg, color: catColor.text }}>
+                        {categoryLabel[match.category] || match.category}
+                      </span>
+                    </div>
+                    <p className="text-white font-bold text-sm truncate">{match.title}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {match.map || "Free Fire"} • ৳{match.perKill || 0}/kill •{" "}
+                      {match.completedAt ? new Date(match.completedAt).toLocaleDateString("en-BD") : ""}
+                    </p>
+                  </div>
+                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20 shrink-0 ml-2">✅ Completed</span>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  {top3.length > 0 ? (
+                    top3.map((p, i) => (
+                      <div key={i} className="flex items-center gap-1.5 bg-black/30 rounded-lg px-2 py-1.5 flex-1">
+                        <span className="text-sm">{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
+                        <div className="min-w-0">
+                          <p className="text-white text-[11px] font-bold truncate">{p.inGameName || "—"}</p>
+                          <p className="text-gray-500 text-[10px]">৳{p.prize || 0}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-600 text-xs">No result data</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  {myResult ? (
+                    <div className={`flex items-center gap-2 text-xs ${myResult.prize > 0 ? "text-green-400" : "text-gray-500"}`}>
+                      <span>You:</span>
+                      <span className="font-bold">#{myResult.position || "—"}</span>
+                      <span>⚔️ {myResult.kills} kills</span>
+                      {myResult.prize > 0 && <span className="font-black">+৳{myResult.prize}</span>}
+                    </div>
+                  ) : (
+                    <span className="text-gray-600 text-xs">You didn't participate</span>
+                  )}
+                  <span className="text-orange-400 text-xs font-bold">View →</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Notifications Page ───────────────────────────────────────────────────────
+function NotificationsPage({ onBack }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token") || "";
+        const res = await fetch(`${CLEAN_API_URL}/notifications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setNotifications(
+          Array.isArray(data?.notifications) ? data.notifications :
+          Array.isArray(data?.data) ? data.data : []
+        );
+      } catch {
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      <div className="sticky top-0 z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5">
+        <div className="px-4 py-4 flex items-center gap-3">
+          <button onClick={onBack} className="flex items-center justify-center w-9 h-9 rounded-full bg-white/10 active:scale-95 transition-all">
+            <span className="text-white text-lg">←</span>
+          </button>
+          <div className="flex-1">
+            <h1 className="text-white text-xl font-extrabold">Notifications</h1>
+            <p className="text-gray-500 text-xs">All your alerts in one place</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm">Loading...</p>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-4xl mb-3">🔔</p>
+            <p className="text-white font-bold mb-1">No Notifications</p>
+            <p className="text-gray-500 text-sm">You're all caught up!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {notifications.map((n, idx) => {
+              const notif = n.notificationId || n;
+              const match = notif?.matchId;
+              const catLabel = {
+                br_solo: "BR Solo", br_duo: "BR Duo", br_squad: "BR Squad",
+                cs_solo: "CS Solo", cs_duo: "CS Duo", cs_squad: "Clash Squad",
+                cs_6vs6: "CS 6vs6", lw_solo: "LW Solo", lw_duo: "LW Duo",
+                br_match: "BR Match", br_survival: "BR Survival",
+                clash_squad: "Clash Squad", cs_2vs2: "CS 2vs2",
+                lone_wolf: "Lone Wolf", training: "Training Match",
+                ludo: "Ludo", general: "General",
+              }[notif?.category] || notif?.category || "General";
+
+              return (
+                <div key={n._id || idx} className={`rounded-2xl p-4 border ${n.isRead ? "bg-[#111827] border-white/5" : "bg-orange-500/10 border-orange-500/30"}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                      <span className="text-lg">🎮</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-white font-bold text-sm">{notif?.title || "New Match"}</p>
+                        {!n.isRead && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />}
+                      </div>
+                      <p className="text-gray-400 text-xs mt-1">{notif?.message || ""}</p>
+                      <span className="inline-block mt-1 text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
+                        {catLabel}
+                      </span>
+                      {match && (
+                        <div className="mt-2 bg-black/30 rounded-xl p-3 space-y-1.5">
+                          {match.title && <p className="text-white text-xs font-bold">{match.title}</p>}
+                          <div className="flex gap-3 flex-wrap">
+                            {match.entryFee !== undefined && <div className="text-xs"><span className="text-gray-500">Entry </span><span className="text-orange-400 font-bold">৳{match.entryFee}</span></div>}
+                            {match.winPrize !== undefined && <div className="text-xs"><span className="text-gray-500">Prize </span><span className="text-green-400 font-bold">৳{match.winPrize}</span></div>}
+                            {match.perKill !== undefined && <div className="text-xs"><span className="text-gray-500">Per Kill </span><span className="text-blue-400 font-bold">৳{match.perKill}</span></div>}
+                            {match.totalPlayers !== undefined && <div className="text-xs"><span className="text-gray-500">Players </span><span className="text-purple-400 font-bold">{match.totalPlayers}</span></div>}
+                          </div>
+                          {match.startTime && (
+                            <div className="text-xs">
+                              <span className="text-gray-500">Start </span>
+                              <span className="text-yellow-400 font-bold">{new Date(match.startTime).toLocaleString("en-BD")}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {notif?.createdAt && <p className="text-gray-600 text-[10px] mt-2">{new Date(notif.createdAt).toLocaleString("en-BD")}</p>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main AppDashboard ────────────────────────────────────────────────────────
+const AppDashboard = ({ onLogout }) => {
+  const [tab, setTab] = useState("play");
+  const [screen, setScreen] = useState("home");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [matches, setMatches] = useState([]);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [dashboardBalance, setDashboardBalance] = useState(0);
+  // ✅ NEW: Leaderboard tab এর sub-view
+  const [resultsView, setResultsView] = useState("results"); // "results" | "leaderboard"
+
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const currentToken = localStorage.getItem("token") || "";
+  const currentUserUid = currentUser?.uid || currentUser?.gameUID || currentUser?._id || "";
+
+  const fetchDashboardBalance = async () => {
+    if (!currentToken) return;
+    try {
+      const res = await axios.get(`${CLEAN_API_URL}/users/balance`, {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      setDashboardBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error("Dashboard balance fetch error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardBalance();
+    const bInterval = setInterval(fetchDashboardBalance, 5000);
+    return () => clearInterval(bInterval);
+  }, [currentToken]);
+
+  const getMatchCount = (categoryKey) =>
+    matches.filter((m) => m.category === categoryKey && m.status !== "completed").length;
+
+  useEffect(() => {
+    const loadMatches = async () => {
+      try {
+        const res = await fetch(`${CLEAN_API_URL}/matches`);
+        const data = await res.json();
+        setMatches(Array.isArray(data) ? data : data?.data || data?.matches || []);
+      } catch {
+        setMatches([]);
+      }
+    };
+    loadMatches();
+    const interval = setInterval(loadMatches, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const categories = [
+    { key: "br_solo",    title: "Battle Royale Solo",   img: "/image/cards/BRMatchcard.png" },
+    { key: "br_duo",     title: "Battle Royale Duo",    img: "/image/cards/2vs2.png" },
+    { key: "br_squad",   title: "Battle Royale Squad",  img: "/image/cards/squard.png" },
+    { key: "cs_solo",    title: "Clash Squad Solo",     img: "/image/cards/solo.png" },
+    { key: "cs_duo",     title: "Clash Squad Duo",      img: "/image/cards/2vs2.png" },
+    { key: "cs_squad",   title: "Clash Squad",          img: "/image/cards/squard.png" },
+    { key: "cs_6vs6",    title: "Clash Squad 6vs6",     img: "/image/cards/squard.png" },
+    { key: "lw_solo",    title: "Lone Wolf Solo",       img: "/image/cards/longwolf.png" },
+    { key: "lw_duo",     title: "Lone Wolf Duo",        img: "/image/cards/longwolf.png" },
+    { key: "free_match", title: "Free Match",           img: "/image/cards/freematch.png" },
+  ];
+
+  const sliderSlides = [
+    { image: "/image/slider/facebook1.png", link: "https://www.facebook.com/share/1aF9S8AKDF/" },
+    { image: "/image/slider/ludo.png",      link: "/ludo" },
+    { image: "/image/slider/telegram.png",  link: "https://t.me/+EBjyieShuwk4MGQ1" },
+    { image: "/image/slider/youtube.png",   link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
+  ];
+
+  // Tab change হলে result selection reset
+  useEffect(() => {
+    setSelectedResult(null);
+    setResultsView("results");
+  }, [tab]);
+
+  if (showNotifications) return <NotificationsPage onBack={() => setShowNotifications(false)} />;
+
+  // ── Profile Tab ──
+  if (tab === "profile") {
+    if (screen === "wallet")     return <Wallet onBack={() => setScreen("home")} />;
+    if (screen === "withdraw")   return <Withdraw onBack={() => setScreen("home")} />;
+    if (screen === "all_rules")  return <AllRulesPage onBack={() => setScreen("home")} />;
+    if (screen === "my_profile") return <AccountInfo onBack={() => setScreen("home")} />;
+    if (screen === "referral")   return <Referral onBack={() => setScreen("home")} user={currentUser} token={currentToken} />;
+    if (screen === "leaderboard") return <Leaderboard onBack={() => setScreen("home")} />;
+    return (
+      <Profile
+        onLogout={onLogout}
+        onBack={() => setTab("play")}
+        onWallet={() => setScreen("wallet")}
+        onWithdraw={() => setScreen("withdraw")}
+        onAllRules={() => setScreen("all_rules")}
+        onMyProfile={() => setScreen("my_profile")}
+        onReferral={() => setScreen("referral")}
+        onLeaderboard={() => setScreen("leaderboard")}
+      />
+    );
+  }
+
+  // ── MyMatch Tab ──
+  if (tab === "matches") return <MyMatch onBack={() => setTab("play")} />;
+
+  // ── Results Tab ──────────────────────────────────────────────────────────────
+  if (tab === "results") {
+    // ✅ FIX: Sub-tab — Results List OR Leaderboard
+    return (
+      <div className="min-h-screen bg-[#0a0e1a]">
+        {/* Sub-tab Header */}
+        <div className="sticky top-0 z-40 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5 px-4 py-3">
+          <div className="flex bg-[#111827] rounded-xl p-1 border border-white/5">
+            <button
+              onClick={() => { setResultsView("results"); setSelectedResult(null); }}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${resultsView === "results" ? "bg-orange-500 text-white" : "text-gray-400"}`}
+            >
+              🏅 Results
+            </button>
+            <button
+              onClick={() => setResultsView("leaderboard")}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${resultsView === "leaderboard" ? "bg-orange-500 text-white" : "text-gray-400"}`}
+            >
+              🏆 Leaderboard
+            </button>
+          </div>
+        </div>
+
+        {/* Results View */}
+        {resultsView === "results" && (
+          selectedResult ? (
+            <>
+              <div className="sticky top-[56px] z-30 bg-[#0a0e1a]/95 backdrop-blur border-b border-white/5 px-4 py-3 flex items-center gap-3">
+                <button onClick={() => setSelectedResult(null)} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white text-base active:scale-95 transition-all">←</button>
+                <div>
+                  <p className="text-white font-extrabold text-sm leading-tight">{selectedResult.title || "Match Result"}</p>
+                  <p className="text-gray-500 text-[11px]">Back to Results</p>
+                </div>
+              </div>
+              {/* ✅ FIX: match object সরাসরি pass */}
+              <MatchResultsPage match={selectedResult} currentUserUid={currentUserUid} />
+            </>
+          ) : (
+            <ResultsListPage
+              onSelectResult={setSelectedResult}
+              currentUserUid={currentUserUid}
+              onBack={() => setTab("play")}
+            />
+          )
+        )}
+
+        {/* Leaderboard View */}
+        {resultsView === "leaderboard" && (
+          <div className="pb-24">
+            <Leaderboard />
+          </div>
+        )}
+
+        <BottomMenu tab={tab} setTab={setTab} />
+      </div>
+    );
+  }
+
+  // ── Category Screen ──
+  if (screen === "category") {
+    return (
+      <MatchList
+        category={selectedCategory}
+        title={categories.find((c) => c.key === selectedCategory)?.title}
+        onBack={() => { setScreen("home"); setSelectedCategory(""); }}
+        tab={tab} setTab={setTab}
+      />
+    );
+  }
+
+  // ── Ludo Screen ──
+  if (screen === "ludo") {
+    return (
+      <LudoTournamentPage
+        currentUser={currentUser}
+        token={currentToken}
+        onBack={() => setScreen("home")}
+        onRefreshBalance={fetchDashboardBalance}
+        CLEAN_API_URL={CLEAN_API_URL}
+      />
+    );
+  }
+
+  // ── Home Screen ──────────────────────────────────────────────────────────────
+  return (
+    <div className="bg-gray-50 min-h-screen mx-auto pb-24">
+      {/* Top Header */}
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 pt-5 pb-4 rounded-b-3xl shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+              <span className="text-white font-black text-lg">{(currentUser?.name || "P")[0].toUpperCase()}</span>
+            </div>
+            <div>
+              <p className="text-white/80 text-[11px] font-medium">Welcome back</p>
+              <p className="text-white font-extrabold text-sm truncate max-w-[150px]">{currentUser?.name || "Player"}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="bg-white/15 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5">
+              <span className="text-yellow-300 text-xs">💰</span>
+              <span className="text-white font-black text-xs">
+                ৳ {dashboardBalance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <NotificationBell onOpen={() => setShowNotifications(true)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <ClickableSlider slides={sliderSlides} />
+
+        {/* Live Marquee */}
+        <div className="mt-4 bg-[#111827] border border-orange-500/30 rounded-2xl overflow-hidden">
+          <marquee scrollamount="6" className="py-2 text-orange-400 text-sm font-extrabold">
+            🎮 uthiYo ESPORTS • FREE FIRE LIVE MATCH • DAILY SCRIMS • WIN REAL CASH • JOIN NOW 🚀
+          </marquee>
+        </div>
+
+        {/* Ludo Banner */}
+        <div
+          onClick={() => setScreen("ludo")}
+          className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
+          style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
+        >
+          <div className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
+              <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
+            </div>
+            <p className="text-4xl">🎲</p>
+          </div>
+        </div>
+
+        {/* Categories Heading */}
+        <div className="flex items-center justify-between mt-6 px-1">
+          <h2 className="font-black text-gray-800 text-lg tracking-tight uppercase">
+            Free Fire <span className="text-orange-500">Arena</span>
+          </h2>
+        </div>
+
+        {/* Categories Grid */}
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          {categories.map((cat) => {
+            const count = getMatchCount(cat.key);
+            return (
+              <div
+                key={cat.key}
+                onClick={() => { setSelectedCategory(cat.key); setScreen("category"); }}
+                className="relative rounded-2xl overflow-hidden h-28 cursor-pointer shadow-md active:scale-95 transition-all"
+              >
+                <img src={cat.img} alt={cat.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3">
+                  <p className="text-white font-extrabold text-sm">{cat.title}</p>
+                  {count > 0 && <p className="text-cyan-400 text-xs font-bold">{count} Live</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <BottomMenu tab={tab} setTab={setTab} />
+    </div>
+  );
+};
+
+// ─── Profile Component ────────────────────────────────────────────────────────
+const Profile = ({ onLogout, onAllRules, onMyProfile, onReferral, onBack, onWallet, onWithdraw, onLeaderboard }) => {
+  const [balance, setBalance] = useState(0);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const token = localStorage.getItem("token");
+
+  const fetchProfileBalance = async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${CLEAN_API_URL}/users/balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBalance(res.data.balance || 0);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchProfileBalance();
+    const interval = setInterval(fetchProfileBalance, 5000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const menuItems = [
+    { id: "wallet",      label: "Wallet / Add Money", icon: "👛" },
+    { id: "withdraw",    label: "Withdraw",            icon: "💵" },
+    { id: "referral",    label: "Refer & Earn",        icon: "🎁" },
+    { id: "my_profile",  label: "Account Info",        icon: "👤" },
+    { id: "all_rules",   label: "All Rules",           icon: "📋" },
+    { id: "top_players", label: "Top Players",         icon: "📈" }, // ✅ এখন কাজ করবে
+  ];
+
+  const handleNavigate = (id) => {
+    if (id === "wallet")      setShowAddMoney(true);
+    if (id === "withdraw")    setShowWithdraw(true);
+    if (id === "all_rules")   onAllRules();
+    if (id === "my_profile")  onMyProfile();
+    if (id === "referral")    onReferral();
+    if (id === "top_players") onLeaderboard(); // ✅ FIX: এখন Leaderboard এ যাবে
+  };
+
+  return (
+    <>
+      <div className="bg-white min-h-screen pb-10">
+        <div className="bg-gradient-to-b from-[#56CCF2] to-[#2F80ED] pt-12 pb-8 text-center text-white relative">
+          {onBack && (
+            <button
+              onClick={onBack}
+              style={{ position: "absolute", top: 16, left: 16, background: "rgba(255,255,255,0.25)", border: "none", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, cursor: "pointer", color: "#fff" }}
+            >←</button>
+          )}
+          <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl">👨‍💻</div>
+          <h2 className="text-xl font-bold">{user?.name || "User"}</h2>
+          <p className="text-blue-100 text-sm mt-1">{user?.phone || ""}</p>
+          <div className="mt-4 bg-white/20 rounded-2xl px-6 py-3 inline-block">
+            <p className="text-xs text-blue-100">ব্যালেন্স</p>
+            <p className="text-2xl font-black">
+              ৳ {balance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 px-2">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleNavigate(item.id)}
+              className="w-full flex justify-between items-center p-4 border-b hover:bg-gray-50 transition"
+            >
+              <div className="flex gap-4 items-center">
+                <span className="text-xl">{item.icon}</span>
+                <span className="font-bold text-sm">{item.label}</span>
+              </div>
+              <span className="text-gray-400">›</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="px-8 mt-12">
+          <button onClick={onLogout} className="w-full bg-blue-500 text-white py-3 rounded-full font-bold">Logout</button>
+        </div>
+      </div>
+
+      <AddMoneyModal isOpen={showAddMoney} onClose={() => { setShowAddMoney(false); fetchProfileBalance(); }} />
+      <Withdraw isOpen={showWithdraw} onClose={() => { setShowWithdraw(false); fetchProfileBalance(); }} />
+    </>
+  );
+};
+
+export default AppDashboard;
+
+==================================================
+FILE: frontend/src/Component/LudoScreenshotupload/Ludoscreenshotupload.jsx
+==================================================
+ // LudoScreenshotUpload.jsx
+// Ludo Tournament এর match card এ add করুন
+// Props: matchId, matchStatus
+
+import React, { useState, useRef } from "react";
+
+const API = (
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
+  "https://playzo-vn8e.onrender.com"
+).replace("/api", "");
+
+const LudoScreenshotUpload = ({ matchId, matchStatus }) => {
+  const [file, setFile]       = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [status, setStatus]   = useState("idle"); // idle | uploading | done | error
+  const [message, setMessage] = useState("");
+  const [result, setResult]   = useState(null);
+  const fileRef               = useRef();
+
+  const token = localStorage.getItem("token");
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setMessage("শুধু image file select করুন"); return; }
+    if (f.size > 8 * 1024 * 1024)     { setMessage("File size 8MB এর মধ্যে হতে হবে"); return; }
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+    setMessage("");
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setStatus("uploading");
+    setMessage("Upload হচ্ছে...");
+
+    const formData = new FormData();
+    formData.append("screenshot", file);
+
+    try {
+      const res  = await fetch(`${API}/api/ludo-result/upload/${matchId}`, {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body:    formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setStatus("done");
+        setMessage("✅ Screenshot submit হয়েছে! Admin review করবে।");
+      } else {
+        setStatus("error");
+        setMessage(data.message || "Upload failed");
+      }
+    } catch {
+      setStatus("error");
+      setMessage("Network error। আবার চেষ্টা করুন।");
+    }
+  };
+
+  const checkStatus = async () => {
+    try {
+      const res  = await fetch(`${API}/api/ludo-result/my/${matchId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) setResult(data.data);
+      else setMessage("কোনো submission নেই");
+    } catch {
+      setMessage("Status check করা গেলো না");
+    }
+  };
+
+  // Already submitted — show status
+  if (result) {
+    return (
+      <div style={S.card}>
+        <span style={S.badge(result.status)}>{statusLabel(result.status)}</span>
+        {result.status === "pending_review" && (
+          <p style={{ fontSize: 12, color: "#92400e", marginTop: 8 }}>
+            Screenshot জমা আছে। Admin review করছেন।
+          </p>
+        )}
+        {result.status === "rejected" && result.adminNote && (
+          <p style={{ fontSize: 12, color: "#991b1b", marginTop: 8 }}>
+            কারণ: {result.adminNote}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (matchStatus === "completed") {
+    return (
+      <button style={S.btnSecondary} onClick={checkStatus}>
+        🔍 Result Status দেখুন
+      </button>
+    );
+  }
+
+  return (
+    <div style={S.card}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+        📸 Result Screenshot Submit করুন
+      </div>
+
+      {preview && (
+        <img src={preview} alt="preview"
+          style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover", marginBottom: 8 }} />
+      )}
+
+      {status === "idle" && (
+        <>
+          <div onClick={() => fileRef.current?.click()} style={S.dropzone}>
+            <span style={{ fontSize: 24 }}>📂</span>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280" }}>
+              {file ? file.name : "Screenshot select করুন"}
+            </p>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+          {file && (
+            <button style={S.btnPrimary} onClick={handleUpload}>
+              Submit করুন
+            </button>
+          )}
+        </>
+      )}
+
+      {status === "uploading" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", color: "#6b7280", fontSize: 13 }}>
+          <div style={S.spinner} /> Upload হচ্ছে...
+        </div>
+      )}
+
+      {status === "done" && (
+        <div style={{ background: "#d1fae5", padding: "10px 12px", borderRadius: 8, fontSize: 13, color: "#065f46", fontWeight: 600 }}>
+          ✅ Screenshot জমা হয়েছে! Admin review করবে।
+        </div>
+      )}
+
+      {status === "error" && (
+        <button style={S.btnPrimary}
+          onClick={() => { setStatus("idle"); setFile(null); setPreview(null); }}>
+          আবার চেষ্টা করুন
+        </button>
+      )}
+
+      {message && status !== "done" && (
+        <p style={{ fontSize: 12, color: status === "error" ? "#dc2626" : "#6b7280", marginTop: 6 }}>
+          {message}
+        </p>
+      )}
+    </div>
+  );
+};
+
+const statusLabel = (s) => ({
+  pending_review: "🔍 Review চলছে",
+  approved:       "✅ Approved",
+  rejected:       "❌ Rejected",
+  published:      "🏆 Published",
+})[s] || s;
+
+const S = {
+  card: { background: "#f9fafb", borderRadius: 10, padding: 12, marginTop: 10, border: "1px solid #e5e7eb" },
+  dropzone: {
+    border: "2px dashed #d1d5db", borderRadius: 8, padding: "18px 12px",
+    textAlign: "center", cursor: "pointer", background: "#fff",
+  },
+  btnPrimary: {
+    width: "100%", marginTop: 10, padding: "10px 0", borderRadius: 8,
+    background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+    color: "#fff", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer",
+  },
+  btnSecondary: {
+    width: "100%", marginTop: 8, padding: "8px 0", borderRadius: 8,
+    background: "#ede9fe", color: "#6d28d9", border: "none",
+    fontWeight: 600, fontSize: 13, cursor: "pointer",
+  },
+  badge: (s) => ({
+    display: "inline-block", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+    background: { pending_review:"#dbeafe", approved:"#d1fae5", rejected:"#fee2e2", published:"#ede9fe" }[s] || "#f3f4f6",
+    color:      { pending_review:"#1e40af", approved:"#065f46", rejected:"#991b1b", published:"#5b21b6" }[s] || "#374151",
+  }),
+  spinner: {
+    width: 16, height: 16, borderRadius: "50%",
+    border: "2px solid #e5e7eb", borderTopColor: "#7c3aed",
+    animation: "spin 0.8s linear infinite",
+  },
+};
+
+export default LudoScreenshotUpload;
+
+// ─── LudoTournamentSection.jsx এ কীভাবে use করবেন ───────────────
+// import LudoScreenshotUpload from "../../Component/LudoScreenshotUpload/LudoScreenshotUpload";
+//
+// match card এর ভেতরে (status === "live" হলে):
+// <LudoScreenshotUpload matchId={match._id} matchStatus={match.status} />
+
+==================================================
+FILE: frontend/src/page/LudoTournamentPage.jsx/LudoTournamentPage.jsx
+==================================================
+ // LudoTournamentPage.jsx
+
+import { useState, useEffect } from "react";
+import LudoScreenshotUpload from "../../Component/LudoScreenshotupload/Ludoscreenshotupload";
+ 
+
+// ── Countdown Timer ─────────────────────────────────────────────────────────
+const LudoCountdown = ({ startTime }) => {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(startTime).getTime() - Date.now();
+      if (diff <= 0) { setTime("শুরু হয়েছে"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTime(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    };
+    calc();
+    const t = setInterval(calc, 1000);
+    return () => clearInterval(t);
+  }, [startTime]);
+  return <span>{time}</span>;
+};
+
+const LUDO_RULES = [
+  "ম্যাচ শুরুর আগে Room Code নিয়ে রুমে ঢুকতে হবে",
+  "নির্ধারিত সময়ের মধ্যে রুমে না ঢুকলে match miss হিসেবে গণ্য হবে",
+  "হ্যাক/চিট ব্যবহার করলে সরাসরি ব্যান করা হবে",
+  "ম্যাচ শেষে অবশ্যই ফলাফলের Screenshot submit করতে হবে",
+  "স্ক্রিনশট স্পষ্ট ও সম্পূর্ণ হতে হবে (result screen সহ)",
+  "বিতর্কে Admin এর সিদ্ধান্ত চূড়ান্ত বলে গণ্য হবে",
+];
+
+// ─── Ludo Tournament Page ─────────────────────────────────────────────────────
+function LudoTournamentPage({ currentUser, token, onBack, onRefreshBalance, CLEAN_API_URL }) {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("upcoming");
+  const [joining, setJoining] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  // প্রতি match এর জন্য আলাদা expand state
+  const [expandedPlayers, setExpandedPlayers] = useState({});
+  const [expandedRules, setExpandedRules] = useState({});
+  const [playerDetails, setPlayerDetails] = useState({});
+  const [loadingPlayers, setLoadingPlayers] = useState({});
+
+  useEffect(() => { loadMatches(); }, [filter]);
+
+  const loadMatches = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${CLEAN_API_URL}/ludo-tournament?status=${filter}`);
+      const data = await res.json();
+      setMatches(Array.isArray(data?.data) ? data.data : []);
+    } catch {
+      setMatches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Player list load করা (single match detail থেকে joinedUsers আসে)
+  const togglePlayers = async (matchId) => {
+    setExpandedPlayers((p) => ({ ...p, [matchId]: !p[matchId] }));
+    if (!playerDetails[matchId]) {
+      setLoadingPlayers((p) => ({ ...p, [matchId]: true }));
+      try {
+        const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/${matchId}`);
+        const data = await res.json();
+        if (data.success) {
+          setPlayerDetails((p) => ({ ...p, [matchId]: data.data.joinedUsers || [] }));
+        }
+      } catch {}
+      setLoadingPlayers((p) => ({ ...p, [matchId]: false }));
+    }
+  };
+
+  const toggleRules = (matchId) => {
+    setExpandedRules((p) => ({ ...p, [matchId]: !p[matchId] }));
+  };
+
+  const [joinTarget, setJoinTarget] = useState(null); // { matchId, entryFee }
+  const [gameName, setGameName] = useState("");
+
+  const openJoinModal = (matchId, entryFee) => {
+    if (!currentUser?.id && !currentUser?._id) { setMsg("আগে login করুন"); return; }
+    setGameName("");
+    setJoinTarget({ matchId, entryFee });
+  };
+
+  const confirmJoin = async () => {
+    if (!gameName || gameName.trim().length < 3) {
+      setMsg("❌ সঠিক In-Game Name দিন (কমপক্ষে ৩ অক্ষর)");
+      return;
+    }
+    const { matchId } = joinTarget;
+    setJoining(matchId);
+    setMsg("");
+    setJoinTarget(null);
+    try {
+      const res = await fetch(`${CLEAN_API_URL}/ludo-tournament/join/${matchId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ inGameName: gameName.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg(`✅ Join সফল! Slot #${data.slotNumber}`);
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        localStorage.setItem("user", JSON.stringify({ ...stored, balance: data.newBalance ?? stored.balance }));
+        if (onRefreshBalance) onRefreshBalance();
+        loadMatches();
+      } else {
+        setMsg("❌ " + (data.message || "Join failed"));
+      }
+    } catch {
+      setMsg("❌ Server error");
+    } finally {
+      setJoining(null);
+    }
+  };
+
+  const FILTERS = [{ id: "upcoming", label: "🕐 Upcoming" }, { id: "live", label: "🔴 Live" }, { id: "completed", label: "✅ Done" }];
+  const modeLabel = { "1v1": "⚔️ 1v1", "2v2": "👥 2v2", "4player": "🎮 4 Player" };
+  const modeColor = { "1v1": "#f59e0b", "2v2": "#3b82f6", "4player": "#10b981" };
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] pb-24">
+      <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-4 pt-5 pb-5">
+        <div className="flex items-center gap-3 mb-3">
+          <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white text-lg active:scale-95">←</button>
+          <div>
+            <h1 className="text-white text-xl font-extrabold">🎲 Ludo Tournament</h1>
+            <p className="text-violet-200 text-xs mt-0.5">Play & Win Real Cash</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {FILTERS.map((f) => (
+            <button key={f.id} onClick={() => setFilter(f.id)} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${filter === f.id ? "bg-white text-violet-600" : "bg-white/15 text-white/70"}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {msg && (
+        <div className={`mx-4 mt-3 p-3 rounded-xl text-sm font-semibold text-center ${msg.startsWith("✅") ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-red-500/20 text-red-400 border border-red-500/30"}`}>
+          {msg}
+        </div>
+      )}
+
+      <div className="px-4 mt-4 space-y-3">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-500 text-sm">Loading tournaments...</p>
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="bg-[#111827] rounded-2xl p-10 text-center border border-white/5">
+            <p className="text-4xl mb-3">🎲</p>
+            <p className="text-white font-bold mb-1">কোনো Tournament নেই</p>
+            <p className="text-gray-500 text-sm">এই category তে এখন কোনো match নেই</p>
+          </div>
+        ) : (
+          matches.map((match) => {
+            const mc = modeColor[match.mode] || "#6b7280";
+            const isFull = (match.joinedPlayers || 0) >= (match.totalSlots || 4);
+            const isJoined = match.joinedUsers?.some(
+              (u) => (u.userId?._id || u.userId) === (currentUser?.id || currentUser?._id)
+            );
+            const started = match.startTime ? new Date(match.startTime).getTime() <= Date.now() : false;
+
+            return (
+              <div key={match._id} className="bg-[#111827] border border-white/5 rounded-2xl overflow-hidden">
+                <div style={{ height: 3, background: mc }} />
+                {match.image && <img src={match.image} alt="" className="w-full h-28 object-cover" />}
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span style={{ background: mc + "22", color: mc, fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 700, border: `1px solid ${mc}55` }}>
+                          {modeLabel[match.mode] || match.mode}
+                        </span>
+                        {match.status === "live" && (
+                          <span className="flex items-center gap-1 text-[10px] text-red-400 font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />LIVE
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white font-bold text-base">{match.title}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">🗺️ {match.map || "Classic"} • 📱 {match.device || "Mobile"}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-400 text-xs">Entry</p>
+                      <p className="text-white font-black text-lg">৳{match.entryFee || 0}</p>
+                    </div>
+                  </div>
+
+                  {/* Countdown */}
+                  {match.status !== "completed" && (
+                    <div className="bg-black/30 rounded-xl p-3 mb-3 flex items-center gap-2">
+                      <span className="text-lg">⏰</span>
+                      <div>
+                        <p className="text-[10px] text-gray-500 font-semibold uppercase">
+                          {started ? "ম্যাচ চলছে" : "শুরু হতে বাকি"}
+                        </p>
+                        <p className="text-sm font-bold text-yellow-400">
+                          {started ? "🟢 Live" : <LudoCountdown startTime={match.startTime} />}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { label: "Prize", value: `৳${match.winPrize || 0}`, color: "#f59e0b" },
+                      { label: "Players", value: `${match.joinedPlayers || 0}/${match.totalSlots || 4}`, color: isFull ? "#ef4444" : "#22d3ee" },
+                      { label: "Start", value: match.startTime ? new Date(match.startTime).toLocaleTimeString("en-BD", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—", color: "#a78bfa" },
+                    ].map((s, i) => (
+                      <div key={i} className="bg-black/30 rounded-xl p-2 text-center">
+                        <p className="text-[9px] text-gray-500 font-semibold uppercase">{s.label}</p>
+                        <p className="text-xs font-black mt-0.5" style={{ color: s.color }}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Player List + Rules toggle buttons */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <button
+                      onClick={() => togglePlayers(match._id)}
+                      className="py-2 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold"
+                    >
+                      👥 Players {expandedPlayers[match._id] ? "▲" : "▼"}
+                    </button>
+                    <button
+                      onClick={() => toggleRules(match._id)}
+                      className="py-2 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold"
+                    >
+                      📋 Rules {expandedRules[match._id] ? "▲" : "▼"}
+                    </button>
+                  </div>
+
+                  {/* Player List Expand */}
+                  {expandedPlayers[match._id] && (
+                    <div className="bg-black/30 rounded-xl p-3 mb-3">
+                      {loadingPlayers[match._id] ? (
+                        <p className="text-gray-500 text-xs text-center py-2">লোড হচ্ছে...</p>
+                      ) : (playerDetails[match._id] || []).length === 0 ? (
+                        <p className="text-gray-500 text-xs text-center py-2">এখনো কেউ join করেনি</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {playerDetails[match._id].map((p, i) => (
+                            <div key={i} className="flex items-center justify-between text-xs">
+                              <span className="text-white font-semibold">{p.inGameName || "—"}</span>
+                              <span className="text-gray-500">Slot #{p.slotNumber}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Rules Expand */}
+                  {expandedRules[match._id] && (
+                    <div className="bg-black/30 rounded-xl p-3 mb-3 space-y-1.5">
+                      {LUDO_RULES.map((r, i) => (
+                        <p key={i} className="text-gray-300 text-xs">• {r}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Room Code (live) */}
+                  {match.status === "live" && match.roomCode && (
+                    <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-violet-300 text-[10px] font-bold uppercase">Room Code</p>
+                        <p className="text-white font-black text-lg tracking-widest">{match.roomCode}</p>
+                      </div>
+                      <button onClick={() => { navigator.clipboard.writeText(match.roomCode); setMsg("✅ Room code copied!"); }} className="bg-violet-500/20 text-violet-300 text-xs px-3 py-1.5 rounded-lg font-bold active:scale-95">
+                        Copy
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Join button (upcoming) */}
+                  {match.status === "upcoming" && (
+                    isJoined ? (
+                      <div className="w-full py-3 rounded-xl bg-green-500/15 text-green-400 text-sm font-bold text-center border border-green-500/20">✅ Already Joined</div>
+                    ) : isFull ? (
+                      <div className="w-full py-3 rounded-xl bg-red-500/15 text-red-400 text-sm font-bold text-center border border-red-500/20">❌ Full</div>
+                    ) : (
+                      <button onClick={() => openJoinModal(match._id, match.entryFee)} disabled={joining === match._id} className="w-full py-3 rounded-xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${mc}, #4f46e5)` }}>
+                        {joining === match._id ? "Joining..." : `Join Now • ৳${match.entryFee}`}
+                      </button>
+                    )
+                  )}
+
+                  {/* Result Screenshot Upload — join করা user এর জন্য, live/completed অবস্থায় */}
+                  {(match.status === "live" || match.status === "completed") && isJoined && token && (
+                    <div className="mt-3">
+                      <LudoScreenshotUpload matchId={match._id} matchStatus={match.status} />
+                    </div>
+                  )}
+
+                  {match.status === "completed" && !isJoined && (
+                    <div className="w-full py-3 rounded-xl bg-gray-500/10 text-gray-400 text-sm font-bold text-center border border-gray-500/20">✅ Completed</div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Join Modal */}
+      {joinTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: "90%", maxWidth: 400 }}>
+            <h3 style={{ marginBottom: 8 }}>In-Game Name দিন</h3>
+            <input
+              type="text"
+              placeholder="যেমন: SapnilFF, RahulOP"
+              value={gameName}
+              onChange={(e) => setGameName(e.target.value)}
+              style={{ width: "100%", padding: 14, borderRadius: 10, border: "1.5px solid #e5e7eb", fontSize: 16, marginBottom: 20, boxSizing: "border-box" }}
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => setJoinTarget(null)} style={{ flex: 1, padding: 14, background: "#e5e7eb", border: "none", borderRadius: 10, fontWeight: 600 }}>
+                Cancel
+              </button>
+              <button onClick={confirmJoin} style={{ flex: 1, padding: 14, background: "#10b981", color: "white", border: "none", borderRadius: 10, fontWeight: 700 }}>
+                Join Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default LudoTournamentPage;
+
+==================================================
+FILE: frontend/src/page/LudoTournamentManager/LudoTournamentManager.jsx
+==================================================
+ // LudoTournamentManager.jsx — Ludo-specific prize system (no kills)
+// 1v1: winner (rank 1) পুরো prize পাবে
+// 2v2: winning team এর 2 জন prize ভাগ করে পাবে
+// 4player: rank অনুযায়ী prize (prizes.first/second/third/fourth)
+
+import React, { useState, useEffect, useCallback, useRef } from "react";
+ 
+
+const API_BASE = (
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
+  "https://playzo-vn8e.onrender.com"
+).replace("/api", "");
+
+const getToken = () =>
+  localStorage.getItem("adminToken") || localStorage.getItem("token") || "";
+
+const api = async (path, opts = {}) => {
+  try {
+    const headers = { Authorization: `Bearer ${getToken()}` };
+    if (!(opts.body instanceof FormData)) headers["Content-Type"] = "application/json";
+    const res = await fetch(`${API_BASE}/api${path}`, { headers, ...opts });
+    return await res.json();
+  } catch {
+    return { success: false, message: "Network error" };
+  }
+};
+
+const MODES = [
+  { id: "1v1",     label: "⚔️ 1 vs 1",   slots: 2 },
+  { id: "2v2",     label: "👥 2 vs 2",   slots: 4 },
+  { id: "4player", label: "🎮 4 Player", slots: 4 },
+];
+const LUDO_MAPS = ["Classic", "Quick Ludo", "Arrow", "Magic"];
+
+ 
+
+// ─── Prize calculator helper ──────────────────────────────────────
+// Returns array of {userId, inGameName, rank, prize, isWinner, isWinnerTeam}
+const buildInitialResults = (match) => {
+  const users = match.joinedUsers || [];
+  const mode  = match.mode;
+  const prizes = match.prizes || {};
+
+  if (mode === "1v1") {
+    // 2 জন — winner gets winPrize, loser gets 0
+    return users.map((u, i) => ({
+      userId:    u.userId?._id || u.userId || "",
+      inGameName: u.inGameName || `Player ${i+1}`,
+      rank:      i === 0 ? 1 : 2,
+      prize:     i === 0 ? (match.winPrize || 0) : 0,
+      isWinner:  i === 0,
+    }));
+  }
+
+  if (mode === "2v2") {
+    // 4 জন — 2 winner team, 2 loser team
+    // winPrize = মোট prize pool → ভাগ হয় 2 জনে
+    const eachPrize = Math.floor((match.winPrize || 0) / 2);
+    return users.map((u, i) => ({
+      userId:    u.userId?._id || u.userId || "",
+      inGameName: u.inGameName || `Player ${i+1}`,
+      rank:      i < 2 ? 1 : 2,   // default: first 2 = winner team
+      prize:     i < 2 ? eachPrize : 0,
+      team:      i < 2 ? "A" : "B",
+      isWinner:  i < 2,
+    }));
+  }
+
+  // 4player — rank prize
+  const rankPrize = [
+    prizes.first  || 0,
+    prizes.second || 0,
+    prizes.third  || 0,
+    prizes.fourth || 0,
+  ];
+  return users.map((u, i) => ({
+    userId:    u.userId?._id || u.userId || "",
+    inGameName: u.inGameName || `Player ${i+1}`,
+    rank:      i + 1,
+    prize:     rankPrize[i] || 0,
+  }));
+};
+
+// ─── IMAGE RESULT MODAL ───────────────────────────────────────────
+const ImageResultModal = ({ match, onClose, onDone }) => {
+  const [results, setResults] = useState(() => buildInitialResults(match));
+  const [imgPreviews, setImgPreviews] = useState([]);
+  const [previewImg,  setPreviewImg]  = useState(null);
+  const [winTeam,     setWinTeam]     = useState("A"); // for 2v2
+  const [saving,      setSaving]      = useState(false);
+  const [msg,         setMsg]         = useState("");
+  const fileRef = useRef();
+
+  // 2v2: winning team change হলে prize recalculate
+  const handleWinTeam = (team) => {
+    setWinTeam(team);
+    const eachPrize = Math.floor((match.winPrize || 0) / 2);
+    setResults(prev => prev.map((r) => ({
+      ...r,
+      isWinner: r.team === team,
+      prize:    r.team === team ? eachPrize : 0,
+      rank:     r.team === team ? 1 : 2,
+    })));
+  };
+
+  // 1v1: winner select
+  const handleWinner1v1 = (winnerIdx) => {
+    setResults(prev => prev.map((r, i) => ({
+      ...r,
+      rank:     i === winnerIdx ? 1 : 2,
+      prize:    i === winnerIdx ? (match.winPrize || 0) : 0,
+      isWinner: i === winnerIdx,
+    })));
+  };
+
+  const handleImgUpload = (e) => {
+    Array.from(e.target.files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) =>
+        setImgPreviews(p => [...p, { name: file.name, url: ev.target.result }]);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const update4p = (i, field, val) => {
+    setResults(prev => {
+      const next = [...prev];
+      next[i] = { ...next[i], [field]: field === "rank" ? Number(val) : Number(val) || 0 };
+      return next;
+    });
+  };
+
+  const submit = async () => {
+    // Validate ranks
+    const ranks = results.map(r => r.rank);
+    if (new Set(ranks).size !== ranks.length) {
+      setMsg("❌ Duplicate rank আছে! প্রতিটা player আলাদা rank দিন।");
+      return;
+    }
+
+    setSaving(true);
+    setMsg("");
+
+    const payload = {
+      results,
+      ...(match.mode === "2v2" ? { winningTeam: winTeam } : {}),
+    };
+
+    const res = await api(`/ludo-tournament/result/${match._id}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    setSaving(false);
+    if (res.success) {
+      setMsg("✅ Result submit ও prize distribute হয়েছে!");
+      setTimeout(() => { onDone?.(); onClose(); }, 1000);
+    } else {
+      setMsg("❌ " + (res.message || "Error"));
+    }
+  };
+
+  const totalPrize = results.reduce((s, r) => s + (r.prize || 0), 0);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000,
+      display: "flex", alignItems: "flex-start", justifyContent: "center",
+      overflowY: "auto", padding: "20px 12px",
+    }}>
+      <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 760, boxShadow: "0 24px 64px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+
+        {/* Header */}
+        <div style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>🏆 Result Submit</div>
+            <div style={{ color: "#c4b5fd", fontSize: 12, marginTop: 2 }}>
+              {match.title} &nbsp;·&nbsp; {match.mode.toUpperCase()} &nbsp;·&nbsp; {match.joinedPlayers}/{match.totalSlots} players
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, color: "#fff", width: 32, height: 32, fontSize: 17, cursor: "pointer" }}>
+            ✕
+          </button>
+        </div>
+
+        <div style={{ padding: 20 }}>
+
+          {/* Screenshot Upload */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={SL}>📸 Screenshot দেখে দেখে result দিন</div>
+            <div onClick={() => fileRef.current?.click()}
+              style={{ border: "2px dashed #c4b5fd", borderRadius: 10, padding: "12px 16px", textAlign: "center", cursor: "pointer", background: "#faf5ff", fontSize: 13, color: "#7c3aed" }}>
+              📂 Screenshot select করুন (multiple OK)
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImgUpload} style={{ display: "none" }} />
+
+            {imgPreviews.length > 0 && (
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {imgPreviews.map((img, i) => (
+                  <div key={i} style={{ position: "relative" }}>
+                    <img src={img.url} alt=""
+                      onClick={() => setPreviewImg(img.url)}
+                      style={{ width: 110, height: 72, objectFit: "cover", borderRadius: 8, cursor: "zoom-in", border: "2px solid #e5e7eb" }}
+                      onMouseEnter={e => e.target.style.borderColor = "#7c3aed"}
+                      onMouseLeave={e => e.target.style.borderColor = "#e5e7eb"}
+                    />
+                    <button onClick={() => setImgPreviews(p => p.filter((_, j) => j !== i))}
+                      style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#ef4444", border: "none", color: "#fff", fontSize: 10, cursor: "pointer" }}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {imgPreviews.length > 0 && (
+              <p style={{ fontSize: 11, color: "#9ca3af", margin: "6px 0 0" }}>
+                💡 Image এ click করলে বড় দেখবেন। দেখে নিচে সঠিক result দিন।
+              </p>
+            )}
+          </div>
+
+          {/* ════ 1v1 MODE ════ */}
+          {match.mode === "1v1" && (
+            <div>
+              <div style={SL}>⚔️ কে জিতেছে? (Winner select করুন)</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {results.map((r, i) => (
+                  <div key={i}
+                    onClick={() => handleWinner1v1(i)}
+                    style={{
+                      padding: 16, borderRadius: 12, cursor: "pointer", textAlign: "center",
+                      border: `2px solid ${r.isWinner ? "#7c3aed" : "#e5e7eb"}`,
+                      background: r.isWinner ? "#ede9fe" : "#fff",
+                      transition: "all 0.15s",
+                    }}>
+                    <div style={{ fontSize: 28, marginBottom: 6 }}>{r.isWinner ? "🏆" : "😔"}</div>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: r.isWinner ? "#5b21b6" : "#374151" }}>
+                      {r.inGameName}
+                    </div>
+                    <div style={{ fontSize: 12, marginTop: 4, color: r.isWinner ? "#7c3aed" : "#9ca3af" }}>
+                      {r.isWinner ? `৳${r.prize} prize পাবে` : "Prize নেই"}
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 11, fontWeight: 700,
+                      color: r.isWinner ? "#059669" : "#6b7280",
+                      background: r.isWinner ? "#d1fae5" : "#f3f4f6",
+                      padding: "3px 10px", borderRadius: 20, display: "inline-block",
+                    }}>
+                      {r.isWinner ? "✓ Winner" : "Loser"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 12, padding: "10px 14px", background: "#f8fafc", borderRadius: 8, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>Winner Prize:</span>
+                <span style={{ fontWeight: 800, color: "#059669" }}>৳{match.winPrize || 0}</span>
+              </div>
+            </div>
+          )}
+
+          {/* ════ 2v2 MODE ════ */}
+          {match.mode === "2v2" && (
+            <div>
+              <div style={SL}>👥 কোন Team জিতেছে?</div>
+
+              {/* Team selector */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                {["A", "B"].map((team) => (
+                  <div key={team}
+                    onClick={() => handleWinTeam(team)}
+                    style={{
+                      padding: "14px 12px", borderRadius: 12, cursor: "pointer", textAlign: "center",
+                      border: `2px solid ${winTeam === team ? "#7c3aed" : "#e5e7eb"}`,
+                      background: winTeam === team ? "#ede9fe" : "#fff",
+                    }}>
+                    <div style={{ fontSize: 24, marginBottom: 4 }}>{winTeam === team ? "🏆" : "🎲"}</div>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: winTeam === team ? "#5b21b6" : "#374151" }}>
+                      Team {team}
+                    </div>
+                    <div style={{ fontSize: 11, color: winTeam === team ? "#7c3aed" : "#9ca3af", marginTop: 4 }}>
+                      {winTeam === team ? `প্রতিজন ৳${Math.floor((match.winPrize||0)/2)}` : "Prize নেই"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Player assignment */}
+              <div style={SL}>কোন player কোন team এ? (Slot assign করুন)</div>
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      {["Player", "In-Game Name", "Team", "Prize"].map((h, i) => (
+                        <th key={i} style={{ padding: "9px 10px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r, i) => (
+                      <tr key={i} style={{ background: r.team === winTeam ? "#faf5ff" : "#fff" }}>
+                        <td style={{ padding: "9px 10px", fontWeight: 700, color: "#7c3aed", fontSize: 12 }}>#{i+1}</td>
+                        <td style={{ padding: "9px 10px" }}>
+                          <input
+                            value={r.inGameName}
+                            onChange={(e) => setResults(prev => {
+                              const n = [...prev]; n[i] = { ...n[i], inGameName: e.target.value }; return n;
+                            })}
+                            style={{ border: "1px solid #e5e7eb", borderRadius: 6, padding: "5px 8px", fontSize: 12, width: "100%", boxSizing: "border-box" }}
+                          />
+                        </td>
+                        <td style={{ padding: "9px 10px" }}>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            {["A", "B"].map((t) => (
+                              <button key={t}
+                                onClick={() => {
+                                  const eachPrize = Math.floor((match.winPrize || 0) / 2);
+                                  setResults(prev => {
+                                    const n = [...prev];
+                                    n[i] = { ...n[i], team: t, isWinner: t === winTeam, prize: t === winTeam ? eachPrize : 0, rank: t === winTeam ? 1 : 2 };
+                                    return n;
+                                  });
+                                }}
+                                style={{
+                                  padding: "4px 10px", borderRadius: 6, border: `1.5px solid ${r.team === t ? "#7c3aed" : "#e5e7eb"}`,
+                                  background: r.team === t ? "#ede9fe" : "#fff", color: r.team === t ? "#5b21b6" : "#6b7280",
+                                  fontWeight: 700, fontSize: 11, cursor: "pointer",
+                                }}>
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                        <td style={{ padding: "9px 10px", fontWeight: 700, color: r.prize > 0 ? "#059669" : "#9ca3af" }}>
+                          {r.prize > 0 ? `৳${r.prize}` : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ marginTop: 10, padding: "10px 14px", background: "#f8fafc", borderRadius: 8 }}>
+                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>Prize Distribution:</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>
+                  Team {winTeam} জিতেছে → প্রতিজন পাবে ৳{Math.floor((match.winPrize||0)/2)}
+                  &nbsp;(মোট ৳{match.winPrize||0})
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════ 4PLAYER MODE ════ */}
+          {match.mode === "4player" && (
+            <div>
+              <div style={SL}>🎮 4 Player — Rank অনুযায়ী Prize দিন</div>
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      {["Slot", "In-Game Name", "Rank", "Prize (৳)"].map((h, i) => (
+                        <th key={i} style={{ padding: "9px 10px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r, i) => (
+                      <tr key={i} style={{ background: r.rank === 1 ? "#faf5ff" : i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                        <td style={{ padding: "9px 10px", fontWeight: 700, color: "#7c3aed", fontSize: 12 }}>
+                          {r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `#${r.rank}`}
+                        </td>
+                        <td style={{ padding: "9px 10px" }}>
+                          <input
+                            value={r.inGameName}
+                            onChange={(e) => update4p(i, "inGameName", e.target.value)}
+                            style={{ border: "1px solid #e5e7eb", borderRadius: 6, padding: "5px 8px", fontSize: 12, width: "100%", boxSizing: "border-box" }}
+                          />
+                        </td>
+                        <td style={{ padding: "9px 10px" }}>
+                          <select
+                            value={r.rank}
+                            onChange={(e) => {
+                              const newRank = Number(e.target.value);
+                              const prizes4p = [
+                                match.prizes?.first  || 0,
+                                match.prizes?.second || 0,
+                                match.prizes?.third  || 0,
+                                match.prizes?.fourth || 0,
+                              ];
+                              setResults(prev => {
+                                const n = [...prev];
+                                n[i] = { ...n[i], rank: newRank, prize: prizes4p[newRank - 1] || 0 };
+                                return n;
+                              });
+                            }}
+                            style={{ border: "1px solid #e5e7eb", borderRadius: 6, padding: "5px 8px", fontSize: 12, width: 70 }}
+                          >
+                            {[1, 2, 3, 4].map(v => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ padding: "9px 10px" }}>
+                          <input
+                            type="number" min="0"
+                            value={r.prize}
+                            onChange={(e) => update4p(i, "prize", e.target.value)}
+                            style={{
+                              border: `1px solid ${r.prize > 0 ? "#a7f3d0" : "#e5e7eb"}`,
+                              borderRadius: 6, padding: "5px 8px", fontSize: 12, width: 90,
+                              background: r.prize > 0 ? "#f0fdf4" : "#fff",
+                              fontWeight: r.prize > 0 ? 700 : 400,
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Prize breakdown */}
+              <div style={{ marginTop: 10, padding: "10px 14px", background: "#f8fafc", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>Prize Setup (match থেকে):</div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12 }}>
+                  {["first","second","third","fourth"].map((k, i) => (
+                    <span key={k} style={{ fontWeight: 600 }}>
+                      {["🥇","🥈","🥉","4️⃣"][i]} ৳{match.prizes?.[k] || 0}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Total + submit */}
+          <div style={{ marginTop: 16, padding: "12px 14px", background: "#f8fafc", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>মোট Prize Distribute হবে:</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: totalPrize > 0 ? "#059669" : "#374151" }}>৳{totalPrize}</span>
+          </div>
+
+          {msg && (
+            <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+              background: msg.includes("✅") ? "#d1fae5" : "#fee2e2",
+              color: msg.includes("✅") ? "#065f46" : "#991b1b",
+            }}>
+              {msg}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button onClick={onClose}
+              style={{ flex: 1, padding: 12, borderRadius: 10, background: "#f3f4f6", border: "none", fontSize: 13, cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button onClick={submit} disabled={saving}
+              style={{
+                flex: 2, padding: 12, borderRadius: 10,
+                background: saving ? "#a7f3d0" : "linear-gradient(135deg, #059669, #047857)",
+                color: "#fff", border: "none", fontSize: 14, fontWeight: 800,
+                cursor: saving ? "not-allowed" : "pointer",
+              }}>
+              {saving ? "⏳ Submitting..." : "✅ Submit & Prize Distribute"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Fullscreen image */}
+      {previewImg && (
+        <div onClick={() => setPreviewImg(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}>
+          <img src={previewImg} alt="" style={{ maxWidth: "95vw", maxHeight: "92vh", borderRadius: 10, objectFit: "contain" }} />
+          <div style={{ position: "absolute", top: 16, right: 20, color: "#fff", fontSize: 28, cursor: "pointer" }}>✕</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── CREATE FORM ──────────────────────────────────────────────────
+const CreateLudoForm = ({ onCreated, onCancel }) => {
+  const [form, setForm] = useState({
+    title: "", mode: "4player", entryFee: "", winPrize: "",
+    startTime: "", map: "Classic", device: "Mobile", image: "",
+    prizes: { first: "", second: "", third: "", fourth: "" },
+  });
+  const [msg, setMsg]       = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const set  = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const setP = (k) => (e) => setForm(p => ({ ...p, prizes: { ...p.prizes, [k]: e.target.value } }));
+
+  const handleImg = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = (ev) => setForm(p => ({ ...p, image: ev.target.result }));
+    r.readAsDataURL(file);
+  };
+
+  const submit = async () => {
+    if (!form.title.trim()) { setMsg("❌ Match Title দিন"); return; }
+    if (!form.startTime)    { setMsg("❌ Start Time দিন"); return; }
+    setLoading(true); setMsg("");
+
+    const payload = {
+      ...form,
+      entryFee: Number(form.entryFee || 0),
+      winPrize: Number(form.winPrize || 0),
+      prizes: {
+        first:  Number(form.prizes.first  || 0),
+        second: Number(form.prizes.second || 0),
+        third:  Number(form.prizes.third  || 0),
+        fourth: Number(form.prizes.fourth || 0),
+      },
+    };
+
+    const d = await api("/ludo-tournament/create", { method: "POST", body: JSON.stringify(payload) });
+    setLoading(false);
+    if (d.success) { setMsg("✅ Tournament তৈরি হয়েছে!"); setTimeout(() => onCreated?.(), 700); }
+    else setMsg("❌ " + (d.message || "Failed"));
+  };
+
+  const inp = { width: "100%", padding: "10px 12px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 13, background: "#f9fafb", outline: "none", boxSizing: "border-box" };
+
+  // Prize fields depend on mode
+  const is1v1 = form.mode === "1v1";
+  const is2v2 = form.mode === "2v2";
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 700 }}>🎲 নতুন Ludo Tournament</div>
+        <button onClick={onCancel} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#9ca3af" }}>✕</button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div>
+          <label style={LBL}>Match Title *</label>
+          <input placeholder="যেমন: Ludo Solo #1" style={inp} value={form.title} onChange={set("title")} />
+        </div>
+
+        <div>
+          <label style={LBL}>Mode</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {MODES.map((m) => (
+              <button key={m.id} type="button" onClick={() => setForm(p => ({ ...p, mode: m.id }))}
+                style={{
+                  padding: "10px 6px", borderRadius: 10, cursor: "pointer",
+                  border: `2px solid ${form.mode === m.id ? "#7c3aed" : "#e5e7eb"}`,
+                  background: form.mode === m.id ? "#ede9fe" : "#fff",
+                  color: form.mode === m.id ? "#5b21b6" : "#6b7280",
+                  fontSize: 11, fontWeight: 700,
+                }}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label style={LBL}>Start Time *</label>
+          <input type="datetime-local" style={inp} value={form.startTime} onChange={set("startTime")} />
+        </div>
+
+        <div>
+          <label style={LBL}>Entry Fee (৳)</label>
+          <input placeholder="Entry Fee" style={inp} type="number" value={form.entryFee} onChange={set("entryFee")} />
+        </div>
+
+        {/* Prize fields by mode */}
+        {is1v1 && (
+          <div>
+            <label style={LBL}>Winner Prize (৳) — 1 জন পাবে</label>
+            <input placeholder="Winner Prize" style={inp} type="number" value={form.winPrize} onChange={set("winPrize")} />
+          </div>
+        )}
+
+        {is2v2 && (
+          <div>
+            <label style={LBL}>Total Prize Pool (৳) — জয়ী team এর 2 জন ভাগ করে পাবে</label>
+            <input placeholder="Total Prize (2 জনে ভাগ হবে)" style={inp} type="number" value={form.winPrize} onChange={set("winPrize")} />
+            {form.winPrize && (
+              <div style={{ fontSize: 11, color: "#7c3aed", marginTop: 4 }}>
+                প্রতিজন পাবে: ৳{Math.floor(Number(form.winPrize) / 2)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!is1v1 && !is2v2 && (
+          <div>
+            <label style={LBL}>Rank Prize (৳) — 4 Player Solo</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <input placeholder="🥇 1st Prize" style={inp} type="number" value={form.prizes.first}  onChange={setP("first")} />
+              <input placeholder="🥈 2nd Prize" style={inp} type="number" value={form.prizes.second} onChange={setP("second")} />
+              <input placeholder="🥉 3rd Prize" style={inp} type="number" value={form.prizes.third}  onChange={setP("third")} />
+              <input placeholder="4th Prize"    style={inp} type="number" value={form.prizes.fourth} onChange={setP("fourth")} />
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LBL}>Map</label>
+            <select style={inp} value={form.map} onChange={set("map")}>
+              {LUDO_MAPS.map(m => <option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={LBL}>Device</label>
+            <select style={inp} value={form.device} onChange={set("device")}>
+              <option>Mobile</option><option>PC</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style={LBL}>Banner Image (optional)</label>
+          <input type="file" accept="image/*" onChange={handleImg} style={{ fontSize: 12, color: "#6b7280" }} />
+          {form.image && <img src={form.image} alt="" style={{ marginTop: 8, width: "100%", height: 90, objectFit: "cover", borderRadius: 8 }} />}
+        </div>
+
+        <button type="button" onClick={submit} disabled={loading}
+          style={{
+            padding: 13, background: loading ? "#a78bfa" : "linear-gradient(135deg, #7c3aed, #4f46e5)",
+            color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700,
+            cursor: loading ? "not-allowed" : "pointer", marginTop: 4,
+          }}>
+          {loading ? "⏳ Creating..." : "🎲 Create Ludo Tournament"}
+        </button>
+
+        {msg && (
+          <div style={{ padding: "10px 14px", borderRadius: 8, fontSize: 13,
+            background: msg.includes("✅") ? "#d1fae5" : "#fee2e2",
+            color: msg.includes("✅") ? "#065f46" : "#991b1b",
+          }}>
+            {msg}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── MATCH CARD ───────────────────────────────────────────────────
+const MatchCard = ({ m, onResult, onDelete, onRoomUpdate }) => {
+  const [roomInput, setRoomInput] = useState(m.roomCode || "");
+  const [roomLoading, setRoomLoading] = useState(false);
+
+  const updateRoom = async () => {
+    setRoomLoading(true);
+    await api(`/ludo-tournament/update-room/${m._id}`, {
+      method: "PUT", body: JSON.stringify({ roomCode: roomInput }),
+    });
+    setRoomLoading(false);
+    onRoomUpdate?.();
+  };
+
+  const deleteMatch = async () => {
+    if (!window.confirm(`"${m.title}" delete করবেন?`)) return;
+    await api(`/ludo-tournament/${m._id}`, { method: "DELETE" });
+    onDelete?.();
+  };
+
+  const prizeInfo = () => {
+    if (m.mode === "1v1") return `Winner: ৳${m.winPrize || 0}`;
+    if (m.mode === "2v2") return `Team Prize: ৳${m.winPrize || 0} (প্রতিজন ৳${Math.floor((m.winPrize||0)/2)})`;
+    return `🥇৳${m.prizes?.first||0} 🥈৳${m.prizes?.second||0} 🥉৳${m.prizes?.third||0}`;
+  };
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 10, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#111" }}>{m.title}</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+            {m.mode.toUpperCase()} &nbsp;·&nbsp; Entry: ৳{m.entryFee} &nbsp;·&nbsp; {prizeInfo()}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      
+          <button onClick={deleteMatch} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 16, cursor: "pointer" }}>🗑</button>
+        </div>
+      </div>
+
+      {/* Slots */}
+      <div style={{ display: "flex", gap: 5, marginBottom: 12, flexWrap: "wrap" }}>
+        {Array.from({ length: m.totalSlots }).map((_, i) => (
+          <div key={i} style={{
+            width: 30, height: 30, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 10, fontWeight: 700,
+            background: i < m.joinedPlayers ? "#7c3aed" : "#f3f4f6",
+            color: i < m.joinedPlayers ? "#fff" : "#9ca3af",
+          }}>
+            {i < m.joinedPlayers ? (m.joinedUsers?.[i]?.inGameName?.[0]?.toUpperCase() || "✓") : "—"}
+          </div>
+        ))}
+        <span style={{ fontSize: 11, color: "#6b7280", alignSelf: "center", marginLeft: 4 }}>
+          {m.joinedPlayers}/{m.totalSlots}
+        </span>
+      </div>
+
+      {/* Room code */}
+      {(m.status === "upcoming" || m.status === "live") && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input
+            placeholder="Room Code দিন"
+            value={roomInput}
+            onChange={(e) => setRoomInput(e.target.value)}
+            style={{ flex: 1, padding: "7px 10px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12 }}
+          />
+          <button onClick={updateRoom} disabled={roomLoading}
+            style={{ padding: "7px 14px", background: "#0ea5e9", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            {roomLoading ? "..." : "Set"}
+          </button>
+        </div>
+      )}
+
+      {m.roomCode && m.status === "live" && (
+        <div style={{ background: "#f0fdf4", padding: "6px 10px", borderRadius: 6, fontSize: 12, marginBottom: 8, fontWeight: 600, color: "#065f46" }}>
+          🔑 Room Code: {m.roomCode}
+        </div>
+      )}
+
+      {/* Result button */}
+      {m.status === "live" && (
+        <button onClick={() => onResult(m)}
+          style={{
+            width: "100%", padding: "11px 0",
+            background: "linear-gradient(135deg, #10b981, #059669)",
+            color: "#fff", border: "none", borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: "pointer",
+          }}>
+          📸 Result দিন
+        </button>
+      )}
+
+      {/* Completed result */}
+      {m.status === "completed" && m.results?.length > 0 && (
+        <div style={{ background: "#f0fdf4", borderRadius: 8, padding: "10px 12px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#065f46", marginBottom: 8 }}>🏆 Final Result</div>
+          {[...m.results].sort((a, b) => a.rank - b.rank).map((r, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", fontSize: 12 }}>
+              <span>
+                {r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : `#${r.rank}`}
+                &nbsp; {r.inGameName || "—"}
+                {m.mode === "2v2" && r.team ? <span style={{ color: "#7c3aed", marginLeft: 6 }}>(Team {r.team})</span> : null}
+              </span>
+              <span style={{ fontWeight: 700, color: r.prize > 0 ? "#059669" : "#9ca3af" }}>
+                {r.prize > 0 ? `৳${r.prize}` : "—"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── MAIN ─────────────────────────────────────────────────────────
+const LudoTournamentManager = () => {
+  const [matches, setMatches]         = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [showCreate, setShowCreate]   = useState(false);
+  const [filter, setFilter]           = useState("all");
+  const [resultMatch, setResultMatch] = useState(null);
+const [ludoEnabled, setLudoEnabled] = useState(true);
+const [toggleLoading, setToggleLoading] = useState(false);
+
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const d = await api("/ludo-tournament");
+    setMatches(Array.isArray(d?.data) ? d.data : []);
+    setLoading(false);
+  }, []);
+
+const loadSettings = useCallback(async () => {
+  const d = await api("/settings");
+
+  if (d?.success && d.data?.ludo_enabled !== undefined) {
+    setLudoEnabled(d.data.ludo_enabled);
+  }
+}, []);
+
+useEffect(() => {
+  loadSettings();
+}, [loadSettings]);
+
+ const handleToggleLudo = async () => {
+  const newVal = !ludoEnabled;
+
+  // ✅ বন্ধ করার আগে confirm — ভুল ক্লিক থেকে বাঁচাবে
+  if (!newVal && !window.confirm("Ludo Tournament পুরো app থেকে বন্ধ করে দিতে চান?")) {
+    return;
+  }
+
+  setToggleLoading(true);
+
+  const res = await api("/settings/ludo_enabled", {
+    method: "PUT",
+    body: JSON.stringify({ value: newVal }),
+  });
+
+  setToggleLoading(false);
+
+  if (res?.success) {
+    setLudoEnabled(newVal);
+  } else {
+    alert(res?.message || "Toggle করা যায়নি");
+  }
+};
+
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = filter === "all" ? matches : matches.filter(m => m.status === filter);
+  const counts = {
+    all:       matches.length,
+    upcoming:  matches.filter(m => m.status === "upcoming").length,
+    live:      matches.filter(m => m.status === "live").length,
+    completed: matches.filter(m => m.status === "completed").length,
+  };
+
+  return (
+    <div style={{ padding: 16, maxWidth: 950, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>🎲 Ludo Tournaments</div>
+          <div style={{ fontSize: 12, color: "#9ca3af" }}>Total: {matches.length}</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+
+<button
+  onClick={handleToggleLudo}
+  disabled={toggleLoading}
+  style={{
+    padding: "9px 16px",
+    background: ludoEnabled ? "#fee2e2" : "#d1fae5",
+    color: ludoEnabled ? "#991b1b" : "#065f46",
+    border: "none",
+    borderRadius: 8,
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: toggleLoading ? "not-allowed" : "pointer",
+  }}
+>
+  {toggleLoading
+    ? "⏳..."
+    : ludoEnabled
+    ? "🚫 Ludo বন্ধ করুন"
+    : "✅ Ludo চালু করুন"}
+</button>
+
+
+
+          <button onClick={() => setShowCreate(v => !v)}
+            style={{
+              padding: "9px 16px",
+              background: showCreate ? "#e5e7eb" : "linear-gradient(135deg, #7c3aed, #4f46e5)",
+              color: showCreate ? "#374151" : "#fff",
+              border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer",
+            }}>
+            {showCreate ? "✕ বন্ধ করুন" : "+ নতুন Tournament"}
+          </button>
+          <button onClick={load} style={{ padding: "9px 12px", background: "#f3f4f6", borderRadius: 8, border: "none", cursor: "pointer" }}>
+            {loading ? "⏳" : "🔄"}
+          </button>
+        </div>
+      </div>
+
+      {/* Create Form — inline, no tab */}
+      {showCreate && (
+        <CreateLudoForm
+          onCreated={() => { setShowCreate(false); load(); }}
+          onCancel={() => setShowCreate(false)}
+        />
+      )}
+
+      {/* Filter */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {["all","upcoming","live","completed"].map((f) => (
+          <button key={f} onClick={() => setFilter(f)}
+            style={{
+              padding: "6px 14px", borderRadius: 20, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              background: filter === f ? "#7c3aed" : "#f3f4f6",
+              color: filter === f ? "#fff" : "#374151",
+            }}>
+            {f.toUpperCase()} ({counts[f]})
+          </button>
+        ))}
+      </div>
+
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "#9ca3af" }}>⏳ Loading...</div>}
+      {!loading && filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "#9ca3af" }}>
+          কোনো tournament নেই।{" "}
+          <span style={{ color: "#7c3aed", cursor: "pointer" }} onClick={() => setShowCreate(true)}>
+            + নতুন বানান
+          </span>
+        </div>
+      )}
+      {filtered.map((m) => (
+        <MatchCard key={m._id} m={m}
+          onResult={(match) => setResultMatch(match)}
+          onDelete={load}
+          onRoomUpdate={load}
+        />
+      ))}
+
+      {resultMatch && (
+        <ImageResultModal
+          match={resultMatch}
+          onClose={() => setResultMatch(null)}
+          onDone={load}
+        />
+      )}
+    </div>
+  );
+};
+
+const LBL = { fontSize: 11, color: "#6b7280", marginBottom: 4, display: "block", fontWeight: 600 };
+const SL  = { fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 };
+
+export default LudoTournamentManager;
+

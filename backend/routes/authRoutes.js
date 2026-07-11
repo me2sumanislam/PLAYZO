@@ -6,7 +6,7 @@ const supabaseAdmin = require("../utils/supabaseAdmin");
 const supabase = require("../utils/supabaseClient");
 const { looksLikeFakePhone } = require("../utils/referralFraud");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 function generateReferralCode(name) {
   const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);

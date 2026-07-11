@@ -2,7 +2,7 @@
 const { Pool } = require("pg");
 const supabase = require("../utils/supabaseClient");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
 // ================= PROTECT =================

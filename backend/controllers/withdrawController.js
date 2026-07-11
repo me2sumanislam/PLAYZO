@@ -4,7 +4,7 @@ const { Pool } = require("pg");
 const axios = require("axios");
 const { sendToUser } = require("../utils/sendNotification");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // ─── SMS helper ───────────────────────────────────────────────────────────
 const sendSMS = async (phone, message) => {

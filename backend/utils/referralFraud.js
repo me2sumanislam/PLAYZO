@@ -9,7 +9,7 @@
 
 const { Pool } = require("pg");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("./db");
 
 const GEM_DAILY_CAP = 5; // একজন referrer দিনে সর্বোচ্চ কতগুলো নতুন referral থেকে gem পেতে পারবে (rate limit)
 

@@ -6,7 +6,7 @@ const { Pool } = require("pg");
 const { protect } = require("../middleware/auth");
 const { sendToAll } = require("../utils/sendNotification");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // GET /api/notifications
 router.get("/", protect, async (req, res) => {

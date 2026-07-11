@@ -5,7 +5,7 @@ const router = express.Router();
 const { Pool } = require("pg");
 const { protect, adminOnly } = require("../middleware/auth");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 let sendMatchNotification = async () => {};
 try {

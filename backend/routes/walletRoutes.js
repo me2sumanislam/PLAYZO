@@ -11,7 +11,7 @@ const { Pool } = require("pg");
 const { protect, adminOnly } = require("../middleware/auth");
 const { isDuplicateTrx } = require("../utils/referralFraud");
 const { sendToUser } = require("../utils/sendNotification");
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // ── Referral / Gem Constants ────────────────────────────────────
 const REFERRAL_DEPOSIT_MIN = 50; // B কে ন্যূনতম ৳৫০ deposit করতে হবে referral qualify করতে

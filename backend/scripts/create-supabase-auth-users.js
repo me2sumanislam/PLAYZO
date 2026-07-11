@@ -4,7 +4,7 @@ const { Pool } = require("pg");
 const supabaseAdmin = require("../utils/supabaseAdmin");
 const crypto = require("crypto");
 
-const pool = new Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const pool = require("../utils/db");
 
 // Generates a random temporary password (user will reset it later)
 function generateTempPassword() {
