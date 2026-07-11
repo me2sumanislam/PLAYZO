@@ -1,6 +1,5 @@
  const express = require("express");
 const router = express.Router();
-const { Pool } = require("pg");
 const supabase = require("../utils/supabaseClient");
 
 const pool = require("../utils/db");
@@ -31,15 +30,17 @@ router.post("/login", async (req, res) => {
     );
     const user = rows[0];
 
+    // ✅ security fix: role-না-থাকা আর wrong-password — দুটোর জন্যই একই generic message,
+    // যাতে কেউ password সঠিক ছিল কিনা সেটা আলাদাভাবে বুঝতে না পারে (info-leak প্রতিরোধ)
     if (!user || !ADMIN_ROLES.includes(user.role)) {
-      return res.json({ success: false, message: "Not an admin account" });
+      return res.json({ success: false, message: "Wrong password or user not found" });
     }
 
     res.json({
       success: true,
       token: signInData.session.access_token,
-      refreshToken: signInData.session.refresh_token, // ✅ নতুন
-      expiresAt: signInData.session.expires_at,        // ✅ নতুন (unix timestamp, seconds)
+      refreshToken: signInData.session.refresh_token,
+      expiresAt: signInData.session.expires_at,
       admin: {
         name: user.name,
         phone: user.phone,
@@ -54,7 +55,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ================= REFRESH TOKEN ================= ✅ নতুন
+// ================= REFRESH TOKEN =================
 router.post("/refresh", async (req, res) => {
   try {
     const { refreshToken } = req.body;

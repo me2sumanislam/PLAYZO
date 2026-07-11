@@ -10,18 +10,19 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const { Pool } = require("pg");
 
 const resultRoutes = require("./routes/resultRoutes");
 const resultAdminRoutes = require("./routes/adminResultRoutes");
 
+// ✅ Shared single Postgres pool (utils/db.js) — সব ফাইল এটাই ব্যবহার করে,
+// আলাদা আলাদা new Pool() বানানো বন্ধ করা হয়েছে (connection exhaustion fix)
 const pool = require("./utils/db");
 
 const app = express();
 
 // ================= SECURITY =================
 app.use(helmet());
-app.set("trust proxy", 1);
+app.set("trust proxy", 1); // ✅ Render এর proxy এর পেছনে চলার জন্য দরকার — rate-limit সঠিকভাবে IP identify করার জন্য
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -47,10 +48,21 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ================= RATE LIMITER =================
+// ================= RATE LIMITER (সাধারণ auth) =================
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  message: {
+    message: "অনেকবার চেষ্টা করেছেন। ১৫ মিনিট পর আবার চেষ্টা করুন।",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ================= ADMIN LOGIN RATE LIMITER (কড়া) ================= ✅ নতুন
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8, // ১৫ মিনিটে সর্বোচ্চ ৮টা চেষ্টা — admin panel তাই সাধারণ auth এর চেয়ে অনেক কড়া
   message: {
     message: "অনেকবার চেষ্টা করেছেন। ১৫ মিনিট পর আবার চেষ্টা করুন।",
   },
@@ -80,7 +92,7 @@ app.use("/api/result", resultRoutes);
 app.use("/api/referral", require("./routes/referralRoutes"));
 app.use("/api/matches", require("./routes/matchRoutes"));
 app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
-app.use("/api/admin", authLimiter, require("./routes/adminAuthRoutes"));
+app.use("/api/admin", adminLoginLimiter, require("./routes/adminAuthRoutes")); // ✅ কড়া limiter বসানো হলো
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/wallet", require("./routes/walletRoutes"));
 app.use("/api/payment-numbers", require("./routes/paymentNumbers"));
