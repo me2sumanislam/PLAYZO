@@ -293,9 +293,6 @@ router.post("/login", loginLimiter, async (req, res) => {
 // =====================================================================
 
 // ---- STEP 1: OTP রিকোয়েস্ট করা ----
-// ফোন নাম্বার থাকুক বা না থাকুক, admin হোক বা না হোক — সবসময় same generic
-// response দেওয়া হয় (user-enumeration ঠেকানোর জন্য)। SMS শুধু তখনই যায় যখন
-// আসলেই একটা non-admin অ্যাকাউন্ট পাওয়া যায়।
 router.post("/forgot-password/request", otpRequestLimiter, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -315,13 +312,10 @@ router.post("/forgot-password/request", otpRequestLimiter, async (req, res) => {
     );
     const user = rows[0];
 
-    // admin/super-admin/finance বা user না থাকলে — চুপচাপ generic response,
-    // SMS পাঠানো হবে না, কিন্তু attacker কে বোঝানো হবে না কোনটা সত্যি
     if (!user || ADMIN_ROLES.includes(user.role)) {
       return res.json(genericResponse);
     }
 
-    // আগের ওই নাম্বারের অব্যবহৃত OTP invalidate করা (নতুন একটাই valid থাকবে)
     await client.query(
       `UPDATE password_reset_otps SET used = true WHERE phone = $1 AND used = false`,
       [phone]
@@ -336,15 +330,17 @@ router.post("/forgot-password/request", otpRequestLimiter, async (req, res) => {
       [phone, otpHash, expiresAt]
     );
 
-    const smsSent = await sendSms(
-      phone,
-      `আপনার uthiYO পাসওয়ার্ড রিসেট কোড: ${otp} (৫ মিনিট বৈধ)। কারো সাথে শেয়ার করবেন না।`
-    );
+    if (process.env.TEST_MODE === "true") {
+      console.log(`🧪 [TEST_MODE] ${phone} এর OTP: ${otp}`);
+    } else {
+      const smsSent = await sendSms(
+        phone,
+        `আপনার uthiYO পাসওয়ার্ড রিসেট কোড: ${otp} (৫ মিনিট বৈধ)। কারো সাথে শেয়ার করবেন না।`
+      );
 
-    if (!smsSent) {
-      console.error(`⚠️ SMS পাঠানো যায়নি: ${phone}`);
-      // SMS gateway ব্যর্থ হলেও attacker কে conflict না দেখিয়ে generic রাখাই ভালো,
-      // কিন্তু server log এ এটা flag থাকা দরকার যাতে monitor করা যায়।
+      if (!smsSent) {
+        console.error(`⚠️ SMS পাঠানো যায়নি: ${phone}`);
+      }
     }
 
     return res.json(genericResponse);
@@ -396,7 +392,6 @@ router.post("/forgot-password/verify", otpVerifyLimiter, async (req, res) => {
       return res.json({ success: false, message: "OTP ভুল হয়েছে" });
     }
 
-    // OTP সঠিক — এখন role আবার double-check করা (defense in depth)
     const { rows: userRows } = await client.query(
       `SELECT auth_user_id, role FROM users WHERE phone = $1`,
       [phone]
@@ -431,10 +426,6 @@ router.post("/forgot-password/verify", otpVerifyLimiter, async (req, res) => {
 });
 
 // ================= CHANGE PASSWORD (লগইন করা অবস্থায়) =================
-// এটা "migrated user must reset password on first login" ফ্লো-র জন্য —
-// ইউজার আগে থেকেই valid session token নিয়ে এখানে আসে (কারণ সে সঠিক
-// temp password দিয়ে login করেছে), তাই phone দিয়ে public reset করার
-// দরকার নেই — এখানে token-ই যথেষ্ট প্রমাণ।
 router.post("/change-password", protect, async (req, res) => {
   try {
     const { password } = req.body;
@@ -476,9 +467,6 @@ router.post("/change-password", protect, async (req, res) => {
 });
 
 // ================= (DEPRECATED) OLD INSECURE ENDPOINTS =================
-// পুরনো frontend এখনো এগুলো কল করলে যাতে ভেঙে না পড়ে, তাই রাখা হলো —
-// কিন্তু কোনো কাজ করবে না, শুধু নতুন flow ব্যবহার করতে বলবে।
-// frontend আপডেট হয়ে গেলে এই দুটো routeই সম্পূর্ণ ডিলিট করে দিন।
 router.post("/check-phone", (req, res) => {
   res.status(410).json({
     success: false,
