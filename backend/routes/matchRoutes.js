@@ -2,7 +2,7 @@
 const express = require("express");
 const router  = express.Router();
 const { Pool } = require("pg");
-const { protect, adminOnly } = require("../middleware/auth");
+const { protect, adminOnly, optionalAuth } = require("../middleware/auth");
 
 const pool = require("../utils/db");
 
@@ -34,7 +34,8 @@ const MODE_CONFIG = {
 };
 
 // snake_case row → camelCase JSON (frontend পুরনো ফরম্যাট আশা করে)
-function toMatchJson(row) {
+// ✅ joined=false হলে roomId/roomPassword response এ পাঠানো হয় না (leak প্রতিরোধ)
+function toMatchJson(row, joined = false) {
   if (!row) return row;
   return {
     id: row.id,
@@ -55,8 +56,8 @@ function toMatchJson(row) {
     expiresAt: row.expires_at,
     totalPlayers: row.total_players,
     joinedPlayers: row.joined_players,
-    roomId: row.room_id,
-    roomPassword: row.room_password,
+    roomId: joined ? row.room_id : undefined,
+    roomPassword: joined ? row.room_password : undefined,
     isRoomOpen: row.is_room_open,
     winnerTeam: row.winner_team,
     completedAt: row.completed_at,
@@ -120,9 +121,10 @@ router.post("/create", protect, adminOnly, async (req, res) => {
     );
 
     const match = rows[0];
-    try { await sendMatchNotification(toMatchJson(match), category); } catch {}
+    try { await sendMatchNotification(toMatchJson(match, true), category); } catch {}
 
-    res.status(201).json({ success: true, message: "Match created", data: toMatchJson(match) });
+    // ✅ admin নিজে create করছে, তাই তাকে room details দেখানো ঠিক আছে (joined=true)
+    res.status(201).json({ success: true, message: "Match created", data: toMatchJson(match, true) });
   } catch (err) {
     console.error("Create match error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -132,7 +134,8 @@ router.post("/create", protect, adminOnly, async (req, res) => {
 });
 
 // ── Get All Matches ───────────────────────────────────────────────────────────
-router.get("/", async (req, res) => {
+// ✅ optionalAuth: login থাকলে req.user সেট হয়, না থাকলেও route কাজ করে (public listing)
+router.get("/", optionalAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { rows: matches } = await client.query(
@@ -163,10 +166,17 @@ router.get("/", async (req, res) => {
       }
     }
 
-    const data = matches.map((m) => ({
-      ...toMatchJson(m),
-      joinedUsers: participantsByMatch[m.id] || [],
-    }));
+    // ✅ req.user থাকলে চেক করি সে এই ম্যাচে join করেছে কিনা — করলে তবেই roomId/roomPassword পাঠাই
+    const data = matches.map((m) => {
+      const list = participantsByMatch[m.id] || [];
+      const joined = req.user
+        ? list.some((p) => String(p.userId?._id) === String(req.user.id))
+        : false;
+      return {
+        ...toMatchJson(m, joined),
+        joinedUsers: list,
+      };
+    });
 
     res.json({ success: true, data });
   } catch (err) {
@@ -178,6 +188,7 @@ router.get("/", async (req, res) => {
 });
 
 // ── Get Completed Matches ─────────────────────────────────────────────────────
+// completed match এ room details গোপন রাখার দরকার নেই (ম্যাচ শেষ), তাই joined=true দিয়ে সবসময় দেখানো হচ্ছে
 router.get("/completed", async (req, res) => {
   const client = await pool.connect();
   try {
@@ -185,7 +196,7 @@ router.get("/completed", async (req, res) => {
       `SELECT * FROM matches WHERE status = 'completed'
        ORDER BY completed_at DESC LIMIT 30`
     );
-    res.json({ success: true, data: rows.map(toMatchJson) });
+    res.json({ success: true, data: rows.map((m) => toMatchJson(m, true)) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -194,6 +205,7 @@ router.get("/completed", async (req, res) => {
 });
 
 // ── My Matches ────────────────────────────────────────────────────────────────
+// এটা যেহেতু user নিজের joined matches দেখছে, তাই এখানে সবসময় joined=true
 router.get("/my-matches", async (req, res) => {
   const client = await pool.connect();
   try {
@@ -207,7 +219,7 @@ router.get("/my-matches", async (req, res) => {
        ORDER BY m.created_at DESC`,
       [userId]
     );
-    res.json({ success: true, data: rows.map(toMatchJson) });
+    res.json({ success: true, data: rows.map((m) => toMatchJson(m, true)) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -216,12 +228,23 @@ router.get("/my-matches", async (req, res) => {
 });
 
 // ── Get Single Match ──────────────────────────────────────────────────────────
-router.get("/:id", async (req, res) => {
+// ✅ optionalAuth দিয়ে চেক করি user এই ম্যাচে join করেছে কিনা
+router.get("/:id", optionalAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { rows } = await client.query(`SELECT * FROM matches WHERE id = $1`, [req.params.id]);
     if (rows.length === 0) return res.status(404).json({ success: false, message: "Match not found" });
-    res.json({ success: true, data: toMatchJson(rows[0]) });
+
+    let joined = false;
+    if (req.user) {
+      const { rows: joinedRows } = await client.query(
+        `SELECT id FROM match_participants WHERE match_id = $1 AND user_id = $2`,
+        [req.params.id, req.user.id]
+      );
+      joined = joinedRows.length > 0;
+    }
+
+    res.json({ success: true, data: toMatchJson(rows[0], joined) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -240,7 +263,7 @@ router.put("/update-room/:id", protect, adminOnly, async (req, res) => {
       [roomId, roomPassword, req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: "Match not found" });
-    res.json({ success: true, message: "Room updated", data: toMatchJson(rows[0]) });
+    res.json({ success: true, message: "Room updated", data: toMatchJson(rows[0], true) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -394,6 +417,7 @@ router.put("/join/:id", protect, async (req, res) => {
       [userId]
     );
 
+    // ✅ join সফল হয়েছে, তাই এখন joined=true দিয়ে room details সহ response দিচ্ছি
     res.json({
       success: true,
       message: paidWithGem ? "Gem দিয়ে Join সফল!" : "Join সফল!",
@@ -401,7 +425,7 @@ router.put("/join/:id", protect, async (req, res) => {
       newGems: finalUserRows[0].referral_points,
       paidWithGem,
       slotNumber,
-      data: toMatchJson(updatedMatchRows[0]),
+      data: toMatchJson(updatedMatchRows[0], true),
     });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -426,7 +450,7 @@ router.put("/live/:id", protect, adminOnly, async (req, res) => {
       `UPDATE matches SET status = 'live' WHERE id = $1 RETURNING *`,
       [req.params.id]
     );
-    res.json({ success: true, message: "Match started", match: toMatchJson(rows[0]) });
+    res.json({ success: true, message: "Match started", match: toMatchJson(rows[0], true) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   } finally {

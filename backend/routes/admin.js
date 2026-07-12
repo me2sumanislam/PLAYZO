@@ -998,6 +998,46 @@ router.put("/result-submissions/:id/reject", protect, adminOnly, async (req, res
   }
 });
 
+// ─── ADMIN: OTP LOOKUP (support helper) ──────────────────────────────────────
+// SMS gateway চালু না হওয়া পর্যন্ত, ইউজার support-এ যোগাযোগ করলে (ফোন/WhatsApp/Facebook),
+// admin এই endpoint দিয়ে দেখতে পারবেন যে তার জন্য একটা valid pending OTP request আছে
+// কিনা, কত attempt হয়েছে, কখন expire হবে — ইত্যাদি ডিবাগ/সাপোর্ট তথ্য।
+// ⚠️ নোট: password_reset_otps টেবিলে শুধু hash স্টোর করা হয়, plain OTP না — তাই এই
+// route থেকে আসল OTP কোনোভাবেই "read" করা সম্ভব না। ইউজারকে সাহায্য করার আসল সমাধান
+// একটা real SMS gateway লাগানো। এটা শুধু temporary support workaround।
+router.get("/otp-lookup/:phone", protect, adminOnly, async (req, res) => {
+  try {
+    const { phone } = req.params;
+    const { rows } = await pool.query(
+      `SELECT id, expires_at, attempts, consumed, created_at
+       FROM password_reset_otps
+       WHERE phone = $1
+       ORDER BY created_at DESC LIMIT 1`,
+      [phone]
+    );
+    if (!rows[0]) {
+      return res.json({ success: false, message: "কোনো pending OTP নেই" });
+    }
+    const row = rows[0];
+    if (row.consumed) {
+      return res.json({ success: false, message: "এই OTP আগেই ব্যবহার হয়ে গেছে" });
+    }
+    if (new Date(row.expires_at) < new Date()) {
+      return res.json({ success: false, message: "OTP মেয়াদ শেষ" });
+    }
+    res.json({
+      success: true,
+      data: {
+        expiresAt: row.expires_at,
+        attempts:  row.attempts,
+        createdAt: row.created_at,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── ADMIN: Referral Fraud Alerts ─────────────────────────────────
 // একই IP/device থেকে referrer এর একাধিক referred user থাকলে flag করে দেখায়।
 // এটা কাউকে ব্লক করে না, শুধু admin কে manual review এর জন্য তালিকা দেয়।

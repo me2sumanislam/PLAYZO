@@ -11,9 +11,20 @@ const { protect } = require("../middleware/auth");
 
 const pool = require("../utils/db");
 
+const ADMIN_ROLES = ["admin", "super-admin", "finance"];
+
 // GET /api/referral/:userId
 router.get("/:userId", protect, async (req, res) => {
   try {
+    // ✅ SECURITY FIX (IDOR): আগে যেকোনো লগইন-করা ইউজার অন্য যেকোনো userId
+    // দিয়ে কল করে সেই ইউজারের referral history (নাম + ফোন নাম্বার) দেখতে পারত।
+    // এখন শুধু নিজের ডেটা, অথবা admin/super-admin হলে যেকোনো ইউজারের ডেটা দেখতে পারবে।
+    const isOwner = req.user.id === req.params.userId;
+    const isAdmin = ADMIN_ROLES.includes(req.user.role);
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
     const { rows: userRows } = await pool.query(
       `SELECT referral_code, referral_points, referral_count
        FROM users WHERE id = $1`,
