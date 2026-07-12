@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
+const API_BASE = "https://playzo-vn8e.onrender.com/api";
 
 // ✅ একটা persistent deviceId বানায়/পড়ে — same device থেকে multiple fake account ধরতে সাহায্য করে
 function getDeviceId() {
@@ -13,7 +14,6 @@ function getDeviceId() {
   }
   return id;
 }
-
 
 const PasswordInput = ({ placeholder, value, onChange, required, autoComplete, className }) => {
   const [show, setShow] = useState(false);
@@ -50,13 +50,17 @@ const Auth = ({ onLoginSuccess }) => {
     name: "", phone: "", password: "", confirm: "",
     referralCode: ""
   });
-  const [agreedTerms, setAgreedTerms] = useState(false); // ✅ Terms & Condition state
+  const [agreedTerms, setAgreedTerms] = useState(false);
+
+  // ✅ Forgot password — এখন ৩ ধাপ: (1) ফোন দিয়ে OTP রিকোয়েস্ট (2) OTP verify (3) নতুন পাসওয়ার্ড
   const [forgotPhone, setForgotPhone] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
   const [newPass, setNewPass] = useState("");
   const [forgotStep, setForgotStep] = useState(1);
 
   // ✅ Migrated user first-login password reset (needsPasswordReset flag)
-  const [mustResetPhone, setMustResetPhone] = useState("");
+  // এখন phone দিয়ে না, বরং already-logged-in token দিয়ে করা হয়
+  const [mustResetToken, setMustResetToken] = useState("");
   const [mustResetPass, setMustResetPass] = useState("");
 
   const [searchParams] = useSearchParams();
@@ -74,23 +78,20 @@ const Auth = ({ onLoginSuccess }) => {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/login", {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: loginData.phone, password: loginData.password }),
       });
       const data = await res.json();
       if (data.success) {
-        // ✅ পুরনো (migrated) ইউজার প্রথমবার লগইন করলে backend needsPasswordReset:true পাঠায়
-        // token/user আগেই সেভ করে রাখছি, কিন্তু onLoginSuccess() তখনই কল হবে যখন
-        // পাসওয়ার্ড রিসেট সম্পন্ন হবে — এর মধ্যে App.jsx isLoggedIn state আপডেট হয় না
-        // তাই ইউজার এই স্ক্রিন থেকে বের হতে পারবে না।
         localStorage.setItem("token", data.token);
         localStorage.setItem("isAdmin", "false");
         localStorage.setItem("user", JSON.stringify(data.user));
 
         if (data.needsPasswordReset) {
-          setMustResetPhone(loginData.phone);
+          // ✅ token টা এখানেই ধরে রাখা হচ্ছে — change-password কল করতে লাগবে
+          setMustResetToken(data.token);
           setMustResetPass("");
           setScreen("mustReset");
         } else {
@@ -106,23 +107,26 @@ const Auth = ({ onLoginSuccess }) => {
   };
 
   // ✅ মাইগ্রেটেড ইউজারের বাধ্যতামূলক নতুন পাসওয়ার্ড সেট করার handler
+  // এখন phone না পাঠিয়ে, লগইন করার সময় পাওয়া token দিয়ে authenticated route কল করা হয়
   const handleMustReset = async (e) => {
     e.preventDefault();
     setError("");
-    if (!mustResetPass || mustResetPass.length < 6) {
-      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!");
+    if (!mustResetPass || mustResetPass.length < 8) {
+      setError("পাসওয়ার্ড কমপক্ষে ৮ অক্ষর হতে হবে!");
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/reset-password", {
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: mustResetPhone, password: mustResetPass }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${mustResetToken}`,
+        },
+        body: JSON.stringify({ password: mustResetPass }),
       });
       const data = await res.json();
       if (data.success) {
-        // পাসওয়ার্ড রিসেট সফল — এখন app-এ প্রবেশ করানো হচ্ছে
         onLoginSuccess();
       } else {
         setError(data.message || "পাসওয়ার্ড পরিবর্তন করা যায়নি!");
@@ -142,16 +146,15 @@ const Auth = ({ onLoginSuccess }) => {
     if (regData.password !== regData.confirm) {
       setError("পাসওয়ার্ড মিলছে না!"); return;
     }
-    if (regData.password.length < 6) {
-      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return;
+    if (regData.password.length < 8) {
+      setError("পাসওয়ার্ড কমপক্ষে ৮ অক্ষর হতে হবে!"); return;
     }
-    // ✅ Terms & Condition validation
     if (!agreedTerms) {
       setError("শর্তাবলী মেনে নিতে হবে!"); return;
     }
     setLoading(true);
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/register", {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,7 +162,7 @@ const Auth = ({ onLoginSuccess }) => {
           phone: regData.phone,
           password: regData.password,
           referralCode: regData.referralCode.trim().toUpperCase() || null,
-          deviceId: getDeviceId(), // ✅ fraud-detection এর জন্য পাঠানো হচ্ছে
+          deviceId: getDeviceId(),
         }),
       });
       const data = await res.json();
@@ -182,58 +185,89 @@ const Auth = ({ onLoginSuccess }) => {
     setLoading(false);
   };
 
+  // ---- STEP 1: ফোন নাম্বার দিয়ে OTP রিকোয়েস্ট ----
   const handleForgotStep1 = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     if (!forgotPhone) { setError("ফোন নাম্বার দিন!"); return; }
     setLoading(true);
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/check-phone", {
+      const res = await fetch(`${API_BASE}/auth/forgot-password/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: forgotPhone }),
       });
       const data = await res.json();
+      // ✅ backend সবসময় generic success message দেয় (user-enumeration ঠেকাতে),
+      // তাই সেটাই দেখিয়ে পরের ধাপে নিয়ে যাওয়া হচ্ছে
       if (data.success) {
         setForgotStep(2);
-        setSuccess("ফোন নাম্বার পাওয়া গেছে! নতুন পাসওয়ার্ড দিন।");
+        setSuccess("SMS-এ পাঠানো OTP কোডটি লিখুন। অ্যাকাউন্ট না থাকলে কোনো SMS আসবে না।");
       } else {
-        setError("এই ফোন নাম্বার দিয়ে কোনো অ্যাকাউন্ট নেই!");
+        setError(data.message || "সমস্যা হয়েছে, আবার চেষ্টা করুন");
       }
     } catch {
-      setForgotStep(2);
-      setSuccess("নতুন পাসওয়ার্ড দিন।");
+      setError("Server error! Backend চালু আছে?");
     }
     setLoading(false);
   };
 
-  const handleForgotStep2 = async (e) => {
+  // ---- STEP 2: OTP verify ----
+  const handleForgotStep2 = (e) => {
     e.preventDefault();
     setError("");
-    if (!newPass || newPass.length < 6) { setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে!"); return; }
+    if (!forgotOtp || forgotOtp.length !== 6) {
+      setError("৬ ডিজিটের OTP কোড দিন!");
+      return;
+    }
+    setSuccess("এখন নতুন পাসওয়ার্ড দিন।");
+    setForgotStep(3);
+  };
+
+  // ---- STEP 3: OTP + নতুন পাসওয়ার্ড দিয়ে সাবমিট ----
+  const handleForgotStep3 = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!newPass || newPass.length < 8) {
+      setError("পাসওয়ার্ড কমপক্ষে ৮ অক্ষর হতে হবে!");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch("https://playzo-vn8e.onrender.com/api/auth/reset-password", {
+      const res = await fetch(`${API_BASE}/auth/forgot-password/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: forgotPhone, password: newPass }),
+        body: JSON.stringify({ phone: forgotPhone, otp: forgotOtp, password: newPass }),
       });
       const data = await res.json();
       if (data.success) {
         setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে! এখন লগইন করুন।");
-        setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
+        setTimeout(() => {
+          setScreen("login");
+          setSuccess("");
+          setForgotStep(1);
+          setForgotPhone("");
+          setForgotOtp("");
+          setNewPass("");
+        }, 2000);
       } else {
-        setError(data.message || "Failed!");
+        setError(data.message || "Failed! OTP ভুল হতে পারে অথবা মেয়াদ শেষ হয়ে গেছে।");
       }
     } catch {
-      setSuccess("পাসওয়ার্ড পরিবর্তন সফল হয়েছে!");
-      setTimeout(() => { setScreen("login"); setSuccess(""); setForgotStep(1); setForgotPhone(""); setNewPass(""); }, 2000);
+      setError("Server error! Backend চালু আছে?");
     }
     setLoading(false);
   };
 
   const inputClass = "w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-medium";
-  const switchScreen = (s) => { setScreen(s); setError(""); setSuccess(""); setForgotStep(1); };
+  const switchScreen = (s) => {
+    setScreen(s);
+    setError("");
+    setSuccess("");
+    setForgotStep(1);
+    setForgotOtp("");
+  };
 
   return (
     <div className="w-full max-w-[450px] min-h-screen bg-white flex flex-col justify-start px-8 mx-auto pt-24">
@@ -353,7 +387,6 @@ const Auth = ({ onLoginSuccess }) => {
             required
           />
 
-          {/* REFERRAL CODE */}
           <div className="relative">
             <input
               type="text"
@@ -371,7 +404,6 @@ const Auth = ({ onLoginSuccess }) => {
             </div>
           )}
 
-          {/* ✅ Terms & Condition Checkbox */}
           <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4">
             <input
               type="checkbox"
@@ -395,7 +427,7 @@ const Auth = ({ onLoginSuccess }) => {
         </form>
       )}
 
-      {/* FORGOT PASSWORD */}
+      {/* FORGOT PASSWORD — এখন ৩ ধাপ: ফোন → OTP → নতুন পাসওয়ার্ড */}
       {screen === "forgot" && (
         <div>
           <button onClick={() => switchScreen("login")} className="flex items-center gap-2 text-gray-500 font-bold text-sm mb-6">
@@ -422,16 +454,48 @@ const Auth = ({ onLoginSuccess }) => {
                 disabled={loading}
                 className="w-full bg-orange-500 text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition disabled:opacity-50"
               >
-                {loading ? "চেক হচ্ছে..." : "পরবর্তী ধাপ →"}
+                {loading ? "পাঠানো হচ্ছে..." : "OTP পাঠান →"}
               </button>
             </form>
           )}
 
           {forgotStep === 2 && (
             <form onSubmit={handleForgotStep2} className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center mb-2">
+                <p className="text-2xl mb-1">📩</p>
+                <p className="text-sm font-bold text-blue-700">{forgotPhone}-এ পাঠানো ৬ ডিজিটের কোড দিন</p>
+              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="৬ ডিজিটের OTP"
+                className={`${inputClass} text-center tracking-[8px] text-xl font-bold`}
+                value={forgotOtp}
+                onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                required
+              />
+              <button
+                type="submit"
+                className="w-full bg-black text-white p-4 rounded-2xl font-bold text-lg active:scale-95 transition"
+              >
+                পরবর্তী ধাপ →
+              </button>
+              <button
+                type="button"
+                onClick={() => { setForgotStep(1); setForgotOtp(""); setError(""); setSuccess(""); }}
+                className="w-full text-gray-500 font-bold text-sm py-2"
+              >
+                ফোন নাম্বার বদলাতে চান? আবার দিন
+              </button>
+            </form>
+          )}
+
+          {forgotStep === 3 && (
+            <form onSubmit={handleForgotStep3} className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center mb-2">
                 <p className="text-2xl mb-1">✅</p>
-                <p className="text-sm font-bold text-green-700">{forgotPhone} — অ্যাকাউন্ট পাওয়া গেছে!</p>
+                <p className="text-sm font-bold text-green-700">OTP সঠিক! এখন নতুন পাসওয়ার্ড দিন</p>
               </div>
               <PasswordInput
                 placeholder="নতুন পাসওয়ার্ড"
@@ -453,7 +517,7 @@ const Auth = ({ onLoginSuccess }) => {
         </div>
       )}
 
-      {/* ✅ MUST RESET PASSWORD — migrated user first login */}
+      {/* ✅ MUST RESET PASSWORD — migrated user first login (token দিয়ে, phone দিয়ে না) */}
       {screen === "mustReset" && (
         <form onSubmit={handleMustReset} className="space-y-4">
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center mb-2">
