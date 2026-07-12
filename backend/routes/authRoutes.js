@@ -7,22 +7,14 @@ const { Pool } = require("pg");
 const supabaseAdmin = require("../utils/supabaseAdmin");
 const supabase = require("../utils/supabaseClient");
 const { looksLikeFakePhone } = require("../utils/referralFraud");
-const { sendSms } = require("../utils/smsProvider");
+const { sendSms } = require("../utils/sendSms");
+const { protect } = require("../middleware/auth");
 
 const pool = require("../utils/db");
 
 const ADMIN_ROLES = ["admin", "super-admin", "finance"];
-const OTP_TTL_MS = 5 * 60 * 1000; // ৫ মিনিট
+const OTP_TTL_MINUTES = 5;
 const OTP_MAX_ATTEMPTS = 5;
-
-function generateOtp() {
-  return String(crypto.randomInt(100000, 999999)); // ৬ ডিজিট
-}
-
-function hashOtp(otp, phone) {
-  // phone-কে salt হিসেবে ব্যবহার করা হচ্ছে যাতে rainbow-table দিয়ে সহজে ভাঙা না যায়
-  return crypto.createHash("sha256").update(`${phone}:${otp}`).digest("hex");
-}
 
 function generateReferralCode(name) {
   const clean = (name || "USER").replace(/\s+/g, "").toUpperCase().slice(0, 4);
@@ -36,12 +28,10 @@ function getClientIp(req) {
   return req.socket?.remoteAddress || req.ip || "";
 }
 
-// Supabase Auth এর জন্য placeholder email (phone-based login সাপোর্ট করার জন্য)
 function placeholderEmail(phone) {
   return `${phone}@placeholder.playzo`;
 }
 
-// Bangladeshi local number কে E.164 তে রূপান্তর করে, নাহলে null
 function toE164(phone) {
   const digitsOnly = phone.replace(/\D/g, "");
   if (/^01\d{9}$/.test(digitsOnly)) {
@@ -50,7 +40,6 @@ function toE164(phone) {
   return null;
 }
 
-// একটা unique referral code বের করে (max 15 চেষ্টা)
 async function generateUniqueReferralCode(client, name) {
   let code, attempts = 0;
   let isUnique = false;
@@ -66,17 +55,34 @@ async function generateUniqueReferralCode(client, name) {
   return code;
 }
 
-// ============ RATE LIMITERS (brute-force / enumeration ঠেকানোর জন্য) ============
-// একই IP থেকে ১৫ মিনিটে ৫ বারের বেশি check-phone/reset-password চেষ্টা করা যাবে না
-const forgotPasswordLimiter = rateLimit({
+// ---------- OTP helpers ----------
+function generateOtp() {
+  // ৬ ডিজিটের OTP, cryptographically random
+  return String(crypto.randomInt(100000, 999999));
+}
+
+function hashOtp(otp, phone) {
+  // phone কে salt হিসেবে ব্যবহার করা হচ্ছে যাতে rainbow-table দিয়ে গেস করা কঠিন হয়
+  return crypto.createHash("sha256").update(`${phone}:${otp}:${process.env.OTP_PEPPER || ""}`).digest("hex");
+}
+
+// ============ RATE LIMITERS ============
+const otpRequestLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 5, // একই IP থেকে ১৫ মিনিটে সর্বোচ্চ ৫ বার OTP রিকোয়েস্ট
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "অনেকবার চেষ্টা হয়েছে, কিছুক্ষণ পর আবার চেষ্টা করুন" },
 });
 
-// লগইনও brute-force এর টার্গেট — আলাদা, একটু বেশি generous limiter
+const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "অনেকবার চেষ্টা হয়েছে, কিছুক্ষণ পর আবার চেষ্টা করুন" },
+});
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -109,7 +115,6 @@ router.post("/register", async (req, res) => {
       }
     }
 
-    // ✅ Supabase Auth-এ user তৈরি (bcrypt hashing এখন Supabase নিজেই করে, তাই আমাদের আর করা লাগবে না)
     const e164Phone = toE164(phone);
     const authPayload = {
       email: placeholderEmail(phone),
@@ -156,7 +161,7 @@ router.post("/register", async (req, res) => {
         inGameName?.trim(),
         email?.trim(),
         phone,
-        "supabase-auth", // password কলাম আর ব্যবহৃত হচ্ছে না, placeholder রাখা হলো
+        "supabase-auth",
         newReferralCode,
         referrer ? referrer.id : null,
         clientIp,
@@ -179,7 +184,6 @@ router.post("/register", async (req, res) => {
       );
     }
 
-    // ✅ রেজিস্ট্রেশনের পরপরই sign-in করে session token বের করা
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: placeholderEmail(phone),
       password,
@@ -245,7 +249,6 @@ router.post("/login", loginLimiter, async (req, res) => {
       return res.json({ success: false, message: "ইউজার পাওয়া যায়নি" });
     }
 
-    // ✅ referralCode না থাকলে generate করে save করা
     let referralCode = user.referral_code;
     if (!referralCode) {
       referralCode = await generateUniqueReferralCode(client, user.name);
@@ -254,7 +257,6 @@ router.post("/login", loginLimiter, async (req, res) => {
 
     await client.query(`UPDATE users SET last_login = now() WHERE id = $1`, [user.id]);
 
-    // migrated flag চেক করা — true মানে temp password দিয়ে ঢুকেছে, reset করা দরকার
     const needsPasswordReset = signInData.user.user_metadata?.migrated === true;
 
     res.json({
@@ -286,44 +288,26 @@ router.post("/login", loginLimiter, async (req, res) => {
   }
 });
 
-// ================= CHECK PHONE (deprecated, নিরাপদ stub) =================
-// পুরনো frontend যদি এখনো এই route কল করে, ভাঙা এড়াতে রেখে দেওয়া হলো,
-// কিন্তু আর কোনো real information (account exists কিনা) দেয় না।
-// নতুন frontend flow-তে এটার বদলে /forgot-password/request-otp ব্যবহার করুন।
-router.post("/check-phone", forgotPasswordLimiter, async (req, res) => {
-  return res.json({
-    success: false,
-    message: "এই পদ্ধতি আর সমর্থিত নয়। অনুগ্রহ করে অ্যাপ আপডেট করুন।",
-    deprecated: true,
-  });
-});
+// =====================================================================
+// ============== FORGOT PASSWORD — OTP-BASED (নতুন, নিরাপদ) ==========
+// =====================================================================
 
-// ================= RESET PASSWORD (deprecated, নিরাপদ stub) =================
-router.post("/reset-password", forgotPasswordLimiter, async (req, res) => {
-  return res.json({
-    success: false,
-    message: "এই পদ্ধতি আর সমর্থিত নয়। অনুগ্রহ করে অ্যাপ আপডেট করুন।",
-    deprecated: true,
-  });
-});
-
-// ================= FORGOT PASSWORD — STEP 1: OTP পাঠানো =================
-// নিরাপত্তার জন্য এই endpoint সবসময় একই generic success message দেয় —
-// phone আসলে registered কিনা, বা admin কিনা, সেটা কখনো আলাদা করে বলা হয় না
-// (user enumeration প্রতিরোধ)। শুধু legit, non-admin ফোন নাম্বার হলেই
-// আসলে OTP তৈরি হয়ে পাঠানো হয়।
-router.post("/forgot-password/request-otp", forgotPasswordLimiter, async (req, res) => {
+// ---- STEP 1: OTP রিকোয়েস্ট করা ----
+// ফোন নাম্বার থাকুক বা না থাকুক, admin হোক বা না হোক — সবসময় same generic
+// response দেওয়া হয় (user-enumeration ঠেকানোর জন্য)। SMS শুধু তখনই যায় যখন
+// আসলেই একটা non-admin অ্যাকাউন্ট পাওয়া যায়।
+router.post("/forgot-password/request", otpRequestLimiter, async (req, res) => {
   const client = await pool.connect();
-  const GENERIC_RESPONSE = {
-    success: true,
-    message: "যদি এই নাম্বারে অ্যাকাউন্ট থাকে, একটি OTP কোড পাঠানো হয়েছে।",
-  };
-
   try {
     const { phone } = req.body;
     if (!phone) {
       return res.json({ success: false, message: "ফোন নাম্বার দিন" });
     }
+
+    const genericResponse = {
+      success: true,
+      message: "যদি এই নাম্বারে অ্যাকাউন্ট থাকে, একটা OTP পাঠানো হয়েছে",
+    };
 
     const { rows } = await client.query(
       `SELECT id, role FROM users WHERE phone = $1`,
@@ -331,52 +315,55 @@ router.post("/forgot-password/request-otp", forgotPasswordLimiter, async (req, r
     );
     const user = rows[0];
 
-    // user না থাকলে বা admin হলে — কিছুই না করে generic success ফেরত দাও
+    // admin/super-admin/finance বা user না থাকলে — চুপচাপ generic response,
+    // SMS পাঠানো হবে না, কিন্তু attacker কে বোঝানো হবে না কোনটা সত্যি
     if (!user || ADMIN_ROLES.includes(user.role)) {
-      return res.json(GENERIC_RESPONSE);
+      return res.json(genericResponse);
     }
 
-    // আগের কোনো unconsumed OTP থাকলে invalidate করে দাও
+    // আগের ওই নাম্বারের অব্যবহৃত OTP invalidate করা (নতুন একটাই valid থাকবে)
     await client.query(
-      `UPDATE password_reset_otps SET consumed = true WHERE phone = $1 AND consumed = false`,
+      `UPDATE password_reset_otps SET used = true WHERE phone = $1 AND used = false`,
       [phone]
     );
 
     const otp = generateOtp();
     const otpHash = hashOtp(otp, phone);
-    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
     await client.query(
-      `INSERT INTO password_reset_otps (phone, otp_hash, expires_at)
-       VALUES ($1, $2, $3)`,
+      `INSERT INTO password_reset_otps (phone, otp_hash, expires_at) VALUES ($1,$2,$3)`,
       [phone, otpHash, expiresAt]
     );
 
-    try {
-      await sendSms(phone, `আপনার Playzo পাসওয়ার্ড রিসেট কোড: ${otp} (৫ মিনিটের জন্য বৈধ)`);
-    } catch (smsErr) {
-      // SMS পাঠাতে ব্যর্থ হলেও attacker কে জানানো যাবে না —
-      // OTP তবুও DB-তে থেকে যাবে, admin panel থেকে ম্যানুয়ালি দেওয়া যাবে
-      console.error("SMS send failed:", smsErr.message);
+    const smsSent = await sendSms(
+      phone,
+      `আপনার uthiYO পাসওয়ার্ড রিসেট কোড: ${otp} (৫ মিনিট বৈধ)। কারো সাথে শেয়ার করবেন না।`
+    );
+
+    if (!smsSent) {
+      console.error(`⚠️ SMS পাঠানো যায়নি: ${phone}`);
+      // SMS gateway ব্যর্থ হলেও attacker কে conflict না দেখিয়ে generic রাখাই ভালো,
+      // কিন্তু server log এ এটা flag থাকা দরকার যাতে monitor করা যায়।
     }
 
-    return res.json(GENERIC_RESPONSE);
+    return res.json(genericResponse);
   } catch (err) {
-    console.error("request-otp error:", err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("Forgot-password request error:", err);
+    res.status(500).json({ success: false, message: "সার্ভার এরর হয়েছে" });
   } finally {
     client.release();
   }
 });
 
-// ================= FORGOT PASSWORD — STEP 2: OTP verify + reset =================
-router.post("/forgot-password/verify-and-reset", forgotPasswordLimiter, async (req, res) => {
+// ---- STEP 2: OTP verify করে নতুন পাসওয়ার্ড সেট করা ----
+router.post("/forgot-password/verify", otpVerifyLimiter, async (req, res) => {
   const client = await pool.connect();
   try {
     const { phone, otp, password } = req.body;
 
     if (!phone || !otp || !password) {
-      return res.json({ success: false, message: "সব তথ্য দিন" });
+      return res.json({ success: false, message: "সব তথ্য পূরণ করুন" });
     }
     if (password.length < 8) {
       return res.json({ success: false, message: "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে" });
@@ -384,38 +371,37 @@ router.post("/forgot-password/verify-and-reset", forgotPasswordLimiter, async (r
 
     const { rows: otpRows } = await client.query(
       `SELECT * FROM password_reset_otps
-       WHERE phone = $1 AND consumed = false
+       WHERE phone = $1 AND used = false
        ORDER BY created_at DESC LIMIT 1`,
       [phone]
     );
-    const otpRow = otpRows[0];
+    const record = otpRows[0];
 
-    if (!otpRow) {
-      return res.json({ success: false, message: "কোনো বৈধ OTP পাওয়া যায়নি, নতুন কোড চান" });
+    if (!record) {
+      return res.json({ success: false, message: "কোনো active OTP নেই, আবার রিকোয়েস্ট করুন" });
     }
-    if (new Date(otpRow.expires_at) < new Date()) {
-      return res.json({ success: false, message: "OTP মেয়াদ শেষ হয়ে গেছে, নতুন কোড চান" });
+    if (new Date(record.expires_at) < new Date()) {
+      return res.json({ success: false, message: "OTP মেয়াদ শেষ হয়ে গেছে, আবার রিকোয়েস্ট করুন" });
     }
-    if (otpRow.attempts >= OTP_MAX_ATTEMPTS) {
-      return res.json({ success: false, message: "অনেকবার ভুল হয়েছে, নতুন কোড চান" });
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      return res.json({ success: false, message: "অনেকবার ভুল হয়েছে, নতুন OTP রিকোয়েস্ট করুন" });
     }
 
-    const expectedHash = hashOtp(otp, phone);
-    if (expectedHash !== otpRow.otp_hash) {
+    const providedHash = hashOtp(otp, phone);
+    if (providedHash !== record.otp_hash) {
       await client.query(
         `UPDATE password_reset_otps SET attempts = attempts + 1 WHERE id = $1`,
-        [otpRow.id]
+        [record.id]
       );
-      return res.json({ success: false, message: "OTP সঠিক নয়" });
+      return res.json({ success: false, message: "OTP ভুল হয়েছে" });
     }
 
+    // OTP সঠিক — এখন role আবার double-check করা (defense in depth)
     const { rows: userRows } = await client.query(
       `SELECT auth_user_id, role FROM users WHERE phone = $1`,
       [phone]
     );
     const user = userRows[0];
-
-    // ✅ admin/super-admin/finance এই public flow দিয়ে কখনো reset হবে না
     if (!user || !user.auth_user_id || ADMIN_ROLES.includes(user.role)) {
       return res.json({ success: false, message: "User not found" });
     }
@@ -430,19 +416,81 @@ router.post("/forgot-password/verify-and-reset", forgotPasswordLimiter, async (r
       return res.json({ success: false, message: "পাসওয়ার্ড পরিবর্তন করতে সমস্যা হয়েছে" });
     }
 
-    // OTP consume করে দাও যাতে reuse না হয়
     await client.query(
-      `UPDATE password_reset_otps SET consumed = true WHERE id = $1`,
-      [otpRow.id]
+      `UPDATE password_reset_otps SET used = true WHERE id = $1`,
+      [record.id]
     );
 
     res.json({ success: true, message: "পাসওয়ার্ড পরিবর্তন সফল হয়েছে!" });
   } catch (err) {
-    console.error("verify-and-reset error:", err);
+    console.error("Forgot-password verify error:", err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
     client.release();
   }
+});
+
+// ================= CHANGE PASSWORD (লগইন করা অবস্থায়) =================
+// এটা "migrated user must reset password on first login" ফ্লো-র জন্য —
+// ইউজার আগে থেকেই valid session token নিয়ে এখানে আসে (কারণ সে সঠিক
+// temp password দিয়ে login করেছে), তাই phone দিয়ে public reset করার
+// দরকার নেই — এখানে token-ই যথেষ্ট প্রমাণ।
+router.post("/change-password", protect, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 8) {
+      return res.json({ success: false, message: "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে" });
+    }
+
+    const client = await pool.connect();
+    let authUserId;
+    try {
+      const { rows } = await client.query(
+        `SELECT auth_user_id FROM users WHERE id = $1`,
+        [req.user.id]
+      );
+      authUserId = rows[0]?.auth_user_id;
+    } finally {
+      client.release();
+    }
+
+    if (!authUserId) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+      password,
+      user_metadata: { migrated: false },
+    });
+
+    if (error) {
+      console.error("Change password error:", error);
+      return res.json({ success: false, message: "পাসওয়ার্ড পরিবর্তন করতে সমস্যা হয়েছে" });
+    }
+
+    res.json({ success: true, message: "পাসওয়ার্ড পরিবর্তন সফল হয়েছে!" });
+  } catch (err) {
+    console.error("Change-password error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ================= (DEPRECATED) OLD INSECURE ENDPOINTS =================
+// পুরনো frontend এখনো এগুলো কল করলে যাতে ভেঙে না পড়ে, তাই রাখা হলো —
+// কিন্তু কোনো কাজ করবে না, শুধু নতুন flow ব্যবহার করতে বলবে।
+// frontend আপডেট হয়ে গেলে এই দুটো routeই সম্পূর্ণ ডিলিট করে দিন।
+router.post("/check-phone", (req, res) => {
+  res.status(410).json({
+    success: false,
+    message: "এই ভার্সন পুরনো হয়ে গেছে, অ্যাপ আপডেট করুন",
+  });
+});
+
+router.post("/reset-password", (req, res) => {
+  res.status(410).json({
+    success: false,
+    message: "এই ভার্সন পুরনো হয়ে গেছে, অ্যাপ আপডেট করুন",
+  });
 });
 
 // ================= REFRESH TOKEN =================
