@@ -47,7 +47,7 @@ const Auth = ({ onLoginSuccess }) => {
 
   const [loginData, setLoginData] = useState({ phone: "", password: "" });
   const [regData, setRegData] = useState({
-    name: "", phone: "", password: "", confirm: "",
+    name: "", phone: "", email: "", password: "", confirm: "",
     referralCode: ""
   });
   const [agreedTerms, setAgreedTerms] = useState(false);
@@ -140,8 +140,11 @@ const Auth = ({ onLoginSuccess }) => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
-    if (!regData.name || !regData.phone || !regData.password) {
+    if (!regData.name || !regData.phone || !regData.email || !regData.password) {
       setError("সব তথ্য পূরণ করুন!"); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regData.email.trim())) {
+      setError("সঠিক ইমেইল ঠিকানা দিন!"); return;
     }
     if (regData.password !== regData.confirm) {
       setError("পাসওয়ার্ড মিলছে না!"); return;
@@ -160,6 +163,7 @@ const Auth = ({ onLoginSuccess }) => {
         body: JSON.stringify({
           name: regData.name,
           phone: regData.phone,
+          email: regData.email.trim(),
           password: regData.password,
           referralCode: regData.referralCode.trim().toUpperCase() || null,
           deviceId: getDeviceId(),
@@ -203,7 +207,7 @@ const Auth = ({ onLoginSuccess }) => {
       // তাই সেটাই দেখিয়ে পরের ধাপে নিয়ে যাওয়া হচ্ছে
       if (data.success) {
         setForgotStep(2);
-        setSuccess("SMS-এ পাঠানো OTP কোডটি লিখুন। অ্যাকাউন্ট না থাকলে কোনো SMS আসবে না।");
+        setSuccess("ইমেইলে পাঠানো OTP কোডটি লিখুন। অ্যাকাউন্ট না থাকলে কোনো ইমেইল আসবে না।");
       } else {
         setError(data.message || "সমস্যা হয়েছে, আবার চেষ্টা করুন");
       }
@@ -370,6 +374,15 @@ const Auth = ({ onLoginSuccess }) => {
             autoComplete="tel"
             required
           />
+          <input
+            type="email"
+            placeholder="ইমেইল (পাসওয়ার্ড রিসেটের জন্য দরকার)"
+            className={inputClass}
+            value={regData.email}
+            onChange={(e) => setRegData({ ...regData, email: e.target.value })}
+            autoComplete="email"
+            required
+          />
           <PasswordInput
             placeholder="পাসওয়ার্ড"
             className={`${inputClass} pr-12`}
@@ -438,7 +451,7 @@ const Auth = ({ onLoginSuccess }) => {
             <form onSubmit={handleForgotStep1} className="space-y-4">
               <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center mb-2">
                 <p className="text-2xl mb-1">🔐</p>
-                <p className="text-sm font-bold text-orange-700">আপনার রেজিস্ট্রেশন করা ফোন নাম্বার দিন</p>
+                <p className="text-sm font-bold text-orange-700">আপনার রেজিস্ট্রেশন করা ফোন নাম্বার দিন — OTP আপনার একাউন্টের ইমেইলে পাঠানো হবে</p>
               </div>
               <input
                 type="text"
@@ -463,7 +476,7 @@ const Auth = ({ onLoginSuccess }) => {
             <form onSubmit={handleForgotStep2} className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center mb-2">
                 <p className="text-2xl mb-1">📩</p>
-                <p className="text-sm font-bold text-blue-700">{forgotPhone}-এ পাঠানো ৬ ডিজিটের কোড দিন</p>
+                <p className="text-sm font-bold text-blue-700">আপনার অ্যাকাউন্টের ইমেইলে পাঠানো ৬ ডিজিটের কোড দিন</p>
               </div>
               <input
                 type="text"
