@@ -7,7 +7,7 @@ const { Pool } = require("pg");
 const supabaseAdmin = require("../utils/supabaseAdmin");
 const supabase = require("../utils/supabaseClient");
 const { looksLikeFakePhone } = require("../utils/referralFraud");
-const { sendSms } = require("../utils/sendSms");
+const { sendOtpEmail } = require("../utils/sendEmail");
 const { protect } = require("../middleware/auth");
 
 const pool = require("../utils/db");
@@ -307,12 +307,16 @@ router.post("/forgot-password/request", otpRequestLimiter, async (req, res) => {
     };
 
     const { rows } = await client.query(
-      `SELECT id, role FROM users WHERE phone = $1`,
+      `SELECT id, role, email FROM users WHERE phone = $1`,
       [phone]
     );
     const user = rows[0];
 
-    if (!user || ADMIN_ROLES.includes(user.role)) {
+    // ⚠️ user না থাকলে, admin হলে, অথবা real email না থাকলে (placeholder email
+    // দিয়ে OTP পাঠানো যাবে না) — সবক্ষেত্রেই একই generic response দেওয়া হচ্ছে,
+    // যাতে বাইরের কেউ phone number enumerate করতে না পারে।
+    const hasRealEmail = user?.email && !user.email.endsWith("@placeholder.playzo");
+    if (!user || ADMIN_ROLES.includes(user.role) || !hasRealEmail) {
       return res.json(genericResponse);
     }
 
@@ -331,15 +335,12 @@ router.post("/forgot-password/request", otpRequestLimiter, async (req, res) => {
     );
 
     if (process.env.TEST_MODE === "true") {
-      console.log(`🧪 [TEST_MODE] ${phone} এর OTP: ${otp}`);
+      console.log(`🧪 [TEST_MODE] ${user.email} এর OTP: ${otp}`);
     } else {
-      const smsSent = await sendSms(
-        phone,
-        `আপনার uthiYO পাসওয়ার্ড রিসেট কোড: ${otp} (৫ মিনিট বৈধ)। কারো সাথে শেয়ার করবেন না।`
-      );
+      const emailSent = await sendOtpEmail(user.email, otp, OTP_TTL_MINUTES);
 
-      if (!smsSent) {
-        console.error(`⚠️ SMS পাঠানো যায়নি: ${phone}`);
+      if (!emailSent) {
+        console.error(`⚠️ OTP email পাঠানো যায়নি: ${user.email}`);
       }
     }
 
