@@ -13,8 +13,7 @@
 const express  = require("express");
 const router   = express.Router();
 const { Pool } = require("pg");
-
-// ✅ পুরনো ভুল: আগে এখানে নিজস্ব JWT_SECRET দিয়ে jwt.verify() করা authAdmin
+ 
 // middleware ছিল — কিন্তু বাস্তবে লগইন (routes/adminAuthRoutes.js) Supabase
 // Auth ব্যবহার করে (supabase.auth.signInWithPassword), আর token verify হয়
 // middleware/auth.js এর protect দিয়ে (supabase.auth.getUser)। তাই এখন সেটাই
@@ -41,8 +40,7 @@ function calcGemTier(amount) {
   if (amount >= 50) return 5;
   return 0;
 }
-
-const JWT_SECRET  = process.env.JWT_SECRET || "your_secret_key";
+ 
 const ADMIN_ROLES = ["admin", "super-admin", "finance"];
 
 // ─── Prize Logic Config ───────────────────────────────────────────────────────
@@ -86,27 +84,7 @@ const BR_SOLO_DEFAULT_PRIZES = {
   fourth: 20,
 };
 
-const authAdmin = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ success: false, message: "No token" });
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    const { rows } = await pool.query(
-      `SELECT id, name, role FROM users WHERE id = $1`,
-      [decoded.id]
-    );
-    const user = rows[0];
-    if (!user || !ADMIN_ROLES.includes(user.role))
-      return res.status(401).json({ success: false, message: "Admin not found" });
-
-    req.admin = user;
-    next();
-  } catch {
-    res.status(401).json({ success: false, message: "Invalid token" });
-  }
-};
-
+ 
 const log = (adminName, action, target, type) =>
   pool
     .query(
