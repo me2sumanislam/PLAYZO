@@ -1,42 +1,27 @@
  // backend/utils/sendEmail.js
 // -----------------------------------------------------------------------
-// Gmail দিয়ে OTP/transactional email পাঠানোর জন্য। Nodemailer + Gmail SMTP
-// ব্যবহার করছে। Gmail account এ 2-Step Verification চালু করে একটা
-// "App Password" বানিয়ে সেটা .env এ দিন (আপনার আসল Gmail পাসওয়ার্ড না)।
+// আগে এটা Gmail SMTP (Nodemailer) ব্যবহার করত, কিন্তু Render-এর FREE plan
+// SMTP পোর্ট (25, 465, 587) ব্লক করে দেয় বলে ইমেইল কখনোই পাঠানো যাচ্ছিল না
+// (App Password/env variable ঠিক থাকা সত্ত্বেও)।
+//
+// তাই এখন Brevo (আগে Sendinblue) এর HTTP API ব্যবহার করা হচ্ছে — এটা SMTP
+// পোর্ট ব্যবহার করে না, বরং সাধারণ HTTPS request (যেমন axios/fetch), তাই
+// Render/Vercel এর মতো প্ল্যাটফর্মে ব্লক হয় না।
 //
 // .env এ যোগ করুন:
-//   GMAIL_USER=youraccount@gmail.com
-//   GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx   (Google Account > Security > App Passwords)
+//   BREVO_API_KEY=your_brevo_api_key
+//   BREVO_SENDER_EMAIL=support@uthiyo.com   (Brevo তে verify করা sender email)
+//   BREVO_SENDER_NAME=uthiYO                (optional, ডিফল্ট "uthiYO")
 //
-// ⚠️ Gmail personal account দিয়ে bulk/production sending করলে
-// deliverability কম হতে পারে ও account সাময়িকভাবে lock হতে পারে।
-// scale বাড়লে Resend / SendGrid / Amazon SES এ move করা ভালো —
-// তখন শুধু এই ফাইলের ভেতরের transporter অংশ বদলালেই চলবে,
-// বাকি কোডে কোনো পরিবর্তন লাগবে না।
+// Brevo ফ্রি প্ল্যানে সেটআপ:
+//   ১. https://www.brevo.com এ ফ্রি একাউন্ট খুলুন
+//   ২. Senders & IP > Senders এ গিয়ে আপনার sender email verify করুন
+//   ৩. SMTP & API > API Keys > Generate a new API key
 // -----------------------------------------------------------------------
 
-const nodemailer = require("nodemailer");
+const axios = require("axios");
 
-let transporter = null;
-
-function getTransporter() {
-  if (transporter) return transporter;
-
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-
-  if (!user || !pass) {
-    console.error("❌ GMAIL_USER / GMAIL_APP_PASSWORD .env এ সেট করা নেই — email পাঠানো যাবে না।");
-    return null;
-  }
-
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user, pass },
-  });
-
-  return transporter;
-}
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 /**
  * @param {string} to - প্রাপকের email
@@ -46,21 +31,43 @@ function getTransporter() {
  * @returns {Promise<boolean>} success হলে true
  */
 async function sendEmail(to, subject, text, html) {
-  try {
-    const t = getTransporter();
-    if (!t) return false;
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+  const senderName = process.env.BREVO_SENDER_NAME || "uthiYO";
 
-    await t.sendMail({
-      from: `"uthiYO" <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      text,
-      html: html || undefined,
-    });
+  if (!apiKey || !senderEmail) {
+    console.error(
+      "❌ BREVO_API_KEY / BREVO_SENDER_EMAIL .env এ সেট করা নেই — email পাঠানো যাবে না।"
+    );
+    return false;
+  }
+
+  try {
+    await axios.post(
+      BREVO_API_URL,
+      {
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: to }],
+        subject,
+        textContent: text,
+        htmlContent: html || undefined,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "api-key": apiKey,
+        },
+        timeout: 15000,
+      }
+    );
 
     return true;
   } catch (err) {
-    console.error("Email send failed:", err.message);
+    console.error(
+      "Email send failed:",
+      err.response?.data || err.message
+    );
     return false;
   }
 }
