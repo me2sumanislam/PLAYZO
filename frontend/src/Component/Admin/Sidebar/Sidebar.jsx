@@ -67,6 +67,20 @@ export const NAV = [
     icon: "📋",
     roles: ["super-admin", "admin"],
   },
+{
+  key: "announcement",
+  label: "App Announcement",
+  icon: "📢",
+  roles: ["super-admin", "admin"],
+},
+{
+  key: "broadcast-notification",
+  label: "Send Notification",
+  icon: "🔔",
+  roles: ["super-admin", "admin"],
+},
+
+
   {
     key: "manage-admins",
     label: "Manage Admins",

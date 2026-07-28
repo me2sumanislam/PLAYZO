@@ -3,7 +3,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../utils/adminApi";
 import AdminLogin from "../AdminPenal/AdminLogin";
 import Sidebar from "../../Component/Admin/Sidebar/Sidebar";
-
+import AnnouncementManager from "../../Component/Admin/AnnouncementManager/AnnouncementManager";
+import BroadcastNotification from "../../Component/Admin/BroadcastNotification/BroadcastNotification";
 import Dashboard        from "../Admin/AdminDashboard/AdminDashboard";
 import CreateMatch      from "../Admin/CreateMatch/CreateMatch";
 import MatchResults     from "../Admin/MatchResultSubmit";
@@ -96,6 +97,8 @@ const AdminPanel = () => {
         {page === "activity-log"      && <ActivityLog />}
         {page === "manage-admins"     && <ManageAdmins />}
         {page === "payment-numbers"   && <PaymentNumbers api={api} />}
+        {page === "announcement" && <AnnouncementManager api={api} />}
+{page === "broadcast-notification" && <BroadcastNotification api={api} />}
 
       </main>
     </div>

@@ -16,23 +16,15 @@ function checkAppVersion() {
       // ✅ version আলাদা — শুধু cache/version key clear করো, token/user রেখে দাও
       localStorage.setItem(STORAGE_KEY, APP_VERSION);
       console.log("🔄 Version updated —", savedVersion, "→", APP_VERSION);
-      // এখানে ইচ্ছাকৃতভাবে token/user clear করা হচ্ছে না।
-      // যদি সত্যিই backend contract বদলে যাওয়ায় user/token invalid করতে হয়,
-      // তাহলে শুধু নির্দিষ্ট key remove করুন, পুরো localStorage নয়:
-      // localStorage.removeItem("someOldCacheKey");
     } else if (!savedVersion) {
       // ✅ fresh visit — কিছু touch করো না, শুধু version save করো
       localStorage.setItem(STORAGE_KEY, APP_VERSION);
     }
-    // same version — কিছুই করো না, token/user অক্ষত থাকবে
   } catch (err) {
     console.warn("checkAppVersion failed:", err);
   }
 }
 
-// একবার reload করার পর, ঠিক তার পরপরই যেন আরেকটা reload আবার trigger না হয়
-// (SW বারবার install/activate হতে থাকলেও) — সেটা আটকানোর জন্য sessionStorage
-// ব্যবহার করা হচ্ছে, কারণ page-level ভ্যারিয়েবল প্রতি reload-এ রিসেট হয়ে যায়।
 function canReloadNow() {
   try {
     const last = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || 0);
@@ -44,14 +36,10 @@ function canReloadNow() {
     sessionStorage.setItem(RELOAD_GUARD_KEY, String(now));
     return true;
   } catch {
-    // sessionStorage না থাকলে (private mode ইত্যাদি) reload allow করি,
-    // কিন্তু in-memory guard দিয়ে অন্তত একবারের বেশি এই session-এ আটকাই
     return true;
   }
 }
 
-// ✅ Fresh install (প্রথমবার অথবা uninstall→reinstall) হলে —
-// সব local data (localStorage/sessionStorage/IndexedDB) মুছে একদম নতুন করে শুরু করো
 function clearAllLocalData() {
   try {
     localStorage.clear();
@@ -80,9 +68,18 @@ function listenForSWUpdate() {
   if (!("serviceWorker" in navigator)) return;
 
   let refreshing = false;
+  let freshInstallPending = false;
+
+  // ✅ একমাত্র জায়গা যেখান থেকে reload হয় — যেকোনো সংখ্যক trigger থেকে
+  // কল হলেও, guard-এর কারণে reload() একবারই কল হবে (race/double-reload আটকায়)
+  const doReload = () => {
+    if (refreshing) return;
+    if (!canReloadNow()) return;
+    refreshing = true;
+    window.location.reload();
+  };
 
   navigator.serviceWorker.addEventListener("message", (event) => {
-    // ✅ Fresh install detected — সব local data clear করে reload
     if (event.data?.type === "FRESH_INSTALL_RESET") {
       console.log("🆕 Fresh install detected — clearing all local data");
       clearAllLocalData();
@@ -91,29 +88,32 @@ function listenForSWUpdate() {
       } catch (err) {
         console.warn("Storage update failed:", err);
       }
-      window.location.reload();
+      // ⚠️ এখানে সরাসরি reload() কল করা হচ্ছে না।
+      // self.clients.claim() নিজেই controllerchange event trigger করবে,
+      // সেখান থেকেই reload হবে (নিচে দেখুন)। এখানে শুধু fallback হিসেবে
+      // একটা timeout রাখা হলো — যদি কোনো কারণে controllerchange না ফায়ার করে।
+      freshInstallPending = true;
+      setTimeout(() => {
+        if (freshInstallPending) doReload();
+      }, 800);
       return;
     }
 
-    // ✅ SW থেকে APP_UPDATED আসলে reload করো — কিন্তু auth data মুছবে না
     if (event.data?.type === "APP_UPDATED") {
-      if (!canReloadNow()) return;
-      console.log("🔄 SW updated — reloading (auth data preserved)");
       try {
         localStorage.setItem(STORAGE_KEY, APP_VERSION);
       } catch (err) {
         console.warn("Storage update failed:", err);
       }
-      window.location.reload();
+      doReload();
     }
   });
 
-  // ✅ নতুন SW active হলে reload — কিন্তু cooldown-এর মধ্যে দ্বিতীয়বার না
+  // ✅ নতুন SW active হলে reload — এখন এটাই মূল reload trigger,
+  // message handler-এর সাথে race করবে না
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing) return;
-    if (!canReloadNow()) return;
-    refreshing = true;
-    window.location.reload();
+    freshInstallPending = false;
+    doReload();
   });
 
   navigator.serviceWorker.ready

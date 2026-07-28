@@ -13,7 +13,7 @@ import AdminPanel from "./page/AdminPenal/AdminPanel";
 import Referral from "./page/Referral/Referral";
 import InstallPage from "./page/InstallPage/InstallPage";
 import SplashScreen from "./Component/SplashScreen/SplashScreen";
-
+import AnnouncementModal from "./Component/AnnouncementModal/AnnouncementModal";
 const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 const API_BASE =
   (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api";
@@ -268,6 +268,7 @@ function App() {
           />
         </Routes>
       )}
+      {!showSplash && <AnnouncementModal />}
     </>
   );
 }
