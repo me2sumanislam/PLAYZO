@@ -30,6 +30,7 @@ self.addEventListener("message", (event) => {
 
 const CACHE_VERSION = "uthiyo-v23"
 self.__token = ""
+self.__isFreshInstall = false
 
 function setBadge(count) {
   try {
@@ -46,55 +47,68 @@ function setBadge(count) {
 self.addEventListener("install", (event) => {
   self.skipWaiting()
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) =>
-      cache.addAll([
-        "/",
-        "/app",
-        "/index.html",
-        "/manifest.json",
-        "/image/icon/icon-192x192.png",
-        "/image/icon/icon-72x72.png",
-      ]).catch(() => {})
-    )
+    (async () => {
+      const cacheNames = await caches.keys()
+      const hasAnyOwnCache = cacheNames.some((name) => name.startsWith("uthiyo-"))
+
+      // ✅ কোনো পুরনো "uthiyo-" cache-ই নেই — মানে এটা fresh install
+      // (প্রথমবার visit অথবা uninstall-এর পর reinstall — দুটোই একই সিগন্যাল দেয়)
+      if (!hasAnyOwnCache) {
+        self.__isFreshInstall = true
+      }
+
+      const cache = await caches.open(CACHE_VERSION)
+      await cache
+        .addAll([
+          "/",
+          "/app",
+          "/index.html",
+          "/manifest.json",
+          "/image/icon/icon-192x192.png",
+          "/image/icon/icon-72x72.png",
+        ])
+        .catch(() => {})
+    })()
   )
 })
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    Promise.all([
+    (async () => {
+      const cacheNames = await caches.keys()
+
       // পুরনো cache delete
-      caches.keys().then((cacheNames) =>
-        Promise.all(
-          cacheNames.map((name) => {
-            if (name !== CACHE_VERSION) return caches.delete(name)
-          })
+      await Promise.all(
+        cacheNames.map((name) => (name !== CACHE_VERSION ? caches.delete(name) : null))
+      )
+
+      await self.clients.claim()
+
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      })
+
+      if (self.__isFreshInstall) {
+        // ✅ Fresh install (প্রথমবার অথবা uninstall→reinstall) —
+        // client-কে বলো সব local data (localStorage/sessionStorage/IndexedDB) clear করে
+        // একদম নতুন করে শুরু করতে
+        clients.forEach((client) =>
+          client.postMessage({ type: "FRESH_INSTALL_RESET" })
         )
-      ),
-
-      self.clients.claim(),
-
-      // ✅ শুধু আগে কোনো cache ছিলে তখনই APP_UPDATED পাঠাও
-      // fresh install এ পুরনো cache থাকবে না তাই message যাবে না
-     caches.keys().then(async (cacheNames) => {
-  // ✅ শুধু আমাদের নিজেদের CACHE_VERSION cache গুলো check করো,
-  // workbox-precache cache বাদ দিয়ে
-  const ownCaches = cacheNames.filter((name) => name.startsWith("uthiyo-"))
-  const hasOldOwnCache = ownCaches.some((name) => name !== CACHE_VERSION)
-  if (!hasOldOwnCache) return // fresh install বা একই version — কিছু করো না
-
-  const clients = await self.clients.matchAll({
-    type: "window",
-    includeUncontrolled: true,
-  })
-  clients.forEach((client) =>
-    client.postMessage({ type: "APP_UPDATED" })
-  )
-})
-    ])
+      } else {
+        // ✅ Normal update — শুধু তখনই APP_UPDATED পাঠাও যখন সত্যিই আগে
+        // অন্য version-এর cache ছিল (auth data অক্ষত থাকবে)
+        const ownCaches = cacheNames.filter((name) => name.startsWith("uthiyo-"))
+        const hasOldOwnCache = ownCaches.some((name) => name !== CACHE_VERSION)
+        if (hasOldOwnCache) {
+          clients.forEach((client) => client.postMessage({ type: "APP_UPDATED" }))
+        }
+      }
+    })()
   )
 })
 
- 
 self.addEventListener("push", (event) => {
   let data = {}
   try {

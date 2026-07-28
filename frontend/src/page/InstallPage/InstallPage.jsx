@@ -11,38 +11,82 @@ const InstallPage = () => {
   const [isStandalone, setIsStandalone] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [checking, setChecking] = useState(true); // ✅ প্রথমে "already installed কিনা" চেক করার সময়
   const deferredPrompt = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     // iOS detect
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     setIsIOS(ios);
 
-    // Already installed?
-    const standalone = window.matchMedia("(display-mode: standalone)").matches;
-    setIsStandalone(standalone);
-
-    // Already installed → সরাসরি app এ পাঠাও
-    if (standalone) {
+    const goToApp = () => {
       navigate(`/app${refCode ? `?ref=${refCode}` : ""}`, { replace: true });
-      return;
-    }
+    };
+
+    // ✅ Already installed কিনা — তিনটা সিগন্যাল একসাথে চেক করা হচ্ছে:
+    // 1) standalone display-mode (home screen icon থেকে খোলা হলে true)
+    // 2) localStorage flag (আগে কখনো appinstalled event ফায়ার হয়েছিল কিনা)
+    // 3) navigator.getInstalledRelatedApps() (Chrome/Android native detection)
+    const checkAlreadyInstalled = async () => {
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      const alreadyFlagged = localStorage.getItem("pwa_installed") === "true";
+
+      let related = false;
+      try {
+        if ("getInstalledRelatedApps" in navigator) {
+          const apps = await navigator.getInstalledRelatedApps();
+          related = apps.length > 0;
+        }
+      } catch {
+        // API না থাকলে বা fail করলে চুপচাপ ignore করো
+      }
+
+      if (cancelled) return true;
+
+      if (standalone || alreadyFlagged || related) {
+        // ✅ Confirmed installed — flag আপডেট করে সরাসরি app এ পাঠাও
+        try {
+          localStorage.setItem("pwa_installed", "true");
+        } catch {}
+        setIsStandalone(true);
+        goToApp();
+        return true;
+      }
+
+      return false;
+    };
+
+    checkAlreadyInstalled().then((redirected) => {
+      if (!redirected && !cancelled) {
+        setChecking(false);
+      }
+    });
 
     const handler = (e) => {
       e.preventDefault();
       deferredPrompt.current = e;
       setCanInstall(true);
     };
-
     window.addEventListener("beforeinstallprompt", handler);
 
-    window.addEventListener("appinstalled", () => {
-      // Install হয়ে গেলে app এ পাঠাও, ref code সহ
-      navigate(`/app${refCode ? `?ref=${refCode}` : ""}`, { replace: true });
-    });
+    const onInstalled = () => {
+      // ✅ Install হয়ে গেলে flag সেট করো, ভবিষ্যতে আর prompt দেখাবে না
+      try {
+        localStorage.setItem("pwa_installed", "true");
+      } catch {}
+      goToApp();
+    };
+    window.addEventListener("appinstalled", onInstalled);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
 
@@ -54,7 +98,7 @@ const InstallPage = () => {
     deferredPrompt.current = null;
     setInstalling(false);
     if (outcome === "accepted") {
-      // appinstalled event navigate করবে
+      // appinstalled event navigate করবে (flag ও সেট হবে)
     } else {
       // Cancel করলেও app এ যেতে দাও
       navigate(`/app${refCode ? `?ref=${refCode}` : ""}`);
@@ -64,6 +108,16 @@ const InstallPage = () => {
   const handleSkip = () => {
     navigate(`/app${refCode ? `?ref=${refCode}` : ""}`);
   };
+
+  // ✅ যতক্ষণ "already installed কিনা" চেক চলছে, ততক্ষণ কিছু দেখাবে না
+  // (এতে install button মুহূর্তের জন্য flash করবে না)
+  if (checking || isStandalone) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1a0533] via-[#2d0a5e] to-[#0f0520] flex items-center justify-center">
+        <div className="text-white/60 text-sm">লোড হচ্ছে...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a0533] via-[#2d0a5e] to-[#0f0520] flex flex-col items-center justify-center px-6">
@@ -134,7 +188,12 @@ const InstallPage = () => {
             </div>
           </div>
           <button
-            onClick={handleSkip}
+            onClick={() => {
+              try {
+                localStorage.setItem("pwa_installed", "true");
+              } catch {}
+              handleSkip();
+            }}
             className="w-full mt-5 bg-orange-500 text-white font-bold py-3 rounded-xl"
           >
             Install করা হয়ে গেছে, এগিয়ে যান →
@@ -145,4 +204,4 @@ const InstallPage = () => {
   );
 };
 
-export default InstallPage;
+export default InstallPage; 

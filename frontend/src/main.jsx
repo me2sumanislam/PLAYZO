@@ -50,13 +50,52 @@ function canReloadNow() {
   }
 }
 
+// ✅ Fresh install (প্রথমবার অথবা uninstall→reinstall) হলে —
+// সব local data (localStorage/sessionStorage/IndexedDB) মুছে একদম নতুন করে শুরু করো
+function clearAllLocalData() {
+  try {
+    localStorage.clear();
+  } catch (err) {
+    console.warn("localStorage clear failed:", err);
+  }
+  try {
+    sessionStorage.clear();
+  } catch (err) {
+    console.warn("sessionStorage clear failed:", err);
+  }
+  try {
+    if (indexedDB?.databases) {
+      indexedDB.databases().then((dbs) => {
+        dbs.forEach((db) => {
+          if (db?.name) indexedDB.deleteDatabase(db.name);
+        });
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn("indexedDB clear failed:", err);
+  }
+}
+
 function listenForSWUpdate() {
   if (!("serviceWorker" in navigator)) return;
 
   let refreshing = false;
 
-  // ✅ SW থেকে APP_UPDATED আসলে reload করো — কিন্তু auth data মুছবে না
   navigator.serviceWorker.addEventListener("message", (event) => {
+    // ✅ Fresh install detected — সব local data clear করে reload
+    if (event.data?.type === "FRESH_INSTALL_RESET") {
+      console.log("🆕 Fresh install detected — clearing all local data");
+      clearAllLocalData();
+      try {
+        localStorage.setItem(STORAGE_KEY, APP_VERSION);
+      } catch (err) {
+        console.warn("Storage update failed:", err);
+      }
+      window.location.reload();
+      return;
+    }
+
+    // ✅ SW থেকে APP_UPDATED আসলে reload করো — কিন্তু auth data মুছবে না
     if (event.data?.type === "APP_UPDATED") {
       if (!canReloadNow()) return;
       console.log("🔄 SW updated — reloading (auth data preserved)");
