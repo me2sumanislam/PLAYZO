@@ -102,6 +102,7 @@ app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/ludo-tournament", require("./routes/ludoMatchRoutes"));
 app.use("/api/settings", require("./routes/settingsRoutes"));
+app.use("/api/announcement", require("./routes/announcementRoutes"));
 app.use("/api/ludo-result", require("./routes/ludoResultRoutes"));
 
 // ================= RESULT ROUTES =================

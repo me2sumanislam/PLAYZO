@@ -3,7 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const { Pool } = require("pg");
-const { protect } = require("../middleware/auth");
+const { protect, adminOnly } = require("../middleware/auth");
 const { sendToAll } = require("../utils/sendNotification");
 
 const pool = require("../utils/db");
@@ -153,5 +153,36 @@ router.sendMatchNotification = async (match, category = "general") => {
     client.release();
   }
 };
+
+// POST /api/notifications/admin/broadcast — admin নিজের লেখা text দিয়ে সব ইউজারকে notification পাঠাবে
+router.post("/admin/broadcast", protect, adminOnly, async (req, res) => {
+  const { title, message } = req.body;
+  if (!title?.trim() || !message?.trim()) {
+    return res.status(400).json({ success: false, message: "title ও message দুটোই দিন" });
+  }
+  const client = await pool.connect();
+  try {
+    const { rows: notifRows } = await client.query(
+      `INSERT INTO notifications (title, message, category) VALUES ($1,$2,'announcement') RETURNING id`,
+      [title, message]
+    );
+    const notifId = notifRows[0].id;
+
+    const { rows: countRows } = await client.query(
+      `INSERT INTO user_notifications (notification_id, user_id, is_read)
+       SELECT $1, id, false FROM users
+       RETURNING id`,
+      [notifId]
+    );
+
+    await sendToAll({ title, message, url: "/app", category: "announcement" });
+
+    res.json({ success: true, message: `${countRows.length} জন ইউজারকে পাঠানো হয়েছে`, count: countRows.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+});
 
 module.exports = router;
