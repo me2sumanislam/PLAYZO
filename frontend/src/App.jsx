@@ -13,7 +13,8 @@ import AdminPanel from "./page/AdminPenal/AdminPanel";
 import Referral from "./page/Referral/Referral";
 import InstallPage from "./page/InstallPage/InstallPage";
 import SplashScreen from "./Component/SplashScreen/SplashScreen";
-import AnnouncementModal from "./Component/AnnouncementModal/AnnouncementModal";
+import AnnouncementModal from "./Component/AnnouncementModal/AnnouncementModal"; // ✅ নতুন
+
 const ONESIGNAL_APP_ID = "ad701a0f-8ef4-4d3c-8967-2a028216da99";
 const API_BASE =
   (import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com") + "/api";
@@ -202,6 +203,10 @@ function App() {
     navigate("/app");
   };
 
+  // ✅ Announcement popup — admin panel আর install page ছাড়া সবখানে দেখাবে
+  const showAnnouncement =
+    !showSplash && !location.pathname.startsWith("/admin") && location.pathname !== "/install";
+
   return (
     <>
       {showSplash && (
@@ -268,7 +273,10 @@ function App() {
           />
         </Routes>
       )}
-      {!showSplash && <AnnouncementModal />}
+
+      {/* ✅ Announcement popup — App.jsx এর top level এ, Routes এর বাইরে,
+          তাই route পরিবর্তন হলেও unmount হয় না */}
+      {showAnnouncement && <AnnouncementModal />}
     </>
   );
 }

@@ -55,6 +55,20 @@ export const NAV = [
     roles: ["super-admin", "finance"],
   },
   {
+    // ✅ নতুন — App Announcement (Popup)
+    key: "announcement",
+    label: "App Announcement",
+    icon: "📢",
+    roles: ["super-admin", "admin"],
+  },
+  {
+    // ✅ নতুন — Custom broadcast push notification
+    key: "broadcast-notification",
+    label: "Send Notification",
+    icon: "🔔",
+    roles: ["super-admin", "admin"],
+  },
+  {
     // ✅ নতুন — Gem Referral System এর fraud detection page
     key: "referral-fraud",
     label: "Referral Fraud Alerts",
@@ -67,20 +81,6 @@ export const NAV = [
     icon: "📋",
     roles: ["super-admin", "admin"],
   },
-{
-  key: "announcement",
-  label: "App Announcement",
-  icon: "📢",
-  roles: ["super-admin", "admin"],
-},
-{
-  key: "broadcast-notification",
-  label: "Send Notification",
-  icon: "🔔",
-  roles: ["super-admin", "admin"],
-},
-
-
   {
     key: "manage-admins",
     label: "Manage Admins",

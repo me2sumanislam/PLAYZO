@@ -3,8 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../utils/adminApi";
 import AdminLogin from "../AdminPenal/AdminLogin";
 import Sidebar from "../../Component/Admin/Sidebar/Sidebar";
-import AnnouncementManager from "../../Component/Admin/AnnouncementManager/AnnouncementManager";
-import BroadcastNotification from "../../Component/Admin/BroadcastNotification/BroadcastNotification";
+
 import Dashboard        from "../Admin/AdminDashboard/AdminDashboard";
 import CreateMatch      from "../Admin/CreateMatch/CreateMatch";
 import MatchResults     from "../Admin/MatchResultSubmit";
@@ -16,6 +15,8 @@ import ManageAdmins     from "../Admin/ManageAdmins/ManageAdmins";
 import PaymentNumbers   from "../../Component/PaymentNumberManager/paymentNumberManager";
 import ReferralFraudAlerts from "../Admin/ReferralFraudAlerts/ReferralFraudAlerts";
 import LudoTournamentManager from "../../page/LudoTournamentManager/LudoTournamentManager"; // ✅ নতুন —  
+import AnnouncementManager from "../../Component/Admin/AnnouncementManager/AnnouncementManager"; // ✅ নতুন
+import BroadcastNotification from "../../Component/Admin/BroadcastNotification/BroadcastNotification"; // ✅ নতুন
 
 const AdminPanel = () => {
   const [admin,  setAdmin]  = useState(null);
@@ -97,8 +98,8 @@ const AdminPanel = () => {
         {page === "activity-log"      && <ActivityLog />}
         {page === "manage-admins"     && <ManageAdmins />}
         {page === "payment-numbers"   && <PaymentNumbers api={api} />}
-        {page === "announcement" && <AnnouncementManager api={api} />}
-{page === "broadcast-notification" && <BroadcastNotification api={api} />}
+        {page === "announcement"          && <AnnouncementManager api={api} />} {/* ✅ নতুন */}
+        {page === "broadcast-notification" && <BroadcastNotification api={api} />} {/* ✅ নতুন */}
 
       </main>
     </div>
