@@ -1,6 +1,10 @@
  // public/sw.js
-import { precacheAndRoute } from 'workbox-precaching'
-precacheAndRoute(self.__WB_MANIFEST || [])
+ import { precacheAndRoute } from 'workbox-precaching'
+const precacheEntries = (self.__WB_MANIFEST || []).filter((entry) => {
+  const url = typeof entry === "string" ? entry : entry.url;
+  return !url.includes("manifest.webmanifest");
+});
+precacheAndRoute(precacheEntries)
 
 // ✅ message handler সবার আগে
 self.addEventListener("message", (event) => {
