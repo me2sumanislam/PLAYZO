@@ -1,5 +1,6 @@
  // public/sw.js
- import { precacheAndRoute } from 'workbox-precaching'
+import { precacheAndRoute } from 'workbox-precaching'
+
 const precacheEntries = (self.__WB_MANIFEST || []).filter((entry) => {
   const url = typeof entry === "string" ? entry : entry.url;
   return !url.includes("manifest.webmanifest");
@@ -32,7 +33,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v23"
+const CACHE_VERSION = "uthiyo-v24" // ✅ v23 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
 self.__token = ""
 self.__isFreshInstall = false
 
@@ -67,13 +68,63 @@ self.addEventListener("install", (event) => {
           "/",
           "/app",
           "/index.html",
-          "/manifest.json",
+          "/manifest.webmanifest", // ✅ /manifest.json থেকে বদলানো হলো — আসল ফাইলনেমের সাথে মিলিয়ে
           "/image/icon/icon-192x192.png",
           "/image/icon/icon-72x72.png",
         ])
-        .catch(() => {})
+        .catch((err) => console.error("Precache addAll failed:", err))
     })()
   )
+})
+
+// ✅✅✅ নতুন যোগ হলো — এটাই মূল সমস্যা ফিক্স করে
+// এটা ছাড়া "/" এবং manifest.webmanifest fetch fail করলে
+// কোনো fallback ছিল না, unhandled promise rejection হচ্ছিল
+self.addEventListener("fetch", (event) => {
+  const { request } = event
+
+  // শুধু GET রিকোয়েস্ট handle করুন, বাকি সব default browser behavior-এ ছেড়ে দিন
+  if (request.method !== "GET") return
+
+  const url = new URL(request.url)
+
+  const isNavigation = request.mode === "navigate"
+  const isManifest = url.pathname === "/manifest.webmanifest"
+
+  if (isNavigation || isManifest) {
+    event.respondWith(
+      (async () => {
+        try {
+          // আগে নেটওয়ার্ক থেকে চেষ্টা করুন (সবসময় লেটেস্ট ভার্সন পাওয়ার জন্য)
+          const networkResponse = await fetch(request)
+          return networkResponse
+        } catch (err) {
+          // নেটওয়ার্ক fail করলে (offline / flaky connection) cache থেকে fallback
+          const cache = await caches.open(CACHE_VERSION)
+          const cached =
+            (await cache.match(request)) ||
+            (isNavigation ? await cache.match("/index.html") : null)
+
+          if (cached) return cached
+
+          // কিছুই cache-এ না থাকলে safe response দিন, promise reject হতে দেবেন না
+          return new Response(
+            isManifest ? "{}" : "You are offline",
+            {
+              status: 503,
+              statusText: "Offline",
+              headers: {
+                "Content-Type": isManifest
+                  ? "application/manifest+json"
+                  : "text/plain",
+              },
+            }
+          )
+        }
+      })()
+    )
+  }
+  // বাকি সব রিকোয়েস্ট workbox-এর precacheAndRoute হ্যান্ডেল করবে
 })
 
 self.addEventListener("activate", (event) => {
