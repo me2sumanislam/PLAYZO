@@ -4,7 +4,6 @@ import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
 const CLEAN_API_URL = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
-const SEEN_KEY = "seen_announcement_ts";
 
 const AnnouncementModal = () => {
   const [ann, setAnn] = useState(null);
@@ -19,10 +18,7 @@ const AnnouncementModal = () => {
         const data = res.data?.data;
         if (!data || !data.active || !data.body) return;
 
-        // ✅ যতক্ষণ না admin নতুন কিছু update করছে, ততক্ষণ একই user-কে বারবার দেখানো হবে না
-        const seenTs = localStorage.getItem(SEEN_KEY);
-        if (seenTs === data.updatedAt) return;
-
+        // ✅ প্রতিবার app open হলেই দেখানো হবে (আগে seen-check ছিল, এখন বাদ দেওয়া হলো)
         setAnn(data);
         setVisible(true);
       })
@@ -33,11 +29,6 @@ const AnnouncementModal = () => {
   }, []);
 
   const close = () => {
-    if (ann) {
-      try {
-        localStorage.setItem(SEEN_KEY, ann.updatedAt);
-      } catch {}
-    }
     setVisible(false);
   };
 
