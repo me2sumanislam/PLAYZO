@@ -40,7 +40,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v25" // ✅ v24 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
+const CACHE_VERSION = "uthiyo-v26" // ✅ v24 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
 self.__token = ""
 self.__isFreshInstall = false
 
