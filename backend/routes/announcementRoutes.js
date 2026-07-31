@@ -1,4 +1,4 @@
-// routes/announcementRoutes.js
+ // routes/announcementRoutes.js
 const express = require("express");
 const router = express.Router();
 const { protect, adminOnly } = require("../middleware/auth");
@@ -6,6 +6,11 @@ const pool = require("../utils/db");
 
 // GET /api/announcement — public, app খোলার সময় modal দেখানোর জন্য user app এটা ব্যবহার করবে
 router.get("/", async (req, res) => {
+  // ✅ কোনো browser/proxy/CDN যাতে পুরনো response cache করে না রাখে
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+
   try {
     const { rows } = await pool.query(
       `SELECT * FROM announcements WHERE id = 1 LIMIT 1`
