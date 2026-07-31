@@ -28,7 +28,10 @@ const BroadcastNotification = ({ api }) => {
     setSending(true);
     setMsg("");
     try {
-      const res = await api("/notifications/admin/broadcast", "POST", { title, message });
+      const res = await api("/notifications/admin/broadcast", {
+        method: "POST",
+        body: JSON.stringify({ title, message }),
+      });
       if (res?.success) {
         setMsg(`✅ ${res.count ?? ""} জন ইউজারকে পাঠানো হয়েছে`);
         setTitle("");
