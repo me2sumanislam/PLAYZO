@@ -34,7 +34,7 @@ const AnnouncementManager = ({ api }) => {
     }
     setSaving(true);
     try {
-      const res = await api("/announcement", "PUT", form);
+     const res = await api("/announcement", { method: "PUT", body: JSON.stringify(form) });
       if (res?.success) {
         setMsg("✅ সংরক্ষিত হয়েছে! (App খুললে user রা নতুন করে popup দেখবে)");
       } else {
