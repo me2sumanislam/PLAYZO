@@ -1,9 +1,16 @@
  // public/sw.js
 import { precacheAndRoute } from 'workbox-precaching'
 
+// ✅ navigation URL ("/", "/index.html" ইত্যাদি) বাদ দেওয়া হলো —
+// এগুলো নিচের custom fetch handler নিজেই safe fallback সহ handle করে।
+// Workbox-কে দিয়ে এগুলো handle করালে দুইটা handler race করে এবং
+// network fail হলে Workbox-এর নিজের fetch() unhandled promise rejection ছোঁড়ে
+// ("Failed to fetch" — sw.js:1 error যেটা আপনি দেখছেন)।
 const precacheEntries = (self.__WB_MANIFEST || []).filter((entry) => {
   const url = typeof entry === "string" ? entry : entry.url;
-  return !url.includes("manifest.webmanifest");
+  if (url.includes("manifest.webmanifest")) return false;
+  if (url === "/" || url === "/index.html" || url.endsWith("/index.html")) return false;
+  return true;
 });
 precacheAndRoute(precacheEntries)
 
@@ -33,7 +40,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v24" // ✅ v23 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
+const CACHE_VERSION = "uthiyo-v25" // ✅ v24 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
 self.__token = ""
 self.__isFreshInstall = false
 
@@ -77,9 +84,8 @@ self.addEventListener("install", (event) => {
   )
 })
 
-// ✅✅✅ নতুন যোগ হলো — এটাই মূল সমস্যা ফিক্স করে
-// এটা ছাড়া "/" এবং manifest.webmanifest fetch fail করলে
-// কোনো fallback ছিল না, unhandled promise rejection হচ্ছিল
+// ✅✅✅ এটাই এখন "/" এবং manifest.webmanifest-এর একমাত্র handler
+// (Workbox আর এগুলো নিয়ে হাত দেয় না, উপরের filter দেখুন)
 self.addEventListener("fetch", (event) => {
   const { request } = event
 
