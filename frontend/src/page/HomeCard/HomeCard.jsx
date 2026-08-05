@@ -1,4 +1,4 @@
-import React from 'react';
+ import React from 'react';
 
 const services = [
   {
@@ -54,13 +54,13 @@ const HomeCard = () => {
       </style>
 
       {/* === Features Section === */}
-      <section id="features" className="bg-[#120e0c] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20">
+      <section id="features" className="bg-gradient-to-br from-[#241b5e] to-[#3d2470] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10 md:mb-14">
-            <span className="font-arena text-[#c9a227] text-xs md:text-sm font-bold tracking-[0.3em] uppercase">
+            <span className="font-arena text-[#ff5a1f] text-xs md:text-sm font-bold tracking-[0.3em] uppercase">
               কেন uthiYO
             </span>
-            <h2 className="mt-2 text-2xl md:text-4xl font-black text-[#f3ede6]">
+            <h2 className="mt-2 text-2xl md:text-4xl font-black text-white">
               আমাদের বিশেষত্ব
             </h2>
             <div className="w-16 h-1 bg-[#ff5a1f] mx-auto mt-4" />
@@ -70,15 +70,15 @@ const HomeCard = () => {
             {services.map((s, i) => (
               <div
                 key={i}
-                className="bg-[#1c1512] border border-white/5 border-l-2 border-l-[#ff5a1f] p-6 md:p-7 hover:border-l-[#c9a227] transition-colors"
+                className="bg-[#2a1f66]/70 border border-white/10 border-l-2 border-l-[#ff5a1f] p-6 md:p-7 backdrop-blur-sm hover:border-l-white transition-colors"
               >
-                <span className="font-arena text-[#c9a227]/70 text-xs font-bold tracking-widest">
+                <span className="font-arena text-[#c9bdfa] text-xs font-bold tracking-widest">
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                <h3 className="text-lg md:text-xl font-bold text-[#f3ede6] mt-2 mb-3">
+                <h3 className="text-lg md:text-xl font-bold text-white mt-2 mb-3">
                   {s.title}
                 </h3>
-                <p className="text-[#9c8f86] text-sm leading-relaxed">{s.desc}</p>
+                <p className="text-[#c9bdfa]/80 text-sm leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -88,16 +88,16 @@ const HomeCard = () => {
       {/* === Live Tournaments Section === */}
       <section
         id="tournaments"
-        className="bg-[#0e0b09] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20 relative overflow-hidden"
+        className="bg-gradient-to-br from-[#1e1650] to-[#402a7a] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20 relative overflow-hidden"
       >
-        <div className="pointer-events-none absolute -top-24 left-1/3 w-[40rem] h-[40rem] bg-[#ff5a1f]/5 blur-[120px] rounded-full" />
+        <div className="pointer-events-none absolute -top-24 left-1/3 w-[40rem] h-[40rem] bg-[#ff5a1f]/10 blur-[120px] rounded-full" />
 
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-10 md:mb-14">
-            <h2 className="text-2xl md:text-4xl font-black text-[#f3ede6]">
+            <h2 className="text-2xl md:text-4xl font-black text-white">
               চলমান টুর্নামেন্ট
             </h2>
-            <p className="text-[#9c8f86] mt-2 text-sm md:text-base">
+            <p className="text-[#c9bdfa] mt-2 text-sm md:text-base">
               আপনার প্রিয় গেমটি বেছে নিন এবং অংশ নিন
             </p>
           </div>
@@ -106,14 +106,14 @@ const HomeCard = () => {
             {[1, 2, 3, 4, 5, 6].map((item) => (
               <div
                 key={item}
-                className="bg-[#1c1512] border border-white/10 rounded-lg p-5 md:p-6 text-[#f3ede6] hover:border-[#c9a227]/40 transition-all"
+                className="bg-[#2a1f66]/70 border border-white/10 rounded-lg p-5 md:p-6 text-white backdrop-blur-sm hover:border-[#ff5a1f]/50 transition-all"
               >
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="font-arena text-lg font-bold uppercase tracking-wide">
                     Free Fire
                   </h3>
-                  <div className="flex items-center gap-1.5 bg-[#d1373f]/15 text-[#e8626a] px-2.5 py-1 text-[10px] font-bold tracking-widest">
-                    <span className="w-1.5 h-1.5 bg-[#d1373f] rounded-full animate-pulse" /> LIVE
+                  <div className="flex items-center gap-1.5 bg-[#d1373f]/20 text-[#ff8890] px-2.5 py-1 text-[10px] font-bold tracking-widest">
+                    <span className="w-1.5 h-1.5 bg-[#ff5a5a] rounded-full animate-pulse" /> LIVE
                   </div>
                 </div>
 
@@ -121,19 +121,19 @@ const HomeCard = () => {
                   Solo Pro League
                 </h4>
 
-                <ul className="space-y-2.5 mb-6 text-sm text-[#c9beb6]">
+                <ul className="space-y-2.5 mb-6 text-sm text-[#e4defc]">
                   <li className="flex items-center gap-3">
-                    <span className="bg-white/5 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
+                    <span className="bg-white/10 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
                   </li>
                   <li className="flex items-center gap-3">
-                    <span className="bg-white/5 p-1.5 rounded-lg">⏰</span> রাত ৯:৩০ মিনিট
+                    <span className="bg-white/10 p-1.5 rounded-lg">⏰</span> রাত ৯:৩০ মিনিট
                   </li>
                   <li className="flex items-center gap-3">
-                    <span className="bg-white/5 p-1.5 rounded-lg">🏆</span> প্রাইজপুল: ৳৫,০০০
+                    <span className="bg-white/10 p-1.5 rounded-lg">🏆</span> প্রাইজপুল: ৳৫,০০০
                   </li>
                 </ul>
 
-                <button className="font-arena w-full bg-[#ff5a1f] hover:bg-[#e64f18] text-[#120e0c] py-3 font-bold tracking-wide transition-all active:scale-95">
+                <button className="font-arena w-full bg-[#ff5a1f] hover:bg-[#e64f18] text-white py-3 font-bold tracking-wide transition-all active:scale-95">
                   যোগ দিন
                 </button>
               </div>
@@ -143,22 +143,22 @@ const HomeCard = () => {
       </section>
 
       {/* === Membership Section === */}
-      <section id="membership" className="bg-[#120e0c] py-16 md:py-20 px-4 sm:px-6 scroll-mt-20">
+      <section id="membership" className="bg-gradient-to-br from-[#241b5e] to-[#3d2470] py-16 md:py-20 px-4 sm:px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {membership.map((card, index) => (
             <div
               key={index}
-              className="bg-[#1c1512] border border-[#c9a227]/15 rounded-lg p-8 md:p-10 text-center hover:border-[#ff5a1f]/40 transition-all"
+              className="bg-[#2a1f66]/70 border border-white/10 rounded-lg p-8 md:p-10 text-center backdrop-blur-sm hover:border-[#ff5a1f]/50 transition-all"
             >
-              <div className="w-14 h-14 mx-auto mb-6 bg-[#c9a227]/10 border border-[#c9a227]/30 rounded-full flex items-center justify-center">
-                <span className="font-arena text-[#c9a227] font-black text-xl">
+              <div className="w-14 h-14 mx-auto mb-6 bg-[#ff5a1f]/10 border border-[#ff5a1f]/40 rounded-full flex items-center justify-center">
+                <span className="font-arena text-[#ff5a1f] font-black text-xl">
                   {String(index + 1).padStart(2, '0')}
                 </span>
               </div>
-              <h3 className="text-xl md:text-2xl font-black text-[#f3ede6] mb-4">
+              <h3 className="text-xl md:text-2xl font-black text-white mb-4">
                 {card.title}
               </h3>
-              <p className="text-[#9c8f86] leading-relaxed text-sm md:text-[15px]">
+              <p className="text-[#c9bdfa]/80 leading-relaxed text-sm md:text-[15px]">
                 {card.desc}
               </p>
             </div>
