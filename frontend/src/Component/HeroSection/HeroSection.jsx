@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+ import React, { useEffect, useState } from "react";
 
 const Hero = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -65,7 +65,7 @@ const Hero = () => {
   return (
     <section
       id="home"
-      className="relative overflow-hidden bg-gradient-to-br from-[#6366f1] via-[#7c3aed] to-[#9333ea] pt-12 pb-24 px-6"
+      className="relative overflow-hidden bg-gradient-to-br from-[#6a5cf0] to-[#4a3ce0] pt-12 pb-24 px-6"
     >
       <style>
         {`
@@ -101,7 +101,7 @@ const Hero = () => {
 
       {/* stadium floodlight beams */}
       <div className="floodlight pointer-events-none absolute -top-40 left-1/4 w-[60rem] h-[60rem] bg-[#ff7a1a]/10 blur-[120px] rounded-full" />
-      <div className="pointer-events-none absolute -bottom-32 -right-20 w-[30rem] h-[30rem] bg-white/10 blur-[100px] rounded-full" />
+      <div className="pointer-events-none absolute -bottom-32 -right-20 w-[30rem] h-[30rem] bg-[#8b7bff]/10 blur-[100px] rounded-full" />
 
       {/* faint grid texture, like a scoreboard grid */}
       <div
@@ -174,7 +174,7 @@ const Hero = () => {
 
         {/* Right Side: floating scoreboard card (replaces phone mockup) */}
         <div className="w-full md:w-1/2 flex justify-center order-1 md:order-2">
-          <div className="scoreboard-card relative w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-lg shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
+          <div className="scoreboard-card relative w-full max-w-sm bg-[#0b0b14] border border-white/10 rounded-lg shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
             {/* header bar */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
               <span className="font-arena text-white font-bold tracking-widest text-sm">
