@@ -11,7 +11,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="bg-[#081410] border-b border-[#baff29]/10 sticky top-0 z-50">
+    <nav className="bg-[#0b0b14] border-b border-[#ff7a1a]/10 sticky top-0 z-50">
       <style>
         {`
           @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap');
@@ -24,13 +24,13 @@ const Navbar = () => {
           {/* Brand */}
           <a href="#home" className="flex items-center gap-2 group flex-shrink-0">
             <div
-              className="w-9 h-9 md:w-10 md:h-10 bg-[#baff29] flex items-center justify-center font-black text-[#081410] text-lg md:text-xl"
+              className="w-9 h-9 md:w-10 md:h-10 bg-[#ff7a1a] flex items-center justify-center font-black text-[#0b0b14] text-lg md:text-xl"
               style={{ clipPath: "polygon(0 0, 100% 0, 100% 75%, 85% 100%, 0 100%)" }}
             >
               U
             </div>
             <span className="font-arena text-white font-bold text-xl md:text-2xl tracking-wide">
-              uthi<span className="text-[#baff29]">YO</span>
+              uthi<span className="text-[#ff7a1a]">YO</span>
             </span>
           </a>
 
@@ -40,14 +40,14 @@ const Navbar = () => {
               <a
                 key={l.name}
                 href={l.href}
-                className="font-arena text-gray-300 hover:text-[#baff29] text-sm font-bold tracking-widest uppercase transition-colors"
+                className="font-arena text-gray-300 hover:text-[#ff7a1a] text-sm font-bold tracking-widest uppercase transition-colors"
               >
                 {l.name}
               </a>
             ))}
             <a
               href="#membership"
-              className="font-arena bg-[#baff29] text-[#081410] font-bold text-sm tracking-widest uppercase px-5 py-2 hover:bg-[#a8ec1a] transition-colors"
+              className="font-arena bg-[#ff7a1a] text-white font-bold text-sm tracking-widest uppercase px-5 py-2 hover:bg-[#f0700f] transition-colors"
               style={{ clipPath: "polygon(0 0, 100% 0, 100% 75%, 88% 100%, 0 100%)" }}
             >
               মেম্বারশিপ
@@ -58,7 +58,7 @@ const Navbar = () => {
           <button
             onClick={() => setOpen(!open)}
             aria-label="Toggle menu"
-            className="md:hidden inline-flex items-center justify-center w-10 h-10 text-white hover:text-[#baff29] transition-colors"
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 text-white hover:text-[#ff7a1a] transition-colors"
           >
             {open ? (
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,7 +77,7 @@ const Navbar = () => {
       <div
         className={`${
           open ? "max-h-96 opacity-100 py-5" : "max-h-0 opacity-0"
-        } md:hidden overflow-hidden transition-all duration-300 ease-in-out bg-[#0d1c17] border-t border-[#baff29]/10`}
+        } md:hidden overflow-hidden transition-all duration-300 ease-in-out bg-[#0b0b14] border-t border-[#ff7a1a]/10`}
       >
         <div className="flex flex-col items-center gap-1 px-4">
           {links.map((l) => (
@@ -85,7 +85,7 @@ const Navbar = () => {
               key={l.name}
               href={l.href}
               onClick={() => setOpen(false)}
-              className="font-arena w-full text-center text-white text-base font-bold tracking-widest uppercase py-3 hover:text-[#baff29] transition-colors"
+              className="font-arena w-full text-center text-white text-base font-bold tracking-widest uppercase py-3 hover:text-[#ff7a1a] transition-colors"
             >
               {l.name}
             </a>
@@ -93,7 +93,7 @@ const Navbar = () => {
           <a
             href="#membership"
             onClick={() => setOpen(false)}
-            className="font-arena mt-2 w-full text-center bg-[#baff29] text-[#081410] font-bold text-sm tracking-widest uppercase py-3"
+            className="font-arena mt-2 w-full text-center bg-[#ff7a1a] text-white font-bold text-sm tracking-widest uppercase py-3"
           >
             মেম্বারশিপ
           </a>
