@@ -40,7 +40,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v27" // ✅ v24 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
+const CACHE_VERSION = "uthiyo-v28" // ✅ v24 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
 self.__token = ""
 self.__isFreshInstall = false
 
@@ -102,18 +102,25 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         try {
           // আগে নেটওয়ার্ক থেকে চেষ্টা করুন (সবসময় লেটেস্ট ভার্সন পাওয়ার জন্য)
-          const networkResponse = await fetch(request)
-          return networkResponse
-        } catch (err) {
-          // নেটওয়ার্ক fail করলে (offline / flaky connection) cache থেকে fallback
-          const cache = await caches.open(CACHE_VERSION)
-          const cached =
-            (await cache.match(request)) ||
-            (isNavigation ? await cache.match("/index.html") : null)
+          return await fetch(request)
+        } catch (networkErr) {
+          // নেটওয়ার্ক fail করলে (offline / flaky connection) cache থেকে fallback —
+          // এই ব্লকটা নিজেও try/catch-এ মোড়ানো, কারণ caches.open/match নিজেও
+          // fail করতে পারে (quota, corrupted cache, ইত্যাদি) এবং সেটা যেন
+          // কখনো unhandled rejection না হয়ে যায়।
+          try {
+            const cache = await caches.open(CACHE_VERSION)
+            const cached =
+              (await cache.match(request)) ||
+              (isNavigation ? await cache.match("/index.html") : null)
 
-          if (cached) return cached
+            if (cached) return cached
+          } catch (cacheErr) {
+            console.error("SW cache fallback failed:", cacheErr)
+          }
 
-          // কিছুই cache-এ না থাকলে safe response দিন, promise reject হতে দেবেন না
+          // কিছুই cache-এ না থাকলে বা cache access-ই fail করলে —
+          // সবসময় একটা valid Response রিটার্ন করুন, promise কখনো reject হতে দেবেন না
           return new Response(
             isManifest ? "{}" : "You are offline",
             {
