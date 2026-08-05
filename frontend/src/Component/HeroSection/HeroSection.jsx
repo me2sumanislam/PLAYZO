@@ -14,13 +14,15 @@ const Hero = () => {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   // rotates the scoreboard ticker line every few seconds
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => (t + 1) % tickerLines.length), 2600);
+    const id = setInterval(
+      () => setTick((t) => (t + 1) % tickerLines.length),
+      2600
+    );
     return () => clearInterval(id);
   }, []);
 
@@ -50,12 +52,6 @@ const Hero = () => {
     }
   };
 
-  const games = [
-    { name: "Free Fire", code: "FF" },
-    { name: "PUBG", code: "PB" },
-    { name: "Ludo", code: "LD" },
-  ];
-
   const tickerLines = [
     "সলো ম্যাচ শুরু হচ্ছে রাত ৯:৩০ মিনিটে",
     "আজকের প্রাইজপুল ৳৫০,০০০+",
@@ -65,154 +61,111 @@ const Hero = () => {
   return (
     <section
       id="home"
-      className="relative overflow-hidden bg-[#081410] pt-12 pb-24 px-6"
+      className="relative overflow-hidden pt-16 pb-24 px-6"
+      style={{
+        background: "linear-gradient(135deg, #4F6EF7 0%, #8B5CF6 50%, #A855F7 100%)",
+      }}
     >
-      <style>
-        {`
-          @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap');
-          .font-arena { font-family: 'Rajdhani', sans-serif; }
+      {/* Floating icons */}
+      <div className="absolute top-20 right-[28%] text-yellow-300 text-2xl opacity-80 animate-bounce">
+        📢
+      </div>
+      <div className="absolute top-40 right-[12%] text-yellow-200 text-xl opacity-70">
+        💰
+      </div>
+      <div className="absolute bottom-32 left-[18%] text-white/60 text-2xl">
+        🎮
+      </div>
+      <div className="absolute bottom-20 right-[22%] text-yellow-300 text-lg opacity-80">
+        ⚡
+      </div>
 
-          @keyframes sweep {
-            0% { transform: translateX(-20%) rotate(8deg); opacity: 0.15; }
-            50% { transform: translateX(20%) rotate(8deg); opacity: 0.3; }
-            100% { transform: translateX(-20%) rotate(8deg); opacity: 0.15; }
-          }
-          .floodlight {
-            animation: sweep 9s ease-in-out infinite;
-          }
-
-          @keyframes cardDrift {
-            0%, 100% { transform: rotate(-3deg) translateY(0); }
-            50% { transform: rotate(-3deg) translateY(-12px); }
-          }
-          .scoreboard-card {
-            animation: cardDrift 5s ease-in-out infinite;
-          }
-
-          @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
-          }
-          .live-dot {
-            animation: blink 1.4s ease-in-out infinite;
-          }
-        `}
-      </style>
-
-      {/* stadium floodlight beams */}
-      <div className="floodlight pointer-events-none absolute -top-40 left-1/4 w-[60rem] h-[60rem] bg-[#baff29]/10 blur-[120px] rounded-full" />
-      <div className="pointer-events-none absolute -bottom-32 -right-20 w-[30rem] h-[30rem] bg-[#00d9ff]/10 blur-[100px] rounded-full" />
-
-      {/* faint grid texture, like a scoreboard grid */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage:
-            "linear-gradient(#baff29 1px, transparent 1px), linear-gradient(90deg, #baff29 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-        }}
-      />
-
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-14 relative z-10">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
         {/* Left Side Text */}
         <div className="w-full md:w-1/2 text-center md:text-left order-2 md:order-1">
-          <span className="font-arena inline-flex items-center gap-2 text-[#baff29] text-xs md:text-sm font-bold tracking-[0.3em] uppercase border border-[#baff29]/30 px-3 py-1 rounded-sm">
-            <span className="w-1.5 h-1.5 bg-[#baff29] rounded-full live-dot" />
-            লাইভ টুর্নামেন্ট আরিনা
-          </span>
-
-          <h1 className="mt-5 text-4xl md:text-6xl font-black text-white leading-[1.05]">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.15]">
             বাংলাদেশের সেরা
             <br />
-            <span className="text-[#baff29]">টুর্নামেন্ট</span> অ্যাপ
+            <span className="text-[#FF7A00]">ফ্রি ফায়ার টুর্নামেন্ট</span>
+            <br />
+            অ্যাপ
           </h1>
 
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-7">
-            {games.map((game, index) => (
-              <span
-                key={index}
-                className="font-arena flex items-center gap-2 bg-white/[0.04] border-l-2 border-[#baff29] pl-3 pr-4 py-2 text-white text-sm font-bold tracking-wide"
-              >
-                <span className="text-[#baff29] text-[10px] font-black">
-                  {game.code}
-                </span>
-                {game.name}
-              </span>
-            ))}
-            <span className="text-gray-400 text-sm italic px-2">
-              + আরও অনেক গেম
-            </span>
-          </div>
-
-          <p className="mt-8 text-gray-300 font-medium text-base md:text-lg max-w-xl mx-auto md:mx-0 leading-relaxed">
-            প্রতিদিন নতুন টুর্নামেন্ট, বিশাল পুরস্কার এবং অসাধারণ গেমিং
-            অভিজ্ঞতা।
+          <p className="mt-6 text-white/90 text-base md:text-lg max-w-lg mx-auto md:mx-0 leading-relaxed">
+            প্রতিদিন নতুন টুর্নামেন্ট, বিশাল পুরস্কার এবং অসাধারণ গেমিং অভিজ্ঞতা।
+            <br />
+            বাংলাদেশের সবচেয়ে বড় ফ্রি ফায়ার কমিউনিটিতে যোগ দিন।
           </p>
 
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+          {/* Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
             <button
               onClick={handleDownload}
-              className="relative bg-[#baff29] hover:bg-[#a8ec1a] active:bg-[#96d915]
-                         text-[#081410] font-arena font-bold py-4 px-10 text-lg
-                         transition-all active:scale-95 flex items-center justify-center gap-2"
-              style={{ clipPath: "polygon(0 0, 100% 0, 100% 80%, 92% 100%, 0 100%)" }}
+              className="bg-[#FF7A00] hover:bg-[#e86d00] active:bg-[#d46200]
+                         text-white font-bold py-3.5 px-8 rounded-full text-lg
+                         transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30"
             >
-              এখনই ডাউনলোড করুন
+              ↓ এখনই ডাউনলোড করুন
             </button>
 
-            <button className="border border-white/20 text-white font-arena font-bold px-8 py-4 hover:border-[#00d9ff] hover:text-[#00d9ff] transition-all active:scale-95">
-              ভিডিও দেখুন
+            <button className="border-2 border-white/40 text-white font-bold px-8 py-3.5 rounded-full
+                               hover:bg-white/10 hover:border-white transition-all active:scale-95 flex items-center justify-center gap-2">
+              ▶ ভিডিও দেখুন
             </button>
           </div>
 
-          <p className="mt-4 text-xs text-gray-500">
+          {/* Stats */}
+          <div className="mt-12 flex flex-wrap justify-center md:justify-start gap-8 md:gap-12">
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-black text-white">১০০</p>
+              <p className="text-white/70 text-sm mt-1">দৈনিক টুর্নামেন্ট</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-black text-white">৫০,০০০</p>
+              <p className="text-white/70 text-sm mt-1">সক্রিয় খেলোয়াড়</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-black text-white">১০,০০,০০০</p>
+              <p className="text-white/70 text-sm mt-1">পুরস্কার বিতরণ</p>
+            </div>
+          </div>
+
+          <p className="mt-6 text-xs text-white/50">
             {isReady
               ? "✅ Install Prompt Ready"
               : "⏳ Waiting for install prompt..."}
           </p>
         </div>
 
-        {/* Right Side: floating scoreboard card (replaces phone mockup) */}
+        {/* Right Side - Phone Mockup */}
         <div className="w-full md:w-1/2 flex justify-center order-1 md:order-2">
-          <div className="scoreboard-card relative w-full max-w-sm bg-[#0d1c17] border border-[#baff29]/20 rounded-lg shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]">
-            {/* header bar */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
-              <span className="font-arena text-white font-bold tracking-widest text-sm">
-                MATCH BOARD
-              </span>
-              <span className="flex items-center gap-1.5 text-[#ff4d4d] text-[10px] font-bold tracking-widest">
-                <span className="w-1.5 h-1.5 bg-[#ff4d4d] rounded-full live-dot" />
-                LIVE
-              </span>
-            </div>
+          <div className="relative">
+            {/* Phone frame */}
+            <div className="w-[260px] h-[520px] bg-black rounded-[2.5rem] border-[10px] border-gray-800 shadow-2xl overflow-hidden relative">
+              {/* Notch */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl z-20" />
 
-            {/* big score-style stats */}
-            <div className="grid grid-cols-3 divide-x divide-white/10 py-6">
-              {[
-                { label: "টুর্নামেন্ট", value: "১০০+" },
-                { label: "খেলোয়াড়", value: "৫০k" },
-                { label: "প্রাইজ", value: "১০L" },
-              ].map((s, i) => (
-                <div key={i} className="text-center px-2">
-                  <p className="font-arena text-[#baff29] text-2xl md:text-3xl font-black">
-                    {s.value}
-                  </p>
-                  <p className="text-gray-400 text-[10px] tracking-widest mt-1 uppercase">
-                    {s.label}
-                  </p>
+              {/* Screen content */}
+              <div className="w-full h-full bg-black flex items-center justify-center">
+                <div className="bg-white rounded-3xl p-6 shadow-xl">
+                  {/* App Logo */}
+                  <div className="w-40 h-40 mx-auto relative">
+                    {/* You can replace this with your actual logo image */}
+                    <div className="w-full h-full rounded-2xl bg-gradient-to-br from-red-600 via-green-600 to-red-700 flex flex-col items-center justify-center text-white relative overflow-hidden">
+                      <div className="absolute inset-0 opacity-30">
+                        <div className="absolute top-2 left-2 text-4xl">🐅</div>
+                      </div>
+                      <p className="font-black text-2xl tracking-wider z-10">KHELO</p>
+                      <p className="text-xs font-bold tracking-widest z-10">BANGLADESH</p>
+                      <p className="text-yellow-300 font-black text-sm mt-1 z-10">OFFICIAL</p>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              </div>
             </div>
 
-            {/* rotating ticker line, like a stadium LED display */}
-            <div className="mx-4 mb-5 bg-black/40 border border-white/10 rounded px-4 py-3 overflow-hidden">
-              <p
-                key={tick}
-                className="font-arena text-[#00d9ff] text-xs md:text-sm font-semibold tracking-wide"
-              >
-                ▸ {tickerLines[tick]}
-              </p>
-            </div>
+            {/* Soft glow behind phone */}
+            <div className="absolute -inset-8 bg-purple-400/30 blur-3xl rounded-full -z-10" />
           </div>
         </div>
       </div>
