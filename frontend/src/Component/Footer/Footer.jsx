@@ -1,100 +1,93 @@
- import React from 'react';
+ import React from "react";
 
-const Footer = () => {
-  return (
-    <footer className="bg-[#0f172a] text-white pt-16 pb-8 px-6 border-t border-white/5">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
-        
-        {/* --- Section 1: Logo & About --- */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-1 group cursor-pointer">
-            <div className="w-10 h-10 bg-gradient-to-tr from-[#ff8a00] to-[#ff5f00] rounded-xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,138,0,0.4)]">
-              <span className="text-white font-black text-2xl">U</span>
-            </div>
-            <div className="flex items-baseline">
-              <span className="text-white text-2xl font-black tracking-tighter ml-1">uthi</span>
-              <span className="text-[#ff8a00] text-3xl font-black italic">YO</span>
-            </div>
+const Footer = () => (
+  <footer className="bg-[#081410] text-white pt-14 md:pt-16 pb-8 px-4 sm:px-6 border-t border-[#baff29]/10">
+    <style>
+      {`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap');
+        .font-arena { font-family: 'Rajdhani', sans-serif; }
+      `}
+    </style>
+
+    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-12">
+      {/* Brand + about */}
+      <div className="space-y-5">
+        <div className="flex items-center gap-2">
+          <div
+            className="w-9 h-9 bg-[#baff29] flex items-center justify-center font-black text-[#081410] text-lg"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 75%, 85% 100%, 0 100%)" }}
+          >
+            U
           </div>
-          <p className="text-gray-400 leading-relaxed max-w-sm">
-            uthiYO হলো বাংলাদেশের উদীয়মান ই-স্পোর্টস প্ল্যাটফর্ম। আমরা গেমারদের দক্ষতা প্রদর্শনের এবং বড় পুরস্কার জেতার সুযোগ করে দিই। আজই আমাদের কমিউনিটিতে যোগ দিন।
-          </p>
+          <span className="font-arena text-xl font-bold tracking-wide">
+            uthi<span className="text-[#baff29]">YO</span>
+          </span>
         </div>
-
-        {/* --- Section 2: Contact Us --- */}
-        <div>
-          <h3 className="text-xl font-bold mb-6 border-l-4 border-[#ff8a00] pl-3">Contact Us</h3>
-          <ul className="space-y-4">
-            <li>
-              <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
-                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">WhatsApp</span>
-                <span className="text-sm">+880 1XXX-XXXXXX</span>
-              </a>
-            </li>
-            <li>
-              <a href="mailto:support@uthiyo.com" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
-                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">Gmail</span>
-                <span className="text-sm">support@uthiyo.com</span>
-              </a>
-            </li>
-            <li>
-              <a href="https://www.youtube.com/@Uthiyo-i5l" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
-                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">YouTube</span>
-                <span className="text-sm">uthiYO OfficialYouTubeChanel</span>
-              </a>
-            </li>
-            <li>
-              <a href="https://www.facebook.com/share/p/1B4qzJjBJR/" className="flex items-center gap-3 text-gray-400 hover:text-[#ff8a00] transition-colors group">
-                <span className="bg-white/5 p-2 rounded-lg group-hover:bg-[#ff8a00]/10">Facebook</span>
-                <span className="text-sm">facebookPage</span>
-              </a>
-            </li>
-          </ul>
-        </div>
-
-        {/* --- Section 3: Navigation Links --- */}
-        <div>
-          <h3 className="text-xl font-bold mb-6 border-l-4 border-[#ff8a00] pl-3">Quick Links</h3>
-          <ul className="grid grid-cols-2 md:grid-cols-1 gap-4">
-            <li>
-              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
-                <span className="text-[#ff8a00]">»</span> হোম
-              </a>
-            </li>
-            <li>
-              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
-                <span className="text-[#ff8a00]">»</span> টুর্নামেন্ট
-              </a>
-            </li>
-            <li>
-              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
-                <span className="text-[#ff8a00]">»</span> আমাদের সম্পর্কে
-              </a>
-            </li>
-            <li>
-              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
-                <span className="text-[#ff8a00]">»</span> নিয়মাবলী
-              </a>
-            </li>
-            <li>
-              <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2">
-                <span className="text-[#ff8a00]">»</span> প্রাইভেসি পলিসি
-              </a>
-            </li>
-          </ul>
-        </div>
-
-      </div>
-
-      {/* Copyright Bottom Bar */}
-      <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/5 text-center">
-        <p className="text-gray-500 text-sm">
-          © {new Date().getFullYear()} <span className="text-gray-300 font-bold">uthiYO</span>. All rights reserved. 
-          <br className="md:hidden" /> Developed by <span className="text-[#ff8a00]">md.suman islam(MERN)</span>
+        <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
+          uthiYO হলো বাংলাদেশের উদীয়মান ই-স্পোর্টস প্ল্যাটফর্ম। আমরা গেমারদের
+          দক্ষতা প্রদর্শনের এবং বড় পুরস্কার জেতার সুযোগ করে দিই। আজই আমাদের
+          কমিউনিটিতে যোগ দিন।
         </p>
       </div>
-    </footer>
-  );
-};
+
+      {/* Contact */}
+      <div>
+        <h3 className="font-arena text-lg font-bold mb-5 border-l-2 border-[#baff29] pl-3 uppercase tracking-wide">
+          যোগাযোগ
+        </h3>
+        <ul className="space-y-3 text-sm">
+          <li>
+            <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-[#baff29] transition-colors">
+              <span className="text-[#00d9ff]">WhatsApp</span> +880 1XXX-XXXXXX
+            </a>
+          </li>
+          <li>
+            <a href="mailto:support@uthiyo.com" className="flex items-center gap-3 text-gray-400 hover:text-[#baff29] transition-colors">
+              <span className="text-[#00d9ff]">Gmail</span> support@uthiyo.com
+            </a>
+          </li>
+          <li>
+            <a href="https://www.youtube.com/@Uthiyo-i5l" className="flex items-center gap-3 text-gray-400 hover:text-[#baff29] transition-colors">
+              <span className="text-[#00d9ff]">YouTube</span> uthiYO Official
+            </a>
+          </li>
+          <li>
+            <a href="https://www.facebook.com/share/p/1B4qzJjBJR/" className="flex items-center gap-3 text-gray-400 hover:text-[#baff29] transition-colors">
+              <span className="text-[#00d9ff]">Facebook</span> Facebook Page
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      {/* Quick links */}
+      <div>
+        <h3 className="font-arena text-lg font-bold mb-5 border-l-2 border-[#baff29] pl-3 uppercase tracking-wide">
+          কুইক লিংক
+        </h3>
+        <ul className="grid grid-cols-2 md:grid-cols-1 gap-3 text-sm">
+          {["হোম", "টুর্নামেন্ট", "আমাদের সম্পর্কে", "নিয়মাবলী", "প্রাইভেসি পলিসি"].map(
+            (t) => (
+              <li key={t}>
+                <a href="#" className="text-gray-400 hover:text-white flex items-center gap-2 transition-colors">
+                  <span className="text-[#baff29]">»</span> {t}
+                </a>
+              </li>
+            )
+          )}
+        </ul>
+      </div>
+    </div>
+
+    <div className="max-w-7xl mx-auto mt-12 md:mt-16 pt-8 border-t border-white/5 text-center">
+      <p className="text-gray-500 text-xs md:text-sm">
+        © {new Date().getFullYear()}{" "}
+        <span className="text-gray-300 font-bold">uthiYO</span>. All rights
+        reserved.
+        <br className="md:hidden" /> Developed by{" "}
+        <span className="text-[#baff29]">md.suman islam(MERN)</span>
+      </p>
+    </div>
+  </footer>
+);
 
 export default Footer;

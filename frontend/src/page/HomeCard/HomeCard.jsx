@@ -1,116 +1,139 @@
  import React from 'react';
 
+const services = [
+  {
+    title: '১০০% স্বচ্ছ প্ল্যাটফর্ম',
+    desc: 'কথা দিলে কথা রাখি। কোনো প্রতারণা নয়, শুধু স্বচ্ছ ও নির্ভরযোগ্য সার্ভিস।',
+  },
+  {
+    title: 'দ্রুত পেমেন্ট',
+    desc: 'বিকাশ, নগদ, রকেট, ব্যাংক — সব মাধ্যমে ইনস্ট্যান্ট ডিপোজিট ও উইথড্রয়াল।',
+  },
+  {
+    title: '২৪/৭ লাইভ সাপোর্ট',
+    desc: 'আমাদের টিম সবসময় অনলাইনে। যেকোনো সমস্যায় তাৎক্ষণিক রেসপন্স পাবেন।',
+  },
+  {
+    title: 'সক্রিয় কমিউনিটি',
+    desc: 'টেলিগ্রাম ও ফেসবুক গ্রুপ ২৪ ঘণ্টা সক্রিয়। আপডেট, টিপস ও সাপোর্ট পাবেন সবসময়।',
+  },
+  {
+    title: 'নিরাপদ গেমিং',
+    desc: 'অত্যাধুনিক সিকিউরিটি দিয়ে আপনার অ্যাকাউন্ট ও টাকা সম্পূর্ণ সুরক্ষিত।',
+  },
+  {
+    title: 'বড় প্রাইজপুল',
+    desc: 'নিয়মিত আকর্ষণীয় টুর্নামেন্ট ও বড় প্রাইজপুল, প্রতিদিন ভালো রিওয়ার্ড।',
+  },
+];
+
+const membership = [
+  {
+    title: 'দ্রুত পেমেন্ট',
+    desc: 'ব্যাংক, বিকাশ, নগদ, রকেট — সব মাধ্যমে তাৎক্ষণিক লেনদেন। কোনো অপেক্ষা নেই!',
+  },
+  {
+    title: '২৪/৭ লাইভ সাপোর্ট',
+    desc: 'দিন-রাত ২৪ ঘণ্টা লাইভ সাপোর্ট টিম। যেকোনো সমস্যায় তাৎক্ষণিক হেল্প পাবেন।',
+  },
+  {
+    title: 'নিরাপদ গেমিং',
+    desc: 'অত্যাধুনিক এনক্রিপশন ও সিকিউরিটি সিস্টেম। নিরাপদে খেলুন!',
+  },
+];
+
 const HomeCard = () => {
   return (
     <div className="w-full">
-      {/* CSS For Animations */}
+      {/* CSS For font + animations */}
       <style>
         {`
-          @keyframes float-slow {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-12px); }
-          }
-          .animate-card-float {
-            animation: float-slow 4s ease-in-out infinite;
-          }
+          @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap');
+          .font-arena { font-family: 'Rajdhani', sans-serif; }
         `}
       </style>
 
-      {/* === Features Section - আলাদা আলাদা কার্ড === */}
-      <section id="features" className="bg-[#f8fafc] py-16 px-6 scroll-mt-20">
+      {/* === Features Section === */}
+      <section id="features" className="bg-[#0a1712] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-slate-800">আমাদের বিশেষত্ব</h2>
-            <div className="w-20 h-1.5 bg-[#ff8a00] mx-auto mt-4 rounded-full"></div>
+          <div className="text-center mb-10 md:mb-14">
+            <span className="font-arena text-[#baff29] text-xs md:text-sm font-bold tracking-[0.3em] uppercase">
+              কেন uthiYO
+            </span>
+            <h2 className="mt-2 text-2xl md:text-4xl font-black text-white">
+              আমাদের বিশেষত্ব
+            </h2>
+            <div className="w-16 h-1 bg-[#baff29] mx-auto mt-4" />
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-            {/* সেরা সার্ভিস ১ */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ১</h3>
-              <p className="text-slate-600 leading-relaxed">
-                ১০০% Honest প্ল্যাটফর্ম। আমরা কথা দিলে কথা রাখি। কোনো প্রতারণা নয়, শুধু স্বচ্ছ ও নির্ভরযোগ্য সার্ভিস।
-              </p>
-            </div>
-
-            {/* সেরা সার্ভিস ২ */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ২</h3>
-              <p className="text-slate-600 leading-relaxed">
-                দ্রুত পেমেন্ট সিস্টেম। বিকাশ, নগদ, রকেট, ব্যাংক — সব মাধ্যমে ইনস্ট্যান্ট ডিপোজিট ও উইথড্রয়াল।
-              </p>
-            </div>
-
-            {/* সেরা সার্ভিস ৩ */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৩</h3>
-              <p className="text-slate-600 leading-relaxed">
-                ২৪/৭ লাইভ সাপোর্ট। আমাদের টিম সবসময় অনলাইনে। যেকোনো সমস্যায় তাৎক্ষণিক রেসপন্স পাবেন।
-              </p>
-            </div>
-
-            {/* সেরা সার্ভিস ৪ */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৪</h3>
-              <p className="text-slate-600 leading-relaxed">
-                সবসময় Active Community। আমাদের টেলিগ্রাম ও ফেসবুক গ্রুপ ২৪ ঘণ্টা সক্রিয়। আপডেট, টিপস ও সাপোর্ট পাবেন সবসময়।
-              </p>
-            </div>
-
-            {/* সেরা সার্ভিস ৫ */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৫</h3>
-              <p className="text-slate-600 leading-relaxed">
-                নিরাপদ ও সুরক্ষিত গেমিং। অত্যাধুনিক সিকিউরিটি দিয়ে আপনার অ্যাকাউন্ট ও টাকা সম্পূর্ণ সুরক্ষিত।
-              </p>
-            </div>
-
-            {/* সেরা সার্ভিস ৬ */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">সেরা সার্ভিস ৬</h3>
-              <p className="text-slate-600 leading-relaxed">
-                নিয়মিত আকর্ষণীয় টুর্নামেন্ট ও বড় প্রাইজপুল। Honest-এর সাথে ভালো রিওয়ার্ড পান প্রতিদিন।
-              </p>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+            {services.map((s, i) => (
+              <div
+                key={i}
+                className="bg-[#0d1c17] border border-white/5 border-l-2 border-l-[#baff29] p-6 md:p-7 hover:border-l-[#00d9ff] transition-colors"
+              >
+                <span className="font-arena text-[#baff29]/60 text-xs font-bold tracking-widest">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <h3 className="text-lg md:text-xl font-bold text-white mt-2 mb-3">
+                  {s.title}
+                </h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Live Tournaments Section */}
-      <section id="tournaments" className="bg-gradient-to-br from-[#4338ca] via-[#4f46e5] to-[#6366f1] py-16 px-6 scroll-mt-20">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-white">চলমান টুর্নামেন্ট</h2>
-            <p className="text-indigo-100 mt-2">আপনার প্রিয় গেমটি বেছে নিন এবং অংশ নিন</p>
+      {/* === Live Tournaments Section === */}
+      <section
+        id="tournaments"
+        className="bg-[#081410] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20 relative overflow-hidden"
+      >
+        <div className="pointer-events-none absolute -top-24 left-1/3 w-[40rem] h-[40rem] bg-[#00d9ff]/5 blur-[120px] rounded-full" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-10 md:mb-14">
+            <h2 className="text-2xl md:text-4xl font-black text-white">
+              চলমান টুর্নামেন্ট
+            </h2>
+            <p className="text-gray-400 mt-2 text-sm md:text-base">
+              আপনার প্রিয় গেমটি বেছে নিন এবং অংশ নিন
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 text-white hover:bg-white/15 transition-all">
+              <div
+                key={item}
+                className="bg-[#0d1c17] border border-white/10 rounded-lg p-5 md:p-6 text-white hover:border-[#baff29]/40 transition-all"
+              >
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold uppercase tracking-wide">Free Fire</h3>
-                  <div className="flex items-center gap-1.5 bg-red-500 px-3 py-1 rounded-full text-[10px] font-bold animate-pulse">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full"></span> LIVE
+                  <h3 className="font-arena text-lg font-bold uppercase tracking-wide">
+                    Free Fire
+                  </h3>
+                  <div className="flex items-center gap-1.5 bg-[#ff4d4d]/15 text-[#ff4d4d] px-2.5 py-1 text-[10px] font-bold tracking-widest">
+                    <span className="w-1.5 h-1.5 bg-[#ff4d4d] rounded-full animate-pulse" /> LIVE
                   </div>
                 </div>
 
-                <h4 className="text-lg font-semibold text-orange-400 mb-4">Solo Pro League</h4>
+                <h4 className="font-arena text-base font-semibold text-[#baff29] mb-4">
+                  Solo Pro League
+                </h4>
 
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-center gap-3 text-sm text-indigo-50">
-                    <span className="bg-white/10 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
+                <ul className="space-y-2.5 mb-6 text-sm text-gray-300">
+                  <li className="flex items-center gap-3">
+                    <span className="bg-white/5 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
                   </li>
-                  <li className="flex items-center gap-3 text-sm text-indigo-50">
-                    <span className="bg-white/10 p-1.5 rounded-lg">⏰</span> রাত ৯:৩০ মিনিট
+                  <li className="flex items-center gap-3">
+                    <span className="bg-white/5 p-1.5 rounded-lg">⏰</span> রাত ৯:৩০ মিনিট
                   </li>
-                  <li className="flex items-center gap-3 text-sm text-indigo-50">
-                    <span className="bg-white/10 p-1.5 rounded-lg">🏆</span> প্রাইজপুল: ৫০০০৳
+                  <li className="flex items-center gap-3">
+                    <span className="bg-white/5 p-1.5 rounded-lg">🏆</span> প্রাইজপুল: ৳৫,০০০
                   </li>
                 </ul>
 
-                <button className="w-full bg-[#ff8a00] hover:bg-orange-600 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg">
+                <button className="font-arena w-full bg-[#baff29] hover:bg-[#a8ec1a] text-[#081410] py-3 font-bold tracking-wide transition-all active:scale-95">
                   যোগ দিন
                 </button>
               </div>
@@ -119,43 +142,27 @@ const HomeCard = () => {
         </div>
       </section>
 
-      {/* Membership Section */}
-      <section id="membership" className="bg-white py-20 px-6 overflow-hidden scroll-mt-20">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {[
-              { 
-                title: 'দ্রুত পেমেন্ট', 
-                icon: '🚀', 
-                color: 'border-orange-200',
-                desc: 'ইনস্ট্যান্ট ডিপোজিট ও উইথড্রয়াল সুবিধা। ব্যাংক, বিকাশ, নগদ, রকেট — সব মাধ্যমে তাৎক্ষণিক লেনদেন। কোনো অপেক্ষা নেই!'
-              },
-              { 
-                title: '২৪/৭ লাইভ সাপোর্ট', 
-                icon: '📞', 
-                color: 'border-indigo-200',
-                desc: 'দিন-রাত ২৪ ঘণ্টা লাইভ সাপোর্ট টিম। যেকোনো সমস্যায় তাৎক্ষণিক হেল্প পাবেন। কখনো একা থাকবেন না!'
-              },
-              { 
-                title: 'নিরাপদ গেমিং', 
-                icon: '🛡️', 
-                color: 'border-green-200',
-                desc: 'অত্যাধুনিক এনক্রিপশন ও সিকিউরিটি সিস্টেম। আপনার অ্যাকাউন্ট, তথ্য ও টাকা সম্পূর্ণ সুরক্ষিত। নিরাপদে খেলুন!'
-              }
-            ].map((card, index) => (
-              <div 
-                key={index} 
-                className={`animate-card-float bg-white border-2 ${card.color} p-10 rounded-[2.5rem] text-center shadow-xl shadow-slate-100 hover:shadow-2xl transition-all duration-300`}
-                style={{ animationDelay: `${index * 0.4}s` }}
-              >
-                <div className="text-6xl mb-6">{card.icon}</div>
-                <h3 className="text-2xl font-black text-slate-800 mb-5">{card.title}</h3>
-                <p className="text-slate-600 leading-relaxed text-[15.5px]">
-                  {card.desc}
-                </p>
+      {/* === Membership Section === */}
+      <section id="membership" className="bg-[#0a1712] py-16 md:py-20 px-4 sm:px-6 scroll-mt-20">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          {membership.map((card, index) => (
+            <div
+              key={index}
+              className="bg-[#0d1c17] border border-[#baff29]/15 rounded-lg p-8 md:p-10 text-center hover:border-[#00d9ff]/40 transition-all"
+            >
+              <div className="w-14 h-14 mx-auto mb-6 bg-[#baff29]/10 border border-[#baff29]/30 rounded-full flex items-center justify-center">
+                <span className="font-arena text-[#baff29] font-black text-xl">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
               </div>
-            ))}
-          </div>
+              <h3 className="text-xl md:text-2xl font-black text-white mb-4">
+                {card.title}
+              </h3>
+              <p className="text-gray-400 leading-relaxed text-sm md:text-[15px]">
+                {card.desc}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
     </div>
