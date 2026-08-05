@@ -57,6 +57,15 @@ const Hero = () => {
           .animate-custom-float {
             animation: float 3s ease-in-out infinite;
           }
+
+          @keyframes deckFloat {
+            0%, 100% { transform: rotateX(52deg) rotateZ(-38deg) translateY(0); }
+            50% { transform: rotateX(52deg) rotateZ(-38deg) translateY(-10px); }
+          }
+          .deck-stack {
+            transform-style: preserve-3d;
+            animation: deckFloat 6s ease-in-out infinite;
+          }
         `}
       </style>
 
@@ -148,16 +157,68 @@ const Hero = () => {
             <div className="absolute -inset-10 bg-orange-500/20 blur-[100px] rounded-full group-hover:bg-orange-500/30 transition-all duration-1000"></div>
             <div className="relative w-[280px] md:w-[330px] aspect-[9/18.5] bg-[#020617] rounded-[3rem] border-[10px] border-[#1e293b] shadow-2xl overflow-hidden ring-4 ring-white/5">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#1e293b] rounded-b-2xl z-20"></div>
-              <div className="h-full w-full bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-24 h-24 bg-gradient-to-tr from-[#ff3d00] to-[#ff8a00] rounded-[2rem] flex items-center justify-center shadow-2xl mb-6">
-                  <span className="text-white font-black text-base leading-tight uppercase tracking-tighter">
-                    uthi
-                    <br />
-                    YO
-                  </span>
+
+              {/* Stacked screen-deck (replaces the old orange logo placeholder) */}
+              <div className="h-full w-full bg-gradient-to-b from-[#0b0d1a] to-[#06070d] flex items-center justify-center p-6 relative overflow-hidden">
+                <div
+                  style={{ perspective: "1400px" }}
+                  className="flex items-center justify-center w-full h-full"
+                >
+                  <div
+                    className="deck-stack relative"
+                    style={{ width: 170, height: 210 }}
+                  >
+                    {[4, 3, 2, 1, 0].map((i) => (
+                      <div
+                        key={i}
+                        className="absolute inset-0 rounded-xl border border-white/10"
+                        style={{
+                          background: "linear-gradient(155deg,#1a1d33,#0e0f1f)",
+                          transform: `translateZ(${-i * 22}px)`,
+                          boxShadow: "0 20px 40px -10px rgba(0,0,0,0.6)",
+                        }}
+                      >
+                        {i === 0 && (
+                          <>
+                            {/* ছোট অরেঞ্জ ব্যাজ */}
+                            <div className="absolute top-2 left-2 w-6 h-3 rounded bg-gradient-to-r from-[#ffb020] to-[#ff7a1a]" />
+
+                            {/* আর্ট প্যানেল */}
+                            <div
+                              className="absolute top-6 left-3 right-3 h-14 rounded-lg overflow-hidden"
+                              style={{
+                                background:
+                                  "radial-gradient(circle at 30% 30%, #ffffffaa, transparent 40%), radial-gradient(circle at 70% 60%, #7b3cf7, transparent 55%), radial-gradient(circle at 20% 85%, #ff7a1a, transparent 50%), linear-gradient(160deg,#22254a,#0c0d1c)",
+                              }}
+                            />
+
+                            {/* টেক্সট লেবেল */}
+                            <div className="absolute bottom-3 left-3 right-3 text-left">
+                              <p className="text-white text-[10px] font-bold leading-tight">
+                                ফ্রি ফায়ার ওয়ার্ল্ড সিরিজ
+                              </p>
+                              <p className="text-[#1fd6c8] text-[7px] font-bold tracking-widest mt-0.5">
+                                নেক্সট ইভেন্টস
+                              </p>
+                            </div>
+                          </>
+                        )}
+
+                        {/* বাকি লেয়ারগুলোতে ছোট bar + tile placeholder */}
+                        {i !== 0 && (
+                          <div className="absolute top-3 left-3 right-3 flex flex-col gap-1.5">
+                            <div className="h-1 rounded bg-white/10" />
+                            <div className="h-1 rounded bg-white/10 w-2/3" />
+                            <div className="flex gap-1.5 mt-1.5">
+                              <div className="flex-1 aspect-square rounded-md bg-white/5 border border-white/10" />
+                              <div className="flex-1 aspect-square rounded-md bg-white/5 border border-white/10" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="w-full h-4 bg-gray-200 rounded-full mb-3"></div>
-                <div className="w-4/5 h-4 bg-gray-100 rounded-full"></div>
               </div>
             </div>
           </div>
