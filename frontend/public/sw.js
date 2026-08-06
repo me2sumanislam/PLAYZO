@@ -61,7 +61,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v40" // ✅ v39 থেকে বাড়ানো হলো যাতে সব ইউজারের পুরনো (bug থাকা) SW replace হয়
+const CACHE_VERSION = "uthiyo-v41" // ✅ v39 থেকে বাড়ানো হলো যাতে সব ইউজারের পুরনো (bug থাকা) SW replace হয়
 self.__token = ""
 self.__isFreshInstall = false
 

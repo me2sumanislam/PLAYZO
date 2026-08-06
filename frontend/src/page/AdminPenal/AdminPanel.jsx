@@ -17,6 +17,7 @@ import ReferralFraudAlerts from "../Admin/ReferralFraudAlerts/ReferralFraudAlert
 import LudoTournamentManager from "../../page/LudoTournamentManager/LudoTournamentManager"; // ✅ নতুন —  
 import AnnouncementManager from "../../Component/Admin/AnnouncementManager/AnnouncementManager"; // ✅ নতুন
 import BroadcastNotification from "../../Component/Admin/BroadcastNotification/BroadcastNotification"; // ✅ নতুন
+import HomeHighlightsManager from "../../Component/Admin/HomeHighlightsManager/HomeHighlightsManager"; // ✅ নতুন — Home Highlights (notice/announcement/top player)
 
 const AdminPanel = () => {
   const [admin,  setAdmin]  = useState(null);
@@ -100,10 +101,10 @@ const AdminPanel = () => {
         {page === "payment-numbers"   && <PaymentNumbers api={api} />}
         {page === "announcement"          && <AnnouncementManager api={api} />} {/* ✅ নতুন */}
         {page === "broadcast-notification" && <BroadcastNotification api={api} />} {/* ✅ নতুন */}
+        {page === "home-highlights"        && <HomeHighlightsManager api={api} />} {/* ✅ নতুন — Home Highlights */}
 
       </main>
     </div>
   );
 };
-
 export default AdminPanel;
