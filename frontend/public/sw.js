@@ -1,6 +1,15 @@
  // public/sw.js
 import { precacheAndRoute } from 'workbox-precaching'
 
+// ✅ FIX: নেটওয়ার্ক সাময়িকভাবে fail করলে (flaky connection, timeout, deploy transition)
+// Workbox-এর internal precache routing মাঝে মাঝে unhandled promise rejection
+// ছুঁড়ে দেয় ("Failed to fetch" — sw.js:1 এর নিচে stack trace)। এটা app-এর
+// আসল কাজে কোনো প্রভাব ফেলে না, শুধু console-এ noise তৈরি করে। এই handler
+// সেই noise permanently silence করে দেয়।
+self.addEventListener("unhandledrejection", (event) => {
+  event.preventDefault()
+})
+
 // ✅ FIX: আগের filter শুধু "/" এবং "/index.html" (leading slash সহ) বাদ দিত।
 // কিন্তু vite-plugin-pwa এর manifest এ entry অনেক সময় leading slash ছাড়া
 // "index.html" আকারে থাকে — সেটা আগের filter মিস করত, precache এ থেকে যেত,
@@ -61,7 +70,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v47" // ✅ v39 থেকে বাড়ানো হলো যাতে সব ইউজারের পুরনো (bug থাকা) SW replace হয়
+const CACHE_VERSION = "uthiyo-v49" // ✅ v48 থেকে বাড়ানো হলো যাতে সব ইউজারের পুরনো (bug থাকা) SW replace হয়
 self.__token = ""
 self.__isFreshInstall = false
 
