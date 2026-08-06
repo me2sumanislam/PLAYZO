@@ -9,12 +9,20 @@ export const API_BASE = "https://playzo-vn8e.onrender.com/api";
 export const api = async (path, options = {}) => {
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token");
   try {
+    // ✅ FIX: body FormData (ছবি আপলোড) হলে Content-Type নিজে বসাবেন না —
+    // ব্রাউজার নিজেই সঠিক "multipart/form-data; boundary=..." হেডার বসায়।
+    // আগে সবসময় "application/json" জোর করে বসানো হতো, ফলে multipart
+    // request-এও JSON header যেত আর backend-এর express.json() সেটা parse
+    // করতে গিয়ে crash করত (এটাই "Unexpected token '-'" error-এর কারণ)।
+    const isFormData = options.body instanceof FormData;
+
     const res = await fetch(`${API_BASE}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
       ...options,
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
     });
     if (res.status === 401) {
       localStorage.clear();
