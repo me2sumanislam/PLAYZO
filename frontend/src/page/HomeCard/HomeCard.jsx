@@ -31,21 +31,6 @@ const services = [
   },
 ];
 
-const membership = [
-  {
-    title: 'দ্রুত পেমেন্ট',
-    desc: 'ব্যাংক, বিকাশ, নগদ, রকেট — সব মাধ্যমে তাৎক্ষণিক লেনদেন। কোনো অপেক্ষা নেই!',
-  },
-  {
-    title: '২৪/৭ লাইভ সাপোর্ট',
-    desc: 'দিন-রাত ২৪ ঘণ্টা লাইভ সাপোর্ট টিম। যেকোনো সমস্যায় তাৎক্ষণিক হেল্প পাবেন।',
-  },
-  {
-    title: 'নিরাপদ গেমিং',
-    desc: 'অত্যাধুনিক এনক্রিপশন ও সিকিউরিটি সিস্টেম। নিরাপদে খেলুন!',
-  },
-];
-
 // ── একটা হাইলাইট কার্ড (notice / announcement / top_player) ──
 const HighlightCard = ({ card }) => {
   if (card.type === "top_player") {
@@ -196,30 +181,6 @@ const HomeCard = () => {
           </div>
         </section>
       )}
-
-      {/* === Membership Section === */}
-      <section id="membership" className="bg-gradient-to-br from-[#241b5e] to-[#3d2470] py-16 md:py-20 px-4 sm:px-6 scroll-mt-20">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-          {membership.map((card, index) => (
-            <div
-              key={index}
-              className="bg-[#2a1f66]/70 border border-white/10 rounded-lg p-8 md:p-10 text-center backdrop-blur-sm hover:border-[#ff5a1f]/50 transition-all"
-            >
-              <div className="w-14 h-14 mx-auto mb-6 bg-[#ff5a1f]/10 border border-[#ff5a1f]/40 rounded-full flex items-center justify-center">
-                <span className="font-arena text-[#ff5a1f] font-black text-xl">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-              </div>
-              <h3 className="text-xl md:text-2xl font-black text-white mb-4">
-                {card.title}
-              </h3>
-              <p className="text-[#c9bdfa]/80 leading-relaxed text-sm md:text-[15px]">
-                {card.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   );
 };
