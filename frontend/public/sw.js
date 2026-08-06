@@ -1,18 +1,39 @@
  // public/sw.js
 import { precacheAndRoute } from 'workbox-precaching'
 
-// ✅ navigation URL ("/", "/index.html" ইত্যাদি) বাদ দেওয়া হলো —
-// এগুলো নিচের custom fetch handler নিজেই safe fallback সহ handle করে।
-// Workbox-কে দিয়ে এগুলো handle করালে দুইটা handler race করে এবং
-// network fail হলে Workbox-এর নিজের fetch() unhandled promise rejection ছোঁড়ে
-// ("Failed to fetch" — sw.js:1 error যেটা আপনি দেখছেন)।
+// ✅ FIX: আগের filter শুধু "/" এবং "/index.html" (leading slash সহ) বাদ দিত।
+// কিন্তু vite-plugin-pwa এর manifest এ entry অনেক সময় leading slash ছাড়া
+// "index.html" আকারে থাকে — সেটা আগের filter মিস করত, precache এ থেকে যেত,
+// আর Workbox নিজে থেকে "/" রিকোয়েস্টকে সেটার সাথে map করে (directoryIndex
+// behavior) নিজে handle করে ফেলত। Network fail হলে Workbox নিজেই unhandled
+// promise reject করত — এটাই "Failed to fetch" / sw.js এররের আসল কারণ।
+const isRootOrIndex = (url) => {
+  const clean = url.split("?")[0]
+  return (
+    clean === "/" ||
+    clean === "" ||
+    clean === "index.html" ||
+    clean === "/index.html" ||
+    clean.endsWith("/index.html")
+  )
+}
+
 const precacheEntries = (self.__WB_MANIFEST || []).filter((entry) => {
-  const url = typeof entry === "string" ? entry : entry.url;
-  if (url.includes("manifest.webmanifest")) return false;
-  if (url === "/" || url === "/index.html" || url.endsWith("/index.html")) return false;
-  return true;
-});
-precacheAndRoute(precacheEntries)
+  const url = typeof entry === "string" ? entry : entry.url
+  if (url.includes("manifest.webmanifest")) return false
+  if (isRootOrIndex(url)) return false
+  return true
+})
+
+// ✅ FIX: directoryIndex ও cleanURLs বন্ধ রাখা হলো। এর ফলে manifest এ যদি
+// ভবিষ্যতে কোনোভাবে "index.html"-জাতীয় entry ঢুকেও যায়, তাও Workbox
+// কখনো "/" কে নিজে থেকে map করে নিজের precache route এ ধরবে না —
+// "/" সবসময় নিচের custom fetch handler-ই handle করবে, network-first +
+// safe cache fallback সহ, যেটা কখনো promise reject করে না।
+precacheAndRoute(precacheEntries, {
+  directoryIndex: null,
+  cleanURLs: false,
+})
 
 // ✅ message handler সবার আগে
 self.addEventListener("message", (event) => {
@@ -40,7 +61,7 @@ self.addEventListener("message", (event) => {
   }
 })
 
-const CACHE_VERSION = "uthiyo-v39" // ✅ v24 থেকে বাড়ানো হলো যাতে পুরনো cache clear হয়
+const CACHE_VERSION = "uthiyo-v40" // ✅ v39 থেকে বাড়ানো হলো যাতে সব ইউজারের পুরনো (bug থাকা) SW replace হয়
 self.__token = ""
 self.__isFreshInstall = false
 
@@ -85,7 +106,7 @@ self.addEventListener("install", (event) => {
 })
 
 // ✅✅✅ এটাই এখন "/" এবং manifest.webmanifest-এর একমাত্র handler
-// (Workbox আর এগুলো নিয়ে হাত দেয় না, উপরের filter দেখুন)
+// (Workbox আর এগুলো নিয়ে হাত দেয় না, উপরের filter + directoryIndex:null দেখুন)
 self.addEventListener("fetch", (event) => {
   const { request } = event
 
