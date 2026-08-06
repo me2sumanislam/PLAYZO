@@ -62,6 +62,13 @@ export const NAV = [
     roles: ["super-admin", "admin"],
   },
   {
+    // ✅ নতুন — Home Highlights (হোমপেজের নোটিশ/ঘোষণা/টপ প্লেয়ার কার্ড)
+    key: "home-highlights",
+    label: "Home Highlights",
+    icon: "🏠",
+    roles: ["super-admin", "admin"],
+  },
+  {
     // ✅ নতুন — Custom broadcast push notification
     key: "broadcast-notification",
     label: "Send Notification",
