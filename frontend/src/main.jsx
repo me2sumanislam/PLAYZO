@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
-const APP_VERSION = "1.0.19";
+const APP_VERSION = "1.0.20";
 const STORAGE_KEY = "uthiyo_app_version";
 const RELOAD_GUARD_KEY = "sw_last_reload_ts";
 const RELOAD_COOLDOWN_MS = 15000; // এই সময়ের মধ্যে দ্বিতীয়বার reload হবে না

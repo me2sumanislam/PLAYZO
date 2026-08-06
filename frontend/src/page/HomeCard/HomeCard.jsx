@@ -1,4 +1,8 @@
- import React from 'react';
+ // page/HomeCard/HomeCard.jsx
+import React, { useState, useEffect } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com/api";
+const CLEAN_API_URL = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
 
 const services = [
   {
@@ -42,7 +46,88 @@ const membership = [
   },
 ];
 
+// ── একটা হাইলাইট কার্ড (notice / announcement / top_player) ──
+const HighlightCard = ({ card }) => {
+  if (card.type === "top_player") {
+    return (
+      <div className="bg-[#2a1f66]/70 border border-white/10 rounded-lg p-5 md:p-6 text-white backdrop-blur-sm hover:border-[#ff5a1f]/50 transition-all flex flex-col items-center text-center">
+        {card.badgeText && (
+          <div className="self-end -mt-1 -mr-1 mb-2 bg-[#d1373f]/20 text-[#ff8890] px-2.5 py-1 text-[10px] font-bold tracking-widest rounded">
+            {card.badgeText}
+          </div>
+        )}
+        <img
+          src={card.imageUrl || "https://via.placeholder.com/96?text=Player"}
+          alt={card.title}
+          className="w-24 h-24 rounded-full object-cover border-2 border-[#ff5a1f] mb-4"
+        />
+        <h3 className="font-arena text-lg font-bold uppercase tracking-wide">
+          {card.title}
+        </h3>
+        {card.body && (
+          <p className="text-[#c9bdfa]/80 text-sm mt-1 mb-4">{card.body}</p>
+        )}
+        <div className="flex items-center gap-4 text-sm text-[#e4defc] mt-2">
+          <div className="flex items-center gap-1.5">
+            <span className="bg-white/10 p-1.5 rounded-lg">🎯</span> {card.kills ?? 0} kills
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="bg-white/10 p-1.5 rounded-lg">🎮</span> {card.matches ?? 0} matches
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // notice / announcement
+  const isNotice = card.type === "notice";
+  return (
+    <div className="bg-[#2a1f66]/70 border border-white/10 rounded-lg p-5 md:p-6 text-white backdrop-blur-sm hover:border-[#ff5a1f]/50 transition-all">
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="font-arena text-lg font-bold uppercase tracking-wide">
+          {isNotice ? "📋 নোটিশ" : "📢 ঘোষণা"}
+        </h3>
+        {card.badgeText && (
+          <div className="flex items-center gap-1.5 bg-[#d1373f]/20 text-[#ff8890] px-2.5 py-1 text-[10px] font-bold tracking-widest rounded">
+            {card.badgeText}
+          </div>
+        )}
+      </div>
+
+      {card.title && (
+        <h4 className="font-arena text-base font-semibold text-[#ff5a1f] mb-3">
+          {card.title}
+        </h4>
+      )}
+
+      <p className="text-sm text-[#e4defc] leading-relaxed whitespace-pre-line">
+        {card.body}
+      </p>
+    </div>
+  );
+};
+
 const HomeCard = () => {
+  const [highlights, setHighlights] = useState([]);
+  const [loadingHighlights, setLoadingHighlights] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadHighlights = async () => {
+      try {
+        const res = await fetch(`${CLEAN_API_URL}/home-highlights`);
+        const data = await res.json();
+        if (!cancelled && data?.success) setHighlights(data.data || []);
+      } catch {
+        // silent — ব্যর্থ হলে সেকশনটা খালি থাকবে, বাকি হোমপেজ স্বাভাবিক থাকবে
+      } finally {
+        if (!cancelled) setLoadingHighlights(false);
+      }
+    };
+    loadHighlights();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="w-full">
       {/* CSS For font + animations */}
@@ -85,62 +170,32 @@ const HomeCard = () => {
         </div>
       </section>
 
-      {/* === Live Tournaments Section === */}
-      <section
-        id="tournaments"
-        className="bg-gradient-to-br from-[#1e1650] to-[#402a7a] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20 relative overflow-hidden"
-      >
-        <div className="pointer-events-none absolute -top-24 left-1/3 w-[40rem] h-[40rem] bg-[#ff5a1f]/10 blur-[120px] rounded-full" />
+      {/* === Home Highlights Section (notice / announcement / top player) === */}
+      {!loadingHighlights && highlights.length > 0 && (
+        <section
+          id="tournaments"
+          className="bg-gradient-to-br from-[#1e1650] to-[#402a7a] py-14 md:py-20 px-4 sm:px-6 scroll-mt-20 relative overflow-hidden"
+        >
+          <div className="pointer-events-none absolute -top-24 left-1/3 w-[40rem] h-[40rem] bg-[#ff5a1f]/10 blur-[120px] rounded-full" />
 
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-10 md:mb-14">
-            <h2 className="text-2xl md:text-4xl font-black text-white">
-              চলমান টুর্নামেন্ট
-            </h2>
-            <p className="text-[#c9bdfa] mt-2 text-sm md:text-base">
-              আপনার প্রিয় গেমটি বেছে নিন এবং অংশ নিন
-            </p>
+          <div className="max-w-7xl mx-auto relative z-10">
+            <div className="text-center mb-10 md:mb-14">
+              <h2 className="text-2xl md:text-4xl font-black text-white">
+                সর্বশেষ আপডেট
+              </h2>
+              <p className="text-[#c9bdfa] mt-2 text-sm md:text-base">
+                নোটিশ, ঘোষণা ও সপ্তাহের সেরা প্লেয়াররা
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+              {highlights.map((card) => (
+                <HighlightCard key={card.id} card={card} />
+              ))}
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div
-                key={item}
-                className="bg-[#2a1f66]/70 border border-white/10 rounded-lg p-5 md:p-6 text-white backdrop-blur-sm hover:border-[#ff5a1f]/50 transition-all"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-arena text-lg font-bold uppercase tracking-wide">
-                    Free Fire
-                  </h3>
-                  <div className="flex items-center gap-1.5 bg-[#d1373f]/20 text-[#ff8890] px-2.5 py-1 text-[10px] font-bold tracking-widest">
-                    <span className="w-1.5 h-1.5 bg-[#ff5a5a] rounded-full animate-pulse" /> LIVE
-                  </div>
-                </div>
-
-                <h4 className="font-arena text-base font-semibold text-[#ff5a1f] mb-4">
-                  Solo Pro League
-                </h4>
-
-                <ul className="space-y-2.5 mb-6 text-sm text-[#e4defc]">
-                  <li className="flex items-center gap-3">
-                    <span className="bg-white/10 p-1.5 rounded-lg">👥</span> ৪৮ জন জয়েন করেছে
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="bg-white/10 p-1.5 rounded-lg">⏰</span> রাত ৯:৩০ মিনিট
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="bg-white/10 p-1.5 rounded-lg">🏆</span> প্রাইজপুল: ৳৫,০০০
-                  </li>
-                </ul>
-
-                <button className="font-arena w-full bg-[#ff5a1f] hover:bg-[#e64f18] text-white py-3 font-bold tracking-wide transition-all active:scale-95">
-                  যোগ দিন
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* === Membership Section === */}
       <section id="membership" className="bg-gradient-to-br from-[#241b5e] to-[#3d2470] py-16 md:py-20 px-4 sm:px-6 scroll-mt-20">
