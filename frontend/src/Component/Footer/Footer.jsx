@@ -1,10 +1,39 @@
  import React from "react";
-import { Mail, Youtube, Facebook } from "lucide-react";
+import { Mail } from "lucide-react";
 
-// lucide-react has no Telegram brand icon, so it's a small custom SVG
+// lucide-react has no brand icons anymore, so custom SVGs
 const TelegramIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M21.05 3.38 2.98 10.49c-1.24.5-1.23 1.19-.23 1.5l4.63 1.45 1.79 5.53c.22.6.11.84.75.84.49 0 .71-.22 1-.5l2.35-2.28 4.7 3.47c.87.48 1.49.23 1.71-.8l3.1-14.6c.32-1.28-.48-1.85-1.73-1.72Zm-11.4 10.4-.83 4.02-1.5-4.63 9.6-6.02c.32-.2.15-.34-.13-.15L9.65 13.78Z" />
+  </svg>
+);
+
+const YoutubeIcon = ({ className }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+    <path d="m10 15 5-3-5-3z" />
+  </svg>
+);
+
+const FacebookIcon = ({ className }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
   </svg>
 );
 
@@ -25,13 +54,13 @@ const socialLinks = [
     label: "YouTube",
     value: "uthiYO Official",
     href: "https://www.youtube.com/@Uthiyo-i5l",
-    Icon: Youtube,
+    Icon: YoutubeIcon,
   },
   {
     label: "Facebook",
     value: "Facebook Page",
-    href: "https://www.facebook.com/share/p/1B4qzJjBJR/",
-    Icon: Facebook,
+    href: "https://www.facebook.com/profile.php?id=61588947116893&sk=directory_contact_info",
+    Icon: FacebookIcon,
   },
 ];
 
@@ -39,8 +68,8 @@ const socialLinks = [
 const quickLinks = [
   { label: "হোম", id: "home" },
   { label: "টুর্নামেন্ট", id: "tournament" },
-  { label: "ডাউনলোড", id: "download" }, // scrolls to the install button's wrapper div
-  { label: "ফিচার", id: "features" }, // scrolls to "আমাদের বিশেষত্ব" tab/section
+  { label: "ডাউনলোড", id: "download" },
+  { label: "ফিচার", id: "features" },
   { label: "নিয়মাবলী", id: "rules" },
   { label: "প্রাইভেসি পলিসি", id: "privacy" },
 ];
