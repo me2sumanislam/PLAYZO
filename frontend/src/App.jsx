@@ -67,16 +67,18 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Splash শেষ হলে PWA mode এ /app এ পাঠাও
-  useEffect(() => {
-    if (showSplash) return;
+  // ✅ Splash স্ক্রিনে থাকা অবস্থাতেই redirect করে ফেলি,
+  // যাতে Routes রেন্ডার হওয়ার সময় সরাসরি সঠিক পেজ (login) দেখায়,
+  // মাঝখানে ওয়েবসাইট (Navbar/Hero) এক ফ্রেমের জন্যও flash না করে।
+  const handleSplashFinish = () => {
     if (isStandaloneMode) {
       const path = window.location.pathname;
       if (path === "/" || path === "/login" || path === "") {
         navigate("/app", { replace: true });
       }
     }
-  }, [showSplash]);
+    setShowSplash(false);
+  };
 
   // ✅ OneSignal Init (Admin panel এ স্কিপ হবে)
   useEffect(() => {
@@ -210,7 +212,7 @@ function App() {
   return (
     <>
       {showSplash && (
-        <SplashScreen onFinish={() => setShowSplash(false)} />
+        <SplashScreen onFinish={handleSplashFinish} />
       )}
 
       {!showSplash && (
