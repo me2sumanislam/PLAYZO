@@ -40,8 +40,8 @@ const FacebookIcon = ({ className }) => (
 const socialLinks = [
   {
     label: "Gmail",
-    value: "supportutiyo@gmail.com",
-    href: "mailto:supportutiyo@gmail.com",
+    value: "supportuthiyo@gmail.com",
+    href: "mailto:supportuthiyo@gmail.com",
     Icon: Mail,
   },
   {
