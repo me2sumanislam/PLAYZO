@@ -40,14 +40,14 @@ const FacebookIcon = ({ className }) => (
 const socialLinks = [
   {
     label: "Gmail",
-    value: "support@uthiyo.com",
-    href: "mailto:support@uthiyo.com",
+    value: "supportutiyo@gmail.com",
+    href: "mailto:supportutiyo@gmail.com",
     Icon: Mail,
   },
   {
     label: "Telegram",
     value: "uthiYO Community",
-    href: "https://t.me/uthiyo", // TODO: replace with the real Telegram link
+    href: "https://t.me/uthiyoCommunity", // TODO: replace with the real Telegram link
     Icon: TelegramIcon,
   },
   {
