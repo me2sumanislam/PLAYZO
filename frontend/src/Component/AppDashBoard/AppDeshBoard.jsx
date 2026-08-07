@@ -758,19 +758,21 @@ const AppDashboard = ({ onLogout }) => {
         </div>
 
         {/* Ludo Banner */}
-        <div
-          onClick={() => setScreen("ludo")}
-          className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
-          style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
-        >
-          <div className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
-              <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
-            </div>
-            <p className="text-4xl">🎲</p>
-          </div>
-        </div>
+       {false && (
+  <div
+    onClick={() => setScreen("ludo")}
+    className="mt-4 rounded-2xl overflow-hidden cursor-pointer active:scale-95 transition-all"
+    style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b)" }}
+  >
+    <div className="p-4 flex items-center justify-between">
+      <div>
+        <p className="text-white text-lg font-extrabold">🎲 Ludo Tournament</p>
+        <p className="text-violet-300 text-xs">1v1 • 2v2 • 4 Player • Win Cash!</p>
+      </div>
+      <p className="text-4xl">🎲</p>
+    </div>
+  </div>
+)}
 
         {/* Categories Heading */}
         <div className="flex items-center justify-between mt-6 px-1">

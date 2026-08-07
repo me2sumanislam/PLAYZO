@@ -206,8 +206,8 @@ function App() {
   };
 
   // ✅ Announcement popup — admin panel আর install page ছাড়া সবখানে দেখাবে
-  const showAnnouncement =
-    !showSplash && !location.pathname.startsWith("/admin") && location.pathname !== "/install";
+ const showAnnouncement =
+    !showSplash && isLoggedIn && !location.pathname.startsWith("/admin") && location.pathname !== "/install";
 
   return (
     <>
