@@ -65,13 +65,13 @@ const socialLinks = [
 ];
 
 // label -> section id on the page. Update the ids to match your actual sections.
+// "ডাউনলোড" now points to the section that contains the install button —
+// change "install" below to match the actual id on that div if different.
 const quickLinks = [
   { label: "হোম", id: "home" },
   { label: "টুর্নামেন্ট", id: "tournament" },
-  { label: "ডাউনলোড", id: "download" },
+  { label: "ডাউনলোড", id: "install" },
   { label: "ফিচার", id: "features" },
-  { label: "নিয়মাবলী", id: "rules" },
-  { label: "প্রাইভেসি পলিসি", id: "privacy" },
 ];
 
 const scrollToSection = (id) => (e) => {
