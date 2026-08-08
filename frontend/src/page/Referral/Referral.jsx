@@ -2,7 +2,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-const API = import.meta.env.VITE_API_URL || "";
+// ✅ FIX: আগে fallback ছিল খালি স্ট্রিং ("") — VITE_API_URL env var build-এর সময়
+// সেট না থাকলে request চলে যেত frontend-এর নিজের ডোমেইনে (/api/referral/...),
+// backend-এর (Render) ডোমেইনে না — ফলে ৪০৪ হতো। বাকি ফাইলের মতোই এখন আসল
+// backend URL fallback হিসেবে বসানো হলো।
+const API = import.meta.env.VITE_API_URL || "https://playzo-vn8e.onrender.com";
 
 const Referral = ({ onBack, user, token }) => {
   const [referralData, setReferralData] = useState(null);
