@@ -286,13 +286,16 @@ router.put("/deposits/:id/approve", protect, adminOnly, async (req, res) => {
 
 router.put("/deposits/:id/reject", protect, adminOnly, async (req, res) => {
   try {
+    // ✅ FIX: শুধু 'pending' status এর deposit reject করা যাবে — নাহলে already
+    // approved (balance already credited) একটা deposit ভুলবশত reject করলে
+    // status "rejected" হয়ে যাবে অথচ balance ফেরত নেওয়া হবে না (inconsistent state)।
     const { rows } = await pool.query(
       `UPDATE deposits SET status = 'rejected', rejected_by = $1, updated_at = now()
-       WHERE id = $2 RETURNING *`,
+       WHERE id = $2 AND status = 'pending' RETURNING *`,
       [req.user.name, req.params.id]
     );
     const dep = rows[0];
-    if (!dep) return res.json({ success: false, message: "Not found" });
+    if (!dep) return res.json({ success: false, message: "Not found অথবা আগেই process হয়ে গেছে" });
 
     const { rows: userRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [dep.user_id]);
     log(req.user.name, `rejected deposit of ৳${dep.amount}`, userRows[0]?.name || "user", "reject");

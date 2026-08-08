@@ -138,7 +138,6 @@ router.patch("/deposit/:id", protect, adminOnly, async (req, res) => {
     const { status, reason } = req.body;   // ✅ reason নিলাম
 
     if (!["approved", "rejected"].includes(status)) {
-      client.release();
       return res.status(400).json({
         success: false,
         message: "status হবে 'approved' অথবা 'rejected'",

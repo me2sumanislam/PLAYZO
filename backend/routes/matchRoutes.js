@@ -242,11 +242,14 @@ router.get("/completed", async (req, res) => {
 
 // ── My Matches ────────────────────────────────────────────────────────────────
 // এটা যেহেতু user নিজের joined matches দেখছে, তাই এখানে সবসময় joined=true
-router.get("/my-matches", async (req, res) => {
+// ✅ SECURITY FIX (IDOR): আগে এই route এ কোনো auth middleware ছিল না, আর
+// query থেকে পাঠানো userId সরাসরি বিশ্বাস করা হতো — ফলে যে কেউ ?userId= বদলে
+// অন্য যেকোনো ইউজারের joined match history ও room ID/password দেখতে পারত।
+// এখন protect যোগ করা হলো এবং token থেকে যাচাই করা req.user.id ব্যবহার হচ্ছে।
+router.get("/my-matches", protect, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ success: false, message: "userId required" });
+    const userId = req.user.id;
 
     const { rows } = await client.query(
       `SELECT m.* FROM matches m

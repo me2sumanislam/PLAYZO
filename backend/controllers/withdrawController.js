@@ -68,7 +68,6 @@ exports.createWithdraw = async (req, res) => {
     const userId = req.user.id;
 
     if (amount < 100) {
-      client.release();
       return res.status(400).json({ message: "Minimum ৳100" });
     }
 

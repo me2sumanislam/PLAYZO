@@ -107,7 +107,8 @@ app.use("/api/announcement", require("./routes/announcementRoutes"));
 app.use("/api/ludo-result", require("./routes/ludoResultRoutes"));
 
 // ================= RESULT ROUTES =================
-app.use("/api/result", resultRoutes);
+// ✅ FIX: /api/result আগেই উপরে mount করা হয়েছে (line ~89) — এখানে আবার
+// mount করলে duplicate ছিল, সেটা সরানো হলো। শুধু /api/results (admin) বাকি থাকল।
 app.use("/api/results", resultAdminRoutes);
 
 // ================= ERROR HANDLER =================

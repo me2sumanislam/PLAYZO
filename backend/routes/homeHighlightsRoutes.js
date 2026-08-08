@@ -198,7 +198,6 @@ router.put("/reorder/bulk", protect, adminOnly, async (req, res) => {
   try {
     const { order } = req.body;
     if (!Array.isArray(order)) {
-      client.release();
       return res.status(400).json({ success: false, message: "order array দিন" });
     }
     await client.query("BEGIN");

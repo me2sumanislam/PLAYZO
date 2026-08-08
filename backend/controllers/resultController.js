@@ -64,11 +64,9 @@ exports.uploadScreenshot = [
     try {
       const userId = req.user?.id;
       if (!req.file) {
-        client.release();
         return res.status(400).json({ success: false, message: "No screenshot file received" });
       }
       if (!userId) {
-        client.release();
         return res.status(401).json({ success: false, message: "Login করুন" });
       }
 
@@ -77,7 +75,6 @@ exports.uploadScreenshot = [
       const { rows: matchRows } = await client.query(`SELECT * FROM matches WHERE id = $1`, [matchId]);
       const match = matchRows[0];
       if (!match) {
-        client.release();
         return res.status(404).json({ success: false, message: "Match পাওয়া যায়নি" });
       }
 
@@ -95,7 +92,6 @@ exports.uploadScreenshot = [
           [matchId]
         );
         if (countRows[0].count >= 48) {
-          client.release();
           return res.status(400).json({
             success: false,
             message: "এই ম্যাচে সর্বোচ্চ 48টি screenshot জমা হয়ে গেছে",

@@ -17,7 +17,6 @@ router.put("/admin/distribute/:matchId", protect, adminOnly, async (req, res) =>
   try {
     const { winners } = req.body;
     if (!Array.isArray(winners) || winners.length === 0) {
-      client.release();
       return res.status(400).json({ success: false, message: "কমপক্ষে ১ জন winner দিতে হবে" });
     }
 
