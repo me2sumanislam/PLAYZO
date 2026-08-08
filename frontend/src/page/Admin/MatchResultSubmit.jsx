@@ -55,12 +55,16 @@ const MatchResultSubmit = () => {
   // ── CS Solo / LW Solo winner state
   const [soloWinner,  setSoloWinner]  = useState("");
 
+  // ── ✅ NEW: Cancel & Refund state
+  const [refunding,   setRefunding]   = useState(false);
+
   const loadMatches = useCallback(() => {
     setError("");
     api("/matches")
       .then((d) => {
         const data = Array.isArray(d) ? d : d?.data || [];
-        setMatches(data.filter((m) => m.status !== "completed"));
+        // ✅ cancelled ম্যাচও এখানে দেখানোর দরকার নেই — কাজ শেষ
+        setMatches(data.filter((m) => m.status !== "completed" && m.status !== "cancelled"));
       })
       .catch(() => setError("Matches লোড হয়নি।"));
   }, []);
@@ -125,12 +129,58 @@ const MatchResultSubmit = () => {
   // ── Start Match ─────────────────────────────────────────────────────────────
   const startMatch = async () => {
     if (!match) return;
-    const res = await api(`/matches/live/${match._id}`, { method: "PUT" });
+
+    // ✅ min players চেক — যথেষ্ট player না থাকলে confirm করে force দিয়ে চালানোর অপশন দাও
+    if (match.minPlayers > 0 && match.joinedPlayers < match.minPlayers) {
+      const proceed = window.confirm(
+        `⚠️ কমপক্ষে ${match.minPlayers} জন লাগবে, এখন পর্যন্ত ${match.joinedPlayers} জন join করেছে।\n\n` +
+        `তবুও জোর করে Match Live করতে চান? (না চাইলে Cancel & Refund দিন)`
+      );
+      if (!proceed) return;
+    }
+
+    const res = await api(`/matches/live/${match._id}`, {
+      method: "PUT",
+      body: JSON.stringify({ force: true }),
+    });
     if (res.success) {
       setMatch((prev) => ({ ...prev, status: "live" }));
       loadMatches();
     } else {
       setError("❌ " + res.message);
+    }
+  };
+
+  // ── ✅ NEW: Cancel & Refund (এক ক্লিকে সব player কে রিফান্ড) ──────────────────
+  const cancelAndRefund = async () => {
+    if (!match) return;
+
+    const playerCount = players.length;
+    const confirmMsg =
+      playerCount > 0
+        ? `⚠️ "${match.title}" ম্যাচটি বাতিল করে ${playerCount} জন player কে রিফান্ড দিতে চান?\n\nএই কাজটি ফেরানো যাবে না।`
+        : `"${match.title}" ম্যাচটি বাতিল করতে চান? (কোনো player join করেনি)`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setRefunding(true);
+    setError("");
+    try {
+      const res = await api(`/matches/cancel-refund/${match._id}`, { method: "PUT" });
+      if (res.success) {
+        alert("✅ " + res.message);
+        setMatch(null);
+        setPlayers([]);
+        setSoloResults([]);
+        setScreenshots([]);
+        loadMatches();
+      } else {
+        setError("❌ " + (res.message || "Refund failed"));
+      }
+    } catch (err) {
+      setError("❌ Refund করতে সমস্যা হয়েছে: " + err.message);
+    } finally {
+      setRefunding(false);
     }
   };
 
@@ -296,13 +346,50 @@ const MatchResultSubmit = () => {
               {cfg.logic !== "solo_kill" && <>Prize Pool: {fmt(prizePool)} ÷ {cfg.winnerCount} জন = {fmt(Math.floor(prizePool / cfg.winnerCount))}</>}
             </div>
             <div style={{ color: "#6b7280", marginTop: 2 }}>Joined: {players.length} জন</div>
+
+            {/* ✅ NEW: Dynamic prize pool হলে টাকার breakdown দেখাও */}
+            {match.dynamicPrizePool && (
+              <div style={{ color: "#059669", marginTop: 2, fontWeight: 600 }}>
+                💰 মোট জমা: {fmt(match.totalCollected)} · Prize Pool: {fmt(match.prizePool)} · Commission: {fmt(match.platformCommission)}
+              </div>
+            )}
+
+            {/* ✅ NEW: Min players warning */}
+            {match.minPlayers > 0 && (
+              <div style={{
+                marginTop: 8, padding: "6px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                background: players.length >= match.minPlayers ? "#d1fae5" : "#fee2e2",
+                color: players.length >= match.minPlayers ? "#065f46" : "#dc2626",
+              }}>
+                {players.length >= match.minPlayers
+                  ? `✅ Minimum ${match.minPlayers} জনের শর্ত পূরণ হয়েছে`
+                  : `⚠️ কমপক্ষে ${match.minPlayers} জন লাগবে — এখন পর্যন্ত ${players.length} জন join করেছে`}
+              </div>
+            )}
           </div>
 
-          {/* Start Match */}
+          {/* Start Match + Cancel & Refund */}
           {match.status !== "live" && (
-            <button onClick={startMatch} style={{ width: "100%", padding: 12, background: "#dc2626", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 16 }}>
-              🚀 Match Live করুন
-            </button>
+            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+              <button onClick={startMatch} style={{ flex: 1, padding: 12, background: "#dc2626", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                🚀 Match Live করুন
+              </button>
+
+              {/* ✅ NEW: Cancel & Refund All বাটন */}
+              <button
+                onClick={cancelAndRefund}
+                disabled={refunding}
+                style={{
+                  flex: 1, padding: 12,
+                  background: refunding ? "#9ca3af" : "#111827",
+                  color: "#fff", border: "none", borderRadius: 10,
+                  fontWeight: 700, fontSize: 14,
+                  cursor: refunding ? "not-allowed" : "pointer",
+                }}
+              >
+                {refunding ? "⏳ Refund হচ্ছে..." : "❌ Cancel & Refund All"}
+              </button>
+            </div>
           )}
 
           {/* ── Room Update ─────────────────────────────────────────────── */}

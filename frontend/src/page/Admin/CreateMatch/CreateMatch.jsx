@@ -18,6 +18,10 @@ const CreateMatch = () => {
     gemEntryEnabled: false,
     gemEntryCost: "",
     gemEntrySlots: "",
+    // ✅ NEW — Minimum players & Dynamic Prize Pool
+    minPlayers: "",
+    dynamicPrizePool: false,
+    payoutPercent: "80",
   });
   const [msg, setMsg] = useState("");
 
@@ -66,6 +70,10 @@ const CreateMatch = () => {
         gemEntryEnabled: !!form.gemEntryEnabled,
         gemEntryCost: Number(form.gemEntryCost) || 0,
         gemEntrySlots: Number(form.gemEntrySlots) || 0,
+        // ✅ NEW
+        minPlayers: Number(form.minPlayers) || 0,
+        dynamicPrizePool: !!form.dynamicPrizePool,
+        payoutPercent: Number(form.payoutPercent) || 80,
       }),
     });
     setMsg(d.success ? "✅ Match created!" : "❌ " + (d.message || "Failed"));
@@ -85,6 +93,9 @@ const CreateMatch = () => {
         gemEntryEnabled: false,
         gemEntryCost: "",
         gemEntrySlots: "",
+        minPlayers: "",
+        dynamicPrizePool: false,
+        payoutPercent: "80",
       });
   };
 
@@ -172,7 +183,7 @@ const CreateMatch = () => {
             </div>
           </div>
 
-          {/* ✅ Gem Entry Section — নতুন */}
+          {/* ✅ Gem Entry Section */}
           <div
             style={{
               background: "#eef2ff",
@@ -214,6 +225,68 @@ const CreateMatch = () => {
                   />
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* ✅ NEW — Minimum Players & Dynamic Prize Pool Section */}
+          <div
+            style={{
+              background: "#fef3c7",
+              border: "1px solid #fcd34d",
+              borderRadius: 10,
+              padding: 14,
+            }}
+          >
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#92400e", marginBottom: 10 }}>
+              👥 Minimum Players & Dynamic Prize Pool
+            </div>
+
+            <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>
+              Minimum Players (ঐচ্ছিক — খালি রাখলে কোনো চেক হবে না)
+            </div>
+            <input
+              placeholder="যেমন: 15 — এত জন join না করলে Match শুরু হবে না"
+              style={{ ...inp, background: "#fff" }}
+              value={form.minPlayers}
+              onChange={(e) => setForm((p) => ({ ...p, minPlayers: e.target.value }))}
+            />
+            <p style={{ fontSize: 10.5, color: "#92400e", marginTop: 6, marginBottom: 0 }}>
+              সংখ্যা দিলে, তত জন player join না করলে Start Match এ warning আসবে —
+              তখন আপনি Cancel &amp; Refund দিয়ে সবাইকে টাকা ফেরত দিতে পারবেন।
+            </p>
+
+            <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                id="dynamicPrizePool"
+                checked={form.dynamicPrizePool}
+                onChange={(e) => setForm((p) => ({ ...p, dynamicPrizePool: e.target.checked }))}
+                style={{ width: 16, height: 16 }}
+              />
+              <label htmlFor="dynamicPrizePool" style={{ fontWeight: 700, fontSize: 12.5, color: "#92400e", cursor: "pointer" }}>
+                💰 Dynamic Prize Pool চালু করুন
+              </label>
+            </div>
+            <p style={{ fontSize: 10.5, color: "#92400e", marginTop: 4, marginBottom: form.dynamicPrizePool ? 8 : 0 }}>
+              চালু করলে prize pool স্বয়ংক্রিয়ভাবে (join করা মোট player × entry fee × payout %) হিসাব হবে —
+              fixed Win Prize আর ব্যবহার হবে না।
+            </p>
+
+            {form.dynamicPrizePool && (
+              <>
+                <div style={{ fontSize: 10, color: "#92400e", marginBottom: 3 }}>
+                  Payout % (মোট জমা টাকার কত % prize pool এ যাবে, বাকিটা কমিশন)
+                </div>
+                <input
+                  placeholder="83.33"
+                  style={{ ...inp, background: "#fff" }}
+                  value={form.payoutPercent}
+                  onChange={(e) => setForm((p) => ({ ...p, payoutPercent: e.target.value }))}
+                />
+                <p style={{ fontSize: 10.5, color: "#92400e", marginTop: 6, marginBottom: 0 }}>
+                  উদাহরণ: ১৫ জন × ৳১০ entry = ৳১৫০ জমা। ৮৩.৩৩% দিলে prize pool ৳১২৪, বাকি ৳২৬ আপনার commission।
+                </p>
+              </>
             )}
           </div>
 
