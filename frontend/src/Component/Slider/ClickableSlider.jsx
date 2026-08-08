@@ -9,18 +9,18 @@ const ClickableSlider = () => {
   // ================== Beautiful YouTube Slides ==================
   const slides = [
     {
-      image: "/image/slider/facebook1.png",
+      image: "/image/slider/facebook.png",
       title: "",
       subtitle: "",
       description: "",
       buttonText: "",
-      link: "https://www.facebook.com/share/p/1B4qzJjBJR/"
+      link: "https://www.facebook.com/profile.php?id=61588947116893"
     },
     {
-      image: "/image/slider/ludo.png",
+      image: "/image/slider/poster.jpeg",
       // title: "Rank Push Tips 2026",
       // subtitle: "PRO GUIDE", 
-      // description: "হিরোইক থেকে গ্র্যান্ড মাস্টারে যাওয়ার সেরা টেকনিক",
+      // description: "হিরোইক থেকে গ্র্যান্ড মাস্টারে যাওয়ার সেরা টেকনিক",
       // buttonText: "টিপস শিখুন",
       link: "#"
     },
@@ -30,10 +30,10 @@ const ClickableSlider = () => {
       // subtitle: "EPIC HIGHLIGHTS",
       // description: "গতকালের ফাইনাল ম্যাচের সেরা ক্লিপস",
       // buttonText: "হাইলাইটস দেখুন",
-      link: ""
+      link:"https://t.me/uthiyocommunity"
     },
     {
-      image: "/image/slider/youtube.png",
+      image: "/image/slider/youtubejoin.png",
       // title: "Funny Fails & Best Kills",
       // subtitle: "ENTERTAINMENT",
       // description: "মজার মুহূর্ত ও ওয়ান ট্যাপ কিল কম্পাইলেশন",
