@@ -6,23 +6,19 @@ import { useNavigate } from "react-router-dom";
 // ✅ কোনো slides prop না পাঠালে এই default গুলো ব্যবহার হবে
 const DEFAULT_SLIDES = [
   {
-    image: "/image/slider/facebook.png",
-    title: "",
-    subtitle: "",
-    description: "",
-    buttonText: "",
+    image: "/frontend/public/image/slider/facebook.png",
+    // title: "",
+    // subtitle: "",
+    // description: "",
+    // buttonText: "",
     link: "https://www.facebook.com/profile.php?id=61588947116893"
   },
   {
-    image: "/image/slider/poster.jpeg",
-    link: "#"
-  },
-  {
-    image: "/image/slider/telegram.png",
+    image: "/frontend/public/image/slider/telegramjoin.png",
     link: "https://t.me/uthiyocommunity"
   },
   {
-    image: "/image/slider/youtubejoin.png",
+    image: "/frontend/public/image/slider/youtubejoin.png",
     link: "https://www.youtube.com/@Uthiyo-i5l"
   }
 ];
