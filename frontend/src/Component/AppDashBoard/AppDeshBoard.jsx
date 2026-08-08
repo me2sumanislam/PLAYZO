@@ -596,12 +596,12 @@ const AppDashboard = ({ onLogout }) => {
     { key: "lw_duo",     title: "Lone Wolf Duo",        img: "/image/cards/longwolf.png" },
     { key: "free_match", title: "Free Match",           img: "/image/cards/freematch.png" },
   ];
-
+ 
   const sliderSlides = [
-    { image: "/image/slider/facebook1.png", link: "https://www.facebook.com/share/1aF9S8AKDF/" },
-    { image: "/image/slider/ludo.png",      link: "/ludo" },
-    { image: "/image/slider/telegram.png",  link: "https://t.me/+EBjyieShuwk4MGQ1" },
-    { image: "/image/slider/youtube.png",   link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
+    { image: "/image/slider/facebook.png", link: "https://www.facebook.com/share/1aF9S8AKDF/" },
+    { image: "/image/slider/poster.jpeg",   link: "#" }, //  
+    { image: "/image/slider/telegramjoin.png",  link: "https://t.me/+EBjyieShuwk4MGQ1" },
+    { image: "/image/slider/youtubejoin.png",   link: "https://www.youtube.com/watch?v=7uY-_hskZ4A" },
   ];
 
   // Tab change হলে result selection reset
